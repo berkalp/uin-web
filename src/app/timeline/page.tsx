@@ -8,6 +8,9 @@ import TimelineIntentPresentation from "../../components/timeline/TimelineIntent
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
 import TimelineShareButton from "../../components/timeline/TimelineShareButton";
 import TimelineAttentionPanel from "../../components/timeline/TimelineAttentionPanel";
+import IntentResolutionPanel, {
+  type IntentResolutionItem,
+} from "../../components/timeline/IntentResolutionPanel";
 import PlanWeatherBadges from "../../components/weather/PlanWeatherBadges";
 import CommunityContextList from "../../components/communities/CommunityContextList";
 import ManagedMinorTimeline from "../../components/family/ManagedMinorTimeline";
@@ -254,6 +257,18 @@ type IntentRequestRow = {
   receiver_id: string;
   target_intent_id: string;
   status: IntentRequestStatus;
+};
+
+type IntentJoinResolutionRow = {
+  id: string;
+  source_intent_id: string;
+  target_intent_id: string;
+  plan_id: string;
+  status: "pending" | "auto_resolved" | "resolved" | "kept_open" | "undone";
+  decision_reason: string | null;
+  pending_join_request_count: number | null;
+  pending_invitation_count: number | null;
+  created_at: string;
 };
 
 type IntentSportCoverContext = {
@@ -1914,6 +1929,18 @@ export default async function TimelinePage({
   }
 
   const currentUserId = user.id;
+
+  const { error: resolutionRefreshError } = await supabase.rpc(
+    "refresh_my_intent_join_resolutions"
+  );
+
+  if (resolutionRefreshError) {
+    console.warn(
+      "Intent resolution refresh failed:",
+      resolutionRefreshError.message
+    );
+  }
+
   const {
     data: familyCenterData,
     error: familyCenterError,
@@ -1970,6 +1997,7 @@ export default async function TimelinePage({
     adminResult,
     activeMatchCountResult,
     activeSeedResult,
+    intentResolutionResult,
   ] = await Promise.all([
     supabase
       .from("intents")
@@ -2060,6 +2088,23 @@ export default async function TimelinePage({
     supabase.rpc("get_my_seeds_v2", {
       p_status: "active",
     }),
+
+    supabase
+      .from("intent_join_resolutions")
+      .select(`
+        id,
+        source_intent_id,
+        target_intent_id,
+        plan_id,
+        status,
+        decision_reason,
+        pending_join_request_count,
+        pending_invitation_count,
+        created_at
+      `)
+      .eq("user_id", currentUserId)
+      .in("status", ["pending", "auto_resolved"])
+      .order("created_at", { ascending: false }),
   ]);
 
   if (
@@ -2174,6 +2219,13 @@ export default async function TimelinePage({
     console.warn(
       "Growing Seeds timeline query failed:",
       activeSeedResult.error.message
+    );
+  }
+
+  if (intentResolutionResult.error) {
+    console.warn(
+      "Intent resolution timeline query failed:",
+      intentResolutionResult.error.message
     );
   }
 
@@ -2328,6 +2380,52 @@ export default async function TimelinePage({
         plan,
       ])
     );
+
+  const resolutionRows = (
+    intentResolutionResult.data ?? []
+  ) as IntentJoinResolutionRow[];
+
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const intentResolutionItems: IntentResolutionItem[] = resolutionRows
+    .filter((row) => {
+      if (row.status === "pending") return true;
+      const createdAt = new Date(row.created_at).getTime();
+      return Number.isFinite(createdAt) && createdAt >= sevenDaysAgo;
+    })
+    .map((row) => {
+      const sourceIntent = ownedIntentById.get(row.source_intent_id) ?? null;
+      const sourceActivity = getFirst(sourceIntent?.activities);
+      const plan = planById.get(row.plan_id) ?? null;
+      const planActivity = getFirst(plan?.activities);
+      const activityName =
+        sourceActivity?.name ?? planActivity?.name ?? plan?.title ?? "this Activity";
+      const planTitle = plan?.title || planActivity?.name || activityName;
+      const planHref =
+        plan?.status === "forming"
+          ? withReturnContext(
+              `/plans/${encodeURIComponent(row.plan_id)}/planning`,
+              "/timeline",
+              "Timeline"
+            )
+          : withReturnContext(
+              `/plans/${encodeURIComponent(row.plan_id)}/activity`,
+              "/timeline",
+              "Timeline"
+            );
+
+      return {
+        resolutionId: row.id,
+        sourceIntentId: row.source_intent_id,
+        activityName,
+        planId: row.plan_id,
+        planTitle,
+        planHref,
+        status: row.status as "pending" | "auto_resolved",
+        decisionReason: row.decision_reason,
+        pendingJoinRequestCount: Number(row.pending_join_request_count ?? 0),
+        pendingInvitationCount: Number(row.pending_invitation_count ?? 0),
+      };
+    });
 
   const sportCoverIntentIds =
     Array.from(
@@ -4000,6 +4098,8 @@ export default async function TimelinePage({
           pendingIntentInvitationCount={pendingIntentInvitationCount}
           pendingManagedProfileActionCount={pendingManagedProfileActionCount}
         />
+
+        <IntentResolutionPanel items={intentResolutionItems} />
 
         {selectedView === "open" && (
           <>
