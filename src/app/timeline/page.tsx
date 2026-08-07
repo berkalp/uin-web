@@ -2,6 +2,14 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import TimelineHeader from "../../components/timeline/TimelineHeader";
+import TimelineGrowingSeeds from "../../components/timeline/TimelineGrowingSeeds";
+import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPresentation";
+import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
+import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
+import TimelineShareButton from "../../components/timeline/TimelineShareButton";
+import TimelineAttentionPanel from "../../components/timeline/TimelineAttentionPanel";
+import PlanWeatherBadges from "../../components/weather/PlanWeatherBadges";
+import CommunityContextList from "../../components/communities/CommunityContextList";
 import ManagedMinorTimeline from "../../components/family/ManagedMinorTimeline";
 import {
   type FamilyCenterData,
@@ -12,9 +20,25 @@ import {
   getActivityVisibilityLabel,
 } from "../../utils/activityVisibility";
 import {
+  groupIntentLinksByIntentId,
+  parseIntentLinkRows,
+  type IntentLinkRpcRow,
+} from "../../utils/intentLinks";
+import {
+  parseIntentCommunityRows,
+  type IntentCommunityContext,
+} from "../../utils/communities";
+import {
   type ManagedProfileSwitcherRow,
 } from "../../components/navigation/AccountContextSwitcher";
 import { createClient } from "../../utils/supabase/server";
+import {
+  hydrateVisiblePlanPresentations,
+  type VisiblePlanPresentation,
+  type VisiblePlanPresentationRow,
+} from "../../utils/planPresentationVisibility";
+import type { SeedRecord } from "../../utils/seeds";
+import { withReturnContext } from "../../utils/returnNavigation";
 
 type IntentStatus =
   | "active"
@@ -43,9 +67,11 @@ type TimelineView =
   | "open"
   | "full"
   | "closed"
+  | "forming"
   | "participating"
   | "planned"
   | "action_required"
+  | "outcome_unknown"
   | "completed"
   | "expired"
   | "cancelled";
@@ -56,16 +82,25 @@ type IntentRequestStatus =
   | "rejected";
 
 type TimelineLocation = {
-  city: string;
-  district: string;
+  country_code: string | null;
+  country_name: string | null;
+  city: string | null;
+  district: string | null;
+  scope: string | null;
 };
 
 type TimelineActivityCategory = {
+  name: string;
+  default_cover_url: string | null;
+};
+
+type TimelineSport = {
   name: string;
 };
 
 type TimelineActivity = {
   name: string;
+  default_cover_url: string | null;
   activity_categories:
     | TimelineActivityCategory
     | TimelineActivityCategory[]
@@ -97,6 +132,11 @@ type TimelineIntent = {
   expired_at: string | null;
   copied_from_intent_id: string | null;
   created_at: string;
+  sport_id: string | null;
+  sports:
+    | TimelineSport
+    | TimelineSport[]
+    | null;
   locations:
     | TimelineLocation
     | TimelineLocation[]
@@ -127,6 +167,10 @@ type PlanMember = {
     | "attended"
     | "no_show"
     | "cancelled";
+  profiles:
+    | TimelineProfile
+    | TimelineProfile[]
+    | null;
 };
 
 type PlanIntentLink = {
@@ -144,6 +188,22 @@ type TimelinePlan = {
   id: string;
   host_user_id: string;
   title: string;
+  cover_url: string | null;
+  address_text: string | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  map_url: string | null;
+  street_view_url: string | null;
+  activity_location_name: string | null;
+  activity_address_text: string | null;
+  activity_latitude: number | string | null;
+  activity_longitude: number | string | null;
+  activity_map_url: string | null;
+  activity_street_view_url: string | null;
+  meeting_location_same_as_activity: boolean;
+  activity_location_visibility:
+    | "members"
+    | "public";
   activity_id: string;
   location_id: string;
   window_start: string;
@@ -194,6 +254,18 @@ type IntentRequestRow = {
   receiver_id: string;
   target_intent_id: string;
   status: IntentRequestStatus;
+};
+
+type IntentSportCoverContext = {
+  intent_id: string;
+  sport_id: string | null;
+  sport_name: string | null;
+  sport_slug: string | null;
+  sport_cover_url: string | null;
+  primary_community_id: string | null;
+  primary_community_name: string | null;
+  community_sport_cover_url: string | null;
+  context_cover_url: string | null;
 };
 
 type PlanConversationSummary = {
@@ -260,9 +332,13 @@ type TimelineEntry =
   | IntentTimelineEntry
   | PlanTimelineEntry;
 
+type OpenMomentFilter = "all" | "now" | "upcoming" | "future";
+
 type TimelinePageProps = {
   searchParams: Promise<{
     view?: string;
+    page?: string;
+    moment?: string;
   }>;
 };
 
@@ -299,6 +375,14 @@ const TIMELINE_TABS: TimelineTab[] = [
       "bg-gray-700 text-white shadow-sm",
   },
   {
+    key: "forming",
+    label: "Forming",
+    inactiveClasses:
+      "bg-violet-50 text-violet-700 hover:bg-violet-100",
+    activeClasses:
+      "bg-violet-600 text-white shadow-sm",
+  },
+  {
     key: "participating",
     label: "Participating",
     inactiveClasses:
@@ -321,6 +405,14 @@ const TIMELINE_TABS: TimelineTab[] = [
       "bg-amber-50 text-amber-700 hover:bg-amber-100",
     activeClasses:
       "bg-amber-600 text-white shadow-sm",
+  },
+  {
+    key: "outcome_unknown",
+    label: "Outcome Unknown",
+    inactiveClasses:
+      "bg-slate-100 text-slate-700 hover:bg-slate-200",
+    activeClasses:
+      "bg-slate-700 text-white shadow-sm",
   },
   {
     key: "completed",
@@ -371,6 +463,19 @@ const INTENT_LIFECYCLE_VIEWS =
     "closed",
   ]);
 
+const TIMELINE_PAGE_SIZE = 8;
+const OPEN_UPCOMING_WINDOW_DAYS = 30;
+
+const OPEN_MOMENT_FILTERS: Array<{
+  key: OpenMomentFilter;
+  label: string;
+}> = [
+  { key: "all", label: "All" },
+  { key: "now", label: "Now" },
+  { key: "upcoming", label: "Upcoming" },
+  { key: "future", label: "Future" },
+];
+
 const INTENT_SELECT_QUERY = `
   id,
   user_id,
@@ -390,14 +495,23 @@ const INTENT_SELECT_QUERY = `
   expired_at,
   copied_from_intent_id,
   created_at,
+  sport_id,
+  sports!intents_sport_id_fkey (
+    name
+  ),
   locations (
+    country_code,
+    country_name,
     city,
-    district
+    district,
+    scope
   ),
   activities (
     name,
+    default_cover_url,
     activity_categories (
-      name
+      name,
+      default_cover_url
     )
   )
 `;
@@ -406,6 +520,20 @@ const PLAN_SELECT_QUERY = `
   id,
   host_user_id,
   title,
+  cover_url,
+  address_text,
+  latitude,
+  longitude,
+  map_url,
+  street_view_url,
+  activity_location_name,
+  activity_address_text,
+  activity_latitude,
+  activity_longitude,
+  activity_map_url,
+  activity_street_view_url,
+  meeting_location_same_as_activity,
+  activity_location_visibility,
   activity_id,
   location_id,
   window_start,
@@ -428,13 +556,18 @@ const PLAN_SELECT_QUERY = `
   expired_at,
   created_at,
   locations (
+    country_code,
+    country_name,
     city,
-    district
+    district,
+    scope
   ),
   activities (
     name,
+    default_cover_url,
     activity_categories (
-      name
+      name,
+      default_cover_url
     )
   ),
   profiles!plans_host_user_id_fkey (
@@ -448,7 +581,12 @@ const PLAN_SELECT_QUERY = `
     role,
     status,
     budget_commitment,
-    attendance_status
+    attendance_status,
+    profiles!plan_members_user_id_fkey (
+      id,
+      full_name,
+      avatar_url
+    )
   ),
   plan_intents (
     id,
@@ -552,6 +690,38 @@ function isExpiredPlan(
   );
 }
 
+const PLANNED_OUTCOME_GRACE_MS =
+  7 * 24 * 60 * 60 * 1000;
+
+function isOutcomeUnknownPlan(
+  plan: TimelinePlan
+) {
+  if (
+    plan.status !==
+      "planned"
+  ) {
+    return false;
+  }
+
+  if (!plan.scheduled_end) {
+    return false;
+  }
+
+  const scheduledEnd =
+    new Date(
+      plan.scheduled_end
+    ).getTime();
+
+  return (
+    Number.isFinite(
+      scheduledEnd
+    ) &&
+    scheduledEnd +
+      PLANNED_OUTCOME_GRACE_MS <=
+      Date.now()
+  );
+}
+
 function formatHistoryDate(
   value: string
 ) {
@@ -609,6 +779,77 @@ function isTimelineView(
   return TIMELINE_TABS.some(
     (tab) =>
       tab.key === value
+  );
+}
+
+function isOpenMomentFilter(
+  value: string | undefined
+): value is OpenMomentFilter {
+  return OPEN_MOMENT_FILTERS.some((item) => item.key === value);
+}
+
+function parseTimelinePage(value: string | undefined) {
+  const parsed = Number.parseInt(value ?? "1", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function addUtcDays(dateValue: string, days: number) {
+  const date = new Date(`${dateValue}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function getOpenIntentMoment(
+  intent: TimelineIntent,
+  today: string
+): Exclude<OpenMomentFilter, "all"> {
+  if (intent.start_date <= today && intent.end_date >= today) {
+    return "now";
+  }
+
+  const upcomingLimit = addUtcDays(today, OPEN_UPCOMING_WINDOW_DAYS);
+  if (intent.start_date > today && intent.start_date <= upcomingLimit) {
+    return "upcoming";
+  }
+
+  return "future";
+}
+
+function getTimelineEntrySortDate(entry: TimelineEntry) {
+  if (entry.kind === "intent") {
+    return entry.intent.start_date;
+  }
+
+  return (
+    entry.plan.scheduled_start ??
+    entry.plan.window_start ??
+    entry.plan.created_at
+  );
+}
+
+function formatCompactTimelineDate(value: string | null) {
+  if (!value) return "Date not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+function getTimelineHistorySortDate(entry: TimelineEntry) {
+  if (entry.kind === "intent") {
+    return entry.intent.end_date || entry.intent.created_at;
+  }
+
+  return (
+    entry.plan.completed_at ??
+    entry.plan.cancelled_at ??
+    entry.plan.expired_at ??
+    entry.plan.scheduled_end ??
+    entry.plan.window_end ??
+    entry.plan.created_at
   );
 }
 
@@ -789,6 +1030,14 @@ function getEntryView(
   }
 
   if (
+    isOutcomeUnknownPlan(
+      plan
+    )
+  ) {
+    return "outcome_unknown";
+  }
+
+  if (
     plan.status === "planned"
   ) {
     if (
@@ -827,7 +1076,14 @@ function getEntryView(
     return "participating";
   }
 
-  return plan.recruitment_status;
+  if (
+    plan.status ===
+    "forming"
+  ) {
+    return "forming";
+  }
+
+  return null;
 }
 
 function getTimelineTabLabel(
@@ -896,6 +1152,10 @@ function getActivitySectionTitle(
     return "Activities Requiring Action";
   }
 
+  if (view === "outcome_unknown") {
+    return "Activities with Unknown Outcomes";
+  }
+
   if (view === "expired") {
     return "Expired Intents & Forming Activities";
   }
@@ -949,6 +1209,12 @@ function getEmptyStateText(
   }
 
   if (
+    view === "forming"
+  ) {
+    return "You have no forming Activity currently being organized.";
+  }
+
+  if (
     view === "participating"
   ) {
     return "You are not currently participating in another person's forming Plan.";
@@ -962,7 +1228,11 @@ function getEmptyStateText(
     view ===
       "action_required"
   ) {
-    return "No ended Activity currently needs your attendance review.";
+    return "No ended Activity currently needs an outcome review.";
+  }
+
+  if (view === "outcome_unknown") {
+    return "No Activity is currently archived with an unknown outcome.";
   }
 
   if (
@@ -994,6 +1264,12 @@ function getSectionDescription(
   }
 
   if (
+    view === "forming"
+  ) {
+    return "Shared Plans you host or co-host that are currently being organized.";
+  }
+
+  if (
     view === "participating"
   ) {
     return "Forming Plans hosted by another person that you have joined.";
@@ -1010,6 +1286,10 @@ function getSectionDescription(
     return "Ended planned Activities waiting for attendance and completion confirmation.";
   }
 
+  if (view === "outcome_unknown") {
+    return "Planned Activities whose scheduled end passed more than seven days ago without a confirmed outcome. UIN does not guess whether they happened.";
+  }
+
   if (
     view === "completed"
   ) {
@@ -1017,7 +1297,7 @@ function getSectionDescription(
   }
 
   if (view === "expired") {
-    return "Intents and forming Plans whose availability window ended before they were scheduled.";
+    return "Intents and forming Plans whose availability window ended before they became a confirmed Activity.";
   }
 
   return "Cancelled Activities you hosted or participated in.";
@@ -1115,6 +1395,14 @@ function getPlanStatusLabel(
     | "participant"
 ) {
   if (
+    isOutcomeUnknownPlan(
+      plan
+    )
+  ) {
+    return "Outcome Unknown";
+  }
+
+  if (
     plan.status === "planned"
   ) {
     if (
@@ -1184,6 +1472,14 @@ function getPlanStatusClasses(
     | "co_host"
     | "participant"
 ) {
+  if (
+    isOutcomeUnknownPlan(
+      plan
+    )
+  ) {
+    return "bg-slate-100 text-slate-800";
+  }
+
   if (
     plan.status === "planned"
   ) {
@@ -1400,8 +1696,22 @@ function getUnreadCount(
 
 function ExpiredActivityCard({
   item,
+  ownedIntentById,
+  planById,
+  sportCoverContextByIntentId,
+  privatePresentationByPlanId,
 }: {
   item: ExpiredActivityHistoryRow;
+  ownedIntentById: Map<string, TimelineIntent>;
+  planById: Map<string, TimelinePlan>;
+  sportCoverContextByIntentId: Map<
+    string,
+    IntentSportCoverContext
+  >;
+  privatePresentationByPlanId: Map<
+    string,
+    VisiblePlanPresentation
+  >;
 }) {
   const participantCount =
     toFiniteNumber(
@@ -1423,18 +1733,6 @@ function ExpiredActivityCard({
       item.personal_budget
     );
 
-  const location = [
-    item.district,
-    item.city,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const historyLabel =
-    item.item_type === "plan"
-      ? "Shared Plan"
-      : "Personal Intent";
-
   const roleLabel =
     item.user_role === "host"
       ? "Plan Host"
@@ -1443,224 +1741,144 @@ function ExpiredActivityCard({
         ? "Plan Participant"
         : "Intent Owner";
 
+  const effectiveSourceIntentId =
+    item.source_intent_id ??
+    (item.item_type === "intent"
+      ? item.item_id
+      : null);
+
+  const sourceIntent =
+    effectiveSourceIntentId
+      ? ownedIntentById.get(
+          effectiveSourceIntentId
+        ) ?? null
+      : null;
+
+  const plan = item.plan_id
+    ? planById.get(
+        item.plan_id
+      ) ?? null
+    : null;
+
+  const activity =
+    getFirst(
+      plan?.activities
+    ) ??
+    getFirst(
+      sourceIntent?.activities
+    );
+
+  const category =
+    getFirst(
+      activity?.activity_categories
+    );
+
+  const sportCoverContext =
+    effectiveSourceIntentId
+      ? sportCoverContextByIntentId.get(
+          effectiveSourceIntentId
+        ) ?? null
+      : null;
+
+  const privatePresentation =
+    item.plan_id
+      ? privatePresentationByPlanId.get(
+          item.plan_id
+        ) ?? null
+      : null;
+
+  const resolvedCoverUrl =
+    privatePresentation
+      ?.signed_experience_cover_url ??
+    privatePresentation
+      ?.visible_cover_url ??
+    sportCoverContext
+      ?.context_cover_url ??
+    activity?.default_cover_url ??
+    category?.default_cover_url ??
+    null;
+
   return (
-    <article className="rounded-3xl border border-orange-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white">
-              {roleLabel}
-            </span>
-
-            <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-              {historyLabel}
-            </span>
-          </div>
-
-          <h3 className="mt-4 text-2xl font-bold text-gray-900">
-            {item.title ||
-              item.activity_name ||
-              "Expired Activity"}
-          </h3>
-
-          <p className="mt-1 text-gray-500">
-            {item.category_name ??
-              "Unknown Category"}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-orange-100 px-4 py-2 text-xs font-semibold text-orange-800">
-            Expired
-          </span>
-
-          <span className="rounded-full bg-gray-100 px-4 py-2 text-xs font-semibold text-gray-700">
-            Matching: Closed
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
-        <p>
-          Availability:{" "}
-          {formatHistoryDate(
-            item.window_start
-          )}{" "}
-          →{" "}
-          {formatHistoryDate(
-            item.window_end
-          )}
-        </p>
-
-        <p>
-          Area:{" "}
-          {location ||
-            "Location not specified"}
-        </p>
-
-        <p>
-          Participants:{" "}
-          {participantCount} /{" "}
-          {item.max_participants ??
-            "Unlimited"}
-        </p>
-
-        <p>
-          Visibility:{" "}
-          {item.visibility ??
-            "Not specified"}
-        </p>
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-orange-100 bg-orange-50 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-orange-700">
-          Availability Window Ended
-        </p>
-
-        <p className="mt-2 text-sm leading-6 text-orange-900">
-          This record was closed because
-          its availability window ended
-          before the Activity was
-          scheduled. It was not marked
-          completed or cancelled.
-        </p>
-
-        <p className="mt-3 text-xs text-orange-700">
-          Expired{" "}
-          {formatHistoryTimestamp(
-            item.expired_at
-          )}
-        </p>
-      </div>
-
-      {(personalBudget !== null ||
-        committedBudget !== null ||
-        targetBudget !== null) && (
-        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-            Historical Budget
-          </p>
-
-          <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-gray-700 sm:grid-cols-3">
-            <p>
-              Personal:{" "}
-              <span className="font-semibold">
-                {personalBudget === null
-                  ? "Not set"
-                  : `${formatBudget(
-                      personalBudget
-                    )} TL`}
-              </span>
-            </p>
-
-            <p>
-              Committed:{" "}
-              <span className="font-semibold">
-                {committedBudget === null
-                  ? "Not set"
-                  : `${formatBudget(
-                      committedBudget
-                    )} TL`}
-              </span>
-            </p>
-
-            <p>
-              Target:{" "}
-              <span className="font-semibold">
-                {targetBudget === null
-                  ? "Not set"
-                  : `${formatBudget(
-                      targetBudget
-                    )} TL`}
-              </span>
-            </p>
-          </div>
-        </div>
-      )}
-
-      {item.notes && (
-        <p className="mt-6 whitespace-pre-wrap rounded-2xl bg-gray-50 p-4 text-sm leading-7 text-gray-700">
-          {item.notes}
-        </p>
-      )}
-
-      <details className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-gray-800">
-          View History
-        </summary>
-
-        <dl className="mt-4 space-y-3 border-t border-gray-200 pt-4 text-sm">
-          <div className="flex flex-wrap justify-between gap-3">
-            <dt className="text-gray-500">
-              Record Type
-            </dt>
-
-            <dd className="font-semibold text-gray-900">
-              {historyLabel}
-            </dd>
-          </div>
-
-          <div className="flex flex-wrap justify-between gap-3">
-            <dt className="text-gray-500">
-              Recruitment
-            </dt>
-
-            <dd className="font-semibold capitalize text-gray-900">
-              {item.recruitment_status ??
-                "closed"}
-            </dd>
-          </div>
-
-          <div className="flex flex-wrap justify-between gap-3">
-            <dt className="text-gray-500">
-              Matching
-            </dt>
-
-            <dd className="font-semibold capitalize text-gray-900">
-              {item.matching_status ??
-                "closed"}
-            </dd>
-          </div>
-
-          {item.copied_from_intent_id && (
-            <div className="flex flex-wrap justify-between gap-3">
-              <dt className="text-gray-500">
-                Created From
-              </dt>
-
-              <dd className="font-semibold text-gray-900">
-                Previous Intent
-              </dd>
-            </div>
-          )}
-        </dl>
-      </details>
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
-        {item.plan_id && (
-          <Link
-            href={`/plans/${encodeURIComponent(
-              item.plan_id
-            )}/planning`}
-            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"
-          >
-            View Planning Archive
-          </Link>
-        )}
-
-        {item.can_create_again &&
-          item.source_intent_id && (
-            <Link
-              href={`/onboarding?copyFrom=${encodeURIComponent(
-                item.source_intent_id
-              )}`}
-              className="rounded-xl bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-700"
-            >
-              Create Again
-            </Link>
-          )}
-      </div>
-    </article>
+    <TimelineExpiredPresentation
+      itemType={
+        item.item_type
+      }
+      title={
+        privatePresentation?.custom_title ||
+        item.title ||
+        activity?.name ||
+        item.activity_name ||
+        "Expired Activity"
+      }
+      activityName={
+        activity?.name ??
+        item.activity_name
+      }
+      categoryName={
+        category?.name ??
+        item.category_name
+      }
+      coverUrl={
+        resolvedCoverUrl
+      }
+      city={
+        item.city
+      }
+      district={
+        item.district
+      }
+      windowStart={
+        item.window_start
+      }
+      windowEnd={
+        item.window_end
+      }
+      expiredAt={
+        item.expired_at
+      }
+      roleLabel={
+        roleLabel
+      }
+      participantCount={
+        participantCount
+      }
+      maxParticipants={
+        item.max_participants
+      }
+      personalBudget={
+        personalBudget
+      }
+      committedBudget={
+        committedBudget
+      }
+      targetBudget={
+        targetBudget
+      }
+      visibility={
+        item.visibility
+      }
+      notes={
+        item.notes
+      }
+      recruitmentStatus={
+        item.recruitment_status
+      }
+      matchingStatus={
+        item.matching_status
+      }
+      copiedFromIntentId={
+        item.copied_from_intent_id
+      }
+      planId={
+        item.plan_id
+      }
+      sourceIntentId={
+        effectiveSourceIntentId
+      }
+      canCreateAgain={
+        item.can_create_again
+      }
+    />
   );
 }
 
@@ -1676,6 +1894,12 @@ export default async function TimelinePage({
     )
       ? resolvedSearchParams.view
       : "open";
+
+  const requestedPage = parseTimelinePage(resolvedSearchParams.page);
+  const selectedMoment: OpenMomentFilter =
+    isOpenMomentFilter(resolvedSearchParams.moment)
+      ? resolvedSearchParams.moment
+      : "all";
 
   const supabase =
     await createClient();
@@ -1745,6 +1969,7 @@ export default async function TimelinePage({
     personalProfileResult,
     adminResult,
     activeMatchCountResult,
+    activeSeedResult,
   ] = await Promise.all([
     supabase
       .from("intents")
@@ -1831,6 +2056,10 @@ export default async function TimelinePage({
     supabase.rpc(
       "get_my_active_match_count"
     ),
+
+    supabase.rpc("get_my_seeds_v2", {
+      p_status: "active",
+    }),
   ]);
 
   if (
@@ -1941,6 +2170,13 @@ export default async function TimelinePage({
     );
   }
 
+  if (activeSeedResult.error) {
+    console.warn(
+      "Growing Seeds timeline query failed:",
+      activeSeedResult.error.message
+    );
+  }
+
   const joinRequests =
     (
       joinRequestResult.data ??
@@ -1948,7 +2184,18 @@ export default async function TimelinePage({
     ) as {
       direction?: string;
       request_status?: string;
+      intent_id?: string;
     }[];
+
+  const activeOwnedIntentIds = new Set(
+    ((ownedIntentResult.data ?? []) as TimelineIntent[])
+      .filter(
+        (intent) =>
+          intent.status === "active" &&
+          !intent.expired_at
+      )
+      .map((intent) => intent.id)
+  );
 
   const pendingJoinRequestCount =
     joinRequests.filter(
@@ -1956,7 +2203,11 @@ export default async function TimelinePage({
         request.direction ===
           "received" &&
         request.request_status ===
-          "pending"
+          "pending" &&
+        Boolean(
+          request.intent_id &&
+          activeOwnedIntentIds.has(request.intent_id)
+        )
     ).length;
 
   const unreadNotificationCount =
@@ -2010,6 +2261,18 @@ export default async function TimelinePage({
       0
     );
 
+
+  const growingSeeds = ((activeSeedResult.data ?? []) as SeedRecord[])
+    .filter((seed) => seed.status === "active")
+    .sort((first, second) => {
+      if (first.target_date && second.target_date) {
+        return first.target_date.localeCompare(second.target_date);
+      }
+      if (first.target_date) return -1;
+      if (second.target_date) return 1;
+      return (second.updated_at ?? "").localeCompare(first.updated_at ?? "");
+    });
+
   const ownedIntents =
     (
       ownedIntentResult.data ??
@@ -2022,6 +2285,279 @@ export default async function TimelinePage({
       []
     ) as unknown as TimelinePlan[];
 
+  const outcomeUnknownPlanIds = new Set(
+    plans
+      .filter((plan) => isOutcomeUnknownPlan(plan))
+      .map((plan) => plan.id)
+  );
+
+  const expiredActivities =
+    ((
+      expiredActivityResult.data ??
+      []
+    ) as ExpiredActivityHistoryRow[]).filter(
+      (item) => !item.plan_id || !outcomeUnknownPlanIds.has(item.plan_id)
+    );
+
+  const expiredSourceIntentIds =
+    expiredActivities
+      .map((item) =>
+        item.source_intent_id ??
+        (item.item_type === "intent"
+          ? item.item_id
+          : null)
+      )
+      .filter(
+        (intentId): intentId is string =>
+          typeof intentId === "string" &&
+          intentId.length > 0
+      );
+
+  const ownedIntentById =
+    new Map(
+      ownedIntents.map((intent) => [
+        intent.id,
+        intent,
+      ])
+    );
+
+  const planById =
+    new Map(
+      plans.map((plan) => [
+        plan.id,
+        plan,
+      ])
+    );
+
+  const sportCoverIntentIds =
+    Array.from(
+      new Set([
+        ...ownedIntents.map(
+          (intent) =>
+            intent.id
+        ),
+        ...expiredSourceIntentIds,
+        ...plans.flatMap(
+          (plan) =>
+            (
+              plan.plan_intents ??
+              []
+            )
+              .filter(
+                (link) =>
+                  link.status ===
+                  "active"
+              )
+              .map(
+                (link) =>
+                  link.intent_id
+              )
+        ),
+      ])
+    );
+
+  const {
+    data: sportCoverContextData,
+    error: sportCoverContextError,
+  } = sportCoverIntentIds.length > 0
+    ? await supabase.rpc(
+        "get_intent_sport_cover_context",
+        {
+          p_intent_ids:
+            sportCoverIntentIds,
+        }
+      )
+    : {
+        data: [],
+        error: null,
+      };
+
+  if (sportCoverContextError) {
+    console.error(
+      "Timeline sport cover context query failed:",
+      sportCoverContextError
+    );
+  }
+
+  const sportCoverContextByIntentId =
+    new Map<
+      string,
+      IntentSportCoverContext
+    >(
+      (
+        (
+          sportCoverContextData ??
+          []
+        ) as IntentSportCoverContext[]
+      ).map(
+        (context) => [
+          context.intent_id,
+          context,
+        ]
+      )
+    );
+
+  const {
+    data: privatePlanPresentationData,
+    error: privatePlanPresentationError,
+  } = plans.length > 0
+    ? await supabase.rpc(
+        "get_visible_plan_presentations",
+        {
+          p_plan_ids:
+            plans.map(
+              (plan) =>
+                plan.id
+            ),
+        }
+      )
+    : {
+        data: [],
+        error: null,
+      };
+
+  if (privatePlanPresentationError) {
+    console.error(
+      "Private shared Activity presentation query failed:",
+      privatePlanPresentationError
+    );
+  }
+
+  const privatePlanPresentations =
+    await hydrateVisiblePlanPresentations(
+      supabase,
+      (privatePlanPresentationData ?? []) as VisiblePlanPresentationRow[]
+    );
+
+  const privatePresentationByPlanId =
+    new Map(
+      privatePlanPresentations.map(
+        (presentation) => [
+          presentation.plan_id,
+          presentation,
+        ]
+      )
+    );
+
+  let intentLinkRows:
+    IntentLinkRpcRow[] =
+    [];
+
+  let intentCommunityRows:
+    IntentCommunityContext[] =
+    [];
+
+  const visibleIntentIds =
+    Array.from(
+      new Set(
+        [
+          ...ownedIntents.map(
+            (intent) =>
+              intent.id
+          ),
+          ...expiredSourceIntentIds,
+          ...plans.flatMap(
+            (plan) =>
+              (
+                plan.plan_intents ??
+                []
+              )
+                .filter(
+                  (link) =>
+                    link.status ===
+                      "active"
+                )
+                .map(
+                  (link) =>
+                    link.intent_id
+                )
+          ),
+        ]
+      )
+    );
+
+  for (
+    let startIndex = 0;
+    startIndex <
+      visibleIntentIds.length;
+    startIndex += 100
+  ) {
+    const intentIdBatch =
+      visibleIntentIds.slice(
+        startIndex,
+        startIndex + 100
+      );
+
+    const [
+      intentLinkResponse,
+      intentCommunityResponse,
+    ] = await Promise.all([
+      supabase.rpc(
+        "get_visible_intent_links",
+        { p_intent_ids: intentIdBatch }
+      ),
+      supabase.rpc(
+        "get_visible_intent_communities",
+        { p_intent_ids: intentIdBatch }
+      ),
+    ]);
+
+    if (intentLinkResponse.error) {
+      console.error(
+        "Intent related links query failed:",
+        intentLinkResponse.error
+      );
+    } else {
+      intentLinkRows.push(
+        ...((intentLinkResponse.data ?? []) as IntentLinkRpcRow[])
+      );
+    }
+
+    if (intentCommunityResponse.error) {
+      console.error(
+        "Intent Community query failed:",
+        intentCommunityResponse.error
+      );
+    } else {
+      intentCommunityRows.push(
+        ...parseIntentCommunityRows(
+          intentCommunityResponse.data
+        )
+      );
+    }
+  }
+
+  const intentLinksByIntentId =
+    groupIntentLinksByIntentId(
+      parseIntentLinkRows(
+        intentLinkRows
+      )
+    );
+
+  const intentCommunitiesByIntentId =
+    new Map<string, IntentCommunityContext[]>();
+
+  intentCommunityRows.forEach(
+    (community) => {
+      const current =
+        intentCommunitiesByIntentId.get(
+          community.intentId
+        ) ?? [];
+
+      current.push(community);
+      current.sort(
+        (left, right) =>
+          left.position - right.position
+      );
+
+      intentCommunitiesByIntentId.set(
+        community.intentId,
+        current
+      );
+    }
+  );
+
+
   const requests =
     (
       requestResult.data ??
@@ -2033,12 +2569,6 @@ export default async function TimelinePage({
       conversationSummaryResult.data ??
       []
     ) as PlanConversationSummary[];
-
-  const expiredActivities =
-    (
-      expiredActivityResult.data ??
-      []
-    ) as ExpiredActivityHistoryRow[];
 
   const conversationSummaryByPlanId =
     new Map<
@@ -2174,9 +2704,11 @@ export default async function TimelinePage({
     open: 0,
     full: 0,
     closed: 0,
+    forming: 0,
     participating: 0,
     planned: 0,
     action_required: 0,
+    outcome_unknown: 0,
     completed: 0,
     expired:
       expiredActivities.length,
@@ -2214,54 +2746,123 @@ export default async function TimelinePage({
     }
   );
 
+  const matchingEntries = timelineEntries
+    .filter((entry) => getEntryView(entry) === selectedView)
+    .sort((first, second) => {
+      const firstTime = new Date(getTimelineEntrySortDate(first)).getTime();
+      const secondTime = new Date(getTimelineEntrySortDate(second)).getTime();
+
+      if (
+        selectedView === "completed" ||
+        selectedView === "cancelled" ||
+        selectedView === "outcome_unknown"
+      ) {
+        return secondTime - firstTime;
+      }
+
+      return firstTime - secondTime;
+    });
+
+  const allOpenIntentEntries = timelineEntries.filter(
+    (entry): entry is IntentTimelineEntry =>
+      entry.kind === "intent" && getEntryView(entry) === "open"
+  );
+
+  const openMomentCounts: Record<OpenMomentFilter, number> = {
+    all: allOpenIntentEntries.length,
+    now: 0,
+    upcoming: 0,
+    future: 0,
+  };
+
+  allOpenIntentEntries.forEach((entry) => {
+    openMomentCounts[getOpenIntentMoment(entry.intent, today)] += 1;
+  });
+
+  const filteredEntries =
+    selectedView === "open" && selectedMoment !== "all"
+      ? matchingEntries.filter(
+          (entry) =>
+            entry.kind === "intent" &&
+            getOpenIntentMoment(entry.intent, today) === selectedMoment
+        )
+      : matchingEntries;
+
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredEntries.length / TIMELINE_PAGE_SIZE)
+  );
+  const safePage = Math.min(requestedPage, pageCount);
   const visibleEntries =
-    timelineEntries
-      .filter(
-        (entry) =>
-          getEntryView(entry) ===
-          selectedView
-      )
-      .sort(
-        (first, second) => {
-          const firstCreatedAt =
-            first.kind === "intent"
-              ? first.intent
-                  .created_at
-              : first.plan
-                  .created_at;
+    selectedView === "expired"
+      ? filteredEntries
+      : filteredEntries.slice(
+          (safePage - 1) * TIMELINE_PAGE_SIZE,
+          safePage * TIMELINE_PAGE_SIZE
+        );
 
-          const secondCreatedAt =
-            second.kind === "intent"
-              ? second.intent
-                  .created_at
-              : second.plan
-                  .created_at;
+  const visibleIntentEntries = visibleEntries.filter(
+    (entry): entry is IntentTimelineEntry => entry.kind === "intent"
+  );
 
-          return (
-            new Date(
-              secondCreatedAt
-            ).getTime() -
-            new Date(
-              firstCreatedAt
-            ).getTime()
-          );
-        }
-      );
 
-  const visibleIntentEntries =
-    visibleEntries.filter(
-      (
-        entry
-      ): entry is IntentTimelineEntry =>
-        entry.kind === "intent"
+  const attentionEntries = planEntries
+    .filter((entry) => getEntryView(entry) === "action_required")
+    .sort(
+      (first, second) =>
+        new Date(getTimelineEntrySortDate(first)).getTime() -
+        new Date(getTimelineEntrySortDate(second)).getTime()
     );
 
-  const visibleFormingActivityEntries =
-    visibleEntries.filter(
-      (
-        entry
-      ): entry is PlanTimelineEntry =>
-        entry.kind === "plan"
+  const comingUpEntries = planEntries
+    .filter((entry) => getEntryView(entry) === "planned")
+    .sort(
+      (first, second) =>
+        new Date(getTimelineEntrySortDate(first)).getTime() -
+        new Date(getTimelineEntrySortDate(second)).getTime()
+    )
+    .slice(0, 4);
+
+  const weatherAttentionPlans = planEntries
+    .filter((entry) => getEntryView(entry) === "planned")
+    .sort(
+      (first, second) =>
+        new Date(getTimelineEntrySortDate(first)).getTime() -
+        new Date(getTimelineEntrySortDate(second)).getTime()
+    )
+    .map((entry) => {
+      const info = getCompactPlanPresentation(entry);
+      return {
+        planId: entry.plan.id,
+        title: info.title,
+        dateLabel: info.dateLabel,
+        href: `/plans/${entry.plan.id}/activity#weather-context`,
+      };
+    });
+
+  const outcomeAttentionItems = attentionEntries.slice(0, 4).map((entry) => {
+    const info = getCompactPlanPresentation(entry);
+    return {
+      planId: entry.plan.id,
+      title: info.title,
+      dateLabel: info.dateLabel,
+      href: `/plans/${entry.plan.id}/activity#attendance-review`,
+    };
+  });
+
+  const recentTimelineHistory = timelineEntries
+    .filter((entry) => {
+      const view = getEntryView(entry);
+      return (
+        view === "completed" ||
+        view === "cancelled" ||
+        view === "outcome_unknown"
+      );
+    })
+    .sort(
+      (first, second) =>
+        new Date(getTimelineHistorySortDate(second)).getTime() -
+        new Date(getTimelineHistorySortDate(first)).getTime()
     );
 
   const isIntentLifecycleView =
@@ -2296,6 +2897,18 @@ export default async function TimelinePage({
             ?.activity_categories
         );
 
+      const sport =
+        getFirst(
+          intent.sports
+        );
+
+
+      const sportCoverContext =
+        sportCoverContextByIntentId.get(
+          intent.id
+        ) ??
+        null;
+
       const requestCount =
         requestCountByIntentId.get(
           intent.id
@@ -2309,215 +2922,242 @@ export default async function TimelinePage({
               intent.max_participants
             );
 
+      const timelineReturnHref = buildTimelineHref();
+      const intentViewHref = withReturnContext(
+        `/activities/${encodeURIComponent(intent.id)}`,
+        timelineReturnHref,
+        "Timeline",
+        "timeline"
+      );
+
       return (
         <article
           key={`intent-${intent.id}`}
-          className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+          className="relative flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-gray-900 px-3 py-1 text-xs font-semibold text-white">
-                  Intent Owner
-                </span>
-
-                <p className="text-xs font-semibold uppercase tracking-wide text-green-600">
-                  {
-                    intent.intent_type
-                  }
-                </p>
-              </div>
-
-              <h3 className="mt-4 text-2xl font-bold text-gray-900">
-                {activity?.name ??
-                  "Unknown Activity"}
-              </h3>
-
-              <p className="mt-1 text-gray-500">
-                {category?.name ??
-                  "Unknown Category"}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-4 py-2 text-xs font-semibold ${getIntentStatusClasses(
-                  intent
-                )}`}
-              >
-                {getIntentStatusLabel(
-                  intent
-                )}
-              </span>
-
-              {requestCount >
-                0 &&
-                intent.status ===
-                  "active" && (
-                  <Link
-                    href="/requests"
-                    className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
-                  >
-                    {
-                      requestCount
-                    }{" "}
-                    request
-                    {requestCount >
-                    1
-                      ? "s"
-                      : ""}{" "}
-                    waiting
-                  </Link>
-                )}
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
-            <p>
-              Availability:{" "}
-              {
-                intent.start_date
-              }{" "}
-              →{" "}
-              {
-                intent.end_date
-              }
-            </p>
-
-            <p>
-              Area:{" "}
-              {location?.district ??
-                "Unknown District"}
-              ,{" "}
-              {location?.city ??
-                "Unknown City"}
-            </p>
-
-            <p>
-              Preference:{" "}
-              {
-                intent.people
-              }
-            </p>
-
-            <p>
-              Recurrence:{" "}
-              {
-                intent.recurrence
-              }
-            </p>
-
-            <p>
-              Budget:{" "}
-              {intent.budget !==
-              null
-                ? `${formatBudget(
-                    intent.budget
-                  )} TL`
-                : "No defined budget"}
-            </p>
-
-            <p>
-              Visible to:{" "}
-              {getActivityVisibilityLabel(
-                intent.visibility
-              )}
-            </p>
-          </div>
-
-          <div className="mt-6 rounded-2xl border border-gray-100 bg-gray-50 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-500">
-                  Participant
-                  capacity
-                </p>
-
-                <p className="mt-2 text-xl font-bold text-gray-900">
-                  0 /{" "}
-                  {
-                    participantLimit
-                  }
-                </p>
-              </div>
-
-              <p
-                className={`text-sm font-semibold ${
-                  intent.recruitment_status ===
-                  "open"
-                    ? "text-green-700"
-                    : intent.recruitment_status ===
-                        "full"
-                      ? "text-amber-700"
-                      : "text-gray-600"
-                }`}
-              >
-                {intent.recruitment_status ===
-                "open"
-                  ? "Accepting participant requests."
-                  : intent.recruitment_status ===
-                      "full"
-                    ? "Participant capacity is full."
-                    : "Matching is closed."}
-              </p>
-            </div>
-
-            <p className="mt-5 border-t border-gray-200 pt-4 text-sm text-gray-500">
-              No shared Plan
-              has been created
-              yet.
-            </p>
-          </div>
-
-          {intent.notes && (
-            <p className="mt-5 whitespace-pre-wrap rounded-2xl bg-gray-50 p-4 text-gray-700">
-              {
-                intent.notes
-              }
-            </p>
-          )}
-
-          {intent.status ===
-            "active" &&
-            intent.recruitment_status ===
-              "open" &&
-            intent.end_date >=
-              today && (
-            <div className="mt-6">
-              <IntentInvitePeopleButton
-                intentId={
-                  intent.id
-                }
-                activityLabel={
-                  activity?.name ??
-                  "UIN Activity"
-                }
-              />
-            </div>
-          )}
-
-          <div className="mt-4">
-            <Link
-              href={`/intents/${encodeURIComponent(
-                intent.id
-              )}/visibility`}
-              className="inline-flex rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-            >
-              Manage Visibility
-            </Link>
-          </div>
-
-          <IntentActionButtons
-            intentId={
-              intent.id
+          <div className="relative">
+            <TimelineIntentPresentation
+              intentId={intent.id}
+              title={
+              activity?.name ??
+              "Unknown Activity"
             }
-            status={
-              intent.status
+            categoryName={
+              category?.name ??
+              "Unknown Category"
+            }
+            activityCoverUrl={
+              sportCoverContext
+                ?.context_cover_url ??
+              activity?.default_cover_url ??
+              null
+            }
+            categoryCoverUrl={
+              category?.default_cover_url ??
+              null
+            }
+            countryName={
+              location?.country_name ??
+              null
+            }
+            locationScope={
+              location?.scope ??
+              null
+            }
+            city={
+              location?.city ??
+              null
+            }
+            district={
+              location?.district ??
+              null
+            }
+            startDate={
+              intent.start_date
+            }
+            endDate={
+              intent.end_date
+            }
+            lifecycleStatus={
+              intent.expired_at
+                ? "expired"
+                : intent.status === "cancelled"
+                  ? "cancelled"
+                  : intent.status === "completed"
+                    ? "completed"
+                    : intent.status === "planned"
+                      ? "planned"
+                      : intent.recruitment_status === "closed" ||
+                          intent.matching_status === "closed"
+                        ? "closed"
+                        : intent.start_date >
+                            today
+                          ? "future"
+                          : "open"
+            }
+            expiredAt={
+              intent.expired_at
+            }
+            intentType={
+              intent.intent_type
+            }
+            statusLabel={
+              intent.status ===
+                "active" &&
+              intent.start_date >
+                today
+                ? "Future"
+                : getIntentStatusLabel(
+                    intent
+                  )
+            }
+            statusClasses={
+              intent.status ===
+                "active" &&
+              intent.start_date >
+                today
+                ? "bg-blue-100 text-blue-800"
+                : getIntentStatusClasses(
+                    intent
+                  )
             }
             recruitmentStatus={
               intent.recruitment_status
             }
-          />
+            matchingStatus={
+              intent.matching_status
+            }
+            requestCount={
+              requestCount
+            }
+            participantLimit={
+              participantLimit
+            }
+            budget={
+              intent.budget
+            }
+            visibilityLabel={
+              getActivityVisibilityLabel(
+                intent.visibility
+              )
+            }
+            people={
+              intent.people
+            }
+            recurrence={
+              intent.recurrence
+            }
+            relatedLinks={
+              intentLinksByIntentId.get(
+                intent.id
+              ) ?? []
+            }
+              communities={
+                intentCommunitiesByIntentId.get(
+                  intent.id
+                ) ?? []
+              }
+              sportName={
+                sport?.name ??
+                null
+              }
+            />
+
+          </div>
+
+          <div className="mt-auto border-t border-gray-100 bg-white p-3">
+            {intent.notes && (
+              <p className="mb-3 line-clamp-2 whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-xs leading-5 text-gray-600">
+                {intent.notes}
+              </p>
+            )}
+
+            <div className="grid grid-cols-3 gap-2">
+              <Link
+                href={intentViewHref}
+                className="flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+              >
+                View
+              </Link>
+
+              <TimelineShareButton
+                title={`${activity?.name ?? "UIN Intent"} Intent`}
+                text={`I have a ${activity?.name ?? "UIN"} Intent. Are you in?`}
+                url={`/activities/${encodeURIComponent(
+                  intent.id
+                )}`}
+              />
+
+              <details className="group relative">
+                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-center gap-1 rounded-xl bg-gray-950 px-2 text-xs font-semibold text-white transition hover:bg-gray-800">
+                  Manage
+                  <span className="text-[9px] transition group-open:rotate-180">
+                    ▼
+                  </span>
+                </summary>
+
+                <div className="absolute bottom-full right-0 z-50 mb-2 w-[290px] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
+                  <div className="grid gap-2">
+                    {requestCount >
+                      0 &&
+                      intent.status ===
+                        "active" && (
+                        <Link
+                          href="/requests"
+                          className="rounded-xl bg-green-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-green-700"
+                        >
+                          Review{" "}
+                          {requestCount} request
+                          {requestCount ===
+                          1
+                            ? ""
+                            : "s"}
+                        </Link>
+                      )}
+
+                    {intent.status ===
+                      "active" &&
+                      intent.recruitment_status ===
+                        "open" &&
+                      intent.end_date >=
+                        today && (
+                        <IntentInvitePeopleButton
+                          intentId={
+                            intent.id
+                          }
+                          activityLabel={
+                            activity?.name ??
+                            "UIN Activity"
+                          }
+                          compact
+                        />
+                      )}
+
+                    <Link
+                      href={`/intents/${encodeURIComponent(
+                        intent.id
+                      )}/visibility`}
+                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
+                    >
+                      Manage Visibility
+                    </Link>
+
+                    <IntentActionButtons
+                      intentId={
+                        intent.id
+                      }
+                      status={
+                        intent.status
+                      }
+                      recruitmentStatus={
+                        intent.recruitment_status
+                      }
+                    />
+                  </div>
+                </div>
+              </details>
+            </div>
+          </div>
         </article>
       );
     }
@@ -2562,7 +3202,19 @@ export default async function TimelinePage({
     const completionRequired =
       isPlanCompletionRequired(
         plan
-      );
+      ) &&
+      !isOutcomeUnknownPlan(plan);
+
+    const outcomeUnknownAt = plan.scheduled_end
+      ? new Date(plan.scheduled_end).getTime() + PLANNED_OUTCOME_GRACE_MS
+      : Number.NaN;
+
+    const daysUntilOutcomeUnknown = Number.isFinite(outcomeUnknownAt)
+      ? Math.max(
+          0,
+          Math.ceil((outcomeUnknownAt - Date.now()) / (24 * 60 * 60 * 1000))
+        )
+      : null;
 
     const activeMembers =
       getActivePlanMembers(
@@ -2640,15 +3292,13 @@ export default async function TimelinePage({
           ) ?? 0
         : 0;
 
-    const hasConfirmedSchedule =
-      plan.status !==
-        "forming" &&
-      plan.scheduled_start !==
-        null &&
-      plan.scheduled_end !==
-        null &&
-      plan.meeting_point !==
-        null;
+    const planSportCoverContext =
+      hostSourceIntentId
+        ? sportCoverContextByIntentId.get(
+            hostSourceIntentId
+          ) ??
+          null
+        : null;
 
     const conversationSummary =
       conversationSummaryByPlanId.get(
@@ -2678,279 +3328,228 @@ export default async function TimelinePage({
         ? "Open Planning Room"
         : "Open Activity Room";
 
+    const timelineReturnHref = buildTimelineHref();
+    const planViewHref = withReturnContext(
+      `/activities/${encodeURIComponent(plan.id)}`,
+      timelineReturnHref,
+      "Timeline",
+      "timeline"
+    );
+    const planRoomHref = withReturnContext(
+      plan.status === "forming"
+        ? `/plans/${encodeURIComponent(plan.id)}/planning`
+        : `/plans/${encodeURIComponent(plan.id)}/activity`,
+      timelineReturnHref,
+      "Timeline",
+      "timeline"
+    );
+
+    const privatePresentation =
+      privatePresentationByPlanId.get(
+        plan.id
+      ) ??
+      null;
+
+    const canonicalActivityName =
+      activity?.name ||
+      plan.title ||
+      "UIN Activity";
+
+    const visiblePlanTitle =
+      plan.status === "completed"
+        ? canonicalActivityName
+        : privatePresentation
+            ?.custom_title ||
+          plan.title ||
+          canonicalActivityName;
+
     return (
       <article
         key={`plan-${plan.id}`}
-        className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="relative flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  relationship ===
-                  "host"
-                    ? "bg-gray-900 text-white"
-                    : relationship ===
-                        "co_host"
-                      ? "bg-purple-100 text-purple-800"
-                      : "bg-cyan-100 text-cyan-800"
-                }`}
-              >
-                {relationship ===
-                "host"
-                  ? "Primary Host"
-                  : relationship ===
-                      "co_host"
-                    ? "Co-host"
-                    : "Plan Participant"}
-              </span>
+        <TimelinePlanPresentation
+          planId={plan.id}
+          title={visiblePlanTitle}
+          canonicalActivityName={canonicalActivityName}
+          categoryName={
+            category?.name ??
+            "Unknown Category"
+          }
+          coverUrl={
+            privatePresentation
+              ?.signed_experience_cover_url ??
+            privatePresentation
+              ?.visible_cover_url ??
+            planSportCoverContext
+              ?.context_cover_url ??
+            activity?.default_cover_url ??
+            category?.default_cover_url ??
+            null
+          }
+          countryName={
+            location?.country_name ??
+            null
+          }
+          locationScope={
+            location?.scope ??
+            null
+          }
+          city={
+            location?.city ??
+            null
+          }
+          district={
+            location?.district ??
+            null
+          }
+          activityLocationName={
+            plan.activity_location_name
+          }
+          activityAddressText={
+            plan.activity_address_text
+          }
+          latitude={
+            plan.activity_latitude
+          }
+          longitude={
+            plan.activity_longitude
+          }
+          mapUrl={
+            plan.activity_map_url
+          }
+          hostName={
+            hostProfile?.full_name ??
+            "UIN member"
+          }
+          hostAvatarUrl={
+            hostProfile?.avatar_url ??
+            null
+          }
+          isCurrentUserHost={
+            plan.host_user_id ===
+            currentUserId
+          }
+          members={activeMembers.map(
+            (member) => {
+              const memberProfile =
+                getFirst(
+                  member.profiles
+                );
 
-              <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                Shared Plan
-              </span>
-            </div>
-
-            <h3 className="mt-4 text-2xl font-bold text-gray-900">
-              {plan.title ||
-                activity?.name ||
-                "UIN Activity"}
-            </h3>
-
-            <p className="mt-1 text-gray-500">
-              {category?.name ??
-                "Unknown Category"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <span
-              className={`rounded-full px-4 py-2 text-xs font-semibold ${getPlanStatusClasses(
-                plan,
-                relationship
-              )}`}
-            >
-              {getPlanStatusLabel(
-                plan,
-                relationship
-              )}
-            </span>
-
-            {plan.status ===
-              "forming" && (
-              <span className="rounded-full bg-gray-100 px-4 py-2 text-xs font-semibold capitalize text-gray-600">
-                Matching:{" "}
-                {
-                  plan.recruitment_status
-                }
-              </span>
-            )}
-
-            {relationship ===
-              "host" &&
-              requestCount >
-                0 &&
-              plan.status ===
-                "forming" && (
-                <Link
-                  href="/requests"
-                  className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 transition hover:bg-green-100"
-                >
-                  {
-                    requestCount
-                  }{" "}
-                  request
-                  {requestCount >
-                  1
-                    ? "s"
-                    : ""}{" "}
-                  waiting
-                </Link>
-              )}
-          </div>
-        </div>
-
-        <div className="mt-5 flex items-center gap-3 rounded-2xl border border-cyan-100 bg-cyan-50 p-4">
-          {hostProfile?.avatar_url ? (
-            <img
-              src={
-                hostProfile.avatar_url
-              }
-              alt={
-                hostProfile.full_name ??
-                "Plan host"
-              }
-              className="h-11 w-11 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-sm font-bold text-cyan-700">
-              {hostProfile?.full_name
-                ?.trim()
-                .charAt(0)
-                .toUpperCase() ??
-                "?"}
-            </div>
-          )}
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-cyan-600">
-              Hosted by
-            </p>
-
-            <p className="font-semibold text-gray-900">
-              {hostProfile?.full_name ??
-                "UIN member"}
-
-              {plan.host_user_id ===
-                currentUserId && (
-                <span className="ml-2 text-xs font-normal text-cyan-600">
-                  You
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
-          <p>
-            Availability:{" "}
-            {
-              plan.window_start
-            }{" "}
-            →{" "}
-            {
-              plan.window_end
+              return {
+                id:
+                  member.id,
+                fullName:
+                  memberProfile?.full_name ??
+                  null,
+                avatarUrl:
+                  memberProfile?.avatar_url ??
+                  null,
+                role:
+                  member.role,
+              };
             }
-          </p>
-
-          <p>
-            Area:{" "}
-            {location?.district ??
-              "Unknown District"}
-            ,{" "}
-            {location?.city ??
-              "Unknown City"}
-          </p>
-
-          <p>
-            Participants:{" "}
-            {
-              activeParticipants.length
-            }{" "}
-            /{" "}
-            {
-              participantLimit
-            }{" "}
-            participants
-          </p>
-
-          <p>
-            Members:{" "}
-            {
-              activeMembers.length
-            }{" "}
-            Plan members
-          </p>
-
-          <p>
-            Visibility:{" "}
-            {
+          )}
+          participantCount={
+            activeParticipants.length
+          }
+          participantLimit={
+            participantLimit
+          }
+          committedBudget={
+            committedBudget
+          }
+          targetBudget={
+            targetBudget
+          }
+          relationshipLabel={
+            relationship ===
+            "host"
+              ? "Primary Host"
+              : relationship ===
+                  "co_host"
+                ? "Co-host"
+                : "Plan Participant"
+          }
+          relationshipClasses={
+            relationship ===
+            "host"
+              ? "bg-gray-950 text-white"
+              : relationship ===
+                  "co_host"
+                ? "bg-purple-100 text-purple-800"
+                : "bg-cyan-100 text-cyan-800"
+          }
+          statusLabel={
+            getPlanStatusLabel(
+              plan,
+              relationship
+            )
+          }
+          statusClasses={
+            getPlanStatusClasses(
+              plan,
+              relationship
+            )
+          }
+          planStatus={
+            plan.status
+          }
+          recruitmentStatus={
+            plan.recruitment_status
+          }
+          requestCount={
+            relationship ===
+              "host"
+              ? requestCount
+              : 0
+          }
+          scheduledStart={
+            plan.scheduled_start
+          }
+          scheduledEnd={
+            plan.scheduled_end
+          }
+          timezone={
+            plan.timezone
+          }
+          windowStart={
+            plan.window_start
+          }
+          windowEnd={
+            plan.window_end
+          }
+          completedAt={
+            plan.completed_at
+          }
+          cancelledAt={
+            plan.cancelled_at
+          }
+          expiredAt={plan.expired_at}
+          visibilityLabel={
+            getActivityVisibilityLabel(
               plan.visibility
-            }
-          </p>
-        </div>
-
-        <div className="mt-6 rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Activity Budget
-              </p>
-
-              <p className="mt-2 text-xl font-bold text-gray-900">
-                {formatBudget(
-                  committedBudget
-                )}{" "}
-                TL committed
-              </p>
-            </div>
-
-            <div className="text-right">
-              <p className="text-sm font-semibold text-gray-700">
-                {targetBudget ===
-                null
-                  ? "No target set"
-                  : `${formatBudget(
-                      targetBudget
-                    )} TL target`}
-              </p>
-
-              {displayedProgress !==
-                null && (
-                <p className="mt-1 text-sm font-bold text-emerald-700">
-                  {
-                    displayedProgress
-                  }
-                  %
-                </p>
-              )}
-            </div>
-          </div>
-
-          {targetBudget !==
-            null &&
-            targetBudget >
-              0 && (
-              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-emerald-100">
-                <div
-                  className="h-full rounded-full bg-emerald-600"
-                  style={{
-                    width: `${progressBarWidth}%`,
-                  }}
-                />
-              </div>
-            )}
-        </div>
-
-        {hasConfirmedSchedule &&
-          plan.scheduled_start &&
-          plan.scheduled_end &&
-          plan.meeting_point && (
-            <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                    Final
-                    Schedule
-                  </p>
-
-                  <p className="mt-2 font-semibold text-gray-900">
-                    {formatScheduleRange(
-                      plan.scheduled_start,
-                      plan.scheduled_end,
-                      plan.timezone
-                    )}
-                  </p>
-                </div>
-
-                <span className="rounded-full bg-white px-3 py-2 text-xs font-semibold text-blue-700">
-                  {
-                    plan.timezone
-                  }
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm text-gray-700">
-                Area:{" "}
-                {
-                  plan.meeting_point
-                }
-              </p>
-            </div>
-          )}
+            )
+          }
+          relatedLinks={
+            hostSourceIntentId
+              ? intentLinksByIntentId.get(
+                  hostSourceIntentId
+                ) ?? []
+              : []
+          }
+          communities={
+            hostSourceIntentId
+              ? intentCommunitiesByIntentId.get(
+                  hostSourceIntentId
+                ) ?? []
+              : []
+          }
+        />
 
         {completionRequired && (
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="mx-5 mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 md:mx-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
               Action Required
             </p>
@@ -2964,8 +3563,16 @@ export default async function TimelinePage({
                 "host" ||
               relationship ===
                 "co_host"
-                ? "Review attendance and complete the Activity."
-                : "The Activity is waiting for the Primary Host or a Co-host to confirm completion."}
+                ? `Review the outcome in the Activity Room.${
+                    daysUntilOutcomeUnknown !== null
+                      ? ` If it remains unresolved, it moves to Outcome Unknown in ${daysUntilOutcomeUnknown} day${daysUntilOutcomeUnknown === 1 ? "" : "s"}.`
+                      : ""
+                  }`
+                : `The Activity is waiting for the Primary Host or a Co-host.${
+                    daysUntilOutcomeUnknown !== null
+                      ? ` If nobody resolves it, UIN moves it to Outcome Unknown in ${daysUntilOutcomeUnknown} day${daysUntilOutcomeUnknown === 1 ? "" : "s"} instead of guessing what happened.`
+                      : ""
+                  }`}
             </p>
 
             {(relationship ===
@@ -2973,10 +3580,10 @@ export default async function TimelinePage({
               relationship ===
                 "co_host") && (
               <Link
-                href={`/plans/${plan.id}/completion`}
+                href={`/plans/${plan.id}/activity#attendance-review`}
                 className="mt-4 inline-flex rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
               >
-                Review Attendance →
+                Review Outcome →
               </Link>
             )}
           </div>
@@ -2985,7 +3592,7 @@ export default async function TimelinePage({
         {plan.status ===
           "completed" && (
           <div
-            className={`mt-6 rounded-2xl border p-5 ${
+            className={`mx-5 mt-5 rounded-2xl border p-5 md:mx-6 ${
               currentAttendance ===
               "attended"
                 ? "border-green-200 bg-green-50"
@@ -3011,86 +3618,259 @@ export default async function TimelinePage({
           </div>
         )}
 
-        {plan.status ===
-          "forming" &&
-          plan.recruitment_status ===
-            "open" &&
-          hostSourceIntentId &&
-          (
-            relationship ===
-              "host" ||
-            relationship ===
-              "co_host"
-          ) && (
-          <div className="mt-6">
-            <IntentInvitePeopleButton
-              intentId={
-                hostSourceIntentId
-              }
-              activityLabel={
-                plan.title ||
-                activity?.name ||
-                "UIN Activity"
-              }
-              compact
-            />
-          </div>
-        )}
+        <div className="mt-auto grid grid-cols-3 gap-2 border-t border-gray-100 bg-white p-3">
+          <Link
+            href={planViewHref}
+            className="flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+          >
+            View
+          </Link>
 
-        <Link
-          href={`/plans/${plan.id}`}
-          className="mt-6 block rounded-2xl border border-green-100 bg-green-50 p-5 transition hover:border-green-300 hover:bg-green-100"
-        >
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                  {roomName}
-                </p>
+          <TimelineShareButton
+            title={`${plan.title || activity?.name || "UIN Activity"}`}
+            text="See this Activity on UIN."
+            url={`/activities/${encodeURIComponent(
+              plan.id
+            )}`}
+          />
 
-                {unreadCount >
-                  0 && (
-                  <span className="rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold text-white">
-                    {
-                      unreadCount
-                    }{" "}
-                    unread
-                  </span>
-                )}
-              </div>
-
-              <p className="mt-2 truncate text-sm font-semibold text-gray-900">
-                {
-                  conversationPreview
-                }
-              </p>
-
-              {conversationSummary?.latest_created_at && (
-                <p className="mt-1 text-xs text-gray-500">
-                  {formatPlanDateTime(
-                    conversationSummary.latest_created_at,
-                    plan.timezone
-                  )}
-                </p>
-              )}
-            </div>
-
-            <span className="shrink-0 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-green-700 shadow-sm">
-              {
-                roomButtonLabel
-              }{" "}
-              →
-            </span>
-          </div>
-        </Link>
+          <Link
+            href={planRoomHref}
+            className="flex min-h-10 items-center justify-center rounded-xl bg-gray-950 px-2 text-center text-xs font-semibold text-white transition hover:bg-gray-800"
+          >
+            {roomButtonLabel}
+          </Link>
+        </div>
       </article>
+    );
+  }
+
+  function buildTimelineHref({
+    view = selectedView,
+    page = 1,
+    moment = selectedMoment,
+  }: {
+    view?: TimelineView;
+    page?: number;
+    moment?: OpenMomentFilter;
+  } = {}) {
+    const params = new URLSearchParams();
+    params.set("view", view);
+    if (view === "open" && moment !== "all") {
+      params.set("moment", moment);
+    }
+    if (page > 1) {
+      params.set("page", String(page));
+    }
+    return `/timeline?${params.toString()}`;
+  }
+
+  function getCompactPlanPresentation(entry: PlanTimelineEntry) {
+    const { plan, relationship } = entry;
+    const activity = getFirst(plan.activities);
+    const category = getFirst(activity?.activity_categories);
+    const location = getFirst(plan.locations);
+    const presentation = privatePresentationByPlanId.get(plan.id) ?? null;
+
+    // Keep compact Coming Up cards on exactly the same presentation chain as
+    // the full Planned card. Otherwise a sport/community Activity can show a
+    // generic catalogue cover here while the Planned view shows its real cover.
+    const hostSourceIntentId =
+      (plan.plan_intents ?? []).find(
+        (link) =>
+          link.relationship === "host_source" &&
+          link.status === "active"
+      )?.intent_id ?? null;
+
+    const planSportCoverContext = hostSourceIntentId
+      ? sportCoverContextByIntentId.get(hostSourceIntentId) ?? null
+      : null;
+
+    const canonicalActivityName =
+      activity?.name || plan.title || "UIN Activity";
+
+    const title =
+      plan.status === "completed"
+        ? canonicalActivityName
+        : presentation?.custom_title ||
+          plan.title ||
+          canonicalActivityName;
+
+    const coverUrl =
+      presentation?.signed_experience_cover_url ??
+      presentation?.visible_cover_url ??
+      planSportCoverContext?.context_cover_url ??
+      activity?.default_cover_url ??
+      category?.default_cover_url ??
+      null;
+
+    const hasExactActivityLocation = Boolean(
+      plan.activity_location_name || plan.activity_address_text
+    );
+
+    const locationLabel = hasExactActivityLocation
+      ? [plan.activity_location_name, plan.activity_address_text]
+          .filter(Boolean)
+          .join(", ")
+      : [location?.district, location?.city]
+          .filter(Boolean)
+          .join(", ");
+
+    return {
+      title,
+      coverUrl,
+      activityName: activity?.name ?? null,
+      categoryName: category?.name ?? "Activity",
+      locationLabel,
+      dateLabel: formatCompactTimelineDate(
+        plan.scheduled_start ?? plan.window_start
+      ),
+      relationshipLabel:
+        relationship === "host"
+          ? "Primary Host"
+          : relationship === "co_host"
+            ? "Co-host"
+            : "Plan Participant",
+      relationshipClasses:
+        relationship === "host"
+          ? "bg-gray-950/90 text-white"
+          : relationship === "co_host"
+            ? "bg-purple-100 text-purple-800"
+            : "bg-cyan-100 text-cyan-800",
+      statusLabel: getPlanStatusLabel(plan, relationship),
+      statusClasses: getPlanStatusClasses(plan, relationship),
+      communities: hostSourceIntentId
+        ? intentCommunitiesByIntentId.get(hostSourceIntentId) ?? []
+        : [],
+    };
+  }
+
+  function getCompactHistoryPresentation(entry: TimelineEntry) {
+    if (entry.kind === "plan") {
+      const info = getCompactPlanPresentation(entry);
+      return {
+        title: info.title,
+        subtitle: info.activityName ?? info.locationLabel,
+        href: withReturnContext(
+          `/activities/${encodeURIComponent(entry.plan.id)}`,
+          buildTimelineHref(),
+          "Timeline",
+          "timeline"
+        ),
+        status:
+          getEntryView(entry) === "completed"
+            ? "Completed"
+            : getEntryView(entry) === "outcome_unknown"
+              ? "Outcome Unknown"
+              : "Cancelled",
+        dateLabel: formatCompactTimelineDate(
+          entry.plan.completed_at ??
+            entry.plan.cancelled_at ??
+            entry.plan.scheduled_start ??
+            entry.plan.window_start
+        ),
+      };
+    }
+
+    const activity = getFirst(entry.intent.activities);
+    return {
+      title: activity?.name ?? "Intent",
+      subtitle: getFirst(entry.intent.locations)?.city ?? null,
+      href:
+        entry.intent.status === "completed"
+          ? "/timeline?view=completed"
+          : "/timeline?view=cancelled",
+      status: entry.intent.status === "completed" ? "Completed" : "Cancelled",
+      dateLabel: formatCompactTimelineDate(entry.intent.end_date),
+    };
+  }
+
+  const recentHistoryCards = [
+    ...recentTimelineHistory.map((entry) => ({
+      key: `timeline-${entry.kind}-${
+        entry.kind === "plan" ? entry.plan.id : entry.intent.id
+      }`,
+      sortDate: getTimelineHistorySortDate(entry),
+      ...getCompactHistoryPresentation(entry),
+    })),
+    ...expiredActivities.map((item) => ({
+      key: `expired-${item.item_type}-${item.item_id}`,
+      sortDate: item.expired_at,
+      title: item.title || item.activity_name || "Expired item",
+      subtitle: [item.activity_name, item.district, item.city]
+        .filter(Boolean)
+        .join(" · "),
+      href: item.plan_id
+        ? withReturnContext(
+            `/activities/${encodeURIComponent(item.plan_id)}`,
+            buildTimelineHref(),
+            "Timeline",
+            "timeline"
+          )
+        : "/timeline?view=expired",
+      status: "Expired",
+      dateLabel: formatCompactTimelineDate(item.expired_at),
+    })),
+  ]
+    .sort(
+      (first, second) =>
+        new Date(second.sortDate).getTime() -
+        new Date(first.sortDate).getTime()
+    )
+    .slice(0, 4);
+
+  function renderTimelinePagination() {
+    if (selectedView === "expired" || pageCount <= 1) {
+      return null;
+    }
+
+    const pageNumbers = Array.from({ length: pageCount }, (_, index) => index + 1);
+
+    return (
+      <nav className="mt-6 flex flex-wrap items-center justify-center gap-2" aria-label="Timeline pages">
+        <Link
+          href={buildTimelineHref({ page: Math.max(1, safePage - 1) })}
+          aria-disabled={safePage === 1}
+          className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+            safePage === 1
+              ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+              : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+          }`}
+        >
+          ←
+        </Link>
+        {pageNumbers.map((pageNumber) => (
+          <Link
+            key={pageNumber}
+            href={buildTimelineHref({ page: pageNumber })}
+            className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+              pageNumber === safePage
+                ? "bg-gray-950 text-white"
+                : "border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+            }`}
+          >
+            {pageNumber}
+          </Link>
+        ))}
+        <Link
+          href={buildTimelineHref({ page: Math.min(pageCount, safePage + 1) })}
+          aria-disabled={safePage === pageCount}
+          className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+            safePage === pageCount
+              ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+              : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+          }`}
+        >
+          →
+        </Link>
+      </nav>
     );
   }
 
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10 md:px-6">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-[1680px]">
         <TimelineHeader
           email={
             user.email ??
@@ -3122,7 +3902,7 @@ export default async function TimelinePage({
         />
 
         <nav className="mt-10 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-0">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,2.35fr)] lg:gap-0">
             <section className="lg:pr-6">
               <div className="mb-3 flex items-center justify-between gap-3 px-1">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
@@ -3145,7 +3925,7 @@ export default async function TimelinePage({
                       <Link
                         key={tab.key}
                         href={`/timeline?view=${tab.key}`}
-                        className={`flex min-h-24 flex-col items-center justify-center rounded-2xl px-3 py-4 text-center transition ${
+                        className={`flex min-h-20 min-w-0 flex-col items-center justify-center rounded-2xl px-2 py-3 text-center transition ${
                           isActive
                             ? tab.activeClasses
                             : tab.inactiveClasses
@@ -3155,7 +3935,7 @@ export default async function TimelinePage({
                           {tab.label}
                         </span>
 
-                        <span className="mt-2 text-2xl font-bold">
+                        <span className="mt-1.5 text-xl font-bold">
                           {viewCounts[
                             tab.key
                           ]}
@@ -3178,7 +3958,7 @@ export default async function TimelinePage({
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
                 {ACTIVITY_TIMELINE_TABS.map(
                   (tab) => {
                     const isActive =
@@ -3189,17 +3969,17 @@ export default async function TimelinePage({
                       <Link
                         key={tab.key}
                         href={`/timeline?view=${tab.key}`}
-                        className={`flex min-h-24 flex-col items-center justify-center rounded-2xl px-3 py-4 text-center transition ${
+                        className={`flex min-h-20 min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-3 text-center transition ${
                           isActive
                             ? tab.activeClasses
                             : tab.inactiveClasses
                         }`}
                       >
-                        <span className="text-[11px] font-semibold uppercase leading-4 tracking-wide">
+                        <span className="break-words text-[10px] font-semibold uppercase leading-3.5 tracking-[0.04em]">
                           {tab.label}
                         </span>
 
-                        <span className="mt-2 text-2xl font-bold">
+                        <span className="mt-1.5 text-xl font-bold">
                           {viewCounts[
                             tab.key
                           ]}
@@ -3212,6 +3992,144 @@ export default async function TimelinePage({
             </section>
           </div>
         </nav>
+
+        <TimelineAttentionPanel
+          outcomes={outcomeAttentionItems}
+          weatherPlans={weatherAttentionPlans}
+          pendingJoinRequestCount={pendingJoinRequestCount}
+          pendingIntentInvitationCount={pendingIntentInvitationCount}
+          pendingManagedProfileActionCount={pendingManagedProfileActionCount}
+        />
+
+        {selectedView === "open" && (
+          <>
+            <TimelineGrowingSeeds seeds={growingSeeds} />
+
+            {comingUpEntries.length > 0 && (
+              <section className="mt-8 rounded-[28px] border border-blue-100 bg-white p-5 shadow-sm md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+                      Coming up
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black text-gray-950">
+                      Plans already becoming real
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      The nearest planned Activities in your timeline.
+                    </p>
+                  </div>
+                  <Link
+                    href="/timeline?view=planned"
+                    className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-800 transition hover:bg-blue-100"
+                  >
+                    View all planned
+                  </Link>
+                </div>
+
+                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {comingUpEntries.map((entry) => {
+                    const info = getCompactPlanPresentation(entry);
+                    const timelineReturnTo = "/timeline?view=open";
+                    const viewHref = `/activities/${encodeURIComponent(
+                      entry.plan.id
+                    )}?from=timeline&returnTo=${encodeURIComponent(
+                      timelineReturnTo
+                    )}&returnLabel=${encodeURIComponent("Timeline")}`;
+                    const roomHref = `/plans/${encodeURIComponent(
+                      entry.plan.id
+                    )}/activity?from=timeline&returnTo=${encodeURIComponent(
+                      timelineReturnTo
+                    )}&returnLabel=${encodeURIComponent("Timeline")}`;
+
+                    return (
+                      <article
+                        key={`coming-${entry.plan.id}`}
+                        className="group overflow-hidden rounded-[22px] border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
+                      >
+                        <div className="block">
+                          <div className="relative h-32 overflow-hidden bg-gray-950">
+                      <PlanWeatherBadges
+                        planId={entry.plan.id}
+                        compact
+                        className="absolute right-2 top-11 z-20"
+                      />
+                            {info.coverUrl ? (
+                              <img
+                                src={info.coverUrl}
+                                alt={`${info.title} cover`}
+                                className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-950" />
+                            )}
+
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-black/35" />
+
+                            <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-2">
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm ${info.statusClasses}`}
+                              >
+                                {info.statusLabel}
+                              </span>
+                              <span
+                                className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm ${info.relationshipClasses}`}
+                              >
+                                {info.relationshipLabel}
+                              </span>
+                            </div>
+
+                            <div className="absolute inset-x-0 bottom-0 p-3.5">
+                              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-300">
+                                {info.categoryName}
+                              </p>
+                              <h3 className="mt-1 line-clamp-2 text-base font-black leading-tight text-white">
+                                {info.title}
+                              </h3>
+                              <CommunityContextList
+                                communities={info.communities}
+                                variant="card"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="p-3.5">
+                          {info.activityName &&
+                            info.title.trim() !== info.activityName.trim() && (
+                              <p className="mb-2 truncate text-[10px] font-semibold text-gray-400">
+                                Original Activity · {info.activityName}
+                              </p>
+                            )}
+                          <p className="text-xs font-black text-gray-900">
+                            {info.dateLabel}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-gray-500">
+                            {info.locationLabel || info.activityName || "Activity details"}
+                          </p>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <Link
+                              href={viewHref}
+                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-center text-xs font-bold text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
+                            >
+                              View
+                            </Link>
+                            <Link
+                              href={roomHref}
+                              className="rounded-xl bg-green-600 px-3 py-2 text-center text-xs font-bold text-white transition hover:bg-green-700"
+                            >
+                              Activity Room
+                            </Link>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
         <section className="mt-8">
           {isIntentLifecycleView ? (
@@ -3233,16 +4151,48 @@ export default async function TimelinePage({
                       selectedView
                     )}
                   </p>
+
+                  {selectedView === "open" && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {OPEN_MOMENT_FILTERS.map((item) => {
+                        const active = selectedMoment === item.key;
+                        return (
+                          <Link
+                            key={item.key}
+                            href={buildTimelineHref({
+                              view: "open",
+                              moment: item.key,
+                              page: 1,
+                            })}
+                            className={`rounded-full px-3.5 py-2 text-xs font-black transition ${
+                              active
+                                ? "bg-gray-950 text-white"
+                                : "border border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-700"
+                            }`}
+                          >
+                            {item.label}
+                            <span
+                              className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                                active ? "bg-white/15" : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
+                              {openMomentCounts[item.key]}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                   {visibleIntentEntries.map(
                     renderTimelineEntry
                   )}
 
                   {visibleIntentEntries.length ===
                     0 && (
-                    <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center">
+                    <div className="col-span-full rounded-3xl border border-gray-200 bg-white p-10 text-center">
                       <h3 className="text-xl font-bold text-gray-900">
                         No Intents here yet.
                       </h3>
@@ -3265,48 +4215,10 @@ export default async function TimelinePage({
                     </div>
                   )}
                 </div>
+
+                {renderTimelinePagination()}
               </section>
 
-              <section>
-                <div className="mb-5 border-t border-gray-200 pt-10">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                    Shared Plan Stage
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-bold text-gray-900">
-                    {getFormingActivitySectionTitle(
-                      selectedView
-                    )}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-gray-500">
-                    {getFormingActivitySectionDescription(
-                      selectedView
-                    )}
-                  </p>
-                </div>
-
-                <div className="space-y-6">
-                  {visibleFormingActivityEntries.map(
-                    renderTimelineEntry
-                  )}
-
-                  {visibleFormingActivityEntries.length ===
-                    0 && (
-                    <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center">
-                      <h3 className="text-xl font-bold text-gray-900">
-                        No forming Activities here yet.
-                      </h3>
-
-                      <p className="mt-3 text-gray-500">
-                        {getEmptyFormingActivitySectionText(
-                          selectedView
-                        )}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </section>
             </div>
           ) : (
             <div>
@@ -3328,11 +4240,11 @@ export default async function TimelinePage({
                 </p>
               </div>
 
-              <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {selectedView ===
                   "expired" &&
                   expiredActivityResult.error && (
-                    <div className="rounded-3xl border border-red-200 bg-red-50 p-6">
+                    <div className="col-span-full rounded-3xl border border-red-200 bg-red-50 p-6">
                       <p className="font-semibold text-red-800">
                         Expired history could not be loaded.
                       </p>
@@ -3354,8 +4266,26 @@ export default async function TimelinePage({
                       <ExpiredActivityCard
                         key={`${item.item_type}-${item.item_id}`}
                         item={item}
+                        ownedIntentById={
+                          ownedIntentById
+                        }
+                        planById={
+                          planById
+                        }
+                        sportCoverContextByIntentId={
+                          sportCoverContextByIntentId
+                        }
+                        privatePresentationByPlanId={
+                          privatePresentationByPlanId
+                        }
                       />
                     )
+                  )}
+
+                {selectedView ===
+                  "expired" &&
+                  visibleEntries.map(
+                    renderTimelineEntry
                   )}
 
                 {selectedView !==
@@ -3368,8 +4298,10 @@ export default async function TimelinePage({
                   "expired" &&
                   !expiredActivityResult.error &&
                   expiredActivities.length ===
+                    0 &&
+                  visibleEntries.length ===
                     0 && (
-                    <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center">
+                    <div className="col-span-full rounded-3xl border border-gray-200 bg-white p-10 text-center">
                       <h3 className="text-xl font-bold text-gray-900">
                         Nothing here yet.
                       </h3>
@@ -3386,7 +4318,7 @@ export default async function TimelinePage({
                   "expired" &&
                   visibleEntries.length ===
                     0 && (
-                  <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center">
+                  <div className="col-span-full rounded-3xl border border-gray-200 bg-white p-10 text-center">
                     <h3 className="text-xl font-bold text-gray-900">
                       Nothing here yet.
                     </h3>
@@ -3409,9 +4341,78 @@ export default async function TimelinePage({
                   </div>
                 )}
               </div>
+
+              {renderTimelinePagination()}
             </div>
           )}
         </section>
+
+        {selectedView === "open" && recentHistoryCards.length > 0 && (
+          <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                  Recent history
+                </p>
+                <h2 className="mt-2 text-2xl font-black text-gray-950">
+                  What just moved behind you
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Only the latest completed, expired or cancelled items live here. Full history stays in its own views.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href="/timeline?view=completed"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-purple-200 hover:text-purple-700"
+                >
+                  Completed
+                </Link>
+                <Link
+                  href="/timeline?view=expired"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:text-orange-700"
+                >
+                  Expired
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {recentHistoryCards.map((item) => (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className="rounded-2xl border border-gray-200 bg-gray-50 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
+                        item.status === "Completed"
+                          ? "bg-purple-100 text-purple-800"
+                          : item.status === "Expired"
+                            ? "bg-orange-100 text-orange-800"
+                            : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                    <span className="text-[10px] font-bold text-gray-400">
+                      {item.dateLabel}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 line-clamp-2 font-black text-gray-950">
+                    {item.title}
+                  </h3>
+                  {item.subtitle && (
+                    <p className="mt-1 truncate text-xs text-gray-500">
+                      {item.subtitle}
+                    </p>
+                  )}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
     </main>
   );

@@ -1,5 +1,1 @@
-export type Location = {
-  id: string;
-  city: string;
-  district: string;
-};
+export type { HierarchicalLocation as Location, LocationScope } from "@/utils/location";

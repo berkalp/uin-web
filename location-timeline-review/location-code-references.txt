@@ -1,0 +1,34 @@
+﻿
+Path                                                                 LineNumber Line                                
+----                                                                 ---------- ----                                
+C:\Users\berkalpk\uin-alpha\src\app\discover\page.tsx                       424         "search_visible_intents",   
+C:\Users\berkalpk\uin-alpha\src\app\discover\page.tsx                       438           p_location_id:            
+C:\Users\berkalpk\uin-alpha\src\app\intent-drafts\[draftId]\page.tsx         50       .from("locations")            
+C:\Users\berkalpk\uin-alpha\src\app\intents\[intentId]\edit\page.tsx         20   location_id: string | number;     
+C:\Users\berkalpk\uin-alpha\src\app\intents\[intentId]\edit\page.tsx         87       location_id,                  
+C:\Users\berkalpk\uin-alpha\src\app\intents\[intentId]\edit\page.tsx        189       .from("locations")            
+C:\Users\berkalpk\uin-alpha\src\app\intents\[intentId]\edit\page.tsx        312                   intent.location_id
+C:\Users\berkalpk\uin-alpha\src\app\matches\page.tsx                         88     "get_my_active_matches"         
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                       168   location_id: string;              
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                       438   location_id,                      
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                   228   "activity_id" | "category_id" |...
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                   233     location_id: "",                
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                   534       location_id: "",              
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                   579       location_id: "",              
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                   626       location_id: "",              
+C:\Users\berkalpk\uin-alpha\src\components\discover\DiscoverInten...         43   location_id: string;              
+C:\Users\berkalpk\uin-alpha\src\components\intents\IntentDraftRev...         30     location_id: string;            
+C:\Users\berkalpk\uin-alpha\src\components\intents\IntentDraftRev...        148       initialData.draft.location_id 
+C:\Users\berkalpk\uin-alpha\src\components\intents\IntentDraftRev...        254           p_location_id:            
+C:\Users\berkalpk\uin-alpha\src\components\onboarding\IntentForm.tsx         24 import { getLocations } from "@/s...
+C:\Users\berkalpk\uin-alpha\src\components\onboarding\IntentForm.tsx        212             getLocations(),         
+C:\Users\berkalpk\uin-alpha\src\services\activityService.ts                 190       p_location_id:                
+C:\Users\berkalpk\uin-alpha\src\services\intentEditService.ts               115       p_location_id:                
+C:\Users\berkalpk\uin-alpha\src\services\intentLinksService.ts               96       p_location_id:                
+C:\Users\berkalpk\uin-alpha\src\services\intentService.ts                    89       location_id: input.locationId,
+C:\Users\berkalpk\uin-alpha\src\services\locationService.ts                   9 export async function getLocation...
+C:\Users\berkalpk\uin-alpha\src\services\locationService.ts                  11     .from("locations")              
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                   162   location_id: string;              
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                   432   location_id,                      
+
+

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import LocaleSwitcher from "@/components/i18n/LocaleSwitcher";
+
 type MyProfileMenuProps = {
   username: string | null;
 };
@@ -29,6 +31,20 @@ export default function MyProfileMenu({
         )}
 
         <Link
+          href="/seeds"
+          className="block rounded-xl px-4 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-50"
+        >
+          My Seeds
+        </Link>
+
+        <Link
+          href="/seeds/explore"
+          className="block rounded-xl px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
+        >
+          Seed Library
+        </Link>
+
+        <Link
           href="/settings/profile"
           className="block rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 hover:text-green-700"
         >
@@ -36,7 +52,7 @@ export default function MyProfileMenu({
         </Link>
 
         <Link
-          href="/settings/family"
+          href="/settings/profile#age-family"
           className="block rounded-xl px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
         >
           Age & Family
@@ -55,6 +71,8 @@ export default function MyProfileMenu({
         >
           Join Requests
         </Link>
+
+        <LocaleSwitcher compact />
       </div>
     </details>
   );

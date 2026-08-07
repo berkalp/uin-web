@@ -1,8 +1,46 @@
+## 2026-08-07 — Join request lifecycle and custom Activity title moderation
+
+- Join Requests now separates requests that need action from pending sent requests and request history.
+- Accepted/planned/completed/cancelled/expired request records no longer remain in the active Received queue.
+- Sent requests show host identity, profile navigation, request date and withdrawal controls.
+- Custom Plan titles retain the canonical Activity name visibly as the original Activity identity.
+- Reporting a custom Activity title immediately falls back to the canonical Activity name while preserving the reported text for moderation.
+- Added title-under-review editing lock with no automatic reputation penalty or Activity lifecycle change.
+- Added `/admin/moderation/titles` for restore/remove decisions.
+- Timeline and Inbox join-request counters now ignore stale pending requests attached to non-active or expired Intents.
+- Added migration `041_join_request_lifecycle_and_custom_title_moderation.sql`.
+
+
+## 2026-08-07 — Seed Experience UI clarification
+
+- Separated completed Seed Experience from Seed Journal in the detail UI.
+- Added a dedicated Add/Edit Experience editor with visibility and linked media.
+- Removed the ambiguous completed-Seed “Update reflection” sidebar action.
+- Subject pages now distinguish “Add my experience” from “Open my experience”.
+- No database migration required; existing reflection storage is reused.
+
 # Changelog
 
 All notable changes to the UIN product, architecture and philosophy are documented here.
 
 This document follows the spirit of Keep a Changelog, but also records important product decisions.
+
+---
+
+# [0.2.0] - 2026-08-06
+
+## Seed Catalogue and Search Integration
+
+- Added a shared Seed subject catalogue above personal Seed instances.
+- Normalized punctuation, Turkish characters, conjunctions and aliases so equivalent titles resolve to one subject.
+- Added Seed Library search, subject detail pages, catalogue-based planting and personal Seed fallback.
+- Added completion Experience engagement with Inspired, Save, comments and questions.
+- Added admin review, approval, rejection and duplicate merge workflows.
+- Added duplicate prevention for simultaneous suggestions and exact alias matching.
+- Kept personal notes, visibility, links, progress and completion history separate for every user.
+- Added retrospective completed Seeds for experiences that happened before the Seed was planted in UIN.
+- Added exact-date, year-only and unknown completion timing without inventing fake dates in the interface.
+- Added direct admin creation of active Seed Library subjects with aliases, translated titles and shared cover images.
 
 ---
 

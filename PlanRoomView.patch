@@ -1,0 +1,68 @@
+--- /mnt/data/src_extracted/src/components/plans/PlanRoomView.tsx	2026-08-03 06:52:08.646981426 +0000
++++ /mnt/data/uin-plan-needs-work/src/components/plans/PlanRoomView.tsx	2026-08-03 07:10:44.202946068 +0000
+@@ -15,6 +15,7 @@
+ import ConfirmActivityPlanButton from "./FinalizeActivityButton";
+ import PlanPresentationSettingsForm from "./PlanPresentationSettingsForm";
+ import PlanBudgetPanel from "./PlanBudgetPanel";
++import PlanNeedsPanel from "./PlanNeedsPanel";
+ import PlanMessageComposer from "./PlanMessageComposer";
+ import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
+ import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
+@@ -2319,6 +2320,57 @@
+           )}
+ 
+         <div className="mt-6">
++          <PlanNeedsPanel
++            planId={
++              plan.id
++            }
++            planStatus={
++              plan.status
++            }
++            canManage={
++              (isHost ||
++                isCoHost) &&
++              !isPlanningArchived &&
++              !isCompletionRequired &&
++              plan.expired_at ===
++                null &&
++              (
++                plan.status ===
++                  "forming" ||
++                plan.status ===
++                  "planned"
++              )
++            }
++            canContribute={
++              (isHost ||
++                isActiveMember) &&
++              !isPlanningArchived &&
++              !isCompletionRequired &&
++              plan.expired_at ===
++                null &&
++              (
++                plan.status ===
++                  "forming" ||
++                plan.status ===
++                  "planned"
++              )
++            }
++            readOnly={
++              isPlanningArchived ||
++              isCompletionRequired ||
++              plan.expired_at !==
++                null ||
++              (
++                plan.status !==
++                  "forming" &&
++                plan.status !==
++                  "planned"
++              )
++            }
++          />
++        </div>
++
++        <div className="mt-6">
+           <PlanBudgetPanel
+             planId={plan.id}
+             planStatus={

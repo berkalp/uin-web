@@ -7,6 +7,12 @@ import {
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/utils/supabase/client";
+import {
+  DEFAULT_JOIN_MESSAGE_PROMPT,
+  normalizeJoinMessageMode,
+  normalizeJoinMessagePrompt,
+  type JoinMessageMode,
+} from "@/utils/joinRequestMessage";
 
 type Visibility =
   | "public"
@@ -14,6 +20,11 @@ type Visibility =
   | "except_friends"
   | "invite_only"
   | "private";
+
+type JoinMessageSettingsRow = {
+  join_message_mode?: unknown;
+  join_message_prompt?: unknown;
+};
 
 type PublicIntentJoinButtonProps = {
   intentId: string;
@@ -24,6 +35,7 @@ type PublicIntentJoinButtonProps = {
     | "full";
   visibility: Visibility;
   viewerCanRequest: boolean;
+  viewerIsEligible?: boolean;
   viewerIsMember?: boolean;
   viewerInvitationStatus?:
     | "pending"
@@ -49,6 +61,7 @@ export default function PublicIntentJoinButton({
   recruitmentStatus,
   visibility,
   viewerCanRequest,
+  viewerIsEligible = true,
   viewerIsMember = false,
   viewerInvitationStatus = null,
   initialRequestStatus,
@@ -57,63 +70,143 @@ export default function PublicIntentJoinButton({
 }: PublicIntentJoinButtonProps) {
   const router = useRouter();
 
-  const [
-    isOpen,
-    setIsOpen,
-  ] = useState(false);
+  const [isOpen, setIsOpen] =
+    useState(false);
 
-  const [
-    message,
-    setMessage,
-  ] = useState("");
+  const [message, setMessage] =
+    useState("");
 
-  const [
-    isWorking,
-    setIsWorking,
-  ] = useState(false);
+  const [joinMessageMode, setJoinMessageMode] =
+    useState<JoinMessageMode>(
+      "optional"
+    );
 
-  const [
-    errorMessage,
-    setErrorMessage,
-  ] = useState("");
+  const [joinMessagePrompt, setJoinMessagePrompt] =
+    useState(
+      DEFAULT_JOIN_MESSAGE_PROMPT
+    );
 
-  const [
-    requestStatus,
-    setRequestStatus,
-  ] = useState(
-    initialRequestStatus
-  );
+  const [isLoadingSettings, setIsLoadingSettings] =
+    useState(false);
 
-  const [
-    requestId,
-    setRequestId,
-  ] = useState(
-    initialRequestId
-  );
+  const [hasLoadedSettings, setHasLoadedSettings] =
+    useState(false);
+
+  const [isWorking, setIsWorking] =
+    useState(false);
+
+  const [errorMessage, setErrorMessage] =
+    useState("");
+
+  const [requestStatus, setRequestStatus] =
+    useState(initialRequestStatus);
+
+  const [requestId, setRequestId] =
+    useState(initialRequestId);
+
+  async function openRequestDialog() {
+    setIsOpen(true);
+    setIsLoadingSettings(true);
+    setHasLoadedSettings(false);
+    setErrorMessage("");
+    setMessage("");
+
+    try {
+      const { data, error } =
+        await supabase.rpc(
+          "get_intent_join_message_settings",
+          {
+            p_intent_id: intentId,
+          }
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      const row =
+        Array.isArray(data)
+          ? (data[0] as JoinMessageSettingsRow | undefined)
+          : (data as JoinMessageSettingsRow | null);
+
+      if (!row) {
+        throw new Error(
+          "Join request settings could not be loaded."
+        );
+      }
+
+      const nextMode =
+        normalizeJoinMessageMode(
+          row.join_message_mode
+        );
+
+      setJoinMessageMode(
+        nextMode
+      );
+
+      setJoinMessagePrompt(
+        normalizeJoinMessagePrompt(
+          nextMode,
+          row.join_message_prompt
+        )
+      );
+
+      setHasLoadedSettings(true);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Join request settings could not be loaded."
+      );
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  }
 
   async function submitRequest(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
 
+    if (!hasLoadedSettings) {
+      setErrorMessage(
+        "Join request settings could not be loaded."
+      );
+      return;
+    }
+
+    const cleanedMessage =
+      message.trim();
+
+    if (
+      joinMessageMode ===
+        "required" &&
+      !cleanedMessage
+    ) {
+      setErrorMessage(
+        "Answer the host's question before sending the request."
+      );
+      return;
+    }
+
     setIsWorking(true);
     setErrorMessage("");
 
     try {
-      const {
-        data,
-        error,
-      } = await supabase.rpc(
-        "create_intent_join_request",
-        {
-          p_intent_id:
-            intentId,
-
-          p_message:
-            message.trim() ||
-            null,
-        }
-      );
+      const { data, error } =
+        await supabase.rpc(
+          "create_intent_join_request",
+          {
+            p_intent_id:
+              intentId,
+            p_message:
+              joinMessageMode ===
+              "none"
+                ? null
+                : cleanedMessage ||
+                  null,
+          }
+        );
 
       if (error) {
         throw error;
@@ -153,15 +246,14 @@ export default function PublicIntentJoinButton({
     setErrorMessage("");
 
     try {
-      const {
-        error,
-      } = await supabase.rpc(
-        "withdraw_intent_join_request",
-        {
-          p_request_id:
-            requestId,
-        }
-      );
+      const { error } =
+        await supabase.rpc(
+          "withdraw_intent_join_request",
+          {
+            p_request_id:
+              requestId,
+          }
+        );
 
       if (error) {
         throw error;
@@ -203,6 +295,14 @@ export default function PublicIntentJoinButton({
       >
         Open Shared Plan
       </a>
+    );
+  }
+
+  if (!viewerIsEligible) {
+    return (
+      <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+        You are not eligible to join this Intent.
+      </span>
     );
   }
 
@@ -283,14 +383,16 @@ export default function PublicIntentJoinButton({
     );
   }
 
+  const answerIsMissing =
+    joinMessageMode ===
+      "required" &&
+    !message.trim();
+
   return (
     <>
       <button
         type="button"
-        onClick={() => {
-          setIsOpen(true);
-          setErrorMessage("");
-        }}
+        onClick={openRequestDialog}
         className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
       >
         I&apos;m in
@@ -312,9 +414,7 @@ export default function PublicIntentJoinButton({
           }}
         >
           <form
-            onSubmit={
-              submitRequest
-            }
+            onSubmit={submitRequest}
             className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
@@ -326,35 +426,72 @@ export default function PublicIntentJoinButton({
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-gray-500">
-              The Primary Host or a
-              Co-host will review your
-              request.
+              The Primary Host or a Co-host will review your request.
             </p>
 
-            <label className="mt-6 block">
-              <span className="text-sm font-semibold text-gray-700">
-                Message
-              </span>
+            {isLoadingSettings ? (
+              <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm font-semibold text-gray-600">
+                Loading request settings...
+              </div>
+            ) : joinMessageMode ===
+              "none" ? (
+              <div className="mt-6 rounded-2xl border border-green-100 bg-green-50 p-5">
+                <p className="text-sm font-semibold text-green-900">
+                  No message is requested
+                </p>
 
-              <textarea
-                value={message}
-                disabled={isWorking}
-                maxLength={500}
-                rows={5}
-                placeholder="Optional"
-                onChange={(event) => {
-                  setMessage(
-                    event.target.value
-                  );
-                  setErrorMessage("");
-                }}
-                className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-              />
+                <p className="mt-2 text-sm leading-6 text-green-800">
+                  The host only needs your participation request. You can send it without writing a message.
+                </p>
+              </div>
+            ) : (
+              <label className="mt-6 block">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Host asks
+                </span>
 
-              <p className="mt-2 text-right text-xs text-gray-400">
-                {message.length}/500
-              </p>
-            </label>
+                <span className="mt-2 block text-base font-semibold leading-7 text-gray-900">
+                  {joinMessagePrompt}
+                </span>
+
+                <textarea
+                  value={message}
+                  disabled={isWorking}
+                  required={
+                    joinMessageMode ===
+                    "required"
+                  }
+                  maxLength={500}
+                  rows={5}
+                  placeholder={
+                    joinMessageMode ===
+                    "required"
+                      ? "Your answer"
+                      : "Optional answer"
+                  }
+                  onChange={(event) => {
+                    setMessage(
+                      event.target.value
+                    );
+                    setErrorMessage("");
+                  }}
+                  className="mt-3 w-full resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                />
+
+                <p className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-400">
+                  <span>
+                    {joinMessageMode ===
+                    "required"
+                      ? "Required"
+                      : "Optional"}
+                  </span>
+
+                  <span>
+                    {message.length}/500
+                  </span>
+                </p>
+              </label>
+            )}
 
             {errorMessage && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -378,8 +515,13 @@ export default function PublicIntentJoinButton({
 
               <button
                 type="submit"
-                disabled={isWorking}
-                className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
+                disabled={
+                  isWorking ||
+                  isLoadingSettings ||
+                  !hasLoadedSettings ||
+                  answerIsMissing
+                }
+                className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isWorking
                   ? "Sending..."

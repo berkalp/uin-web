@@ -175,6 +175,31 @@ export default function PlanMemberManagementControls({
     setRemovalReason("");
   }
 
+  async function ensurePlanLeadEligibility() {
+    const {
+      data: isEligible,
+      error,
+    } = await supabase.rpc(
+      "can_current_user_assign_plan_lead",
+      {
+        p_plan_id:
+          planId,
+        p_user_id:
+          memberUserId,
+      }
+    );
+
+    if (error) {
+      throw error;
+    }
+
+    if (!isEligible) {
+      throw new Error(
+        "This person does not match the participant eligibility of every linked Intent."
+      );
+    }
+  }
+
   async function updateRole() {
     if (
       selectedRole ===
@@ -188,6 +213,10 @@ export default function PlanMemberManagementControls({
     setErrorMessage("");
 
     try {
+      if (selectedRole === "co_host") {
+        await ensurePlanLeadEligibility();
+      }
+
       const {
         error,
       } = await supabase.rpc(
@@ -224,6 +253,8 @@ export default function PlanMemberManagementControls({
     setErrorMessage("");
 
     try {
+      await ensurePlanLeadEligibility();
+
       const {
         error,
       } = await supabase.rpc(

@@ -5,11 +5,10 @@ import {
 } from "next/navigation";
 
 import ManagedMinorInvitationActions from "@/components/family/ManagedMinorInvitationActions";
-import AccountContextSwitcher, {
-  type ManagedProfileSwitcherRow,
+import type {
+  ManagedProfileSwitcherRow,
 } from "@/components/navigation/AccountContextSwitcher";
-import MyProfileMenu from "@/components/navigation/MyProfileMenu";
-import StandaloneSignOutButton from "@/components/auth/StandaloneSignOutButton";
+import UserAccountMenu from "@/components/navigation/UserAccountMenu";
 import { createClient } from "@/utils/supabase/server";
 
 type ManagedProfilePageProps = {
@@ -369,45 +368,19 @@ export default async function ManagedProfilePage({
               "Guardian"}
           </p>
 
-          <div className="mt-7 flex flex-wrap items-start justify-center gap-3">
-            <div className="w-full max-w-sm">
-              <AccountContextSwitcher
-                personal={{
-                  fullName:
-                    personalProfile.full_name,
-                  username:
-                    personalProfile.username,
-                  avatarUrl:
-                    personalProfile.avatar_url,
-                }}
-                managedProfiles={
-                  managedProfiles
-                }
-                currentContext={{
-                  type:
-                    "managed_profile",
-                  childUserId:
-                    childId,
-                }}
-              />
-            </div>
-
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="rounded-xl bg-gray-950 px-5 py-3 font-semibold text-white"
-              >
-                Admin Dashboard
-              </Link>
-            )}
-
-            <MyProfileMenu
-              username={
-                personalProfile.username
-              }
+          <div className="mt-7 flex justify-center">
+            <UserAccountMenu
+              fullName={personalProfile.full_name}
+              username={personalProfile.username}
+              email={user.email ?? null}
+              avatarUrl={personalProfile.avatar_url}
+              managedProfiles={managedProfiles}
+              currentContext={{
+                type: "managed_profile",
+                childUserId: childId,
+              }}
+              isAdmin={isAdmin}
             />
-
-            <StandaloneSignOutButton />
           </div>
         </header>
 

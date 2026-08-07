@@ -1,20 +1,24 @@
 import { supabase } from "@/utils/supabase/client";
-
-export type Location = {
-  id: string;
-  city: string;
-  district: string;
-};
+import {
+  sortLocations,
+  type HierarchicalLocation,
+} from "@/utils/location";
 
 export async function getLocations() {
-  const { data, error } = await supabase
+  const {
+    data,
+    error,
+  } = await supabase
     .from("locations")
-    .select("id, city, district")
-    .order("district", { ascending: true });
+    .select(
+      "id, country_code, country_name, city, district, scope"
+    );
 
   if (error) {
     throw error;
   }
 
-  return data as Location[];
+  return sortLocations(
+    (data ?? []) as HierarchicalLocation[]
+  );
 }

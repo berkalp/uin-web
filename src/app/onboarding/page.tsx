@@ -1,21 +1,17 @@
-import Link from "next/link";
-
 import IntentForm from "@/components/onboarding/IntentForm";
+import type { SeedGrowthCandidate, SeedGrowthContext } from "@/utils/seeds";
+import { createClient } from "@/utils/supabase/server";
 
-type OnboardingPageProps = {
-  searchParams: Promise<{
-    copyFrom?: string | string[];
-  }>;
-};
+type OnboardingSearchParams = Promise<
+  Record<string, string | string[] | undefined>
+>;
 
-function getSearchParamValue(
-  value: string | string[] | undefined
+function getParam(
+  searchParams: Record<string, string | string[] | undefined>,
+  key: string
 ) {
-  if (Array.isArray(value)) {
-    return value[0] ?? "";
-  }
-
-  return value ?? "";
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
 }
 
 function isValidUuid(value: string) {
@@ -26,35 +22,46 @@ function isValidUuid(value: string) {
 
 export default async function OnboardingPage({
   searchParams,
-}: OnboardingPageProps) {
+}: {
+  searchParams: OnboardingSearchParams;
+}) {
   const resolvedSearchParams = await searchParams;
+  const requestedSeedId = getParam(resolvedSearchParams, "seed");
 
-  const copyFromValue = getSearchParamValue(
-    resolvedSearchParams.copyFrom
-  ).trim();
+  let seedContext: SeedGrowthContext | null = null;
+  let seedCandidates: SeedGrowthCandidate[] = [];
 
-  const hasValidCopySource =
-    copyFromValue.length > 0 &&
-    isValidUuid(copyFromValue);
+  if (requestedSeedId && isValidUuid(requestedSeedId)) {
+    const supabase = await createClient();
+    const [contextResult, candidatesResult] = await Promise.all([
+      supabase.rpc("get_my_seed_growth_context", { p_seed_id: requestedSeedId }),
+      supabase.rpc("get_my_seed_growth_candidates", { p_primary_seed_id: requestedSeedId }),
+    ]);
 
-  const backHref = hasValidCopySource
-    ? "/timeline?view=expired"
-    : "/timeline";
+    if (contextResult.error) {
+      console.warn("Seed growth context could not be loaded:", contextResult.error.message);
+    } else {
+      seedContext = ((contextResult.data ?? []) as SeedGrowthContext[])[0] ?? null;
+    }
 
-  const backLabel = hasValidCopySource
-    ? "Back to Expired Activities"
-    : "Back to Timeline";
+    if (candidatesResult.error) {
+      console.warn("Seed growth candidates could not be loaded:", candidatesResult.error.message);
+    } else {
+      seedCandidates = (candidatesResult.data ?? []) as SeedGrowthCandidate[];
+    }
+  }
 
   return (
-    <div className="relative min-h-screen">
-      <Link
-        href={backHref}
-        className="fixed left-6 top-6 z-50 rounded-xl border border-gray-200 bg-white px-5 py-3 font-semibold text-gray-700 shadow-sm transition hover:border-green-500 hover:text-green-700"
-      >
-        ← {backLabel}
-      </Link>
-
-      <IntentForm />
-    </div>
+    <IntentForm
+      initialCategoryId={
+        seedContext?.suggested_category_id ||
+        getParam(resolvedSearchParams, "category")
+      }
+      initialActivityId={seedContext?.suggested_activity_id || ""}
+      initialCommunityId={getParam(resolvedSearchParams, "community")}
+      initialNotes={seedContext?.seed_notes || ""}
+      sourceSeed={seedContext}
+      sourceSeedCandidates={seedCandidates}
+    />
   );
 }

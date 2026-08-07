@@ -1,13 +1,35 @@
+import type { ReactNode } from "react";
+import PlanWeatherPanel from "../weather/PlanWeatherPanel";
 import Link from "next/link";
+
+import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
+import ReputationFeedbackTargetsPanel from "../reputation/ReputationFeedbackTargetsPanel";
+import type {
+  ReputationFeedbackTarget,
+} from "../../utils/reputation";
 import {
   notFound,
   redirect,
 } from "next/navigation";
 
-import ConfirmActivityPlanButton from "./FinalizeActivityButton";
+import ActivityLocationPreview from "./ActivityLocationPreview";
+import PlanCoverQuickEditor from "./PlanCoverQuickEditor";
+import PlanCompletionReview, {
+  type CompletionMemberData,
+  type CompletionPlanData,
+} from "./PlanCompletionReview";
+import CommunityContextList from "../communities/CommunityContextList";
+import ActivityCoverImage from "../media/ActivityCoverImage";
+import PlanPresentationSettingsForm from "./PlanPresentationSettingsForm";
+import PlanningRoomQuickActions from "./PlanningRoomQuickActions";
 import PlanBudgetPanel from "./PlanBudgetPanel";
+import PlanNeedsPanel from "./PlanNeedsPanel";
+import PlanToolkitPanel from "./PlanToolkitPanel";
 import PlanMessageComposer from "./PlanMessageComposer";
 import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
+import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
+import ReportCustomActivityTitleButton from "../experiences/ReportCustomActivityTitleButton";
+import ExperiencePanel from "../experiences/ExperiencePanel";
 import ProfileNameLink from "../profile/ProfileNameLink";
 import PlanPeoplePanel, {
   type PlanPeopleInvitation,
@@ -19,7 +41,26 @@ import {
   type ActivityVisibility,
   getActivityVisibilityLabel,
 } from "../../utils/activityVisibility";
+import {
+  getReliableSystemCoverFallback,
+  resolveActivityCover,
+} from "../../utils/activityCover";
+import {
+  parseExperienceBundle,
+  type ExperienceBundle,
+} from "../../utils/experience";
+import {
+  parseIntentCommunityRows,
+  type IntentCommunityContext,
+} from "../../utils/communities";
+import { getSportPresentation } from "../../utils/sportPresentation";
 import { createClient } from "../../utils/supabase/server";
+import {
+  hydrateVisiblePlanPresentations,
+  normalizePlanPresentationVisibility,
+  type VisiblePlanPresentationRow,
+} from "../../utils/planPresentationVisibility";
+import { withReturnContext } from "../../utils/returnNavigation";
 
 type RoomPhase =
   | "planning"
@@ -30,10 +71,6 @@ type PlanStatus =
   | "planned"
   | "completed"
   | "cancelled";
-
-type CreationMode =
-  | "matched"
-  | "scheduled_direct";
 
 type RecruitmentStatus =
   | "open"
@@ -67,10 +104,12 @@ type PlanLocation = {
 
 type ActivityCategory = {
   name: string;
+  default_cover_url: string | null;
 };
 
 type PlanActivity = {
   name: string;
+  default_cover_url: string | null;
   activity_categories:
     | ActivityCategory
     | ActivityCategory[]
@@ -133,11 +172,22 @@ type LegacyParticipationRow = {
   source_request_id: string | null;
 };
 
+type IntentSportCoverContext = {
+  intent_id: string;
+  sport_id: string | null;
+  sport_name: string | null;
+  sport_slug: string | null;
+  sport_cover_url: string | null;
+  primary_community_id: string | null;
+  primary_community_name: string | null;
+  community_sport_cover_url: string | null;
+  context_cover_url: string | null;
+};
+
 type PlanRoomData = {
   id: string;
   host_user_id: string;
   title: string;
-  creation_mode: CreationMode;
   recruitment_status: RecruitmentStatus;
   target_budget:
     | number
@@ -149,6 +199,34 @@ type PlanRoomData = {
   scheduled_end: string | null;
   timezone: string;
   meeting_point: string | null;
+  address_text: string | null;
+  latitude:
+    | number
+    | string
+    | null;
+  longitude:
+    | number
+    | string
+    | null;
+  map_url: string | null;
+  street_view_url: string | null;
+  activity_location_name: string | null;
+  activity_address_text: string | null;
+  activity_latitude:
+    | number
+    | string
+    | null;
+  activity_longitude:
+    | number
+    | string
+    | null;
+  activity_map_url: string | null;
+  activity_street_view_url: string | null;
+  meeting_location_same_as_activity: boolean;
+  activity_location_visibility:
+    | "members"
+    | "public";
+  cover_url: string | null;
   schedule_notes: string | null;
   budget: number | null;
   max_participants: number | null;
@@ -156,6 +234,8 @@ type PlanRoomData = {
   visibility: string;
   notes: string | null;
   planned_at: string | null;
+  completed_at: string | null;
+  cancelled_at: string | null;
   expired_at: string | null;
   created_at: string;
   locations:
@@ -230,6 +310,8 @@ type BudgetSummaryRow = {
 type PlanRoomViewProps = {
   planId: string;
   roomPhase: RoomPhase;
+  backHref?: string;
+  backLabel?: string;
 };
 
 type ConversationPanelProps = {
@@ -251,11 +333,61 @@ type ConversationPanelProps = {
   heightClass?: string;
 };
 
+type CollapsiblePlanningSectionProps = {
+  id?: string;
+  title: string;
+  description?: string;
+  badge?: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+  className?: string;
+};
+
+function CollapsiblePlanningSection({
+  id,
+  title,
+  description,
+  badge,
+  defaultOpen = true,
+  children,
+  className = "",
+}: CollapsiblePlanningSectionProps) {
+  return (
+    <details
+      id={id}
+      open={defaultOpen}
+      className={`group scroll-mt-24 ${className}`}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white px-5 py-4 shadow-sm transition hover:border-green-200 hover:bg-green-50/30">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-sm font-bold text-gray-900 sm:text-base">{title}</h2>
+            {badge && (
+              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+                {badge}
+              </span>
+            )}
+          </div>
+          {description && (
+            <p className="mt-1 text-xs leading-5 text-gray-500">{description}</p>
+          )}
+        </div>
+        <span
+          aria-hidden="true"
+          className="shrink-0 text-gray-400 transition-transform group-open:rotate-180"
+        >
+          ⌄
+        </span>
+      </summary>
+      <div className="mt-3">{children}</div>
+    </details>
+  );
+}
+
 const PLAN_SELECT_QUERY = `
   id,
   host_user_id,
   title,
-  creation_mode,
   recruitment_status,
   target_budget,
   window_start,
@@ -264,6 +396,20 @@ const PLAN_SELECT_QUERY = `
   scheduled_end,
   timezone,
   meeting_point,
+  address_text,
+  latitude,
+  longitude,
+  map_url,
+  street_view_url,
+  activity_location_name,
+  activity_address_text,
+  activity_latitude,
+  activity_longitude,
+  activity_map_url,
+  activity_street_view_url,
+  meeting_location_same_as_activity,
+  activity_location_visibility,
+  cover_url,
   schedule_notes,
   budget,
   max_participants,
@@ -271,6 +417,8 @@ const PLAN_SELECT_QUERY = `
   visibility,
   notes,
   planned_at,
+  completed_at,
+  cancelled_at,
   expired_at,
   created_at,
   locations (
@@ -279,8 +427,10 @@ const PLAN_SELECT_QUERY = `
   ),
   activities (
     name,
+    default_cover_url,
     activity_categories (
-      name
+      name,
+      default_cover_url
     )
   ),
   profiles!plans_host_user_id_fkey (
@@ -942,6 +1092,8 @@ function ConversationPanel({
 export default async function PlanRoomView({
   planId,
   roomPhase,
+  backHref = "/timeline",
+  backLabel = "Timeline",
 }: PlanRoomViewProps) {
   const supabase =
     await createClient();
@@ -981,6 +1133,146 @@ export default async function PlanRoomView({
     planData as unknown as PlanRoomData;
 
   const {
+    data: visiblePresentationData,
+    error: visiblePresentationError,
+  } = await supabase.rpc("get_visible_plan_presentations", {
+    p_plan_ids: [plan.id],
+  });
+
+  if (visiblePresentationError) {
+    console.error(
+      "Plan presentation visibility query failed:",
+      visiblePresentationError
+    );
+  }
+
+  const hydratedPresentations = await hydrateVisiblePlanPresentations(
+    supabase,
+    (visiblePresentationData ?? []) as VisiblePlanPresentationRow[]
+  );
+
+  const visiblePresentation = hydratedPresentations[0] ?? null;
+
+  const titlePresentationVisibility =
+    normalizePlanPresentationVisibility(
+      visiblePresentation?.title_visibility
+    );
+
+  const coverPresentationVisibility =
+    normalizePlanPresentationVisibility(
+      visiblePresentation?.cover_visibility
+    );
+
+  const {
+    data: experienceData,
+    error: experienceError,
+  } = await supabase.rpc(
+    "get_visible_experience_gallery_v2",
+    {
+      p_plan_id:
+        plan.id,
+    }
+  );
+
+  if (experienceError) {
+    console.error(
+      "Activity Room Experience query failed:",
+      experienceError
+    );
+  }
+
+  const rawExperienceBundle =
+    parseExperienceBundle(
+      experienceData
+    );
+
+  let experienceBundle:
+    ExperienceBundle | null =
+    rawExperienceBundle;
+
+  if (rawExperienceBundle) {
+    const signedMedia =
+      await Promise.all(
+        rawExperienceBundle.media.map(
+          async (media) => {
+            if (
+              (media.mediaType !==
+                "photo" &&
+                media.mediaType !==
+                "video") ||
+              !media.storagePath
+            ) {
+              return media;
+            }
+
+            const {
+              data: signedData,
+              error: signedError,
+            } = await supabase.storage
+              .from(
+                "experience-media"
+              )
+              .createSignedUrl(
+                media.storagePath,
+                60 * 60
+              );
+
+            if (signedError) {
+              console.error(
+                "Activity Room Experience photo signing failed:",
+                signedError
+              );
+            }
+
+            return {
+              ...media,
+              signedUrl:
+                signedData?.signedUrl ??
+                null,
+            };
+          }
+        )
+      );
+
+    experienceBundle = {
+      ...rawExperienceBundle,
+      media:
+        signedMedia,
+    };
+  }
+
+  const sharedTitle =
+    visiblePresentation?.custom_title ??
+    experienceBundle?.sharedTitle ??
+    null;
+
+  const {
+    data: reputationTargetData,
+    error: reputationTargetError,
+  } = plan.status === "completed"
+    ? await supabase.rpc(
+        "get_reputation_feedback_targets",
+        {
+          p_plan_id: plan.id,
+        }
+      )
+    : {
+        data: [],
+        error: null,
+      };
+
+  if (reputationTargetError) {
+    console.error(
+      "Activity Archive reputation targets query failed:",
+      reputationTargetError
+    );
+  }
+
+  const reputationTargets =
+    (reputationTargetData ??
+      []) as ReputationFeedbackTarget[];
+
+  const {
     data: sourceIntentLink,
     error: sourceIntentError,
   } = await supabase
@@ -1004,9 +1296,72 @@ export default async function PlanRoomView({
       ? sourceIntentLink.intent_id
       : null;
 
+  const [
+    sourceSportContextResponse,
+    sourceCommunityContextResponse,
+  ] = sourceIntentId
+    ? await Promise.all([
+        supabase.rpc(
+          "get_intent_sport_cover_context",
+          {
+            p_intent_ids: [
+              sourceIntentId,
+            ],
+          }
+        ),
+        supabase.rpc(
+          "get_visible_intent_communities",
+          {
+            p_intent_ids: [
+              sourceIntentId,
+            ],
+          }
+        ),
+      ])
+    : [
+        { data: [], error: null },
+        { data: [], error: null },
+      ];
+
+  if (
+    sourceSportContextResponse.error
+  ) {
+    console.error(
+      "Plan Room sport context query failed:",
+      sourceSportContextResponse.error
+    );
+  }
+
+  if (
+    sourceCommunityContextResponse.error
+  ) {
+    console.error(
+      "Plan Room Community context query failed:",
+      sourceCommunityContextResponse.error
+    );
+  }
+
+  const sourceSportContext =
+    (
+      (
+        sourceSportContextResponse.data ??
+        []
+      ) as IntentSportCoverContext[]
+    )[0] ?? null;
+
+  const sourceCommunities: IntentCommunityContext[] =
+    parseIntentCommunityRows(
+      sourceCommunityContextResponse.data
+    );
+
+  const sourceSportPresentation =
+    sourceSportContext?.sport_name
+      ? getSportPresentation(
+          sourceSportContext.sport_name
+        )
+      : null;
+
   const activityRoomExists =
-    plan.creation_mode ===
-      "scheduled_direct" ||
     plan.status === "planned" ||
     plan.status === "completed" ||
     (
@@ -1021,16 +1376,6 @@ export default async function PlanRoomView({
   ) {
     redirect(
       `/plans/${plan.id}/planning`
-    );
-  }
-
-  if (
-    roomPhase === "planning" &&
-    plan.creation_mode ===
-      "scheduled_direct"
-  ) {
-    redirect(
-      `/plans/${plan.id}/activity`
     );
   }
 
@@ -1064,9 +1409,7 @@ export default async function PlanRoomView({
     unknown[] = [];
 
   if (
-    roomPhase === "activity" &&
-    plan.creation_mode ===
-      "matched"
+    roomPhase === "activity"
   ) {
     const {
       data,
@@ -1327,6 +1670,20 @@ export default async function PlanRoomView({
     }
   }
 
+  const scheduledEndTime = plan.scheduled_end
+    ? new Date(plan.scheduled_end).getTime()
+    : Number.NaN;
+
+  const isScheduledActivityEnded =
+    roomPhase === "activity" &&
+    plan.status === "planned" &&
+    Number.isFinite(scheduledEndTime) &&
+    scheduledEndTime <= Date.now();
+
+  const isOutcomeUnknown =
+    isScheduledActivityEnded &&
+    scheduledEndTime + 7 * 24 * 60 * 60 * 1000 <= Date.now();
+
   const canSendMessages =
     (isHost ||
       isActiveMember) &&
@@ -1342,7 +1699,8 @@ export default async function PlanRoomView({
         roomPhase ===
           "activity" &&
         plan.status ===
-          "planned"
+          "planned" &&
+        !isOutcomeUnknown
       )
     );
 
@@ -1352,21 +1710,15 @@ export default async function PlanRoomView({
     (
       plan.status ===
         "forming" ||
-      plan.status ===
-        "planned"
+      (
+        plan.status ===
+          "planned" &&
+        !isOutcomeUnknown
+      )
     );
 
   const isCompletionRequired =
-    roomPhase ===
-      "activity" &&
-    plan.status ===
-      "planned" &&
-    plan.scheduled_end !==
-      null &&
-    new Date(
-      plan.scheduled_end
-    ).getTime() <=
-      Date.now();
+    isScheduledActivityEnded;
 
   const attendanceSummary =
     activeMembers.reduce(
@@ -1426,6 +1778,71 @@ export default async function PlanRoomView({
       activity?.activity_categories
     );
 
+  const canonicalActivityName =
+    activity?.name ||
+    plan.title ||
+    "UIN Activity";
+
+  const heroTitle =
+    plan.status === "completed"
+      ? canonicalActivityName
+      : sharedTitle ||
+        plan.title ||
+        canonicalActivityName;
+
+  const completedSharedTitle =
+    plan.status === "completed" &&
+    sharedTitle &&
+    sharedTitle !== canonicalActivityName
+      ? sharedTitle
+      : null;
+
+  const completionPlanData: CompletionPlanData | null =
+    isCompletionRequired && (isHost || isCoHost)
+      ? {
+          id: plan.id,
+          title: heroTitle,
+          status: plan.status,
+          host_user_id: plan.host_user_id,
+          scheduled_start: plan.scheduled_start,
+          scheduled_end: plan.scheduled_end,
+          timezone: plan.timezone,
+          window_start: plan.window_start,
+          window_end: plan.window_end,
+          meeting_point: plan.meeting_point,
+          meeting_address_text: plan.address_text,
+          activity_location_name: plan.activity_location_name,
+          activity_address_text: plan.activity_address_text,
+          meeting_location_same_as_activity: plan.meeting_location_same_as_activity,
+          intent_notes: plan.notes,
+          schedule_notes: plan.schedule_notes,
+          cancellation_reason: null,
+          actor_role: isHost ? "host" : "co_host",
+          activity_name: canonicalActivityName,
+          category_name: category?.name ?? null,
+          city: location?.city ?? null,
+          district: location?.district ?? null,
+        }
+      : null;
+
+  const completionMemberData: CompletionMemberData[] =
+    activeMembers.map((member) => {
+      const profile = getFirst(member.profiles);
+
+      return {
+        member_id: member.id,
+        user_id: member.user_id,
+        role: member.role,
+        status: "active",
+        full_name: profile?.full_name ?? null,
+        username: profile?.username ?? null,
+        avatar_url: profile?.avatar_url ?? null,
+        attendance_status: member.attendance_status,
+        attendance_updated_at: null,
+        attendance_updated_by: null,
+      };
+    });
+
   const hostProfile =
     getFirst(
       plan.profiles
@@ -1434,6 +1851,37 @@ export default async function PlanRoomView({
   const hostName =
     hostProfile?.full_name ??
     "UIN member";
+
+  const experienceCoverMedia =
+    experienceBundle?.media.find(
+      (media) => media.isCover
+    ) ?? null;
+
+  const experienceCoverUrl =
+    experienceCoverMedia?.signedUrl ||
+    experienceCoverMedia?.externalUrl ||
+    null;
+
+  const resolvedCoverUrl =
+    experienceCoverUrl ||
+    resolveActivityCover({
+      planCoverUrl:
+        visiblePresentation?.visible_cover_url ??
+        sourceSportContext?.context_cover_url ??
+        null,
+      activityCoverUrl:
+        activity?.default_cover_url ??
+        null,
+      categoryCoverUrl:
+        category?.default_cover_url ??
+        null,
+      categoryName:
+        category?.name ??
+        null,
+      activityName:
+        activity?.name ??
+        plan.title,
+    });
 
   const memberNameByUserId =
     new Map<string, string>();
@@ -1567,18 +2015,6 @@ export default async function PlanRoomView({
     plan.meeting_point !==
       null;
 
-  const roomTitle =
-    roomPhase === "planning"
-      ? "Planning Room"
-      : "Activity Room";
-
-  const roomDescription =
-    isExpiredPlanningArchive
-      ? "Review the read-only planning history for this expired Activity window."
-      : roomPhase === "planning"
-        ? "Discuss the details and prepare the final Activity schedule."
-        : "Coordinate the confirmed Activity with the other members.";
-
   const peoplePanelMembers:
     PlanPeopleMember[] =
     activeMembers.map(
@@ -1671,13 +2107,13 @@ export default async function PlanRoomView({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
-      <div className="mx-auto max-w-6xl">
+      <div className="mx-auto max-w-[1500px]">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/timeline"
+            href={backHref}
             className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-500 hover:text-green-700"
           >
-            ← Back to Timeline
+            ← Back to {backLabel}
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -1685,7 +2121,12 @@ export default async function PlanRoomView({
               "planning" &&
               activityRoomExists && (
                 <Link
-                  href={`/plans/${plan.id}/activity`}
+                  href={withReturnContext(
+                    `/plans/${plan.id}/activity`,
+                    backHref,
+                    backLabel,
+                    "room"
+                  )}
                   className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Open Activity Room
@@ -1696,14 +2137,18 @@ export default async function PlanRoomView({
               className={`rounded-full px-4 py-2 text-sm font-semibold capitalize ${
                 isExpiredPlanningArchive
                   ? "bg-orange-100 text-orange-800"
-                  : getStatusClasses(
-                      plan.status
-                    )
+                  : isOutcomeUnknown
+                    ? "bg-slate-100 text-slate-800"
+                    : getStatusClasses(
+                        plan.status
+                      )
               }`}
             >
               {isExpiredPlanningArchive
                 ? "Expired"
-                : plan.status}
+                : isOutcomeUnknown
+                  ? "Outcome Unknown"
+                  : plan.status}
             </span>
           </div>
         </div>
@@ -1760,499 +2205,662 @@ export default async function PlanRoomView({
             </p>
 
             <h2 className="mt-2 text-xl font-bold text-amber-950">
-              The confirmed Activity schedule has ended.
+              {isOutcomeUnknown
+                ? "The Activity outcome is still unknown."
+                : "The confirmed Activity schedule has ended."}
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-amber-800">
-              The Primary Host or a
-              Co-host should review
-              attendance and complete the
-              Activity. Only the Primary
-              Host can mark it as not
-              happened.
+              {isOutcomeUnknown
+                ? "No final outcome was recorded within seven days. It is no longer treated as an active Planned Activity, but a Host or Co-host can still resolve it below."
+                : "Confirm whether the Activity happened and record attendance here in the Activity Room. Only the Primary Host can mark it as not happened."}
             </p>
 
             {(isHost || isCoHost) && (
-              <Link
-                href={`/plans/${plan.id}/completion`}
+              <a
+                href="#attendance-review"
                 className="mt-5 inline-flex rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
               >
-                Review Attendance →
-              </Link>
+                Review outcome & attendance ↓
+              </a>
             )}
           </div>
         )}
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    isHost
-                      ? "bg-gray-900 text-white"
-                      : "bg-cyan-100 text-cyan-800"
-                  }`}
-                >
-                  {isHost
-                    ? "Primary Host"
-                    : isCoHost
-                      ? "Co-host"
-                      : "Plan Participant"}
-                </span>
+        <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_290px]">
+          <div className="min-w-0">
+            <section className="overflow-hidden rounded-3xl border border-gray-200 bg-gray-950 shadow-sm">
+              <div className="relative h-64 md:h-[330px]">
+                <ActivityCoverImage
+                  src={resolvedCoverUrl}
+                  fallbackSrc={getReliableSystemCoverFallback()}
+                  alt={`${heroTitle} cover`}
+                  className="h-full w-full object-cover"
+                />
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    roomPhase ===
-                    "planning"
-                      ? "bg-amber-50 text-amber-700"
-                      : "bg-blue-50 text-blue-700"
-                  }`}
-                >
-                  {roomTitle}
-                </span>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/25" />
+
+                <div className="absolute inset-x-0 top-0 flex flex-wrap items-start justify-between gap-3 p-5 md:p-6">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(isHost ||
+                      (isCoHost &&
+                        coverPresentationVisibility !== "only_me")) &&
+                      !isExpiredPlanningPlan &&
+                      !isOutcomeUnknown && (
+                        <PlanCoverQuickEditor
+                          planId={plan.id}
+                          initialPreviewUrl={resolvedCoverUrl}
+                          initialExternalUrl={
+                            visiblePresentation?.custom_cover_external_url ?? null
+                          }
+                          initialStoragePath={
+                            visiblePresentation?.custom_cover_storage_path ?? null
+                          }
+                          initialVisibility={coverPresentationVisibility}
+                        />
+                      )}
+
+                    <span className="rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
+                      {roomPhase === "planning" ? "Planning Room" : "Activity Room"}
+                    </span>
+                  </div>
+
+                  <span className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
+                    isOutcomeUnknown ? "bg-slate-100 text-slate-800" : getStatusClasses(plan.status)
+                  }`}>
+                    {isOutcomeUnknown ? "Outcome Unknown" : plan.status}
+                  </span>
+                </div>
+
+                <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-green-200 backdrop-blur">
+                      {category?.name ?? "UIN Activity"}
+                    </span>
+
+                    {sourceSportContext?.sport_name && sourceSportPresentation && (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em] shadow-sm"
+                        style={{
+                          backgroundColor: sourceSportPresentation.backgroundColor,
+                          borderColor: sourceSportPresentation.borderColor,
+                          color: sourceSportPresentation.textColor,
+                        }}
+                      >
+                        <span aria-hidden="true">{sourceSportPresentation.icon}</span>
+                        {sourceSportContext.sport_name}
+                      </span>
+                    )}
+                  </div>
+
+                  {plan.status !== "completed" &&
+                  (isHost ||
+                    (isCoHost &&
+                      titlePresentationVisibility !== "only_me")) &&
+                  plan.status !== "cancelled" &&
+                  !isOutcomeUnknown ? (
+                    <SharedActivityTitleForm
+                      planId={plan.id}
+                      initialTitle={sharedTitle}
+                      canonicalActivityName={canonicalActivityName}
+                      canManage
+                      initialVisibility={titlePresentationVisibility}
+                      variant="hero"
+                    />
+                  ) : (
+                    <h1 className="mt-3 max-w-4xl text-3xl font-bold leading-tight md:text-4xl">
+                      {heroTitle}
+                    </h1>
+                  )}
+
+                  {completedSharedTitle && (
+                    <p className="mt-2 text-sm font-semibold text-white/80">
+                      Shared experience · {completedSharedTitle}
+                    </p>
+                  )}
+
+                  {!isHost &&
+                    !isCoHost &&
+                    sharedTitle &&
+                    sharedTitle.trim() !== canonicalActivityName.trim() && (
+                      <div className="mt-2">
+                        {plan.status !== "completed" && (
+                          <p className="text-xs font-semibold text-white/70">
+                            Original Activity · {canonicalActivityName}
+                          </p>
+                        )}
+                        <ReportCustomActivityTitleButton
+                          planId={plan.id}
+                          customTitle={sharedTitle}
+                          canonicalTitle={canonicalActivityName}
+                          compact
+                        />
+                      </div>
+                    )}
+
+                  <CommunityContextList communities={sourceCommunities} variant="hero" />
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {roomPhase === "planning" && activityRoomExists && (
+                      <Link
+                        href={`/plans/${plan.id}/activity`}
+                        className="rounded-xl border border-white/30 bg-white/90 px-4 py-2.5 text-sm font-semibold text-gray-950 backdrop-blur transition hover:bg-white"
+                      >
+                        Preview public page ↗
+                      </Link>
+                    )}
+                  </div>
+                </div>
               </div>
+            </section>
 
-              <h1 className="mt-4 text-3xl font-bold text-gray-900">
-                {plan.title ||
-                  activity?.name ||
-                  "UIN Activity"}
-              </h1>
+            {plan.status === "completed" &&
+              (isHost ||
+                (isCoHost &&
+                  titlePresentationVisibility !== "only_me")) && (
+                <SharedActivityTitleForm
+                  planId={plan.id}
+                  initialTitle={sharedTitle}
+                  canonicalActivityName={canonicalActivityName}
+                  canManage
+                  initialVisibility={titlePresentationVisibility}
+                  variant="card"
+                />
+              )}
 
-              <p className="mt-2 text-gray-500">
-                {category?.name ??
-                  "Unknown Category"}
-              </p>
+            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">Target availability</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {formatWindowDate(plan.window_start)} → {formatWindowDate(plan.window_end)}
+                </p>
+              </article>
 
-              <p className="mt-3 text-sm text-gray-600">
-                Hosted by{" "}
+              <article className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Confirmed plan</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {plan.scheduled_start ? formatDateTime(plan.scheduled_start, plan.timezone) : "Planning in progress"}
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Outcome</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {plan.status === "completed"
+                    ? "Completed"
+                    : plan.status === "cancelled"
+                      ? "Cancelled"
+                      : "Waiting for the Activity"}
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-700">Progress</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-lg font-bold text-gray-950">
+                    {plan.status === "completed" ? 100 : plan.status === "planned" ? 70 : plan.status === "forming" ? 30 : 0}%
+                  </span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                    <span
+                      className="block h-full rounded-full bg-emerald-500"
+                      style={{ width: `${plan.status === "completed" ? 100 : plan.status === "planned" ? 70 : plan.status === "forming" ? 30 : 0}%` }}
+                    />
+                  </span>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <aside className="h-fit rounded-3xl border border-gray-200 bg-white p-5 shadow-sm xl:sticky xl:top-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Planning Room</p>
+            <p className="mt-2 text-sm leading-6 text-gray-500">Manage the team, visibility and planning details from one place.</p>
+
+            <div className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-5">
+              {hostProfile?.avatar_url ? (
+                <img src={hostProfile.avatar_url} alt={hostName} className="h-11 w-11 rounded-full object-cover" />
+              ) : (
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-cyan-50 font-bold text-cyan-700">
+                  {getInitial(hostName)}
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Host</p>
                 <ProfileNameLink
-                  username={
-                    hostProfile?.username
-                  }
+                  username={hostProfile?.username}
                   title={`View ${hostName}'s profile`}
-                  className="font-semibold text-gray-900 transition hover:text-green-700 hover:underline hover:underline-offset-4"
+                  className="block truncate font-bold text-gray-950 hover:text-green-700"
                 >
                   {hostName}
                 </ProfileNameLink>
-              </p>
-
-              <p className="mt-3 text-sm text-gray-600">
-                {roomDescription}
-              </p>
+                {hostProfile?.username && <p className="truncate text-xs text-gray-500">@{hostProfile.username}</p>}
+              </div>
             </div>
 
-            <div className="rounded-2xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              <p className="font-semibold text-gray-900">
-                {
-                  activeMembers.length
-                }{" "}
-                members
-              </p>
+            <dl className="mt-5 grid grid-cols-2 gap-3 text-sm">
+              <div className="rounded-2xl bg-gray-50 p-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Participants</dt>
+                <dd className="mt-1 font-bold text-gray-950">{participantCount} / {participantLimit}</dd>
+              </div>
+              <div className="rounded-2xl bg-gray-50 p-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Visibility</dt>
+                <dd className="mt-1 font-bold text-gray-950">{getActivityVisibilityLabel(plan.visibility)}</dd>
+              </div>
+              <div className="rounded-2xl bg-gray-50 p-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Target budget</dt>
+                <dd className="mt-1 font-bold text-gray-950">{targetBudget === null ? "Not set" : `${targetBudget.toLocaleString()} TL`}</dd>
+              </div>
+              <div className="rounded-2xl bg-gray-50 p-3">
+                <dt className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Recruitment</dt>
+                <dd className="mt-1 font-bold capitalize text-gray-950">{plan.recruitment_status}</dd>
+              </div>
+            </dl>
 
-              <p className="mt-1">
-                {participantCount} /{" "}
-                {participantLimit}{" "}
-                participants
-              </p>
-
-              <p className="mt-1 capitalize">
-                Recruitment:{" "}
-                {
-                  plan.recruitment_status
-                }
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
-            <p>
-              📅 Availability:{" "}
-              {plan.window_start} →{" "}
-              {plan.window_end}
-            </p>
-
-            <p>
-              📍 Area:{" "}
-              {location?.district ??
-                "Unknown District"}
-              ,{" "}
-              {location?.city ??
-                "Unknown City"}
-            </p>
-
-            <p>
-              👥 Capacity:{" "}
-              {participantCount} /{" "}
-              {participantLimit}
-            </p>
-
-            <p>
-              👁 Visible to:{" "}
-              {getActivityVisibilityLabel(
-                plan.visibility
-              )}
-            </p>
-          </div>
-
-          {hasSchedule &&
-            plan.scheduled_start &&
-            plan.scheduled_end &&
-            plan.meeting_point && (
-              <div
-                className={`mt-6 rounded-2xl border p-5 ${
-                  roomPhase ===
-                  "planning"
-                    ? "border-amber-100 bg-amber-50"
-                    : "border-blue-100 bg-blue-50"
-                }`}
-              >
-                <p
-                  className={`text-xs font-semibold uppercase tracking-wide ${
-                    roomPhase ===
-                    "planning"
-                      ? "text-amber-700"
-                      : "text-blue-700"
-                  }`}
-                >
-                  {roomPhase ===
-                  "planning"
-                    ? "Current Schedule Draft"
-                    : "Confirmed Schedule"}
-                </p>
-
-                <div className="mt-3 space-y-2 text-sm text-gray-700">
-                  <p>
-                    🕒{" "}
-                    {formatDateTime(
-                      plan.scheduled_start,
-                      plan.timezone
-                    )}{" "}
-                    to{" "}
-                    {formatTime(
-                      plan.scheduled_end,
-                      plan.timezone
-                    )}
-                  </p>
-
-                  <p>
-                    📍{" "}
-                    {
-                      plan.meeting_point
-                    }
-                  </p>
-
-                  <p>
-                    🌍{" "}
-                    {plan.timezone}
-                  </p>
-                </div>
-
-                {plan.schedule_notes && (
-                  <p className="mt-4 whitespace-pre-wrap border-t border-black/5 pt-4 text-sm text-gray-700">
-                    {
-                      plan.schedule_notes
-                    }
-                  </p>
-                )}
+            {sourceIntentId && (isHost || isCoHost) && !isExpiredPlanningPlan && !isOutcomeUnknown && (
+              <div className="mt-5">
+                <IntentInvitePeopleButton
+                  intentId={sourceIntentId}
+                  activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
+                  compact
+                />
               </div>
             )}
+          </aside>
         </section>
 
-        {sourceIntentId &&
-          (
-            plan.status ===
-              "forming" ||
-            plan.status ===
-              "planned"
-          ) && (
-          <div className="mt-6">
-            <ActivityVisibilityManager
-              intentId={
-                sourceIntentId
+        <CollapsiblePlanningSection
+          id="team-chat"
+          title="Team & Conversation"
+          description="See the active team, invitations and Planning Room messages together."
+          badge={`${peoplePanelMembers.length} members`}
+          defaultOpen
+          className="mt-4"
+        >
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <PlanPeoplePanel
+              planId={plan.id}
+              planStatus={plan.status}
+              roomPhase={roomPhase}
+              recruitmentStatus={plan.recruitment_status}
+              visibility={
+                plan.visibility as
+                  | "public"
+                  | "friends"
+                  | "except_friends"
+                  | "invite_only"
+                  | "private"
               }
-              initialVisibility={
-                plan.visibility as ActivityVisibility
+              actorUserId={user.id}
+              actorRole={actorRole}
+              sourceIntentId={sourceIntentId}
+              activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
+              members={peoplePanelMembers}
+              invitations={peoplePanelInvitations}
+            />
+
+            <ConversationPanel
+              title="Planning Room Conversation"
+              description="Coordinate the plan without leaving the room."
+              messages={currentMessages}
+              currentUserId={user.id}
+              timezone={plan.timezone}
+              planId={plan.id}
+              memberNameByUserId={memberNameByUserId}
+              canSendMessages={canSendMessages}
+              readOnlyTitle={isExpiredPlanningArchive ? "This Planning Room has expired." : "This room is read-only."}
+              readOnlyDescription={
+                isExpiredPlanningArchive
+                  ? `The availability window ended on ${formatWindowDate(plan.window_end)}. This conversation cannot be continued.`
+                  : isPlanningArchived
+                    ? "Planning ended when the schedule was confirmed."
+                    : "Messages cannot be sent in the current Activity state."
               }
-              canEdit={
-                isHost &&
-                !isExpiredPlanningPlan
+              emptyTitle="No messages yet."
+              emptyDescription={
+                isExpiredPlanningArchive
+                  ? "No messages were recorded before this Planning Room expired."
+                  : "Start the room conversation."
               }
-              compact
+            />
+          </div>
+        </CollapsiblePlanningSection>
+
+        <div className="mt-5">
+          <ActivityLifecycleTimeline
+            targetStart={plan.window_start}
+            targetEnd={plan.window_end}
+            scheduledStart={plan.scheduled_start}
+            scheduledEnd={plan.scheduled_end}
+            completedAt={plan.completed_at}
+            cancelledAt={plan.cancelled_at}
+            expiredAt={isExpiredPlanningArchive ? plan.expired_at ?? plan.window_end : plan.expired_at}
+            status={isExpiredPlanningArchive ? "expired" : plan.status}
+            timezone={plan.timezone}
+            variant="horizontal"
+            title={roomPhase === "planning" ? "From Intent to plan" : "Activity timeline"}
+            description="Availability, confirmed schedule and outcome in one compact view."
+          />
+        </div>
+
+        <PlanningRoomQuickActions
+          actions={[
+            { targetId: "locations", icon: "⌖", label: "Locations" },
+            { targetId: "privacy", icon: "▣", label: "Privacy & Visibility" },
+            { targetId: "toolkit", icon: "☑", label: "Checklist & Files" },
+            { targetId: "budget", icon: "▤", label: "Budget" },
+            { targetId: "schedule", icon: "▦", label: "Schedule" },
+            { targetId: "team-chat", icon: "◌", label: "Team & Chat" },
+          ]}
+        />
+
+        <CollapsiblePlanningSection
+          title="Locations"
+          description="Edit the meeting point and Activity location without hunting through the page."
+          badge={plan.meeting_point || plan.activity_location_name ? "Configured" : "Needs attention"}
+          defaultOpen
+          className="mt-5"
+        >
+          {(isHost || isCoHost) && !isExpiredPlanningPlan && !isOutcomeUnknown ? (
+            <div>
+            <PlanPresentationSettingsForm
+              planId={plan.id}
+              initialCoverUrl={plan.cover_url}
+              initialMeetingPoint={plan.meeting_point}
+              initialMeetingAddressText={plan.address_text}
+              initialMeetingMapUrl={plan.map_url}
+              initialMeetingStreetViewUrl={plan.street_view_url}
+              initialMeetingLatitude={plan.latitude}
+              initialMeetingLongitude={plan.longitude}
+              initialActivityLocationName={plan.activity_location_name}
+              initialActivityAddressText={plan.activity_address_text}
+              initialActivityMapUrl={plan.activity_map_url}
+              initialActivityStreetViewUrl={plan.activity_street_view_url}
+              initialActivityLatitude={plan.activity_latitude}
+              initialActivityLongitude={plan.activity_longitude}
+              initialMeetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
+              initialActivityLocationVisibility={plan.activity_location_visibility}
+              planStatus={plan.status}
+            />
+          </div>
+        ) : (
+            <div>
+            <ActivityLocationPreview
+              city={location?.city ?? null}
+              district={location?.district ?? null}
+              meetingLocation={{
+                name: plan.meeting_point,
+                addressText: plan.address_text,
+                latitude: plan.latitude,
+                longitude: plan.longitude,
+                mapUrl: plan.map_url,
+                streetViewUrl: plan.street_view_url,
+              }}
+              activityLocation={{
+                name: plan.activity_location_name,
+                addressText: plan.activity_address_text,
+                latitude: plan.activity_latitude,
+                longitude: plan.activity_longitude,
+                mapUrl: plan.activity_map_url,
+                streetViewUrl: plan.activity_street_view_url,
+              }}
+              meetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
+              activityLocationVisibility={plan.activity_location_visibility}
+              canViewExactLocation
             />
           </div>
         )}
 
-        {roomPhase ===
-          "activity" &&
-          (
-            plan.status ===
-              "completed" ||
-            isCompletionRequired
-          ) && (
+        {roomPhase === "activity" && (
+          <div id="weather-context" className="mt-4 scroll-mt-24">
+            <PlanWeatherPanel
+              planId={plan.id}
+              canManagePlanNeeds={(isHost || isCoHost) && plan.status === "planned" && !isCompletionRequired}
+            />
+          </div>
+        )}
+        </CollapsiblePlanningSection>
+
+        {roomPhase === "activity" &&
+          isCompletionRequired &&
+          completionPlanData &&
+          (isHost || isCoHost) && (
+            <div className="mt-6">
+              <PlanCompletionReview
+                plan={completionPlanData}
+                members={completionMemberData}
+                outcomeUnknown={isOutcomeUnknown}
+              />
+            </div>
+          )}
+
+        {roomPhase === "activity" &&
+          isCompletionRequired &&
+          !isHost &&
+          !isCoHost && (
+            <section id="attendance-review" className="mt-6 scroll-mt-24 rounded-3xl border border-amber-200 bg-amber-50 p-6">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Activity Outcome</p>
+              <h2 className="mt-2 text-xl font-bold text-amber-950">
+                {isOutcomeUnknown ? "Outcome Unknown" : "Waiting for Host confirmation"}
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-amber-800">
+                {isOutcomeUnknown
+                  ? "The scheduled Activity ended more than seven days ago without a final outcome. It is archived as Outcome Unknown instead of being automatically marked as completed or not happened."
+                  : "The Activity has ended. The Primary Host or a Co-host can close the Activity and record attendance. If nobody resolves it within seven days, UIN will archive it as Outcome Unknown rather than guessing what happened."}
+              </p>
+            </section>
+          )}
+
+        {roomPhase === "activity" &&
+          plan.status === "completed" && (
           <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                  Attendance
-                </p>
-
-                <h2 className="mt-2 text-xl font-bold text-gray-950">
-                  {plan.status ===
-                  "completed"
-                    ? "Activity attendance archive"
-                    : "Attendance review pending"}
-                </h2>
-              </div>
-
-              {isCompletionRequired &&
-                (isHost ||
-                  isCoHost) && (
-                <Link
-                  href={`/plans/${plan.id}/completion`}
-                  className="rounded-xl bg-amber-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-700"
-                >
-                  Review Attendance
-                </Link>
-              )}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">Attendance</p>
+              <h2 className="mt-2 text-xl font-bold text-gray-950">Activity attendance archive</h2>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-2xl bg-green-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                  Attended
-                </p>
-
-                <p className="mt-2 text-2xl font-bold text-green-950">
-                  {
-                    attendanceSummary.attended
-                  }
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-green-700">Attended</p>
+                <p className="mt-2 text-2xl font-bold text-green-950">{attendanceSummary.attended}</p>
               </div>
-
               <div className="rounded-2xl bg-red-50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-                  Did Not Attend
-                </p>
-
-                <p className="mt-2 text-2xl font-bold text-red-950">
-                  {
-                    attendanceSummary.noShow
-                  }
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Did Not Attend</p>
+                <p className="mt-2 text-2xl font-bold text-red-950">{attendanceSummary.noShow}</p>
               </div>
-
               <div className="rounded-2xl bg-gray-100 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                  Not Recorded
-                </p>
-
-                <p className="mt-2 text-2xl font-bold text-gray-950">
-                  {
-                    attendanceSummary.notRecorded
-                  }
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Not Recorded</p>
+                <p className="mt-2 text-2xl font-bold text-gray-950">{attendanceSummary.notRecorded}</p>
               </div>
             </div>
           </section>
         )}
 
-        <div className="mt-6">
-          <PlanBudgetPanel
-            planId={plan.id}
-            planStatus={
-              plan.status
-            }
-            isHost={
-              isHost &&
-              !isExpiredPlanningPlan
-            }
-            isActiveMember={
-              isActiveMember &&
-              !isExpiredPlanningPlan
-            }
-            initialTargetBudget={
-              targetBudget
-            }
-            initialCommittedBudget={
-              committedBudget
-            }
-            initialActualBudget={
-              actualBudget
-            }
-            initialMyCommitment={
-              myCommitment
-            }
-            initialActiveMemberCount={
-              activeMemberCount
-            }
-            initialAttendedMemberCount={
-              attendedMemberCount
-            }
-          />
-        </div>
-
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
-          <PlanPeoplePanel
-            planId={
-              plan.id
-            }
-            planStatus={
-              plan.status
-            }
-            roomPhase={
-              roomPhase
-            }
-            recruitmentStatus={
-              plan.recruitment_status
-            }
-            visibility={
-              plan.visibility as
-                | "public"
-                | "friends"
-                | "except_friends"
-                | "invite_only"
-                | "private"
-            }
-            actorUserId={
-              user.id
-            }
-            actorRole={
-              actorRole
-            }
-            sourceIntentId={
-              sourceIntentId
-            }
-            activityLabel={
-              plan.title ||
-              activity?.name ||
-              "UIN Activity"
-            }
-            members={
-              peoplePanelMembers
-            }
-            invitations={
-              peoplePanelInvitations
-            }
-          />
-
-          <ConversationPanel
-            title={`${roomTitle} Conversation`}
-            description="Messages are shown from oldest to newest."
-            messages={
-              currentMessages
-            }
-            currentUserId={
-              user.id
-            }
-            timezone={
-              plan.timezone
-            }
-            planId={plan.id}
-            memberNameByUserId={
-              memberNameByUserId
-            }
-            canSendMessages={
-              canSendMessages
-            }
-            readOnlyTitle={
-              isExpiredPlanningArchive
-                ? "This Planning Room has expired."
-                : "This room is read-only."
-            }
-            readOnlyDescription={
-              isExpiredPlanningArchive
-                ? `The availability window ended on ${formatWindowDate(
-                    plan.window_end
-                  )}. This conversation cannot be continued.`
-                : isPlanningArchived
-                  ? "Planning ended when the schedule was confirmed."
-                  : "Messages cannot be sent in the current Activity state."
-            }
-            emptyTitle="No messages yet."
-            emptyDescription={
-              isExpiredPlanningArchive
-                ? "No messages were recorded before this Planning Room expired."
-                : "Start the room conversation."
-            }
-          />
-        </div>
-
         {roomPhase ===
-          "planning" &&
+          "activity" &&
           plan.status ===
-            "forming" &&
-          !isExpiredPlanningPlan &&
-          (isHost ||
-            isCoHost) && (
-            <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <SharedPlanScheduleForm
+            "completed" &&
+          experienceBundle?.experience && (
+            <ExperiencePanel
+              bundle={
+                experienceBundle
+              }
+            />
+          )}
+
+        {roomPhase === "activity" &&
+          plan.status === "completed" &&
+          reputationTargets.length > 0 && (
+            <div className="mt-6">
+              <ReputationFeedbackTargetsPanel
                 planId={plan.id}
-                windowStart={
-                  plan.window_start
-                }
-                windowEnd={
-                  plan.window_end
-                }
-                timezone={
-                  plan.timezone
-                }
-                scheduledStart={
-                  plan.scheduled_start
-                }
-                scheduledEnd={
-                  plan.scheduled_end
-                }
-                meetingPoint={
-                  plan.meeting_point
-                }
-                scheduleNotes={
-                  plan.schedule_notes
-                }
-                actorRole={
-                  isHost
-                    ? "host"
-                    : "co_host"
-                }
+                targets={reputationTargets}
               />
-
-              {isHost ? (
-                <ConfirmActivityPlanButton
-                  planId={plan.id}
-                  hasSchedule={
-                    hasSchedule
-                  }
-                  recruitmentStatus={
-                    plan.recruitment_status
-                  }
-                />
-              ) : (
-                <section className="rounded-3xl border border-purple-200 bg-purple-50 p-6 shadow-sm">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    Co-host Access
-                  </p>
-
-                  <h2 className="mt-2 text-xl font-bold text-purple-950">
-                    Schedule draft access
-                  </h2>
-
-                  <p className="mt-3 text-sm leading-7 text-purple-700">
-                    You can edit the
-                    schedule draft and
-                    coordinate members.
-                    The Primary Host keeps
-                    final confirmation and
-                    host-transfer authority.
-                  </p>
-                </section>
-              )}
             </div>
           )}
 
+        <CollapsiblePlanningSection
+          title="Plan Needs · What should we bring?"
+          description="Coordinate the items participants will bring."
+          className="mt-5"
+        >
+          <PlanNeedsPanel
+              planId={plan.id}
+              planStatus={plan.status}
+              canManage={
+                (isHost || isCoHost) &&
+                !isPlanningArchived &&
+                !isCompletionRequired &&
+                plan.expired_at === null &&
+                (plan.status === "forming" || plan.status === "planned")
+              }
+              canContribute={
+                (isHost || isActiveMember) &&
+                !isPlanningArchived &&
+                !isCompletionRequired &&
+                plan.expired_at === null &&
+                (plan.status === "forming" || plan.status === "planned")
+              }
+              readOnly={
+                isPlanningArchived ||
+                isCompletionRequired ||
+                plan.expired_at !== null ||
+                (plan.status !== "forming" && plan.status !== "planned")
+              }
+            />
+        </CollapsiblePlanningSection>
+
+        <CollapsiblePlanningSection
+          id="toolkit"
+          title="Checklist & Files"
+          description="Tasks, tickets, QR codes and private planning documents."
+          className="mt-5"
+        >
+          <PlanToolkitPanel
+            planId={plan.id}
+            planStatus={plan.status}
+            currentUserId={user.id}
+            members={peoplePanelMembers}
+            canManage={
+              (isHost || isCoHost) &&
+              !isPlanningArchived &&
+              !isCompletionRequired &&
+              plan.expired_at === null &&
+              (plan.status === "forming" || plan.status === "planned")
+            }
+            readOnly={
+              isPlanningArchived ||
+              isCompletionRequired ||
+              plan.expired_at !== null ||
+              (plan.status !== "forming" && plan.status !== "planned")
+            }
+          />
+        </CollapsiblePlanningSection>
+
+        <div className={`mt-5 grid grid-cols-1 gap-5 ${
+          roomPhase === "planning" &&
+          plan.status === "forming" &&
+          !isExpiredPlanningPlan &&
+          (isHost || isCoHost)
+            ? "xl:grid-cols-[minmax(0,1.3fr)_minmax(360px,0.7fr)]"
+            : ""
+        }`}>
+          <CollapsiblePlanningSection
+            title="Budget"
+            description="Review the target, commitments and remaining estimate."
+          >
+            <PlanBudgetPanel
+              planId={plan.id}
+              planStatus={plan.status}
+              isHost={isHost && !isExpiredPlanningPlan && !isOutcomeUnknown}
+              isActiveMember={isActiveMember && !isExpiredPlanningPlan && !isOutcomeUnknown}
+              initialTargetBudget={targetBudget}
+              initialCommittedBudget={committedBudget}
+              initialActualBudget={actualBudget}
+              initialMyCommitment={myCommitment}
+              initialActiveMemberCount={activeMemberCount}
+              initialAttendedMemberCount={attendedMemberCount}
+              compact
+            />
+          </CollapsiblePlanningSection>
+
+          {roomPhase === "planning" &&
+            plan.status === "forming" &&
+            !isExpiredPlanningPlan &&
+            (isHost || isCoHost) && (
+              <CollapsiblePlanningSection
+                title="Schedule"
+                description="Save a draft and confirm it when the group is ready."
+                badge={hasSchedule ? "Draft saved" : "Draft"}
+                defaultOpen
+              >
+                <SharedPlanScheduleForm
+                  planId={plan.id}
+                  windowStart={plan.window_start}
+                  windowEnd={plan.window_end}
+                  timezone={plan.timezone}
+                  scheduledStart={plan.scheduled_start}
+                  scheduledEnd={plan.scheduled_end}
+                  meetingPoint={plan.meeting_point}
+                  meetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
+                  activityLocationName={plan.activity_location_name}
+                  scheduleNotes={plan.schedule_notes}
+                  actorRole={isHost ? "host" : "co_host"}
+                  recruitmentStatus={plan.recruitment_status}
+                />
+              </CollapsiblePlanningSection>
+            )}
+        </div>
+
+
+
+        <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+          <CollapsiblePlanningSection
+            title="Privacy & Visibility"
+            description="Control who can discover, view and request to join."
+            badge={getActivityVisibilityLabel(plan.visibility)}
+          >
+            {sourceIntentId && (plan.status === "forming" || plan.status === "planned") ? (
+              <ActivityVisibilityManager
+                intentId={sourceIntentId}
+                initialVisibility={plan.visibility as ActivityVisibility}
+                canEdit={isHost && !isExpiredPlanningPlan && !isOutcomeUnknown}
+                compact
+              />
+            ) : (
+              <section id="privacy" className="scroll-mt-24 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Privacy & Visibility</p>
+                <p className="mt-2 text-lg font-bold text-gray-950">{getActivityVisibilityLabel(plan.visibility)}</p>
+                <p className="mt-1 text-sm text-gray-500">Visibility is read-only in the current state.</p>
+              </section>
+            )}
+          </CollapsiblePlanningSection>
+
+          <CollapsiblePlanningSection
+            title="Next steps"
+            description="A short list of what still needs attention."
+            badge={plan.status}
+          >
+            <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {[
+                  [Boolean(plan.meeting_point || plan.activity_location_name), "Set both locations"],
+                  [targetBudget !== null, "Review the budget"],
+                  [hasSchedule, "Save the schedule draft"],
+                  [activeMembers.length > 1, "Coordinate the team"],
+                ].map(([done, label]) => (
+                  <div key={String(label)} className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3 text-sm">
+                    <span className={`flex h-6 w-6 items-center justify-center rounded-full ${done ? "bg-green-100 text-green-700" : "bg-white text-gray-400"}`}>
+                      {done ? "✓" : "○"}
+                    </span>
+                    <span className={done ? "font-semibold text-gray-500 line-through" : "font-semibold text-gray-800"}>{String(label)}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </CollapsiblePlanningSection>
+        </div>
+
         {roomPhase ===
           "activity" &&
-          plan.creation_mode ===
-            "matched" &&
           planningArchiveMessages.length >
             0 && (
             <div className="mt-6">

@@ -105,12 +105,21 @@ export default async function MatchesPage() {
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/timeline"
-            className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
-          >
-            ← Back to Timeline
-          </Link>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link
+              href="/timeline"
+              className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
+            >
+              ← Back to Timeline
+            </Link>
+
+            <Link
+              href="/discover"
+              className="text-sm font-semibold text-blue-700 transition hover:text-blue-900"
+            >
+              Discover Intents
+            </Link>
+          </div>
 
           <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
             {matches.length} active

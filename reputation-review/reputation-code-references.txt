@@ -1,0 +1,121 @@
+﻿
+Path                                                                    LineNumber Line                                                                                    
+----                                                                    ---------- ----                                                                                    
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx            77     completed_at: string | null;                                                        
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx            82     viewer_attendance_status:                                                           
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx            85       | "no_show"                                                                       
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx            98   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx           793       completed_at: activity.completed_at,                                              
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1084                 completedAt={activityTimeline.completed_at}                             
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1204                   {activity.completed_at && (                                           
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1207                         activity.completed_at,                                          
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1213                   {activity.viewer_attendance_status && (                               
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1215                       Your attendance: {activity.viewer_attendance_status === "attended"
+C:\Users\berkalpk\uin-alpha\src\app\activities\[resourceId]\page.tsx          1217                         : activity.viewer_attendance_status === "no_show"               
+C:\Users\berkalpk\uin-alpha\src\app\admin\page.tsx                             285       "Admin dashboard summary query failed:",                                          
+C:\Users\berkalpk\uin-alpha\src\app\admin\page.tsx                             368                 Admin Dashboard                                                         
+C:\Users\berkalpk\uin-alpha\src\app\admin\activity-catalogue\page.tsx          134                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\activity-suggestions\page.tsx        156                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\audit\page.tsx                       529                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\intents\page.tsx                     571                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\moderation\page.tsx                  893                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\plans\page.tsx                       124   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\app\admin\plans\page.tsx                       653                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\requests\page.tsx                    685                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\users\page.tsx                       320                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\app\admin\users\[userId]\page.tsx              304               Admin Dashboard                                                           
+C:\Users\berkalpk\uin-alpha\src\app\friends\page.tsx                           220                 Action Required                                                         
+C:\Users\berkalpk\uin-alpha\src\app\managed\[childId]\page.tsx                 232       "is_admin"                                                                        
+C:\Users\berkalpk\uin-alpha\src\app\managed\[childId]\page.tsx                 400                 Admin Dashboard                                                         
+C:\Users\berkalpk\uin-alpha\src\app\managed\[childId]\page.tsx                 542               ? "Action Required"                                                       
+C:\Users\berkalpk\uin-alpha\src\app\plans\[planId]\completion\page.tsx         136             ← Back to Action Required                                                   
+C:\Users\berkalpk\uin-alpha\src\app\requests\page.tsx                          965                 affect UIN reputation.                                                  
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          140   attendance_status:                                                                    
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          143     | "no_show"                                                                         
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          192   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          352     label: "Action Required",                                                           
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          470   completed_at,                                                                         
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                          500     attendance_status,                                                                  
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         1264       return "Action Required";                                                         
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         1832       "is_admin"                                                                        
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         2697         ?.attendance_status ??                                                          
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         2966             plan.completed_at                                                           
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         2998               Action Required                                                           
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         3036                     "no_show"                                                           
+C:\Users\berkalpk\uin-alpha\src\app\timeline\page.tsx                         3050                     "no_show"                                                           
+C:\Users\berkalpk\uin-alpha\src\app\u\[username]\page.tsx                      124   attendance_status?: "pending" | "attended" | "no_show" | null;                        
+C:\Users\berkalpk\uin-alpha\src\components\admin\ModerationActions.tsx         154   function clearFeedback() {                                                            
+C:\Users\berkalpk\uin-alpha\src\components\admin\ModerationActions.tsx         160     clearFeedback();                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\admin\ModerationActions.tsx         200     clearFeedback();                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\admin\ModerationActions.tsx         258     clearFeedback();                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\admin\ModerationActions.tsx         316     clearFeedback();                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\auth\SignOutButton.tsx               74             "is_admin"                                                                  
+C:\Users\berkalpk\uin-alpha\src\components\auth\SignOutButton.tsx              169             Admin Dashboard                                                             
+C:\Users\berkalpk\uin-alpha\src\components\discover\DiscoverIntentCa...         52   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\components\discover\DiscoverIntentCa...        523             completedAt={intent.completed_at}                                           
+C:\Users\berkalpk\uin-alpha\src\components\family\AgeAndFamilyManage...        767             Action Required                                                             
+C:\Users\berkalpk\uin-alpha\src\components\family\PublicFamilyManage...        398             Action Required                                                             
+C:\Users\berkalpk\uin-alpha\src\components\navigation\UserAccountMen...        185               Admin Dashboard                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...         14   | "no_show";                                                                          
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...         53   attendance_status:                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        161             member.attendance_status ===                                                
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        163             member.attendance_status ===                                                
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        164               "no_show"                                                                 
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        165               ? member.attendance_status                                                
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        217           no_show: 0,                                                                   
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        330           Action Required                                                               
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        467                                 "no_show",                                              
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        473                           "no_show"                                                     
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanCompletionRevie...        558                   counts.no_show                                                        
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanPeoplePanel.tsx            37   | "no_show"                                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanPeoplePanel.tsx           147   if (status === "no_show") {                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanPeoplePanel.tsx           161   if (status === "no_show") {                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx               65   | "no_show"                                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx              105   attendance_status: AttendanceStatus;                                                  
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx              177   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx              299   completed_at,                                                                         
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx              330     attendance_status,                                                                  
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx              714     "plan_completed"                                                                    
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1393           member.attendance_status ===                                                  
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1398           member.attendance_status ===                                                  
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1399           "no_show"                                                                     
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1526           member.attendance_status !==                                                  
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1545         member.attendance_status ===                                                    
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1652             member.attendance_status,                                                   
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1792               Action Required                                                           
+C:\Users\berkalpk\uin-alpha\src\components\plans\PlanRoomView.tsx             1866             completedAt={plan.completed_at}                                             
+C:\Users\berkalpk\uin-alpha\src\components\requests\LeaveActivityBut...        155         your UIN reputation.                                                            
+C:\Users\berkalpk\uin-alpha\src\components\requests\RequestActionBut...        208             reputation.                                                                 
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...         95     completed_at: string | null;                                                        
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        100     viewer_attendance_status:                                                           
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        103       | "no_show"                                                                       
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        704                     {activity.viewer_attendance_status && (                             
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        707                         {activity.viewer_attendance_status ===                          
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        710                           : activity.viewer_attendance_status ===                       
+C:\Users\berkalpk\uin-alpha\src\src\app\activities\[resourceId]\page...        711                               "no_show"                                                 
+C:\Users\berkalpk\uin-alpha\src\src\app\admin\activity-catalogue\pag...        116                 ← Admin Dashboard                                                       
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      129   attendance_status:                                                                    
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      132     | "no_show"                                                                         
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      181   completed_at: string | null;                                                          
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      333     label: "Action Required",                                                           
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      448   completed_at,                                                                         
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                      475     attendance_status,                                                                  
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     1160       return "Action Required";                                                         
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     1857       "is_admin"                                                                        
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     2523         ?.attendance_status ??                                                          
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     2788               Action Required                                                           
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     2826                     "no_show"                                                           
+C:\Users\berkalpk\uin-alpha\src\src\app\timeline\page.tsx                     2840                     "no_show"                                                           
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx           58   | "no_show"                                                                           
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx           96   attendance_status: AttendanceStatus;                                                  
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx          315     attendance_status,                                                                  
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx          699     "plan_completed"                                                                    
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1378           member.attendance_status ===                                                  
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1383           member.attendance_status ===                                                  
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1384           "no_show"                                                                     
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1493           member.attendance_status !==                                                  
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1512         member.attendance_status ===                                                    
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1619             member.attendance_status,                                                   
+C:\Users\berkalpk\uin-alpha\src\src\components\plans\PlanRoomView.tsx         1759               Action Required                                                           
+
+

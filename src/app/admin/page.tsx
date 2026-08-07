@@ -34,6 +34,7 @@ type AdminModuleCardProps = {
   description: string;
   href: string;
   available?: boolean;
+  badge?: string | null;
 };
 
 function toNumber(
@@ -189,6 +190,7 @@ function AdminModuleCard({
   description,
   href,
   available = false,
+  badge = null,
 }: AdminModuleCardProps) {
   if (!available) {
     return (
@@ -228,9 +230,17 @@ function AdminModuleCard({
           </p>
         </div>
 
-        <span className="text-xl text-gray-400 transition group-hover:translate-x-1 group-hover:text-green-600">
-          →
-        </span>
+        <div className="flex shrink-0 items-center gap-2">
+          {badge && (
+            <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-800">
+              {badge}
+            </span>
+          )}
+
+          <span className="text-xl text-gray-400 transition group-hover:translate-x-1 group-hover:text-green-600">
+            →
+          </span>
+        </div>
       </div>
     </Link>
   );
@@ -243,12 +253,58 @@ export default async function AdminDashboardPage() {
     role,
   } = await requireAdmin();
 
+  const [
+    summaryResult,
+    pendingActivitySuggestionResult,
+    pendingCommunitySuggestionResult,
+    seedCatalogueCountsResult,
+  ] = await Promise.all([
+    supabase.rpc(
+      "get_admin_dashboard_summary"
+    ),
+
+    supabase.rpc(
+      "get_admin_pending_activity_suggestion_count"
+    ),
+
+    supabase.rpc(
+      "get_admin_pending_community_suggestion_count"
+    ),
+
+    supabase.rpc(
+      "get_admin_seed_catalog_counts"
+    ),
+  ]);
+
   const {
     data: summaryData,
     error: summaryError,
-  } = await supabase.rpc(
-    "get_admin_dashboard_summary"
-  );
+  } = summaryResult;
+
+  if (
+    pendingActivitySuggestionResult.error
+  ) {
+    console.error(
+      "Pending Activity suggestion count query failed:",
+      pendingActivitySuggestionResult.error
+    );
+  }
+
+  if (
+    pendingCommunitySuggestionResult.error
+  ) {
+    console.error(
+      "Pending Community suggestion count query failed:",
+      pendingCommunitySuggestionResult.error
+    );
+  }
+
+  if (seedCatalogueCountsResult.error) {
+    console.error(
+      "Seed Catalogue count query failed:",
+      seedCatalogueCountsResult.error
+    );
+  }
 
   if (summaryError) {
     console.error(
@@ -313,6 +369,24 @@ export default async function AdminDashboardPage() {
       summary?.total_messages
     );
 
+  const pendingActivitySuggestions =
+    toNumber(
+      pendingActivitySuggestionResult.data
+    );
+
+  const pendingCommunitySuggestions =
+    toNumber(
+      pendingCommunitySuggestionResult.data
+    );
+
+  const seedCatalogueCounts = (seedCatalogueCountsResult.data ?? {}) as {
+    pending?: number | string | null;
+    under_review?: number | string | null;
+  };
+  const pendingSeedSuggestions = toNumber(seedCatalogueCounts.pending);
+  const reportedSeedSubjects = toNumber(seedCatalogueCounts.under_review);
+  const seedItemsNeedingAttention = pendingSeedSuggestions + reportedSeedSubjects;
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-7xl">
@@ -365,6 +439,28 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
         </header>
+
+        {seedItemsNeedingAttention > 0 && (
+          <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm md:p-6">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-wide text-amber-700">Seed Library curation</p>
+                <h2 className="mt-1 text-xl font-black text-amber-950">
+                  {formatNumber(seedItemsNeedingAttention)} Seed Library item{seedItemsNeedingAttention === 1 ? "" : "s"} need attention
+                </h2>
+                <p className="mt-1 text-sm text-amber-800">
+                  {formatNumber(pendingSeedSuggestions)} suggestion{pendingSeedSuggestions === 1 ? "" : "s"} waiting · {formatNumber(reportedSeedSubjects)} reported subject{reportedSeedSubjects === 1 ? "" : "s"}
+                </p>
+              </div>
+              <Link
+                href={pendingSeedSuggestions > 0 ? "/admin/seed-catalogue?status=pending" : "/admin/seed-catalogue?status=under_review"}
+                className="rounded-xl bg-amber-600 px-5 py-3 text-sm font-black text-white transition hover:bg-amber-700"
+              >
+                Review Seed Library
+              </Link>
+            </div>
+          </section>
+        )}
 
         {summaryError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
@@ -493,9 +589,112 @@ export default async function AdminDashboardPage() {
             />
 
             <AdminModuleCard
+              title="Activity Catalogue"
+              description="Create, rename, move, deactivate and present canonical Activity categories and Activities."
+              href="/admin/activity-catalogue"
+              available
+            />
+
+            <AdminModuleCard
+              title="Seed Types"
+              description="Manage the stable personal Seed vocabulary and map each type to suggested social Activities."
+              href="/admin/seed-types"
+              available
+            />
+
+            <AdminModuleCard
+              title="Seed Catalogue"
+              description="Curate shared Seed subjects, review suggestions and reports, merge real duplicates and complete type-specific metadata."
+              href="/admin/seed-catalogue"
+              badge={
+                seedItemsNeedingAttention > 0
+                  ? `${formatNumber(seedItemsNeedingAttention)} need review`
+                  : null
+              }
+              available
+            />
+
+            <AdminModuleCard
+              title="Sports Catalogue"
+              description="Create, rename, reorder, deactivate and delete unused sports used by sport-related Activities."
+              href="/admin/sports"
+              available
+            />
+
+            <AdminModuleCard
+              title="Community Sports"
+              description="Choose which sports each Community belongs to and manage sport-specific covers."
+              href="/admin/community-sports"
+              available
+            />
+
+            <AdminModuleCard
+              title="Languages"
+              description="Install languages, translate application text and choose the default locale."
+              href="/admin/languages"
+              available
+            />
+
+            <AdminModuleCard
+              title="Activity Requests"
+              description="Classify user-submitted Activity requests and release approved Intent drafts for publication."
+              href="/admin/activity-suggestions"
+              badge={
+                pendingActivitySuggestions > 0
+                  ? `${formatNumber(
+                      pendingActivitySuggestions
+                    )} pending`
+                  : null
+              }
+              available
+            />
+
+            <AdminModuleCard
+              title="Communities"
+              description="Curate broad Intent contexts, review user suggestions and merge duplicates before they reach Discover."
+              href="/admin/communities"
+              badge={
+                pendingCommunitySuggestions > 0
+                  ? `${formatNumber(
+                      pendingCommunitySuggestions
+                    )} pending`
+                  : null
+              }
+              available
+            />
+
+            <AdminModuleCard
+              title="Profile Badges"
+              description="Define icon badges, automatic contextual criteria and manual awards for people."
+              href="/admin/badges"
+              available
+            />
+
+            <AdminModuleCard
+              title="Identity & Professionals"
+              description="Verify identities, define category- and Activity-specific professional roles, and review private credential evidence."
+              href="/admin/professionals"
+              available
+            />
+
+            <AdminModuleCard
+              title="Reputation Questions"
+              description="Create and version global, category and Activity-specific reputation questions."
+              href="/admin/reputation"
+              available
+            />
+
+            <AdminModuleCard
               title="Moderation"
               description="Handle reports, restrictions and content moderation decisions."
               href="/admin/moderation"
+              available
+            />
+
+            <AdminModuleCard
+              title="Reported Activity Titles"
+              description="Review custom Activity titles that were hidden immediately after a user report."
+              href="/admin/moderation/titles"
               available
             />
 

@@ -1,4 +1,6 @@
 import { supabase } from "@/utils/supabase/client";
+import type { ProfileGender } from "@/utils/participationEligibility";
+import type { ProfileActivityVisibility } from "@/utils/profileActivityVisibility";
 
 export type UpdateProfileInput = {
   fullName: string;
@@ -8,6 +10,9 @@ export type UpdateProfileInput = {
   country: string | null;
   avatarUrl: string | null;
   coverUrl: string | null;
+  gender: ProfileGender | null;
+  showGender: boolean;
+  participationProfileVisibility: ProfileActivityVisibility;
 };
 
 export function normalizeUsername(
@@ -101,6 +106,9 @@ export async function updateMyProfile({
   country,
   avatarUrl,
   coverUrl,
+  gender,
+  showGender,
+  participationProfileVisibility,
 }: UpdateProfileInput) {
   const normalizedUsername =
     normalizeUsername(username);
@@ -195,7 +203,7 @@ export async function updateMyProfile({
 
   const { data, error } =
     await supabase.rpc(
-      "update_my_profile",
+      "update_my_profile_with_gender_and_participation_visibility",
       {
         p_full_name:
           cleanedFullName,
@@ -209,6 +217,13 @@ export async function updateMyProfile({
           cleanedAvatarUrl,
         p_cover_url:
           cleanedCoverUrl,
+        p_gender: gender,
+        p_show_gender:
+          Boolean(showGender) &&
+          gender !== null &&
+          gender !== "prefer_not_to_say",
+        p_participation_profile_visibility:
+          participationProfileVisibility,
       }
     );
 

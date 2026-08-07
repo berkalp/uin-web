@@ -21,6 +21,46 @@ type ActivityVisibilityManagerProps = {
 const options =
   ACTIVITY_VISIBILITY_OPTIONS;
 
+function getVisibilityErrorMessage(error: unknown) {
+  if (
+    error &&
+    typeof error === "object"
+  ) {
+    const candidate = error as {
+      message?: unknown;
+      details?: unknown;
+      hint?: unknown;
+      code?: unknown;
+    };
+
+    const parts = [
+      candidate.message,
+      candidate.details,
+      candidate.hint,
+    ].filter(
+      (value): value is string =>
+        typeof value === "string" &&
+        value.trim().length > 0
+    );
+
+    if (parts.length > 0) {
+      const code =
+        typeof candidate.code === "string" &&
+        candidate.code.trim().length > 0
+          ? ` (${candidate.code})`
+          : "";
+
+      return `${parts.join(" ")}${code}`;
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "Activity visibility could not be updated.";
+}
+
 export default function ActivityVisibilityManager({
   intentId,
   initialVisibility,
@@ -89,12 +129,12 @@ export default function ActivityVisibilityManager({
         data,
         error,
       } = await supabase.rpc(
-        "update_activity_visibility",
+        "set_activity_visibility_v2",
         {
-          p_intent_id:
+          p_target_intent_id:
             intentId,
 
-          p_visibility:
+          p_target_visibility:
             selectedVisibility,
         }
       );
@@ -103,11 +143,27 @@ export default function ActivityVisibilityManager({
         throw error;
       }
 
+      const returnedVisibility =
+        typeof data === "string"
+          ? data
+          : data &&
+              typeof data === "object" &&
+              "visibility" in data &&
+              typeof (
+                data as {
+                  visibility?: unknown;
+                }
+              ).visibility === "string"
+            ? (
+                data as {
+                  visibility: string;
+                }
+              ).visibility
+            : selectedVisibility;
+
       const saved =
         normalizeActivityVisibility(
-          typeof data === "string"
-            ? data
-            : selectedVisibility
+          returnedVisibility
         );
 
       setSavedVisibility(
@@ -126,10 +182,21 @@ export default function ActivityVisibilityManager({
 
       router.refresh();
     } catch (error) {
+      const visibilityError =
+        getVisibilityErrorMessage(
+          error
+        );
+
+      // A rejected save is handled inline. Using console.error here makes
+      // Next.js dev mode replace the page with its error overlay even though
+      // the component has already recovered from the request failure.
+      console.warn(
+        "Activity visibility update failed:",
+        visibilityError
+      );
+
       setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "Activity visibility could not be updated."
+        visibilityError
       );
     } finally {
       setIsSaving(false);
@@ -138,38 +205,31 @@ export default function ActivityVisibilityManager({
 
   if (compact) {
     return (
-      <section className="rounded-3xl border border-indigo-200 bg-indigo-50 p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
-              Activity Visibility
-            </p>
-
-            <h2 className="mt-2 text-xl font-bold text-indigo-950">
-              {getActivityVisibilityLabel(
-                savedVisibility
-              )}
-            </h2>
-
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-indigo-800">
-              {
-                options.find(
-                  (option) =>
-                    option.value ===
-                    savedVisibility
-                )?.description
-              }
-            </p>
+      <section id="privacy" className="scroll-mt-24 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-50 text-lg text-indigo-700">
+              🔒
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-indigo-700">
+                Privacy & Visibility
+              </p>
+              <h2 className="mt-1 text-lg font-bold text-gray-950">
+                {getActivityVisibilityLabel(savedVisibility)}
+              </h2>
+              <p className="mt-1 text-xs text-gray-500">
+                {options.find((option) => option.value === savedVisibility)?.description}
+              </p>
+            </div>
           </div>
 
           {canEdit && (
             <a
-              href={`/intents/${encodeURIComponent(
-                intentId
-              )}/visibility`}
-              className="rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-700"
+              href={`/intents/${encodeURIComponent(intentId)}/visibility`}
+              className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
             >
-              Manage Visibility
+              Edit visibility
             </a>
           )}
         </div>

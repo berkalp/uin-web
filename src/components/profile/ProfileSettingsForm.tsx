@@ -12,6 +12,19 @@ import {
   normalizeUsername,
   updateMyProfile,
 } from "@/services/profileService";
+import { setMyPawProfileVisibility } from "@/services/intentReactionService";
+import {
+  PROFILE_GENDER_OPTIONS,
+  type ProfileGender,
+} from "@/utils/participationEligibility";
+import {
+  PROFILE_ACTIVITY_VISIBILITY_OPTIONS,
+  type ProfileActivityVisibility,
+} from "@/utils/profileActivityVisibility";
+import {
+  PAW_VISIBILITY_OPTIONS,
+  type PawVisibility,
+} from "@/utils/intentReactions";
 
 type UsernameStatus =
   | "idle"
@@ -29,6 +42,10 @@ type ProfileSettingsFormProps = {
     country: string;
     avatarUrl: string;
     coverUrl: string;
+    gender: ProfileGender | null;
+    showGender: boolean;
+    participationProfileVisibility: ProfileActivityVisibility;
+    pawProfileVisibility: PawVisibility;
     email: string;
     createdAt: string;
   };
@@ -83,6 +100,29 @@ export default function ProfileSettingsForm({
 
   const [coverUrl, setCoverUrl] =
     useState(profile.coverUrl);
+
+  const [gender, setGender] =
+    useState<ProfileGender | null>(
+      profile.gender
+    );
+
+  const [showGender, setShowGender] =
+    useState(
+      profile.showGender &&
+        profile.gender !== null &&
+        profile.gender !==
+          "prefer_not_to_say"
+    );
+
+  const [
+    participationProfileVisibility,
+    setParticipationProfileVisibility,
+  ] = useState<ProfileActivityVisibility>(
+    profile.participationProfileVisibility
+  );
+
+  const [pawProfileVisibility, setPawProfileVisibility] =
+    useState<PawVisibility>(profile.pawProfileVisibility);
 
   const [
     usernameStatus,
@@ -221,7 +261,12 @@ export default function ProfileSettingsForm({
         country,
         avatarUrl,
         coverUrl,
+        gender,
+        showGender,
+        participationProfileVisibility,
       });
+
+      await setMyPawProfileVisibility(pawProfileVisibility);
 
       setUsername(
         normalizedUsername
@@ -530,6 +575,169 @@ export default function ProfileSettingsForm({
             placeholder="Share a little about yourself, your interests, or the Activities you enjoy."
             className="mt-2 w-full resize-none rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100"
           />
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="border-b border-gray-100 pb-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-green-600">
+            Participation
+          </p>
+
+          <h3 className="mt-1 text-xl font-bold text-gray-900">
+            Gender settings
+          </h3>
+
+          <p className="mt-2 text-sm leading-6 text-gray-500">
+            This optional value is used to enforce women-only and men-only Intent participation rules.
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-5">
+          <label className="block">
+            <span className="text-sm font-semibold text-gray-700">
+              Gender
+            </span>
+
+            <select
+              value={gender ?? ""}
+              onChange={(event) => {
+                const nextGender =
+                  event.target.value
+                    ? (event.target.value as ProfileGender)
+                    : null;
+
+                setGender(nextGender);
+
+                if (
+                  nextGender === null ||
+                  nextGender ===
+                    "prefer_not_to_say"
+                ) {
+                  setShowGender(false);
+                }
+
+                clearMessages();
+              }}
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              <option value="">Not selected</option>
+              {PROFILE_GENDER_OPTIONS.map(
+                (option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </option>
+                )
+              )}
+            </select>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <input
+              type="checkbox"
+              checked={showGender}
+              disabled={
+                gender === null ||
+                gender ===
+                  "prefer_not_to_say"
+              }
+              onChange={(event) => {
+                setShowGender(
+                  event.target.checked
+                );
+                clearMessages();
+              }}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
+            />
+
+            <span>
+              <span className="block text-sm font-semibold text-gray-800">
+                Show my gender on my profile
+              </span>
+              <span className="mt-1 block text-xs leading-5 text-gray-500">
+                Off by default. Choosing “Prefer not to say” never displays a gender value.
+              </span>
+            </span>
+          </label>
+
+          <div className="border-t border-gray-100 pt-5">
+            <label
+              htmlFor="participation-profile-visibility"
+              className="text-sm font-semibold text-gray-700"
+            >
+              Show Activities I participate in
+            </label>
+
+            <select
+              id="participation-profile-visibility"
+              value={participationProfileVisibility}
+              onChange={(event) => {
+                setParticipationProfileVisibility(
+                  event.target.value as ProfileActivityVisibility
+                );
+                clearMessages();
+              }}
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100"
+            >
+              {PROFILE_ACTIVITY_VISIBILITY_OPTIONS.map(
+                (option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                  >
+                    {option.label}
+                  </option>
+                )
+              )}
+            </select>
+
+            <p className="mt-2 text-xs leading-5 text-gray-500">
+              {
+                PROFILE_ACTIVITY_VISIBILITY_OPTIONS.find(
+                  (option) =>
+                    option.value ===
+                    participationProfileVisibility
+                )?.description
+              }
+              {" "}
+              The Intent's own visibility rules always remain in force.
+            </p>
+          </div>
+
+          <div className="border-t border-gray-100 pt-5">
+            <label
+              htmlFor="paw-profile-visibility"
+              className="text-sm font-semibold text-gray-700"
+            >
+              Who can see the Intents I Paw?
+            </label>
+
+            <select
+              id="paw-profile-visibility"
+              value={pawProfileVisibility}
+              onChange={(event) => {
+                setPawProfileVisibility(event.target.value as PawVisibility);
+                clearMessages();
+              }}
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none transition focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+            >
+              {PAW_VISIBILITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+
+            <p className="mt-2 text-xs leading-5 text-gray-500">
+              {PAW_VISIBILITY_OPTIONS.find(
+                (option) => option.value === pawProfileVisibility
+              )?.description}{" "}
+              Saved Intents always remain private.
+            </p>
+          </div>
         </div>
       </section>
 

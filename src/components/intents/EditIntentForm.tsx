@@ -2,14 +2,44 @@
 
 import {
   FormEvent,
+  useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
 
+import CommunityPicker from "@/components/communities/CommunityPicker";
+import IntentLinksEditor from "@/components/intents/IntentLinksEditor";
+import JoinRequestMessageSettings from "@/components/intents/JoinRequestMessageSettings";
+import LocationHierarchySelect from "@/components/locations/LocationHierarchySelect";
+import SportPicker from "@/components/onboarding/SportPicker";
 import {
   updateIntent,
 } from "@/services/intentEditService";
+import { getVisibleIntentLinks } from "@/services/intentLinksService";
+import { supabase } from "@/utils/supabase/client";
+import {
+  parseCommunityOptions,
+  type CommunityOption,
+} from "@/utils/communities";
+import type { IntentLinkInput } from "@/utils/intentLinks";
+import {
+  PARTICIPANT_ELIGIBILITY_OPTIONS,
+  canGenderUseEligibility,
+  type ParticipantEligibility,
+  type ProfileGender,
+} from "@/utils/participationEligibility";
+import {
+  formatEstimatedCost,
+  getEstimatedCostMode,
+  parseEstimatedCost,
+  type EstimatedCostMode,
+} from "@/utils/estimatedCost";
+import {
+  isJoinMessageSettingsValid,
+  type JoinMessageMode,
+} from "@/utils/joinRequestMessage";
 
 type SelectOption = {
   value: string;
@@ -29,8 +59,11 @@ type CategoryOption = {
 
 type LocationOption = {
   id: string;
-  city: string;
-  district: string;
+  country_code?: string | null;
+  country_name?: string | null;
+  city?: string | null;
+  district?: string | null;
+  scope?: string | null;
 };
 
 type EditableIntent = {
@@ -44,6 +77,9 @@ type EditableIntent = {
   visibility: string;
   budget: number | null;
   maxParticipants: number | null;
+  participantEligibility: ParticipantEligibility;
+  joinMessageMode: JoinMessageMode;
+  joinMessagePrompt: string | null;
   notes: string | null;
 };
 
@@ -52,6 +88,8 @@ type EditIntentFormProps = {
   categories: CategoryOption[];
   activities: ActivityOption[];
   locations: LocationOption[];
+  currentUserGender: ProfileGender | null;
+  hasAcceptedParticipants: boolean;
 };
 
 const DEFAULT_PEOPLE_OPTIONS: SelectOption[] = [
@@ -103,23 +141,23 @@ const DEFAULT_RECURRENCE_OPTIONS: SelectOption[] = [
 const DEFAULT_VISIBILITY_OPTIONS: SelectOption[] = [
   {
     value: "public",
-    label: "Public",
+    label: "Anyone",
   },
   {
     value: "friends",
-    label: "Friends",
+    label: "Friends only",
   },
   {
-    value: "close_friends",
-    label: "Close Friends",
+    value: "except_friends",
+    label: "Anyone except friends",
   },
   {
-    value: "friends_except",
-    label: "Friends Except...",
+    value: "invite_only",
+    label: "Invite only",
   },
   {
     value: "private",
-    label: "Private",
+    label: "Only me",
   },
 ];
 
@@ -150,6 +188,8 @@ export default function EditIntentForm({
   categories,
   activities,
   locations,
+  currentUserGender,
+  hasAcceptedParticipants,
 }: EditIntentFormProps) {
   const router = useRouter();
 
@@ -175,6 +215,36 @@ export default function EditIntentForm({
   ] = useState(
     intent.activityId
   );
+
+  const [
+    sportId,
+    setSportId,
+  ] = useState("");
+
+  const [
+    requiresSport,
+    setRequiresSport,
+  ] = useState(false);
+
+  const previousActivityIdRef =
+    useRef(intent.activityId);
+
+  const [
+    communities,
+    setCommunities,
+  ] = useState<
+    CommunityOption[]
+  >([]);
+
+  const [
+    communityIds,
+    setCommunityIds,
+  ] = useState<string[]>([]);
+
+  const [
+    isLoadingCommunities,
+    setIsLoadingCommunities,
+  ] = useState(false);
 
   const [
     locationId,
@@ -214,11 +284,42 @@ export default function EditIntentForm({
     intent.visibility
   );
 
+  const [
+    participantEligibility,
+    setParticipantEligibility,
+  ] = useState<ParticipantEligibility>(
+    intent.participantEligibility
+  );
+
+  const [
+    joinMessageMode,
+    setJoinMessageMode,
+  ] = useState<JoinMessageMode>(
+    intent.joinMessageMode
+  );
+
+  const [
+    joinMessagePrompt,
+    setJoinMessagePrompt,
+  ] = useState(
+    intent.joinMessagePrompt ?? ""
+  );
+
+  const [
+    estimatedCostMode,
+    setEstimatedCostMode,
+  ] = useState<EstimatedCostMode>(
+    getEstimatedCostMode(
+      intent.budget
+    )
+  );
+
   const [budget, setBudget] =
     useState(
-      intent.budget === null
-        ? ""
-        : String(intent.budget)
+      intent.budget !== null &&
+      intent.budget > 0
+        ? String(intent.budget)
+        : ""
     );
 
   const [
@@ -237,11 +338,305 @@ export default function EditIntentForm({
       intent.notes ?? ""
     );
 
+  const [
+    relatedLinks,
+    setRelatedLinks,
+  ] = useState<
+    IntentLinkInput[]
+  >([]);
+
+  const [
+    linksLoading,
+    setLinksLoading,
+  ] = useState(true);
+
   const [isSaving, setIsSaving] =
     useState(false);
 
   const [errorMessage, setErrorMessage] =
     useState<string | null>(null);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadCurrentSport() {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("intents")
+        .select("sport_id")
+        .eq("id", intent.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Current sport could not be loaded:",
+          error
+        );
+        return;
+      }
+
+      if (isCurrent) {
+        setSportId(
+          typeof data?.sport_id === "string"
+            ? data.sport_id
+            : ""
+        );
+      }
+    }
+
+    loadCurrentSport();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [intent.id]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    if (
+      previousActivityIdRef.current !==
+      activityId
+    ) {
+      setSportId("");
+      previousActivityIdRef.current =
+        activityId;
+    }
+
+    async function loadSportRequirement() {
+      if (!activityId) {
+        setRequiresSport(false);
+        return;
+      }
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("activities")
+        .select("requires_sport")
+        .eq("id", activityId)
+        .maybeSingle();
+
+      if (error) {
+        console.error(
+          "Sport requirement could not be loaded:",
+          error
+        );
+
+        if (isCurrent) {
+          setRequiresSport(false);
+        }
+
+        return;
+      }
+
+      if (isCurrent) {
+        setRequiresSport(
+          data?.requires_sport === true
+        );
+      }
+    }
+
+    loadSportRequirement();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [activityId]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadCurrentCommunities() {
+      const { data, error } = await supabase.rpc(
+        "get_my_intent_communities",
+        { p_intent_id: intent.id }
+      );
+
+      if (error) {
+        console.error(
+          "Current Communities could not be loaded:",
+          error
+        );
+        return;
+      }
+
+      if (isCurrent) {
+        setCommunityIds(
+          ((data ?? []) as { community_id: string; position: number }[])
+            .sort((left, right) => left.position - right.position)
+            .map((row) => row.community_id)
+            .slice(0, 3)
+        );
+      }
+    }
+
+    loadCurrentCommunities();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [intent.id]);
+
+  useEffect(() => {
+    let isCurrent = true;
+
+    async function loadCommunities() {
+      setCommunities([]);
+
+      if (!activityId) {
+        setCommunityIds([]);
+        return;
+      }
+
+      setIsLoadingCommunities(true);
+
+      try {
+        const {
+          data,
+          error,
+        } = await supabase.rpc(
+          "get_active_communities",
+          {
+            p_category_id:
+              categoryId,
+            p_activity_id:
+              activityId,
+          }
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (!isCurrent) {
+          return;
+        }
+
+        const parsedCommunities =
+          parseCommunityOptions(
+            data
+          ).filter(
+            (community) =>
+              community.relevanceRank ===
+                0 &&
+              (
+                community.activityIds
+                  .length ===
+                  0 ||
+                community.activityIds.includes(
+                  activityId
+                )
+              )
+          );
+
+        setCommunities(
+          parsedCommunities
+        );
+
+        setCommunityIds(
+          (currentCommunityIds) =>
+            currentCommunityIds
+              .filter(
+                (communityId) =>
+                  parsedCommunities.some(
+                    (community) =>
+                      community.id ===
+                      communityId
+                  )
+              )
+              .slice(0, 3)
+        );
+      } catch (error) {
+        console.error(
+          "Communities could not be loaded:",
+          error
+        );
+
+        if (isCurrent) {
+          setCommunities([]);
+          setCommunityIds([]);
+        }
+      } finally {
+        if (isCurrent) {
+          setIsLoadingCommunities(false);
+        }
+      }
+    }
+
+    loadCommunities();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [
+    activityId,
+    categoryId,
+  ]);
+
+  useEffect(() => {
+    let isCancelled =
+      false;
+
+    async function loadLinks() {
+      try {
+        const links =
+          await getVisibleIntentLinks([
+            intent.id,
+          ]);
+
+        if (
+          isCancelled
+        ) {
+          return;
+        }
+
+        setRelatedLinks(
+          links.map(
+            (link) => ({
+              id:
+                link.id,
+              linkType:
+                link.linkType,
+              label:
+                link.label ??
+                "",
+              url:
+                link.url,
+            })
+          )
+        );
+      } catch (error) {
+        if (
+          !isCancelled
+        ) {
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "Related links could not be loaded."
+          );
+        }
+      } finally {
+        if (
+          !isCancelled
+        ) {
+          setLinksLoading(
+            false
+          );
+        }
+      }
+    }
+
+    loadLinks();
+
+    return () => {
+      isCancelled =
+        true;
+    };
+  }, [intent.id]);
 
   const filteredActivities =
     useMemo(
@@ -256,6 +651,13 @@ export default function EditIntentForm({
         categoryId,
       ]
     );
+
+  const selectedActivity =
+    activities.find(
+      (activity) =>
+        activity.id ===
+        activityId
+    ) ?? null;
 
   const peopleOptions =
     includeCurrentOption(
@@ -318,10 +720,25 @@ export default function EditIntentForm({
 
     setErrorMessage(null);
 
-    const parsedBudget =
-      budget.trim() === ""
-        ? null
-        : Number(budget);
+    let parsedBudget:
+      | number
+      | null;
+
+    try {
+      parsedBudget =
+        parseEstimatedCost(
+          estimatedCostMode,
+          budget
+        );
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Enter a valid estimated cost per person."
+      );
+
+      return;
+    }
 
     const parsedMaxParticipants =
       maxParticipants.trim() === ""
@@ -329,22 +746,6 @@ export default function EditIntentForm({
         : Number(
             maxParticipants
           );
-
-    if (
-      parsedBudget !== null &&
-      (
-        !Number.isFinite(
-          parsedBudget
-        ) ||
-        parsedBudget < 0
-      )
-    ) {
-      setErrorMessage(
-        "Enter a valid budget."
-      );
-
-      return;
-    }
 
     if (
       parsedMaxParticipants !== null &&
@@ -362,12 +763,50 @@ export default function EditIntentForm({
       return;
     }
 
+    if (
+      requiresSport &&
+      !sportId
+    ) {
+      setErrorMessage(
+        "Select a sport for this Activity."
+      );
+
+      return;
+    }
+
+    if (
+      !isJoinMessageSettingsValid(
+        joinMessageMode,
+        joinMessagePrompt
+      )
+    ) {
+      setErrorMessage(
+        "Enter the question participants should answer."
+      );
+
+      return;
+    }
+
+    if (
+      linksLoading
+    ) {
+      setErrorMessage(
+        "Related links are still loading."
+      );
+
+      return;
+    }
+
     try {
       setIsSaving(true);
 
       await updateIntent({
         intentId: intent.id,
         activityId,
+        sportId:
+          requiresSport
+            ? sportId
+            : null,
         locationId,
         startDate,
         endDate,
@@ -377,7 +816,12 @@ export default function EditIntentForm({
         budget: parsedBudget,
         maxParticipants:
           parsedMaxParticipants,
+        participantEligibility,
+        joinMessageMode,
+        joinMessagePrompt,
         notes,
+        communityIds,
+        relatedLinks,
       });
 
       router.push(
@@ -466,37 +910,54 @@ export default function EditIntentForm({
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="edit-location"
-            className="text-sm font-semibold text-gray-700"
-          >
-            Location
-          </label>
+        {requiresSport && (
+          <div className="md:col-span-2">
+            <SportPicker
+              value={sportId}
+              onChange={setSportId}
+              required
+            />
+          </div>
+        )}
 
-          <select
-            id="edit-location"
-            value={locationId}
-            onChange={(event) =>
-              setLocationId(
-                event.target.value
-              )
-            }
-            required
-            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          >
-            {locations.map(
-              (location) => (
-                <option
-                  key={location.id}
-                  value={location.id}
-                >
-                  {location.district},{" "}
-                  {location.city}
-                </option>
-              )
-            )}
-          </select>
+        <CommunityPicker
+          categoryId={
+            categoryId
+          }
+          activityId={
+            activityId
+          }
+          activityName={
+            selectedActivity?.name ??
+            ""
+          }
+          value={
+            communityIds
+          }
+          communities={
+            communities
+          }
+          isLoading={
+            isLoadingCommunities
+          }
+          onChange={
+            setCommunityIds
+          }
+        />
+
+        <div className="md:col-span-2">
+          <p className="text-sm font-semibold text-gray-700">
+            Location
+          </p>
+
+          <div className="mt-2">
+            <LocationHierarchySelect
+              locations={locations}
+              value={locationId}
+              onChange={setLocationId}
+              required
+            />
+          </div>
         </div>
 
         <div>
@@ -530,6 +991,78 @@ export default function EditIntentForm({
             )}
           </select>
         </div>
+
+        <div>
+          <label
+            htmlFor="edit-participant-eligibility"
+            className="text-sm font-semibold text-gray-700"
+          >
+            Who can participate?
+          </label>
+
+          <select
+            id="edit-participant-eligibility"
+            value={participantEligibility}
+            onChange={(event) =>
+              setParticipantEligibility(
+                event.target.value as ParticipantEligibility
+              )
+            }
+            required
+            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          >
+            {PARTICIPANT_ELIGIBILITY_OPTIONS.map(
+              (option) => {
+                const isCurrent =
+                  option.value ===
+                  participantEligibility;
+
+                const isAllowedByGender =
+                  canGenderUseEligibility(
+                    currentUserGender,
+                    option.value
+                  );
+
+                const isAllowedAfterAcceptance =
+                  !hasAcceptedParticipants ||
+                  isCurrent ||
+                  option.value === "everyone";
+
+                return (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    disabled={
+                      !isAllowedByGender ||
+                      !isAllowedAfterAcceptance
+                    }
+                  >
+                    {option.label}
+                  </option>
+                );
+              }
+            )}
+          </select>
+
+          <p className="mt-2 text-xs leading-5 text-gray-500">
+            {hasAcceptedParticipants
+              ? "A participant has already been accepted. The rule can now only be widened to Everyone."
+              : currentUserGender === "female"
+                ? "Women-only and Everyone are available for this profile."
+                : currentUserGender === "male"
+                  ? "Men-only and Everyone are available for this profile."
+                  : "Restricted Intents require Woman or Man in Profile Settings."}
+          </p>
+        </div>
+
+        <JoinRequestMessageSettings
+          mode={joinMessageMode}
+          prompt={joinMessagePrompt}
+          onModeChange={setJoinMessageMode}
+          onPromptChange={setJoinMessagePrompt}
+          disabled={isSaving}
+          className="md:col-span-2"
+        />
 
         <div>
           <label
@@ -640,28 +1173,92 @@ export default function EditIntentForm({
           </select>
         </div>
 
-        <div>
-          <label
-            htmlFor="edit-budget"
-            className="text-sm font-semibold text-gray-700"
-          >
-            Budget
-          </label>
+        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 md:col-span-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label>
+              <span className="text-sm font-semibold text-gray-700">
+                Estimated cost per person
+              </span>
 
-          <input
-            id="edit-budget"
-            type="number"
-            min="0"
-            step="1"
-            value={budget}
-            onChange={(event) =>
-              setBudget(
-                event.target.value
-              )
-            }
-            placeholder="Optional"
-            className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100"
-          />
+              <select
+                value={
+                  estimatedCostMode
+                }
+                onChange={(event) => {
+                  const nextMode =
+                    event.target
+                      .value as EstimatedCostMode;
+
+                  setEstimatedCostMode(
+                    nextMode
+                  );
+
+                  if (
+                    nextMode !==
+                    "amount"
+                  ) {
+                    setBudget("");
+                  }
+                }}
+                className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+              >
+                <option value="unknown">
+                  Not sure yet
+                </option>
+
+                <option value="free">
+                  Free
+                </option>
+
+                <option value="amount">
+                  Enter an amount
+                </option>
+              </select>
+            </label>
+
+            {estimatedCostMode ===
+              "amount" && (
+              <label>
+                <span className="text-sm font-semibold text-gray-700">
+                  Amount per person (TL)
+                </span>
+
+                <input
+                  id="edit-budget"
+                  type="number"
+                  min="1"
+                  step="1"
+                  required
+                  value={budget}
+                  onChange={(event) =>
+                    setBudget(
+                      event.target.value
+                    )
+                  }
+                  placeholder="e.g. 1500"
+                  className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-gray-900 outline-none placeholder:text-gray-400 focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                />
+              </label>
+            )}
+          </div>
+
+          <p className="mt-3 text-xs leading-5 text-gray-500">
+            This is the expected cost for each participant, not the total Activity budget. Each participant covers their own cost. UIN does not collect payment.
+          </p>
+
+          <p className="mt-2 text-sm font-semibold text-gray-800">
+            {formatEstimatedCost(
+              estimatedCostMode ===
+                "unknown"
+                ? null
+                : estimatedCostMode ===
+                    "free"
+                  ? 0
+                  : Number(
+                      budget
+                    )
+            )}
+          </p>
         </div>
 
         <div>
@@ -722,6 +1319,19 @@ export default function EditIntentForm({
         </p>
       </div>
 
+      <IntentLinksEditor
+        value={
+          relatedLinks
+        }
+        onChange={
+          setRelatedLinks
+        }
+        disabled={
+          isSaving ||
+          linksLoading
+        }
+      />
+
       {errorMessage && (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
           {errorMessage}
@@ -731,12 +1341,21 @@ export default function EditIntentForm({
       <div className="flex flex-col gap-3 sm:flex-row">
         <button
           type="submit"
-          disabled={isSaving}
+          disabled={
+            isSaving ||
+            linksLoading ||
+            (
+              requiresSport &&
+              !sportId
+            )
+          }
           className="flex-1 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSaving
             ? "Saving changes..."
-            : "Save Changes"}
+            : linksLoading
+              ? "Loading links..."
+              : "Save Changes"}
         </button>
 
         <button

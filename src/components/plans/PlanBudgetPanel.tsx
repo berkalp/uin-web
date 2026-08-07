@@ -30,6 +30,7 @@ type PlanBudgetPanelProps = {
   initialMyCommitment: number;
   initialActiveMemberCount: number;
   initialAttendedMemberCount: number;
+  compact?: boolean;
 };
 
 function formatBudget(
@@ -77,6 +78,7 @@ export default function PlanBudgetPanel({
   initialMyCommitment,
   initialActiveMemberCount,
   initialAttendedMemberCount,
+  compact = false,
 }: PlanBudgetPanelProps) {
   const router = useRouter();
 
@@ -340,21 +342,22 @@ export default function PlanBudgetPanel({
   }
 
   return (
-    <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm md:p-6">
+    <section id="budget" className="scroll-mt-24 rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
             Activity Budget
           </p>
 
-          <h2 className="mt-1 text-2xl font-bold text-gray-900">
+          <h2 className={`mt-1 font-bold text-gray-900 ${compact ? "text-xl" : "text-2xl"}`}>
             Budget Progress
           </h2>
 
-          <p className="mt-2 text-sm text-gray-500">
-            Member commitments are estimates,
-            not collected payments.
-          </p>
+          {!compact && (
+            <p className="mt-2 text-sm text-gray-500">
+              Member commitments are estimates, not collected payments.
+            </p>
+          )}
         </div>
 
         <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -385,7 +388,7 @@ export default function PlanBudgetPanel({
             Target Budget
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-gray-900">
+          <p className={`mt-2 font-bold text-gray-900 ${compact ? "text-xl" : "text-2xl"}`}>
             {previewTargetBudget === null
               ? "Not set"
               : `${formatBudget(
@@ -399,7 +402,7 @@ export default function PlanBudgetPanel({
             Committed Budget
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-gray-900">
+          <p className={`mt-2 font-bold text-gray-900 ${compact ? "text-xl" : "text-2xl"}`}>
             {formatBudget(
               previewCommittedBudget
             )}{" "}
@@ -414,7 +417,7 @@ export default function PlanBudgetPanel({
               : "Remaining"}
           </p>
 
-          <p className="mt-2 text-2xl font-bold text-gray-900">
+          <p className={`mt-2 font-bold text-gray-900 ${compact ? "text-xl" : "text-2xl"}`}>
             {previewTargetBudget === null
               ? "Not available"
               : `${formatBudget(
@@ -431,7 +434,7 @@ export default function PlanBudgetPanel({
               Actual Budget
             </p>
 
-            <p className="mt-2 text-2xl font-bold text-gray-900">
+            <p className={`mt-2 font-bold text-gray-900 ${compact ? "text-xl" : "text-2xl"}`}>
               {formatBudget(
                 initialActualBudget
               )}{" "}
@@ -480,12 +483,16 @@ export default function PlanBudgetPanel({
         )}
       </div>
 
-      {(canEditTarget ||
-        canEditCommitment) && (
-        <form
-          onSubmit={handleSubmit}
-          className="mt-6 border-t border-gray-100 pt-5"
-        >
+      {(canEditTarget || canEditCommitment) && (
+        <details open={!compact} className={compact ? "mt-5 rounded-2xl border border-gray-200 bg-gray-50/70" : ""}>
+          <summary className={compact ? "cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-700" : "hidden"}>
+            Edit budget
+            <span className="float-right text-gray-400">⌄</span>
+          </summary>
+          <form
+            onSubmit={handleSubmit}
+            className={compact ? "border-t border-gray-200 p-4" : "mt-6 border-t border-gray-100 pt-5"}
+          >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label
@@ -572,7 +579,8 @@ export default function PlanBudgetPanel({
               ? "Saving Budget..."
               : "Save Budget Settings"}
           </button>
-        </form>
+          </form>
+        </details>
       )}
 
       {!canEditTarget &&

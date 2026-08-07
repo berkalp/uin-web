@@ -894,6 +894,13 @@ export default async function AdminModerationPage({
               </Link>
 
               <Link
+                href="/admin/moderation/titles"
+                className="rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+              >
+                Reported Titles
+              </Link>
+
+              <Link
                 href="/admin/audit"
                 className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
               >

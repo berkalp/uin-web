@@ -42,6 +42,7 @@ export default async function InboxPage() {
     intentInvitationResponse,
     joinRequestResponse,
     managedProfileResponse,
+    activeOwnedIntentResponse,
   ] = await Promise.all([
     supabase
       .from("intent_requests")
@@ -68,6 +69,13 @@ export default async function InboxPage() {
     supabase.rpc(
       "get_my_managed_profile_switcher"
     ),
+
+    supabase
+      .from("intents")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .is("expired_at", null),
   ]);
 
   const pendingIntentRequestCount =
@@ -90,6 +98,12 @@ export default async function InboxPage() {
         "pending"
     ).length;
 
+  const activeOwnedIntentIds = new Set(
+    ((activeOwnedIntentResponse.data ?? []) as { id: string }[]).map(
+      (intent) => intent.id
+    )
+  );
+
   const pendingJoinRequestCount =
     (
       (
@@ -98,13 +112,18 @@ export default async function InboxPage() {
       ) as {
         direction?: string;
         request_status?: string;
+        intent_id?: string;
       }[]
     ).filter(
       (request) =>
         request.direction ===
           "received" &&
         request.request_status ===
-          "pending"
+          "pending" &&
+        Boolean(
+          request.intent_id &&
+          activeOwnedIntentIds.has(request.intent_id)
+        )
     ).length;
 
   const managedProfiles =

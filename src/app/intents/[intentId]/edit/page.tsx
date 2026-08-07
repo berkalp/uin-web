@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import {
   notFound,
   redirect,
@@ -6,6 +6,10 @@ import {
 
 import EditIntentForm from "../../../../components/intents/EditIntentForm";
 import { createClient } from "../../../../utils/supabase/server";
+import {
+  normalizeParticipantEligibility,
+  normalizeProfileGender,
+} from "../../../../utils/participationEligibility";
 
 type EditIntentPageProps = {
   params: Promise<{
@@ -25,6 +29,9 @@ type IntentRow = {
   visibility: string;
   budget: number | null;
   max_participants: number | null;
+  participant_eligibility: "everyone" | "women_only" | "men_only";
+  join_message_mode: "none" | "optional" | "required";
+  join_message_prompt: string | null;
   notes: string | null;
   status: string;
   timing_mode: string;
@@ -92,6 +99,9 @@ export default async function EditIntentPage({
       visibility,
       budget,
       max_participants,
+      participant_eligibility,
+      join_message_mode,
+      join_message_prompt,
       notes,
       status,
       timing_mode
@@ -221,6 +231,48 @@ export default async function EditIntentPage({
     );
   }
 
+  const [
+    profileGenderResult,
+    acceptedParticipantResult,
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("gender")
+      .eq("id", user.id)
+      .maybeSingle(),
+
+    supabase
+      .from("intent_participants")
+      .select("id", {
+        count: "exact",
+        head: true,
+      })
+      .eq("intent_id", intent.id)
+      .neq("user_id", user.id),
+  ]);
+
+  if (profileGenderResult.error) {
+    console.error(
+      "Profile gender query failed:",
+      profileGenderResult.error
+    );
+  }
+
+  if (acceptedParticipantResult.error) {
+    console.error(
+      "Intent participant count query failed:",
+      acceptedParticipantResult.error
+    );
+  }
+
+  const currentUserGender =
+    normalizeProfileGender(
+      profileGenderResult.data?.gender
+    );
+
+  const hasAcceptedParticipants =
+    (acceptedParticipantResult.count ?? 0) > 0;
+
   const categories = (
     categoryResult.data ?? []
   ).map((category) => {
@@ -325,12 +377,27 @@ export default async function EditIntentPage({
                   intent.budget,
                 maxParticipants:
                   intent.max_participants,
+                participantEligibility:
+                  normalizeParticipantEligibility(
+                    intent.participant_eligibility
+                  ),
+                joinMessageMode:
+                  intent.join_message_mode ??
+                  "optional",
+                joinMessagePrompt:
+                  intent.join_message_prompt,
                 notes:
                   intent.notes,
               }}
               categories={categories}
               activities={activities}
               locations={locations}
+              currentUserGender={
+                currentUserGender
+              }
+              hasAcceptedParticipants={
+                hasAcceptedParticipants
+              }
             />
           </div>
         </section>

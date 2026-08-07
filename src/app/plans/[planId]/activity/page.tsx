@@ -1,18 +1,26 @@
 import { notFound } from "next/navigation";
 
 import PlanRoomView from "../../../../components/plans/PlanRoomView";
+import {
+  resolveReturnNavigation,
+  type ReturnSearchParams,
+} from "../../../../utils/returnNavigation";
 
 type ActivityRoomPageProps = {
-  params: Promise<
-    Record<string, string>
-  >;
+  params: Promise<Record<string, string>>;
+  searchParams?: Promise<ReturnSearchParams>;
 };
 
 export default async function ActivityRoomPage({
   params,
+  searchParams,
 }: ActivityRoomPageProps) {
-  const resolvedParams =
-    await params;
+  const resolvedParams = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const backNavigation = resolveReturnNavigation(resolvedSearchParams, {
+    href: "/timeline",
+    label: "Timeline",
+  });
 
   const planId =
     resolvedParams.planId ??
@@ -30,6 +38,8 @@ export default async function ActivityRoomPage({
     <PlanRoomView
       planId={planId}
       roomPhase="activity"
+      backHref={backNavigation.href}
+      backLabel={backNavigation.label}
     />
   );
 }

@@ -4,11 +4,13 @@ import {
 } from "next/navigation";
 
 import { createClient } from "../../../utils/supabase/server";
+import type { ReturnSearchParams } from "../../../utils/returnNavigation";
 
 type PlanRedirectPageProps = {
   params: Promise<{
     planId: string;
   }>;
+  searchParams?: Promise<ReturnSearchParams>;
 };
 
 type PlanRedirectData = {
@@ -26,8 +28,10 @@ type PlanRedirectData = {
 
 export default async function PlanRedirectPage({
   params,
+  searchParams,
 }: PlanRedirectPageProps) {
   const { planId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
 
   const supabase =
     await createClient();
@@ -81,9 +85,19 @@ export default async function PlanRedirectPage({
       plan.planned_at !== null
     );
 
-  redirect(
-    activityRoomExists
-      ? `/plans/${plan.id}/activity`
-      : `/plans/${plan.id}/planning`
-  );
+  const targetPath = activityRoomExists
+    ? `/plans/${plan.id}/activity`
+    : `/plans/${plan.id}/planning`;
+  const forwardedParams = new URLSearchParams();
+
+  for (const key of ["from", "returnTo", "returnLabel"]) {
+    const value = resolvedSearchParams[key];
+    const firstValue = Array.isArray(value) ? value[0] : value;
+    if (firstValue) {
+      forwardedParams.set(key, firstValue);
+    }
+  }
+
+  const query = forwardedParams.toString();
+  redirect(query ? `${targetPath}?${query}` : targetPath);
 }

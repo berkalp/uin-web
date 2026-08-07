@@ -1,0 +1,736 @@
+import Link from "next/link";
+
+import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
+import {
+  getActivityVisibilityLabel,
+  type ActivityVisibility,
+} from "@/utils/activityVisibility";
+import {
+  resolveActivityCover,
+} from "@/utils/activityCover";
+
+export type IntentLifecycleStatus =
+  | "open"
+  | "future"
+  | "planned"
+  | "closed"
+  | "completed"
+  | "cancelled"
+  | "expired";
+
+export type DiscoverIntentRow = {
+  intent_id: string;
+  plan_id: string | null;
+  plan_status: string | null;
+
+  owner_user_id: string;
+  owner_full_name: string | null;
+  owner_username: string | null;
+  owner_avatar_url: string | null;
+
+  activity_id: string;
+  activity_name: string;
+  activity_cover_url: string | null;
+
+  category_id: string;
+  category_name: string;
+  category_cover_url: string | null;
+
+  location_id: string;
+  city: string | null;
+  district: string | null;
+
+  start_date: string;
+  end_date: string;
+
+  people: string;
+  budget:
+    | number
+    | string
+    | null;
+  recurrence: string;
+  visibility: ActivityVisibility;
+  intent_type: string;
+
+  intent_status:
+    | "active"
+    | "planned"
+    | "completed"
+    | "cancelled";
+
+  recruitment_status:
+    | "open"
+    | "full"
+    | "closed";
+
+  matching_status:
+    | "open"
+    | "paused"
+    | "matched"
+    | "closed";
+
+  expired_at: string | null;
+  lifecycle_status: IntentLifecycleStatus;
+
+  max_participants:
+    | number
+    | null;
+
+  active_participant_count:
+    | number
+    | string;
+
+  viewer_can_request: boolean;
+  viewer_is_member: boolean;
+
+  viewer_invitation_status:
+    | "pending"
+    | "accepted"
+    | "declined"
+    | "revoked"
+    | "expired"
+    | null;
+
+  viewer_request_status:
+    | "pending"
+    | "accepted"
+    | "declined"
+    | "withdrawn"
+    | null;
+
+  viewer_request_id:
+    | string
+    | null;
+
+  created_at: string;
+  relevance:
+    | number
+    | string;
+  total_count:
+    | number
+    | string;
+};
+
+type LifecyclePresentation = {
+  label: string;
+  helper: string;
+  badgeClasses: string;
+};
+
+function toNumber(
+  value:
+    | number
+    | string
+    | null
+    | undefined
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return 0;
+  }
+
+  const parsedValue =
+    typeof value === "number"
+      ? value
+      : Number(value);
+
+  return Number.isFinite(
+    parsedValue
+  )
+    ? parsedValue
+    : 0;
+}
+
+function getInitial(
+  value:
+    | string
+    | null
+    | undefined
+) {
+  return (
+    value
+      ?.trim()
+      .charAt(0)
+      .toUpperCase() ||
+    "?"
+  );
+}
+
+function formatDate(
+  value: string
+) {
+  const date =
+    new Date(
+      `${value}T00:00:00Z`
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat(
+    "en-GB",
+    {
+      timeZone: "UTC",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }
+  ).format(date);
+}
+
+function getCalendarParts(
+  value: string
+) {
+  const date =
+    new Date(
+      `${value}T00:00:00Z`
+    );
+
+  return {
+    month:
+      new Intl.DateTimeFormat(
+        "en-GB",
+        {
+          timeZone: "UTC",
+          month: "short",
+        }
+      )
+        .format(date)
+        .toUpperCase(),
+
+    day:
+      new Intl.DateTimeFormat(
+        "en-GB",
+        {
+          timeZone: "UTC",
+          day: "2-digit",
+        }
+      ).format(date),
+  };
+}
+
+function getLifecyclePresentation(
+  lifecycle:
+    IntentLifecycleStatus
+): LifecyclePresentation {
+  if (lifecycle === "future") {
+    return {
+      label: "Future",
+      helper:
+        "Availability has not started",
+      badgeClasses:
+        "bg-blue-100 text-blue-800",
+    };
+  }
+
+  if (lifecycle === "planned") {
+    return {
+      label: "Planned",
+      helper:
+        "Schedule confirmed",
+      badgeClasses:
+        "bg-indigo-100 text-indigo-800",
+    };
+  }
+
+  if (lifecycle === "closed") {
+    return {
+      label: "Closed",
+      helper:
+        "Not accepting matches",
+      badgeClasses:
+        "bg-gray-200 text-gray-700",
+    };
+  }
+
+  if (lifecycle === "completed") {
+    return {
+      label: "Completed",
+      helper:
+        "Activity completed",
+      badgeClasses:
+        "bg-purple-100 text-purple-800",
+    };
+  }
+
+  if (lifecycle === "cancelled") {
+    return {
+      label: "Cancelled",
+      helper:
+        "Activity cancelled",
+      badgeClasses:
+        "bg-red-100 text-red-800",
+    };
+  }
+
+  if (lifecycle === "expired") {
+    return {
+      label: "Expired",
+      helper:
+        "Did not reach a scheduled Activity",
+      badgeClasses:
+        "bg-orange-100 text-orange-800",
+    };
+  }
+
+  return {
+    label: "Open",
+    helper:
+      "Accepting matches",
+    badgeClasses:
+      "bg-green-100 text-green-800",
+  };
+}
+
+function getOwnerAction({
+  intent,
+}: {
+  intent: DiscoverIntentRow;
+}) {
+  if (!intent.plan_id) {
+    if (
+      intent.intent_status ===
+        "active"
+    ) {
+      return {
+        href:
+          `/intents/${encodeURIComponent(
+            intent.intent_id
+          )}/edit`,
+        label:
+          "Edit Intent",
+      };
+    }
+
+    return {
+      href:
+        `/activities/${encodeURIComponent(
+          intent.intent_id
+        )}`,
+      label:
+        "View record",
+    };
+  }
+
+  if (
+    intent.plan_status ===
+      "forming"
+  ) {
+    return {
+      href:
+        `/plans/${encodeURIComponent(
+          intent.plan_id
+        )}/planning`,
+      label:
+        "Open Planning Room",
+    };
+  }
+
+  return {
+    href:
+      `/plans/${encodeURIComponent(
+        intent.plan_id
+      )}/activity`,
+    label:
+      intent.lifecycle_status ===
+        "completed"
+        ? "Open Activity Archive"
+        : "Open Activity Room",
+  };
+}
+
+function getMemberRoomHref(
+  intent: DiscoverIntentRow
+) {
+  if (!intent.plan_id) {
+    return null;
+  }
+
+  return intent.plan_status ===
+    "forming"
+    ? `/plans/${encodeURIComponent(
+        intent.plan_id
+      )}/planning`
+    : `/plans/${encodeURIComponent(
+        intent.plan_id
+      )}/activity`;
+}
+
+export default function DiscoverIntentCard({
+  intent,
+  currentUserId,
+}: {
+  intent: DiscoverIntentRow;
+  currentUserId: string;
+}) {
+  const ownerName =
+    intent.owner_full_name ||
+    intent.owner_username ||
+    "UIN member";
+
+  const isOwner =
+    intent.owner_user_id ===
+    currentUserId;
+
+  const lifecycle =
+    getLifecyclePresentation(
+      intent.lifecycle_status
+    );
+
+  const participantCount =
+    toNumber(
+      intent.active_participant_count
+    );
+
+  const participantLimit =
+    intent.max_participants ===
+    null
+      ? "∞"
+      : String(
+          intent.max_participants
+        );
+
+  const budget =
+    intent.budget === null
+      ? null
+      : toNumber(
+          intent.budget
+        );
+
+  const coverUrl =
+    resolveActivityCover({
+      activityCoverUrl:
+        intent.activity_cover_url,
+      categoryCoverUrl:
+        intent.category_cover_url,
+      categoryName:
+        intent.category_name,
+      activityName:
+        intent.activity_name,
+    });
+
+  const calendarParts =
+    getCalendarParts(
+      intent.start_date
+    );
+
+  const locationLabel = [
+    intent.district,
+    intent.city,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const mapQuery =
+    locationLabel ||
+    intent.city;
+
+  const mapEmbedUrl =
+    mapQuery
+      ? `https://www.google.com/maps?q=${encodeURIComponent(
+          mapQuery
+        )}&z=10&output=embed`
+      : null;
+
+  const ownerProfileHref =
+    intent.owner_username
+      ? `/u/${encodeURIComponent(
+          intent.owner_username
+        )}`
+      : null;
+
+  const ownerAction =
+    getOwnerAction({
+      intent,
+    });
+
+  const memberRoomHref =
+    getMemberRoomHref(
+      intent
+    );
+
+  const canDisplayJoinAction =
+    !isOwner &&
+    (
+      intent.lifecycle_status ===
+        "open" ||
+      intent.lifecycle_status ===
+        "future"
+    ) &&
+    (
+      intent.recruitment_status ===
+        "open" ||
+      intent.recruitment_status ===
+        "full"
+    );
+
+  return (
+    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="relative h-36 overflow-hidden bg-gray-950">
+        <img
+          src={coverUrl}
+          alt={`${intent.activity_name} cover`}
+          className="h-full w-full object-cover"
+        />
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-black/35" />
+
+        <div className="absolute left-3 top-3 flex flex-wrap gap-2">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide shadow-sm ${lifecycle.badgeClasses}`}
+          >
+            {lifecycle.label}
+          </span>
+
+          {isOwner && (
+            <span className="rounded-full bg-gray-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur">
+              Hosted by you
+            </span>
+          )}
+        </div>
+
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.17em] text-green-300">
+            {intent.category_name}
+          </p>
+
+          <h2 className="mt-1 line-clamp-2 text-xl font-bold leading-tight text-white">
+            {intent.activity_name}
+          </h2>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_112px] border-b border-gray-100">
+        <div className="p-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-14 w-12 shrink-0 flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50">
+              <span className="text-[10px] font-bold text-red-600">
+                {calendarParts.month}
+              </span>
+
+              <span className="text-xl font-black text-gray-950">
+                {calendarParts.day}
+              </span>
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                Availability
+              </p>
+
+              <p className="mt-1 text-xs font-bold leading-5 text-gray-950">
+                {formatDate(
+                  intent.start_date
+                )}
+                {" → "}
+                {formatDate(
+                  intent.end_date
+                )}
+              </p>
+
+              <p className="mt-1 line-clamp-1 text-[11px] text-gray-500">
+                {lifecycle.helper}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative min-h-24 overflow-hidden border-l border-gray-100 bg-gray-100">
+          {mapEmbedUrl ? (
+            <iframe
+              title={`${intent.activity_name} approximate area`}
+              src={mapEmbedUrl}
+              className="absolute inset-0 h-full w-full border-0"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center p-3 text-center text-[10px] text-gray-400">
+              No map
+            </div>
+          )}
+
+          {intent.district && (
+            <span className="absolute bottom-2 left-2 max-w-[96px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
+              {intent.district}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 p-4 text-xs">
+        <div className="rounded-xl bg-gray-50 p-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+            Participants
+          </p>
+
+          <p className="mt-1 font-bold text-gray-950">
+            {participantCount}
+            {" / "}
+            {participantLimit}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 p-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+            Visibility
+          </p>
+
+          <p className="mt-1 truncate font-bold text-gray-950">
+            {getActivityVisibilityLabel(
+              intent.visibility
+            )}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 p-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+            Recurrence
+          </p>
+
+          <p className="mt-1 truncate font-bold capitalize text-gray-950">
+            {intent.recurrence}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-gray-50 p-2.5">
+          <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+            Budget
+          </p>
+
+          <p className="mt-1 truncate font-bold text-gray-950">
+            {budget === null
+              ? "Not set"
+              : `${budget.toLocaleString(
+                  "en-US"
+                )} TL`}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-auto border-t border-gray-100 p-4">
+        <div className="flex min-w-0 items-center gap-3">
+          {intent.owner_avatar_url ? (
+            <img
+              src={
+                intent.owner_avatar_url
+              }
+              alt={ownerName}
+              className="h-9 w-9 shrink-0 rounded-full object-cover"
+            />
+          ) : (
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-700">
+              {getInitial(
+                ownerName
+              )}
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+              {isOwner
+                ? "Hosted by you"
+                : "Hosted by"}
+            </p>
+
+            {ownerProfileHref &&
+            !isOwner ? (
+              <Link
+                href={
+                  ownerProfileHref
+                }
+                className="block truncate text-xs font-bold text-gray-950 transition hover:text-green-700"
+              >
+                {ownerName}
+              </Link>
+            ) : (
+              <p className="truncate text-xs font-bold text-gray-950">
+                {ownerName}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href={`/activities/${encodeURIComponent(
+              intent.intent_id
+            )}`}
+            className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-center text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+          >
+            View
+          </Link>
+
+          {isOwner ? (
+            <Link
+              href={
+                ownerAction.href
+              }
+              className="flex-1 rounded-xl bg-gray-950 px-3 py-2.5 text-center text-xs font-semibold text-white transition hover:bg-gray-800"
+            >
+              {ownerAction.label}
+            </Link>
+          ) : intent.viewer_is_member &&
+            memberRoomHref ? (
+            <Link
+              href={
+                memberRoomHref
+              }
+              className="flex-1 rounded-xl bg-green-600 px-3 py-2.5 text-center text-xs font-semibold text-white transition hover:bg-green-700"
+            >
+              Open Room
+            </Link>
+          ) : canDisplayJoinAction ? (
+            <PublicIntentJoinButton
+              intentId={
+                intent.intent_id
+              }
+              planId={
+                intent.plan_id
+              }
+              activityName={
+                intent.activity_name
+              }
+              recruitmentStatus={
+                intent.recruitment_status ===
+                "full"
+                  ? "full"
+                  : "open"
+              }
+              visibility={
+                intent.visibility
+              }
+              viewerCanRequest={
+                intent.viewer_can_request
+              }
+              viewerIsMember={
+                intent.viewer_is_member
+              }
+              viewerInvitationStatus={
+                intent.viewer_invitation_status
+              }
+              initialRequestStatus={
+                intent.viewer_request_status
+              }
+              initialRequestId={
+                intent.viewer_request_id
+              }
+              isAuthenticated
+            />
+          ) : (
+            <span className="flex-1 rounded-xl bg-gray-100 px-3 py-2.5 text-center text-xs font-semibold text-gray-500">
+              {lifecycle.label}
+            </span>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}

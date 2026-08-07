@@ -1,8 +1,15 @@
+import type { IntentLinkInput } from "@/utils/intentLinks";
 import { supabase } from "@/utils/supabase/client";
+import type { ParticipantEligibility } from "@/utils/participationEligibility";
+import {
+  isJoinMessageSettingsValid,
+  type JoinMessageMode,
+} from "@/utils/joinRequestMessage";
 
 export type UpdateIntentInput = {
   intentId: string;
   activityId: string;
+  sportId?: string | null;
   locationId: string;
   startDate: string;
   endDate: string;
@@ -11,12 +18,18 @@ export type UpdateIntentInput = {
   visibility: string;
   budget: number | null;
   maxParticipants: number | null;
+  participantEligibility: ParticipantEligibility;
+  joinMessageMode: JoinMessageMode;
+  joinMessagePrompt: string;
   notes: string | null;
+  communityIds?: string[];
+  relatedLinks?: IntentLinkInput[];
 };
 
 export async function updateIntent({
   intentId,
   activityId,
+  sportId = null,
   locationId,
   startDate,
   endDate,
@@ -25,6 +38,9 @@ export async function updateIntent({
   visibility,
   budget,
   maxParticipants,
+  participantEligibility,
+  joinMessageMode,
+  joinMessagePrompt,
   notes,
 }: UpdateIntentInput) {
   if (!intentId) {
@@ -80,7 +96,7 @@ export async function updateIntent({
     budget < 0
   ) {
     throw new Error(
-      "Budget cannot be negative."
+      "Estimated cost per person cannot be negative."
     );
   }
 
@@ -93,6 +109,17 @@ export async function updateIntent({
     );
   }
 
+  if (
+    !isJoinMessageSettingsValid(
+      joinMessageMode,
+      joinMessagePrompt
+    )
+  ) {
+    throw new Error(
+      "Enter the question participants should answer."
+    );
+  }
+
   const cleanedNotes =
     notes?.trim() || null;
 
@@ -101,6 +128,7 @@ export async function updateIntent({
       .from("intents")
       .update({
         activity_id: activityId,
+        sport_id: sportId,
         location_id: locationId,
         start_date: startDate,
         end_date: endDate,
@@ -110,6 +138,14 @@ export async function updateIntent({
         budget,
         max_participants:
           maxParticipants,
+        participant_eligibility:
+          participantEligibility,
+        join_message_mode:
+          joinMessageMode,
+        join_message_prompt:
+          joinMessageMode === "none"
+            ? null
+            : joinMessagePrompt.trim(),
         notes: cleanedNotes,
         updated_at:
           new Date().toISOString(),

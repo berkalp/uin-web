@@ -3,8 +3,8 @@ import type {
 } from "react";
 import Link from "next/link";
 
-import AccountContextSwitcher, {
-  type ManagedProfileSwitcherRow,
+import type {
+  ManagedProfileSwitcherRow,
 } from "@/components/navigation/AccountContextSwitcher";
 import UserAccountMenu from "@/components/navigation/UserAccountMenu";
 
@@ -36,6 +36,85 @@ function formatBadge(value: number) {
   return value > 9
     ? "9+"
     : String(value);
+}
+
+
+function SeedIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 21V10" />
+      <path d="M12 13c-4 0-7-2.5-7-6 4 0 7 2.5 7 6Z" />
+      <path d="M12 10c0-4 2.5-7 7-7 0 4-2.5 7-7 7Z" />
+    </svg>
+  );
+}
+
+function DiscoverIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z" />
+    </svg>
+  );
+}
+
+function FriendsIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="9" cy="8" r="3" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+      <path d="M14 18.5a4 4 0 0 1 7 0" />
+    </svg>
+  );
+}
+
+
+function CommunitiesIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8" cy="8" r="3" />
+      <circle cx="17" cy="7" r="2.5" />
+      <path d="M3.5 19a4.5 4.5 0 0 1 9 0" />
+      <path d="M13.5 18.5a3.5 3.5 0 0 1 7 0" />
+    </svg>
+  );
 }
 
 function MatchesIcon() {
@@ -150,31 +229,76 @@ export default function TimelineHeader({
         Your Intent Timeline
       </h1>
 
-      {email && (
-        <p className="mt-3 text-gray-500">
-          {email}
-        </p>
-      )}
-
-      <div className="relative z-[80] mx-auto mt-7 w-full max-w-md">
-        <AccountContextSwitcher
-          personal={personal}
-          managedProfiles={managedProfiles}
-          currentContext={{
-            type: "personal",
-          }}
-        />
-      </div>
 
       <nav
         aria-label="Primary navigation"
-        className="relative z-[70] mt-4 flex flex-wrap items-center justify-center gap-3"
+        className="relative z-[70] mt-7 flex flex-wrap items-center justify-center gap-3"
       >
+        <details className="group relative z-[90]">
+          <summary className="flex h-12 cursor-pointer list-none items-center gap-2 rounded-xl bg-green-600 px-5 font-semibold text-white shadow-sm transition hover:bg-green-700 [&::-webkit-details-marker]:hidden">
+            Create
+            <span className="text-[10px] transition group-open:rotate-180">▼</span>
+          </summary>
+
+          <div className="absolute left-0 top-full mt-2 w-72 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 text-left shadow-2xl">
+            <Link
+              href="/seeds/new"
+              className="flex items-start gap-3 rounded-xl px-4 py-3 transition hover:bg-green-50"
+            >
+              <span className="text-2xl" aria-hidden="true">🌱</span>
+              <span>
+                <span className="block text-sm font-bold text-gray-950">Plant a Seed</span>
+                <span className="mt-1 block text-xs leading-5 text-gray-500">Choose a shared subject or create something personal.</span>
+              </span>
+            </Link>
+
+            <Link
+              href="/onboarding"
+              className="mt-1 flex items-start gap-3 rounded-xl px-4 py-3 transition hover:bg-blue-50"
+            >
+              <span className="text-2xl" aria-hidden="true">◎</span>
+              <span>
+                <span className="block text-sm font-bold text-gray-950">Create an Intent</span>
+                <span className="mt-1 block text-xs leading-5 text-gray-500">Find people for a shared Activity.</span>
+              </span>
+            </Link>
+          </div>
+        </details>
+
         <Link
-          href="/onboarding"
-          className="flex h-12 items-center rounded-xl bg-green-600 px-5 font-semibold text-white shadow-sm transition hover:bg-green-700"
+          href="/seeds"
+          className="flex h-12 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 font-semibold text-green-800 shadow-sm transition hover:border-green-400 hover:bg-green-100"
         >
-          Create New Intent
+          <SeedIcon />
+          <span>Seeds</span>
+        </Link>
+
+        <Link
+          href="/discover"
+          className="flex h-12 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 font-semibold text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-100"
+        >
+          <DiscoverIcon />
+
+          <span>Discover</span>
+        </Link>
+
+
+        <Link
+          href="/friends"
+          className="flex h-12 items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 font-semibold text-cyan-700 shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100"
+        >
+          <FriendsIcon />
+
+          <span>Friends</span>
+        </Link>
+
+        <Link
+          href="/communities"
+          className="flex h-12 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 font-semibold text-violet-700 shadow-sm transition hover:border-violet-400 hover:bg-violet-100"
+        >
+          <CommunitiesIcon />
+
+          <span>Communities</span>
         </Link>
 
         <Link
@@ -213,6 +337,10 @@ export default function TimelineHeader({
           username={personal.username}
           email={email}
           avatarUrl={personal.avatarUrl}
+          managedProfiles={managedProfiles}
+          currentContext={{
+            type: "personal",
+          }}
           isAdmin={isAdmin}
         />
       </nav>
