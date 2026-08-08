@@ -13012,7 +13012,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.edited.b27c76ab9f",
     "namespace": "plan",
     "default_text": "· edited",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:1057"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:1059"
   },
   {
     "key": "auto.plan.pending.c9a5cf36de",
@@ -13030,7 +13030,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.1-cover.64598329c2",
     "namespace": "plan",
     "default_text": "{1} cover",
-    "description": "AUTO-SOURCE: alt template · components/plans/PlanRoomView.tsx:2259"
+    "description": "AUTO-SOURCE: alt template · components/plans/PlanRoomView.tsx:2261"
   },
   {
     "key": "auto.plan.1-file-2-added-to-the-plan-archive.4b2b8b5a1f",
@@ -13048,7 +13048,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.1-map-preview.4118b1d585",
     "namespace": "plan",
     "default_text": "{1} map preview",
-    "description": "AUTO-SOURCE: title template · components/plans/PlanPresentationSettingsForm.tsx:154"
+    "description": "AUTO-SOURCE: title template · components/plans/PlanPresentationSettingsForm.tsx:214"
   },
   {
     "key": "auto.plan.1-media-item-2-added-to-the-participant-gallery.c602e40817",
@@ -13090,19 +13090,19 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.back-to.73f934a4b8",
     "namespace": "plan",
     "default_text": "← Back to",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2138"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2140"
   },
   {
     "key": "auto.plan.formed-from-1-intents.d7013b1d08",
     "namespace": "plan",
     "default_text": "↘ Formed from {1} Intents",
-    "description": "AUTO-SOURCE: visible JSX template · components/plans/PlanRoomView.tsx:2295"
+    "description": "AUTO-SOURCE: visible JSX template · components/plans/PlanRoomView.tsx:2297"
   },
   {
     "key": "auto.plan.started-from-1-intent.90770287ce",
     "namespace": "plan",
     "default_text": "↘ Started from 1 Intent",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2296"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2298"
   },
   {
     "key": "auto.plan.add-files.fd92290265",
@@ -13138,7 +13138,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.a-short-list-of-what-still-needs-attention.d2150aabff",
     "namespace": "plan",
     "default_text": "A short list of what still needs attention.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2872"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2877"
   },
   {
     "key": "auto.plan.above-target.cac68779b0",
@@ -13150,7 +13150,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.action-required.4cd4f41475",
     "namespace": "plan",
     "default_text": "Action Required",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2226"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2228"
   },
   {
     "key": "auto.plan.active.2bb6b986c5",
@@ -13174,7 +13174,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.activity-attendance-archive.9a99529646",
     "namespace": "plan",
     "default_text": "Activity attendance archive",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2690"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2695"
   },
   {
     "key": "auto.plan.activity-budget.1a2f73b393",
@@ -13234,13 +13234,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.activity-room.f438700c59",
     "namespace": "plan",
     "default_text": "Activity Room",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2286"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2288"
   },
   {
     "key": "auto.plan.activity-timeline.3e53cf9577",
     "namespace": "plan",
     "default_text": "Activity timeline",
-    "description": "AUTO-SOURCE: title prop · components/plans/PlanRoomView.tsx:2572"
+    "description": "AUTO-SOURCE: title prop · components/plans/PlanRoomView.tsx:2574"
   },
   {
     "key": "auto.plan.activity-type.e74fc42fbf",
@@ -13342,7 +13342,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.address-links-and-precise-pin.142b868d46",
     "namespace": "plan",
     "default_text": "Address, links and precise pin",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:223"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:289"
   },
   {
     "key": "auto.plan.all.d87c448044",
@@ -13426,7 +13426,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.availability-confirmed-schedule-and-outcome-in-one-compact-view.e0e84a4c05",
     "namespace": "plan",
     "default_text": "Availability, confirmed schedule and outcome in one compact view.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2573"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2575"
   },
   {
     "key": "auto.plan.available-to-you-including-your-current-contribution.8fa2004835",
@@ -13456,7 +13456,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.back-to-expired-activities.1c2a16cb26",
     "namespace": "plan",
     "default_text": "Back to Expired Activities",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2217"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2219"
   },
   {
     "key": "auto.plan.become-co-host.8b7619c3a1",
@@ -13504,13 +13504,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.cancelled.8761d26fb8",
     "namespace": "plan",
     "default_text": "cancelled",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2333"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2335"
   },
   {
     "key": "auto.plan.cancelled.a1bf92eff4",
     "namespace": "plan",
     "default_text": "Cancelled",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2425"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2427"
   },
   {
     "key": "auto.plan.caption-for-these-items-optional.b7c248c6c4",
@@ -13558,7 +13558,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.checklist-and-files.00e7238836",
     "namespace": "plan",
     "default_text": "Checklist & Files",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2766"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2771"
   },
   {
     "key": "auto.plan.checklist-task-created.c6fa1831d3",
@@ -13630,7 +13630,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.completed.1798b3ba42",
     "namespace": "plan",
     "default_text": "Completed",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2423"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2425"
   },
   {
     "key": "auto.plan.completing-activity.0a4c1ccf19",
@@ -13696,13 +13696,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.confirm-whether-the-activity-happened-and-record-attendance-here.801696c272",
     "namespace": "plan",
     "default_text": "Confirm whether the Activity happened and record attendance here in the Activity Room. Only the Primary Host can mark it as not happened.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2238"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2240"
   },
   {
     "key": "auto.plan.confirmed-plan.121018524d",
     "namespace": "plan",
     "default_text": "Confirmed plan",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2413"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2415"
   },
   {
     "key": "auto.plan.confirmed-schedule.cfc5605a04",
@@ -13750,25 +13750,25 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.control-who-can-discover-view-and-request-to-join.172f492520",
     "namespace": "plan",
     "default_text": "Control who can discover, view and request to join.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2851"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2856"
   },
   {
     "key": "auto.plan.coordinate-the-items-participants-will-bring.5628a40dcc",
     "namespace": "plan",
     "default_text": "Coordinate the items participants will bring.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2735"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2740"
   },
   {
     "key": "auto.plan.coordinate-the-plan-without-leaving-the-room.8a8ed72ad6",
     "namespace": "plan",
     "default_text": "Coordinate the plan without leaving the room.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2535"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2537"
   },
   {
     "key": "auto.plan.coordinate-the-team.129ab0ad53",
     "namespace": "plan",
     "default_text": "Coordinate the team",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2881"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2886"
   },
   {
     "key": "auto.plan.coordinate-what-members-will-bring-this-is-not-a-payment-or-dona.aa66545198",
@@ -13918,7 +13918,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.edit-the-meeting-point-and-activity-location-without-hunting-thr.20b515854a",
     "namespace": "plan",
     "default_text": "Edit the meeting point and Activity location without hunting through the page.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2590"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2592"
   },
   {
     "key": "auto.plan.edit-title.50ce4496e2",
@@ -13954,7 +13954,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.entrance-gate-floor-station-exit-or-arrival-instructions.3449a5040a",
     "namespace": "plan",
     "default_text": "Entrance, gate, floor, station exit or arrival instructions",
-    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:234"
+    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:300"
   },
   {
     "key": "auto.plan.every-participant.96e3177fa7",
@@ -14032,7 +14032,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.from-intent-to-plan.408b2fa627",
     "namespace": "plan",
     "default_text": "From Intent to plan",
-    "description": "AUTO-SOURCE: title prop · components/plans/PlanRoomView.tsx:2572"
+    "description": "AUTO-SOURCE: title prop · components/plans/PlanRoomView.tsx:2574"
   },
   {
     "key": "auto.plan.gallery-item-removed.6b8fa58e9f",
@@ -14044,7 +14044,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.google-maps-url-optional.534e6a6b45",
     "namespace": "plan",
     "default_text": "Google Maps URL, optional",
-    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:244"
+    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:310"
   },
   {
     "key": "auto.plan.google-photos.08d5a76a13",
@@ -14068,7 +14068,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.host.3960ec4ca5",
     "namespace": "plan",
     "default_text": "Host",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2460"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2462"
   },
   {
     "key": "auto.plan.host-approval.4dbf9d037b",
@@ -14242,7 +14242,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.manage-the-team-visibility-and-planning-details-from-one-place.18d32ae8e7",
     "namespace": "plan",
     "default_text": "Manage the team, visibility and planning details from one place.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2449"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2451"
   },
   {
     "key": "auto.plan.mark-activity-as-not-happened.0ca1def1f8",
@@ -14284,7 +14284,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.meeting-point-is-the-same-as-the-activity-location.48fb2a2b89",
     "namespace": "plan",
     "default_text": "Meeting point is the same as the Activity location",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:477"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:553"
   },
   {
     "key": "auto.plan.meeting-point-not-set.5b9394842d",
@@ -14314,7 +14314,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.members-only.625ddbab79",
     "namespace": "plan",
     "default_text": "Members only",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:500"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:576"
   },
   {
     "key": "auto.plan.must-stay-inside.e62d456a59",
@@ -14338,7 +14338,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.next-steps.11fc14203d",
     "namespace": "plan",
     "default_text": "Next steps",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2871"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2876"
   },
   {
     "key": "auto.plan.no-checklist-tasks-yet.f34951d94b",
@@ -14374,7 +14374,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.no-final-outcome-was-recorded-within-seven-days-it-is-no-longer-.b2885fee45",
     "namespace": "plan",
     "default_text": "No final outcome was recorded within seven days. It is no longer treated as an active Planned Activity, but a Host or Co-host can still resolve it below.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2237"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2239"
   },
   {
     "key": "auto.plan.no-linked-task.94a4179845",
@@ -14458,7 +14458,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.open-activity-room.353cd31d23",
     "namespace": "plan",
     "default_text": "Open Activity Room",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2154"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2156"
   },
   {
     "key": "auto.plan.open-in-maps.1371cbe4a7",
@@ -14560,7 +14560,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.outcome-unknown.8ed113163b",
     "namespace": "plan",
     "default_text": "Outcome Unknown",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2172"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2174"
   },
   {
     "key": "auto.plan.outcome-unknown.8242a18a3a",
@@ -14614,7 +14614,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.participants.cd56e0839d",
     "namespace": "plan",
     "default_text": "Participants",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2474"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2476"
   },
   {
     "key": "auto.plan.participants-can-suggest-additions-in-the-conversation-the-host-.f7feea704a",
@@ -14626,7 +14626,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.participants-go-directly-to-the-venue.fa723828af",
     "namespace": "plan",
     "default_text": "Participants go directly to the venue.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:480"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:556"
   },
   {
     "key": "auto.plan.participants-meet-directly-at-the-activity-location.70d6fe77af",
@@ -14710,7 +14710,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.plan-needs-what-should-we-bring.ad179c5505",
     "namespace": "plan",
     "default_text": "Plan Needs · What should we bring?",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2734"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2739"
   },
   {
     "key": "auto.plan.plan-toolkit.2488bd5e45",
@@ -14722,25 +14722,25 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.planning-archive.496e8ad9b8",
     "namespace": "plan",
     "default_text": "Planning Archive",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2917"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2922"
   },
   {
     "key": "auto.plan.planning-in-progress.35666644e2",
     "namespace": "plan",
     "default_text": "Planning in progress",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2415"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2417"
   },
   {
     "key": "auto.plan.planning-room.32b4e2a982",
     "namespace": "plan",
     "default_text": "Planning Room",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2286"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2288"
   },
   {
     "key": "auto.plan.planning-room-conversation.ebd7db5385",
     "namespace": "plan",
     "default_text": "Planning Room Conversation",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2534"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2536"
   },
   {
     "key": "auto.plan.planning-room-quick-actions.54a7b1b683",
@@ -14770,7 +14770,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.preview-public-page.f17dbb83bc",
     "namespace": "plan",
     "default_text": "Preview public page ↗",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2382"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2384"
   },
   {
     "key": "auto.plan.primary-host.b274f546c1",
@@ -14782,7 +14782,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.privacy-and-visibility.3bd8404b09",
     "namespace": "plan",
     "default_text": "Privacy & Visibility",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2850"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2855"
   },
   {
     "key": "auto.plan.private-to-members.82d4ea500f",
@@ -14806,13 +14806,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.public-screens-can-show-the-venue-name-never-the-exact-direction.c4b86d187f",
     "namespace": "plan",
     "default_text": "Public screens can show the venue name, never the exact directions.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:491"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:567"
   },
   {
     "key": "auto.plan.public-venue-disclosure.30e95d8394",
     "namespace": "plan",
     "default_text": "Public venue disclosure",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:488"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:564"
   },
   {
     "key": "auto.plan.public-cover-use-has-been-paused-for-this-media.8ae2669497",
@@ -14956,19 +14956,19 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.review-outcome-and-attendance.fa3d7aaad8",
     "namespace": "plan",
     "default_text": "Review outcome & attendance ↓",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2246"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2248"
   },
   {
     "key": "auto.plan.review-the-budget.cdb80fd7fc",
     "namespace": "plan",
     "default_text": "Review the budget",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2879"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2884"
   },
   {
     "key": "auto.plan.review-the-target-commitments-and-remaining-estimate.7cf114f607",
     "namespace": "plan",
     "default_text": "Review the target, commitments and remaining estimate.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2801"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2806"
   },
   {
     "key": "auto.plan.revoke-invitation.7d3e967a9f",
@@ -15010,7 +15010,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.save-a-draft-and-confirm-it-when-the-group-is-ready.4033998e60",
     "namespace": "plan",
     "default_text": "Save a draft and confirm it when the group is ready.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2824"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2829"
   },
   {
     "key": "auto.plan.save-a-schedule-draft-before-confirming-the-plan.226ad0c9d6",
@@ -15052,7 +15052,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.save-locations.f13cc3b6ce",
     "namespace": "plan",
     "default_text": "Save locations",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanPresentationSettingsForm.tsx:428"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanPresentationSettingsForm.tsx:504"
   },
   {
     "key": "auto.plan.save-need.841e9e962c",
@@ -15082,7 +15082,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.save-the-schedule-draft.8d59aa35eb",
     "namespace": "plan",
     "default_text": "Save the schedule draft",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2880"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2885"
   },
   {
     "key": "auto.plan.saved-draft.5626c06f17",
@@ -15142,7 +15142,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.see-the-active-team-invitations-and-planning-room-messages-toget.5a936aa51f",
     "namespace": "plan",
     "default_text": "See the active team, invitations and Planning Room messages together.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2506"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2508"
   },
   {
     "key": "auto.plan.send.9bc2575c39",
@@ -15172,7 +15172,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.set-both-locations.4dd9a8e1ba",
     "namespace": "plan",
     "default_text": "Set both locations",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2878"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2883"
   },
   {
     "key": "auto.plan.sexual-content.29cd612b0c",
@@ -15196,7 +15196,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.shared-experience.fe7f802c95",
     "namespace": "plan",
     "default_text": "Shared experience ·",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2351"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2353"
   },
   {
     "key": "auto.plan.shared-need.826c45c695",
@@ -15226,13 +15226,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.show-venue-name-publicly.9dfa3f8c0b",
     "namespace": "plan",
     "default_text": "Show venue name publicly",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:501"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:577"
   },
   {
     "key": "auto.plan.showing-the-latest-100-messages.a7f8f47611",
     "namespace": "plan",
     "default_text": "Showing the latest 100 messages.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:1073"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:1075"
   },
   {
     "key": "auto.plan.sign-in-again-before-uploading.e871c2ff14",
@@ -15262,7 +15262,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.street-view-url-optional.014f88aaf9",
     "namespace": "plan",
     "default_text": "Street View URL, optional",
-    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:252"
+    "description": "AUTO-SOURCE: placeholder attribute · components/plans/PlanPresentationSettingsForm.tsx:318"
   },
   {
     "key": "auto.plan.tag-another-participant.eaff59c27f",
@@ -15286,13 +15286,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.target-availability.cb07d0a93a",
     "namespace": "plan",
     "default_text": "Target availability",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2406"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2408"
   },
   {
     "key": "auto.plan.target-budget.65af01a137",
     "namespace": "plan",
     "default_text": "Target budget",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2482"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2484"
   },
   {
     "key": "auto.plan.target-budget.45075aefe7",
@@ -15310,13 +15310,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.tasks-tickets-qr-codes-and-private-planning-documents.3ee8edc8ff",
     "namespace": "plan",
     "default_text": "Tasks, tickets, QR codes and private planning documents.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2767"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2772"
   },
   {
     "key": "auto.plan.team-and-conversation.644dd82475",
     "namespace": "plan",
     "default_text": "Team & Conversation",
-    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2505"
+    "description": "AUTO-SOURCE: title attribute · components/plans/PlanRoomView.tsx:2507"
   },
   {
     "key": "auto.plan.team-and-invitations.286336181c",
@@ -15328,7 +15328,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-activity-has-ended-the-primary-host-or-a-co-host-can-close-t.257edfebb8",
     "namespace": "plan",
     "default_text": "The Activity has ended. The Primary Host or a Co-host can close the Activity and record attendance. If nobody resolves it within seven days, UIN will archive it as Outcome Unknown rather than guessing what happened.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2680"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2685"
   },
   {
     "key": "auto.plan.the-activity-outcome-could-not-be-saved.96584120d2",
@@ -15340,31 +15340,31 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-activity-outcome-is-still-unknown.d4c3fa5020",
     "namespace": "plan",
     "default_text": "The Activity outcome is still unknown.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2231"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2233"
   },
   {
     "key": "auto.plan.the-activity-room-was-opened.fd9ab06dff",
     "namespace": "plan",
     "default_text": "The Activity Room was opened.",
-    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:835"
+    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:837"
   },
   {
     "key": "auto.plan.the-activity-was-cancelled.c85d10680b",
     "namespace": "plan",
     "default_text": "The Activity was cancelled.",
-    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:849"
+    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:851"
   },
   {
     "key": "auto.plan.the-activity-was-marked-as-completed.6e3a7aa2e0",
     "namespace": "plan",
     "default_text": "The Activity was marked as completed.",
-    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:842"
+    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:844"
   },
   {
     "key": "auto.plan.the-availability-window-ended-on-1-messages-members-budget-and-s.23512c2add",
     "namespace": "plan",
     "default_text": "The availability window ended on {1}. Messages, members, budget and schedule details are preserved as a read-only record.",
-    "description": "AUTO-SOURCE: visible JSX template · components/plans/PlanRoomView.tsx:2206"
+    "description": "AUTO-SOURCE: visible JSX template · components/plans/PlanRoomView.tsx:2208"
   },
   {
     "key": "auto.plan.the-committed-budget-is.da0e577547",
@@ -15376,13 +15376,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-confirmed-activity-schedule-has-ended.eeab8f4138",
     "namespace": "plan",
     "default_text": "The confirmed Activity schedule has ended.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2232"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2234"
   },
   {
     "key": "auto.plan.the-conversation-that-led-to-the-confirmed-activity-schedule.fe30b73fcb",
     "namespace": "plan",
     "default_text": "The conversation that led to the confirmed Activity schedule.",
-    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2918"
+    "description": "AUTO-SOURCE: description prop · components/plans/PlanRoomView.tsx:2923"
   },
   {
     "key": "auto.plan.the-cover-image-could-not-be-updated.b5fb5d4d6b",
@@ -15406,13 +15406,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-host-confirmed-the-schedule-the-planning-room-is-now-archive.d35e48cc9e",
     "namespace": "plan",
     "default_text": "The host confirmed the schedule. The Planning Room is now archived.",
-    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:828"
+    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:830"
   },
   {
     "key": "auto.plan.the-location-details-could-not-be-saved.db42a4e4cd",
     "namespace": "plan",
     "default_text": "The location details could not be saved.",
-    "description": "AUTO-SOURCE: getErrorMessage formatter result · components/plans/PlanPresentationSettingsForm.tsx:61"
+    "description": "AUTO-SOURCE: getErrorMessage formatter result · components/plans/PlanPresentationSettingsForm.tsx:64"
   },
   {
     "key": "auto.plan.the-meeting-point-and-exact-activity-location-are-visible-only-t.8123c496a3",
@@ -15448,7 +15448,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-planning-room-was-created.967ed92dff",
     "namespace": "plan",
     "default_text": "The Planning Room was created.",
-    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:750"
+    "description": "AUTO-SOURCE: getSystemMessageText formatter result · components/plans/PlanRoomView.tsx:752"
   },
   {
     "key": "auto.plan.the-public-intent-area-stays-approximate-public-screens-may-show.a8531acbbc",
@@ -15466,13 +15466,13 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.the-schedule-has-been-confirmed-this-conversation-remains-availa.b76af2d0bd",
     "namespace": "plan",
     "default_text": "The schedule has been confirmed. This conversation remains available as a read-only record.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2209"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2211"
   },
   {
     "key": "auto.plan.the-scheduled-activity-ended-more-than-seven-days-ago-without-a-.3f494b67b6",
     "namespace": "plan",
     "default_text": "The scheduled Activity ended more than seven days ago without a final outcome. It is archived as Outcome Unknown instead of being automatically marked as completed or not happened.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2679"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2684"
   },
   {
     "key": "auto.plan.the-target-budget-is-locked-after-schedule-confirmation.370bf93608",
@@ -15508,19 +15508,19 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.this-message-was-deleted.ce3ffd59f5",
     "namespace": "plan",
     "default_text": "This message was deleted.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:1036"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:1038"
   },
   {
     "key": "auto.plan.this-planning-room-has-expired.e228b04151",
     "namespace": "plan",
     "default_text": "This Planning Room has expired.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2194"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2196"
   },
   {
     "key": "auto.plan.this-planning-room-is-archived.b8e615728b",
     "namespace": "plan",
     "default_text": "This Planning Room is archived.",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2195"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2197"
   },
   {
     "key": "auto.plan.this-records-a-real-world-outcome-not-a-return-to-planning-atten.26d41d4cdf",
@@ -15598,19 +15598,19 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.tupras-stadium-ulker-sports-arena.c295285082",
     "namespace": "plan",
     "default_text": "Tüpraş Stadium, Ülker Sports Arena...",
-    "description": "AUTO-SOURCE: placeholder prop · components/plans/PlanPresentationSettingsForm.tsx:213"
+    "description": "AUTO-SOURCE: placeholder prop · components/plans/PlanPresentationSettingsForm.tsx:279"
   },
   {
     "key": "auto.plan.type-a-place-name-and-the-map-preview-updates-automatically.ff19c66a12",
     "namespace": "plan",
     "default_text": "Type a place name and the map preview updates automatically.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:418"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:494"
   },
   {
     "key": "auto.plan.type-a-place-name-to-preview-it-on-the-map.60f8b5e2c6",
     "namespace": "plan",
     "default_text": "Type a place name to preview it on the map.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:162"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanPresentationSettingsForm.tsx:222"
   },
   {
     "key": "auto.plan.uin-activity.b42f4a9579",
@@ -15724,7 +15724,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.uskudar-square-station-exit.74116f1bbc",
     "namespace": "plan",
     "default_text": "Üsküdar Square, station exit...",
-    "description": "AUTO-SOURCE: placeholder prop · components/plans/PlanPresentationSettingsForm.tsx:213"
+    "description": "AUTO-SOURCE: placeholder prop · components/plans/PlanPresentationSettingsForm.tsx:279"
   },
   {
     "key": "auto.plan.venue-name-may-be-public.ab66df7d61",
@@ -15754,19 +15754,19 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.plan.visibility-is-read-only-in-the-current-state.e68a551ca7",
     "namespace": "plan",
     "default_text": "Visibility is read-only in the current state.",
-    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2865"
+    "description": "AUTO-SOURCE: visible JSX text · components/plans/PlanRoomView.tsx:2870"
   },
   {
     "key": "auto.plan.waiting-for-host-confirmation.bfc7000c2c",
     "namespace": "plan",
     "default_text": "Waiting for Host confirmation",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2675"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2680"
   },
   {
     "key": "auto.plan.waiting-for-the-activity.1875b0b981",
     "namespace": "plan",
     "default_text": "Waiting for the Activity",
-    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2426"
+    "description": "AUTO-SOURCE: visible JSX expression · components/plans/PlanRoomView.tsx:2428"
   },
   {
     "key": "auto.plan.water-football-bluetooth-speaker.59725b0efb",
@@ -21088,7 +21088,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.weather.a-confirmed-schedule-and-usable-coordinates-or-place-information.0149f1be37",
     "namespace": "weather",
     "default_text": "A confirmed schedule and usable coordinates or place information are needed for the meeting point and Activity location.",
-    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:97"
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:108"
   },
   {
     "key": "auto.weather.activity-location.9b0b117e8c",
@@ -21100,7 +21100,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.weather.activity-location-weather.53265b8738",
     "namespace": "weather",
     "default_text": "Activity location weather",
-    "description": "AUTO-SOURCE: visible JSX expression · components/weather/PlanWeatherPanel.tsx:169"
+    "description": "AUTO-SOURCE: visible JSX expression · components/weather/PlanWeatherPanel.tsx:180"
   },
   {
     "key": "auto.weather.add-a-city-or-district-to-this-intent-so-uin-can-show-a-target-d.791410ca15",
@@ -21112,7 +21112,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.weather.add-to-plan-needs.b29893fbfd",
     "namespace": "weather",
     "default_text": "Add to Plan Needs",
-    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:139"
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:150"
   },
   {
     "key": "auto.weather.approximate-area.03dbb485ed",
@@ -21145,6 +21145,12 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "description": "AUTO-SOURCE: visible JSX template · components/weather/IntentWeatherPanel.tsx:53"
   },
   {
+    "key": "auto.weather.forecasts-follow-the-confirmed-schedule-and-refresh-automaticall.e6d9282e85",
+    "namespace": "weather",
+    "default_text": "Forecasts follow the confirmed schedule and refresh automatically as the Activity gets closer.",
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:97"
+  },
+  {
     "key": "auto.weather.intent-location.1ffd5f30f8",
     "namespace": "weather",
     "default_text": "Intent location",
@@ -21169,16 +21175,22 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "description": "AUTO-SOURCE: title prop · components/weather/PlanWeatherBadges.tsx:77"
   },
   {
+    "key": "auto.weather.meeting-point-and-activity-location.358bf16453",
+    "namespace": "weather",
+    "default_text": "Meeting point & Activity location",
+    "description": "AUTO-SOURCE: visible JSX expression · components/weather/PlanWeatherPanel.tsx:180"
+  },
+  {
     "key": "auto.weather.meeting-point-weather.9c8a592e1f",
     "namespace": "weather",
     "default_text": "Meeting point weather",
-    "description": "AUTO-SOURCE: visible JSX expression · components/weather/PlanWeatherPanel.tsx:169"
+    "description": "AUTO-SOURCE: visible JSX expression · components/weather/PlanWeatherPanel.tsx:180"
   },
   {
     "key": "auto.weather.no-weather-context-yet.99c2e39795",
     "namespace": "weather",
     "default_text": "No weather context yet",
-    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:95"
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:106"
   },
   {
     "key": "auto.weather.only-the-part-of-your-target-window-currently-inside-the-live-fo.c0e6daa913",
@@ -21196,7 +21208,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.weather.suggested-plan-need.b9a3a245a5",
     "namespace": "weather",
     "default_text": "Suggested Plan Need:",
-    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:127"
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:138"
   },
   {
     "key": "auto.weather.target-weather-outlook.82a5864856",
@@ -21232,7 +21244,7 @@ export const APP_SOURCE_MANIFEST: readonly AppSourceManifestEntry[] = [
     "key": "auto.weather.weather-changed.5d1be58d32",
     "namespace": "weather",
     "default_text": "Weather changed ·",
-    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:121"
+    "description": "AUTO-SOURCE: visible JSX text · components/weather/PlanWeatherPanel.tsx:132"
   },
   {
     "key": "auto.weather.weather-forecast-is-not-available-yet.73b1be589b",

@@ -89,6 +89,17 @@ export default function PlanWeatherPanel({ planId, canManagePlanNeeds = false }:
     );
   }
 
+  if (weather.status === "forecast_unavailable") {
+    return (
+      <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
+        <p className="text-sm font-bold text-gray-900">Weather forecast is not available yet</p>
+        <p className="mt-1 text-xs leading-5 text-gray-500">
+          Forecasts follow the confirmed schedule and refresh automatically as the Activity gets closer.
+        </p>
+      </div>
+    );
+  }
+
   if (weather.status !== "available" || weather.locations.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-4">
@@ -166,7 +177,7 @@ export default function PlanWeatherPanel({ planId, canManagePlanNeeds = false }:
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-sky-700">
-                {point.kind === "meeting" ? "Meeting point weather" : "Activity location weather"}
+                {point.sameAsOtherLocation ? "Meeting point & Activity location" : point.kind === "meeting" ? "Meeting point weather" : "Activity location weather"}
               </p>
               <p className="mt-1 truncate text-sm font-bold text-gray-950" title={point.label}>{point.label}</p>
               <p className="mt-1 text-[11px] text-gray-500">{formatForecastDate(point.forecastTime)}</p>

@@ -103,6 +103,7 @@ type AttendanceStatus =
   | "cancelled";
 
 type PlanLocation = {
+  country_name: string | null;
   city: string;
   district: string;
 };
@@ -427,6 +428,7 @@ const PLAN_SELECT_QUERY = `
   expired_at,
   created_at,
   locations (
+    country_name,
     city,
     district
   ),
@@ -2611,6 +2613,9 @@ export default async function PlanRoomView({
               initialActivityLongitude={plan.activity_longitude}
               initialMeetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
               initialActivityLocationVisibility={plan.activity_location_visibility}
+              contextCountry={location?.country_name ?? null}
+              contextCity={location?.city ?? null}
+              contextDistrict={location?.district ?? null}
               planStatus={plan.status}
             />
           </div>

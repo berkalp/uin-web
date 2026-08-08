@@ -34,6 +34,9 @@ type PlanPresentationSettingsFormProps = {
   initialActivityLongitude: CoordinateValue;
   initialMeetingLocationSameAsActivity: boolean;
   initialActivityLocationVisibility: LocationVisibility;
+  contextCountry?: string | null;
+  contextCity?: string | null;
+  contextDistrict?: string | null;
   planStatus: "forming" | "planned" | "completed" | "cancelled";
 };
 
@@ -92,6 +95,63 @@ function createLocationState({
 
 function parseCoordinate(value: string) {
   return value.trim() ? Number(value) : null;
+}
+
+function hasCoordinatePair(location: LocationFormState) {
+  return Boolean(location.latitude.trim() && location.longitude.trim());
+}
+
+function buildTextLocationQueries(location: LocationFormState, contextLabel = "") {
+  const name = location.name.trim();
+  const address = location.addressText.trim();
+  const context = contextLabel.trim();
+  return Array.from(
+    new Set(
+      [
+        [name, address, context].filter(Boolean).join(", "),
+        [name, context].filter(Boolean).join(", "),
+        [address, context].filter(Boolean).join(", "),
+        [name, address].filter(Boolean).join(", "),
+        name,
+        address,
+        context,
+      ].filter(Boolean)
+    )
+  );
+}
+
+async function resolveCoordinatesForSave(location: LocationFormState, contextLabel = "") {
+  if (hasCoordinatePair(location) && coordinatesAreValid(location)) return location;
+
+  for (const query of buildTextLocationQueries(location, contextLabel)) {
+    try {
+      const response = await fetch(`/api/maps/geocode?q=${encodeURIComponent(query)}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+      if (!response.ok) continue;
+
+      const payload = (await response.json()) as {
+        latitude?: unknown;
+        longitude?: unknown;
+      };
+      const latitude = Number(payload.latitude);
+      const longitude = Number(payload.longitude);
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) continue;
+
+      return {
+        ...location,
+        latitude: latitude.toFixed(6),
+        longitude: longitude.toFixed(6),
+      };
+    } catch {
+      // Saving the human-readable location must not fail just because the
+      // geocoder is temporarily unavailable. Weather has the same server-side
+      // fallback and can resolve it later.
+    }
+  }
+
+  return location;
 }
 
 function coordinatesAreValid(location: LocationFormState) {
@@ -189,6 +249,12 @@ function CompactLocationEditor({
       : "border-emerald-100 bg-emerald-50/35 text-emerald-700 focus:border-emerald-500 focus:ring-emerald-100";
 
   function updateField(field: keyof LocationFormState, value: string) {
+    if (field === "name" || field === "addressText") {
+      // Location text changed, so any previously resolved coordinates may now
+      // point at the old place. Force a fresh automatic geocode on save.
+      onChange({ ...location, [field]: value, latitude: "", longitude: "" });
+      return;
+    }
     onChange({ ...location, [field]: value });
   }
 
@@ -301,9 +367,13 @@ export default function PlanPresentationSettingsForm({
   initialActivityLongitude,
   initialMeetingLocationSameAsActivity,
   initialActivityLocationVisibility,
+  contextCountry = null,
+  contextCity = null,
+  contextDistrict = null,
   planStatus,
 }: PlanPresentationSettingsFormProps) {
   const router = useRouter();
+  const locationContextLabel = [contextDistrict, contextCity, contextCountry].filter(Boolean).join(", ");
   const [meetingLocation, setMeetingLocation] = useState(() =>
     createLocationState({
       name: initialMeetingPoint,
@@ -356,31 +426,33 @@ export default function PlanPresentationSettingsForm({
     setSuccessMessage("");
 
     try {
-      const savedMeetingLocation = meetingLocationSameAsActivity
-        ? activityLocation
-        : meetingLocation;
+      const resolvedActivityLocation = await resolveCoordinatesForSave(activityLocation, locationContextLabel);
+      const resolvedMeetingLocation = meetingLocationSameAsActivity
+        ? resolvedActivityLocation
+        : await resolveCoordinatesForSave(meetingLocation, locationContextLabel);
+
       const generatedMeetingMapUrl =
-        savedMeetingLocation.mapUrl.trim() || buildMapsSearchUrl(savedMeetingLocation);
+        resolvedMeetingLocation.mapUrl.trim() || buildMapsSearchUrl(resolvedMeetingLocation);
       const generatedActivityMapUrl =
-        activityLocation.mapUrl.trim() || buildMapsSearchUrl(activityLocation);
+        resolvedActivityLocation.mapUrl.trim() || buildMapsSearchUrl(resolvedActivityLocation);
 
       const { error } = await supabase.rpc(
         "update_plan_presentation_and_locations",
         {
           p_plan_id: planId,
           p_cover_url: initialCoverUrl,
-          p_meeting_point: savedMeetingLocation.name.trim() || null,
-          p_meeting_address_text: savedMeetingLocation.addressText.trim() || null,
+          p_meeting_point: resolvedMeetingLocation.name.trim() || null,
+          p_meeting_address_text: resolvedMeetingLocation.addressText.trim() || null,
           p_meeting_map_url: generatedMeetingMapUrl,
-          p_meeting_street_view_url: savedMeetingLocation.streetViewUrl.trim() || null,
-          p_meeting_latitude: parseCoordinate(savedMeetingLocation.latitude),
-          p_meeting_longitude: parseCoordinate(savedMeetingLocation.longitude),
-          p_activity_location_name: activityLocation.name.trim() || null,
-          p_activity_address_text: activityLocation.addressText.trim() || null,
+          p_meeting_street_view_url: resolvedMeetingLocation.streetViewUrl.trim() || null,
+          p_meeting_latitude: parseCoordinate(resolvedMeetingLocation.latitude),
+          p_meeting_longitude: parseCoordinate(resolvedMeetingLocation.longitude),
+          p_activity_location_name: resolvedActivityLocation.name.trim() || null,
+          p_activity_address_text: resolvedActivityLocation.addressText.trim() || null,
           p_activity_map_url: generatedActivityMapUrl,
-          p_activity_street_view_url: activityLocation.streetViewUrl.trim() || null,
-          p_activity_latitude: parseCoordinate(activityLocation.latitude),
-          p_activity_longitude: parseCoordinate(activityLocation.longitude),
+          p_activity_street_view_url: resolvedActivityLocation.streetViewUrl.trim() || null,
+          p_activity_latitude: parseCoordinate(resolvedActivityLocation.latitude),
+          p_activity_longitude: parseCoordinate(resolvedActivityLocation.longitude),
           p_meeting_location_same_as_activity: meetingLocationSameAsActivity,
           p_activity_location_visibility: activityLocationVisibility,
         }
@@ -388,11 +460,15 @@ export default function PlanPresentationSettingsForm({
 
       if (error) throw error;
 
-      if (!meetingLocation.mapUrl.trim() && generatedMeetingMapUrl) {
-        setMeetingLocation((current) => ({ ...current, mapUrl: generatedMeetingMapUrl }));
-      }
-      if (!activityLocation.mapUrl.trim() && generatedActivityMapUrl) {
-        setActivityLocation((current) => ({ ...current, mapUrl: generatedActivityMapUrl }));
+      setActivityLocation({
+        ...resolvedActivityLocation,
+        mapUrl: resolvedActivityLocation.mapUrl.trim() || generatedActivityMapUrl || "",
+      });
+      if (!meetingLocationSameAsActivity) {
+        setMeetingLocation({
+          ...resolvedMeetingLocation,
+          mapUrl: resolvedMeetingLocation.mapUrl.trim() || generatedMeetingMapUrl || "",
+        });
       }
 
       setSuccessMessage("Locations saved.");

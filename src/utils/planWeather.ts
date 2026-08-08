@@ -37,6 +37,7 @@ export type PlanWeatherResponse = {
     | "past"
     | "missing_schedule"
     | "missing_location"
+    | "forecast_unavailable"
     | "unavailable";
   scheduledStart: string | null;
   forecastAvailableFrom: string | null;

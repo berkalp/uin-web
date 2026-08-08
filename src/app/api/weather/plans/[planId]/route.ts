@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { createClient } from "@/utils/supabase/server";
+import { geocodeLocation as geocodeAddress } from "@/utils/maps/geocode";
 import {
   getWeatherPresentation,
   type PlanWeatherAlert,
@@ -80,37 +81,47 @@ function cleanParts(...values: Array<string | null | undefined>) {
   return values.map((value) => value?.trim()).filter(Boolean).join(", ");
 }
 
-async function geocodeLocation(query: string): Promise<Coordinates | null> {
-  if (!query.trim()) return null;
+function uniqueQueries(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(values.map((value) => value?.trim()).filter((value): value is string => Boolean(value)))
+  );
+}
 
-  try {
-    const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
-    url.searchParams.set("name", query);
-    url.searchParams.set("count", "1");
-    url.searchParams.set("language", "en");
-    url.searchParams.set("format", "json");
+async function resolveLocationCoordinates({
+  storedLatitude,
+  storedLongitude,
+  name,
+  address,
+  contextLocation,
+}: {
+  storedLatitude: number | string | null | undefined;
+  storedLongitude: number | string | null | undefined;
+  name: string | null | undefined;
+  address: string | null | undefined;
+  contextLocation: string;
+}): Promise<Coordinates | null> {
+  const latitude = numberOrNull(storedLatitude);
+  const longitude = numberOrNull(storedLongitude);
+  if (latitude !== null && longitude !== null) return { latitude, longitude };
 
-    const response = await fetch(url, {
-      next: { revalidate: 7 * 24 * 60 * 60 },
-      signal: AbortSignal.timeout(6000),
-    });
+  // Exact location text is attempted first. If an old Plan only has a venue
+  // name or approximate Intent area, progressively fall back instead of asking
+  // a city-oriented weather geocoder to understand a street address.
+  const candidates = uniqueQueries([
+    cleanParts(name, address, contextLocation),
+    cleanParts(address, name, contextLocation),
+    cleanParts(name, contextLocation),
+    cleanParts(address, contextLocation),
+    cleanParts(name, address),
+    contextLocation,
+  ]);
 
-    if (!response.ok) return null;
-    const payload = (await response.json()) as {
-      results?: Array<{ latitude?: number; longitude?: number }>;
-    };
-    const hit = payload.results?.[0];
-    if (
-      !hit ||
-      typeof hit.latitude !== "number" ||
-      typeof hit.longitude !== "number" ||
-      !Number.isFinite(hit.latitude) ||
-      !Number.isFinite(hit.longitude)
-    ) return null;
-    return { latitude: hit.latitude, longitude: hit.longitude };
-  } catch {
-    return null;
+  for (const query of candidates) {
+    const hit = await geocodeAddress(query, { language: "tr,en;q=0.8" });
+    if (hit) return { latitude: hit.latitude, longitude: hit.longitude };
   }
+
+  return null;
 }
 
 async function fetchForecast(
@@ -379,21 +390,29 @@ export async function GET(_request: Request, context: RouteContext) {
 
   let meetingCoordinates: Coordinates | null = null;
   if (isMember) {
-    const latitude = numberOrNull(plan.latitude);
-    const longitude = numberOrNull(plan.longitude);
-    meetingCoordinates = latitude !== null && longitude !== null
-      ? { latitude, longitude }
-      : await geocodeLocation(cleanParts(plan.meeting_point, plan.address_text, contextLocation));
+    meetingCoordinates = await resolveLocationCoordinates({
+      storedLatitude: plan.latitude,
+      storedLongitude: plan.longitude,
+      name: plan.meeting_point,
+      address: plan.address_text,
+      contextLocation,
+    });
   }
 
   const canSeeActivityLocation = isMember || plan.activity_location_visibility === "public";
   let activityCoordinates: Coordinates | null = null;
   if (canSeeActivityLocation) {
-    const latitude = numberOrNull(plan.activity_latitude);
-    const longitude = numberOrNull(plan.activity_longitude);
-    activityCoordinates = latitude !== null && longitude !== null
-      ? { latitude, longitude }
-      : await geocodeLocation(cleanParts(plan.activity_location_name, plan.activity_address_text, contextLocation));
+    if (plan.meeting_location_same_as_activity && meetingCoordinates) {
+      activityCoordinates = meetingCoordinates;
+    } else {
+      activityCoordinates = await resolveLocationCoordinates({
+        storedLatitude: plan.activity_latitude,
+        storedLongitude: plan.activity_longitude,
+        name: plan.activity_location_name,
+        address: plan.activity_address_text,
+        contextLocation,
+      });
+    }
   }
 
   const sameCoordinates = Boolean(
@@ -403,19 +422,40 @@ export async function GET(_request: Request, context: RouteContext) {
     Math.abs(meetingCoordinates.longitude - activityCoordinates.longitude) < 0.0001
   );
 
-  const [meetingWeather, activityWeather] = await Promise.all([
-    meetingCoordinates
-      ? fetchForecast(meetingCoordinates, scheduledStart, meetingLabel, "meeting", sameCoordinates)
-      : Promise.resolve(null),
-    activityCoordinates
-      ? fetchForecast(activityCoordinates, scheduledStart, activityLabel, "activity", sameCoordinates)
-      : Promise.resolve(null),
-  ]);
+  // When both locations are explicitly the same, fetch one forecast instead of
+  // presenting two identical weather cards. The Activity point represents both.
+  let meetingWeather: PlanWeatherPoint | null = null;
+  let activityWeather: PlanWeatherPoint | null = null;
+
+  if (plan.meeting_location_same_as_activity && activityCoordinates) {
+    activityWeather = await fetchForecast(
+      activityCoordinates,
+      scheduledStart,
+      activityLabel || meetingLabel,
+      "activity",
+      true
+    );
+  } else {
+    [meetingWeather, activityWeather] = await Promise.all([
+      meetingCoordinates
+        ? fetchForecast(meetingCoordinates, scheduledStart, meetingLabel, "meeting", sameCoordinates)
+        : Promise.resolve(null),
+      activityCoordinates
+        ? fetchForecast(activityCoordinates, scheduledStart, activityLabel, "activity", sameCoordinates)
+        : Promise.resolve(null),
+    ]);
+  }
 
   base.locations = [meetingWeather, activityWeather].filter(
     (item): item is PlanWeatherPoint => Boolean(item)
   );
-  base.status = base.locations.length > 0 ? "available" : "missing_location";
+
+  const hasUsableCoordinates = Boolean(meetingCoordinates || activityCoordinates);
+  base.status = base.locations.length > 0
+    ? "available"
+    : hasUsableCoordinates
+      ? "forecast_unavailable"
+      : "missing_location";
 
   if (base.locations.length > 0) {
     await Promise.allSettled(
