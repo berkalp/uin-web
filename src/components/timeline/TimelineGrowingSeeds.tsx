@@ -9,7 +9,7 @@ type TimelineGrowingSeedsProps = {
   seeds: SeedRecord[];
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 function formatTargetDate(value: string | null) {
   if (!value) {
@@ -50,7 +50,7 @@ export default function TimelineGrowingSeeds({
   }
 
   return (
-    <section className="mt-8 rounded-[28px] border border-green-100 bg-gradient-to-br from-green-50 via-white to-lime-50 p-5 shadow-sm md:p-6">
+    <section className="mt-8 rounded-[28px] border border-green-100 bg-gradient-to-br from-green-50 via-white to-lime-50 p-4 shadow-sm md:p-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
@@ -102,12 +102,12 @@ export default function TimelineGrowingSeeds({
         </div>
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10">
         {visibleSeeds.map((seed) => (
           <Link
             key={seed.seed_id}
             href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-            className="group relative min-h-44 overflow-hidden rounded-[22px] border border-white/90 bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+            className="group relative h-32 overflow-hidden rounded-[18px] border border-white/90 bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
           >
             {seed.cover_url && (
               <img
@@ -118,25 +118,22 @@ export default function TimelineGrowingSeeds({
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/20" />
 
-            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-              <span className="max-w-[72%] truncate rounded-full bg-black/45 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white backdrop-blur">
+            <div className="absolute inset-x-0 top-0 p-2.5">
+              <span className="inline-flex max-w-full truncate rounded-full bg-black/45 px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white backdrop-blur">
                 {seed.seed_type_icon} {seed.seed_type_name}
-              </span>
-              <span className="rounded-full bg-green-100 px-2 py-1 text-[9px] font-black uppercase tracking-wide text-green-800">
-                Growing
               </span>
             </div>
 
-            <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-              <h3 className="line-clamp-2 text-base font-black leading-tight">
+            <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
+              <h3 className="line-clamp-2 text-[13px] font-black leading-[1.15]">
                 {seed.title}
               </h3>
               {seed.subtitle && (
-                <p className="mt-1 truncate text-[11px] font-semibold text-white/75">
+                <p className="mt-1 truncate text-[9px] font-semibold text-white/75">
                   {seed.subtitle}
                 </p>
               )}
-              <p className="mt-3 text-[10px] font-bold uppercase tracking-wide text-white/65">
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-wide text-white/65">
                 {formatTargetDate(seed.target_date)}
               </p>
             </div>

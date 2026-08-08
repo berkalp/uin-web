@@ -283,19 +283,6 @@ export default async function UserAccountMenu({
             </Link>
           )}
 
-          <Link
-            href="/seeds"
-            className="block rounded-xl px-4 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-50"
-          >
-            My Seeds
-          </Link>
-
-          <Link
-            href="/seeds/explore"
-            className="block rounded-xl px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50"
-          >
-            Seed Library
-          </Link>
 
           <Link
             href="/settings/profile"

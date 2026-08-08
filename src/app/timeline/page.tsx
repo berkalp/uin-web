@@ -255,7 +255,9 @@ type IntentRequestRow = {
   id: string;
   requester_id: string;
   receiver_id: string;
+  own_intent_id: string;
   target_intent_id: string;
+  plan_id: string | null;
   status: IntentRequestStatus;
 };
 
@@ -2054,7 +2056,9 @@ export default async function TimelinePage({
         id,
         requester_id,
         receiver_id,
+        own_intent_id,
         target_intent_id,
+        plan_id,
         status
       `)
       .or(
@@ -2679,6 +2683,43 @@ export default async function TimelinePage({
       []
     ) as IntentRequestRow[];
 
+  // plan_intents remains the durable provenance model, but older Match → Plan
+  // rows can be missing one side of that link. Accepted Match requests are
+  // deterministic evidence of the two Intent sources, so Timeline can still
+  // explain the transformation immediately while reconciliation repairs the DB.
+  const acceptedMatchSourceIntentIdsByPlanId = new Map<string, Set<string>>();
+  const currentUserMatchSourceIntentIdByPlanId = new Map<string, string>();
+
+  requests
+    .filter(
+      (request) =>
+        request.status === "accepted" &&
+        Boolean(request.plan_id)
+    )
+    .forEach((request) => {
+      const planId = request.plan_id as string;
+      const sourceIds =
+        acceptedMatchSourceIntentIdsByPlanId.get(planId) ?? new Set<string>();
+
+      if (request.own_intent_id) {
+        sourceIds.add(request.own_intent_id);
+      }
+      if (request.target_intent_id) {
+        sourceIds.add(request.target_intent_id);
+      }
+
+      acceptedMatchSourceIntentIdsByPlanId.set(planId, sourceIds);
+
+      if (request.requester_id === currentUserId && request.own_intent_id) {
+        currentUserMatchSourceIntentIdByPlanId.set(planId, request.own_intent_id);
+      } else if (
+        request.receiver_id === currentUserId &&
+        request.target_intent_id
+      ) {
+        currentUserMatchSourceIntentIdByPlanId.set(planId, request.target_intent_id);
+      }
+    });
+
   const conversationSummaries =
     (
       conversationSummaryResult.data ??
@@ -2990,6 +3031,50 @@ export default async function TimelinePage({
     INTENT_LIFECYCLE_VIEWS.has(
       selectedView
     );
+
+  function getPlanIntentLineage(plan: TimelinePlan) {
+    const activeSourceLinks = (plan.plan_intents ?? []).filter(
+      (link) => link.status === "active"
+    );
+
+    const sourceIntentIds = new Set(
+      activeSourceLinks.map((link) => link.intent_id)
+    );
+
+    (acceptedMatchSourceIntentIdsByPlanId.get(plan.id) ?? new Set<string>())
+      .forEach((intentId) => sourceIntentIds.add(intentId));
+
+    const linkedCurrentUserSourceId = activeSourceLinks.find((link) =>
+      ownedIntentById.has(link.intent_id)
+    )?.intent_id ?? null;
+
+    const currentUserSourceIntentId =
+      linkedCurrentUserSourceId ??
+      currentUserMatchSourceIntentIdByPlanId.get(plan.id) ??
+      null;
+
+    const currentUserSourceIntent = currentUserSourceIntentId
+      ? ownedIntentById.get(currentUserSourceIntentId) ?? null
+      : null;
+
+    const currentUserSourceActivity = getFirst(
+      currentUserSourceIntent?.activities
+    );
+
+    return {
+      sourceCount: sourceIntentIds.size,
+      currentUserSourceIntent,
+      currentUserSourceActivity,
+      sourceIntentHref: currentUserSourceIntent
+        ? withReturnContext(
+            `/activities/${encodeURIComponent(currentUserSourceIntent.id)}`,
+            buildTimelineHref(),
+            "Timeline",
+            "timeline"
+          )
+        : null,
+    };
+  }
 
   function renderTimelineEntry(
     entry: TimelineEntry
@@ -3484,51 +3569,40 @@ export default async function TimelinePage({
           plan.title ||
           canonicalActivityName;
 
-    const activeSourceLinks = (plan.plan_intents ?? []).filter(
-      (link) => link.status === "active"
-    );
-    const currentUserSourceLink = activeSourceLinks.find((link) =>
-      ownedIntentById.has(link.intent_id)
-    );
-    const currentUserSourceIntent = currentUserSourceLink
-      ? ownedIntentById.get(currentUserSourceLink.intent_id) ?? null
-      : null;
-    const currentUserSourceActivity = getFirst(
-      currentUserSourceIntent?.activities
-    );
+    const {
+      sourceCount,
+      currentUserSourceIntent,
+      currentUserSourceActivity,
+      sourceIntentHref,
+    } = getPlanIntentLineage(plan);
+
     const showIntentLineage = Boolean(
       currentUserSourceIntent &&
-        activeSourceLinks.length > 1 &&
+        sourceIntentHref &&
         (plan.status === "forming" || plan.status === "planned")
     );
-    const sourceIntentHref = currentUserSourceIntent
-      ? withReturnContext(
-          `/activities/${encodeURIComponent(currentUserSourceIntent.id)}`,
-          timelineReturnHref,
-          "Timeline",
-          "timeline"
-        )
-      : null;
 
     return (
       <div
         key={`plan-${plan.id}`}
-        className={`relative min-w-0 ${showIntentLineage ? "pb-11" : ""}`}
+        className={`relative min-w-0 ${showIntentLineage ? "pb-14" : ""}`}
       >
         {showIntentLineage && currentUserSourceIntent && sourceIntentHref && (
           <Link
             href={sourceIntentHref}
-            className="absolute inset-x-3 bottom-0 z-0 flex h-16 items-end justify-between gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 pb-2.5 pt-5 transition hover:border-emerald-300 hover:bg-emerald-100"
+            className="absolute inset-x-3 bottom-0 z-0 flex h-[74px] items-end justify-between gap-3 rounded-[22px] border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 px-4 pb-2.5 pt-6 transition hover:border-emerald-300 hover:from-emerald-100 hover:to-green-50"
           >
             <div className="min-w-0">
               <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                {activeSourceLinks.length} Intents → 1 Activity
+                {sourceCount > 1
+                  ? `${sourceCount} Intents matched → 1 Activity`
+                  : "Your Intent → this Activity"}
               </p>
-              <p className="mt-0.5 truncate text-[11px] font-bold text-gray-800">
+              <p className="mt-0.5 truncate text-[11px] font-black text-gray-900">
                 Your Intent · {currentUserSourceActivity?.name ?? canonicalActivityName}
               </p>
             </div>
-            <span className="shrink-0 text-xs font-black text-emerald-700">
+            <span className="shrink-0 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-black text-emerald-800 shadow-sm">
               Source ↗
             </span>
           </Link>
@@ -3886,6 +3960,8 @@ export default async function TimelinePage({
           .filter(Boolean)
           .join(", ");
 
+    const lineage = getPlanIntentLineage(plan);
+
     return {
       title,
       coverUrl,
@@ -3912,6 +3988,11 @@ export default async function TimelinePage({
       communities: hostSourceIntentId
         ? intentCommunitiesByIntentId.get(hostSourceIntentId) ?? []
         : [],
+      sourceCount: lineage.sourceCount,
+      sourceIntentName:
+        lineage.currentUserSourceActivity?.name ??
+        (lineage.currentUserSourceIntent ? canonicalActivityName : null),
+      sourceIntentHref: lineage.sourceIntentHref,
     };
   }
 
@@ -4175,8 +4256,6 @@ export default async function TimelinePage({
 
         {selectedView === "open" && (
           <>
-            <TimelineGrowingSeeds seeds={growingSeeds} />
-
             {comingUpEntries.length > 0 && (
               <section className="mt-8 rounded-[28px] border border-blue-100 bg-white p-5 shadow-sm md:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-4">
@@ -4263,12 +4342,26 @@ export default async function TimelinePage({
                         </div>
 
                         <div className="p-3.5">
-                          {info.activityName &&
-                            info.title.trim() !== info.activityName.trim() && (
-                              <p className="mb-2 truncate text-[10px] font-semibold text-gray-400">
-                                Original Activity · {info.activityName}
-                              </p>
-                            )}
+                          {info.sourceIntentName && info.sourceIntentHref && (
+                            <Link
+                              href={info.sourceIntentHref}
+                              className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 transition hover:border-emerald-200 hover:bg-emerald-100"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                                  {info.sourceCount > 1
+                                    ? `${info.sourceCount} Intents matched → 1 Activity`
+                                    : "Your Intent → this Activity"}
+                                </p>
+                                <p className="mt-0.5 truncate text-[10px] font-black text-gray-900">
+                                  Your Intent · {info.sourceIntentName}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-[10px] font-black text-emerald-800">
+                                ↗
+                              </span>
+                            </Link>
+                          )}
                           <p className="text-xs font-black text-gray-900">
                             {info.dateLabel}
                           </p>
@@ -4296,6 +4389,8 @@ export default async function TimelinePage({
                 </div>
               </section>
             )}
+
+            <TimelineGrowingSeeds seeds={growingSeeds} />
           </>
         )}
 
