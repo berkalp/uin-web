@@ -2050,6 +2050,7 @@ export default async function TimelinePage({
     intentInvitationResult,
     joinRequestResult,
     notificationCountResult,
+    directMessageCountResult,
     managedProfilesResult,
     personalProfileResult,
     adminResult,
@@ -2120,6 +2121,10 @@ export default async function TimelinePage({
 
     supabase.rpc(
       "get_my_unread_notification_count"
+    ),
+
+    supabase.rpc(
+      "get_my_unread_direct_message_count"
     ),
 
     supabase.rpc(
@@ -2325,6 +2330,12 @@ export default async function TimelinePage({
   const unreadNotificationCount =
     Number(
       notificationCountResult.data ??
+      0
+    );
+
+  const unreadDirectMessageCount =
+    Number(
+      directMessageCountResult.data ??
       0
     );
 
@@ -4163,6 +4174,9 @@ export default async function TimelinePage({
           }
           inboxCount={
             inboxCount
+          }
+          directMessageCount={
+            unreadDirectMessageCount
           }
           unreadNotificationCount={
             unreadNotificationCount

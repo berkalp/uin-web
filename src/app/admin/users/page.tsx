@@ -3,6 +3,7 @@ import Link from "next/link";
 import AdminRoleControl from "@/components/admin/AdminRoleControl";
 import {
   AdminRole,
+  getMyStaffCapabilitySet,
   requireAdmin,
 } from "@/utils/admin";
 
@@ -191,6 +192,11 @@ export default async function AdminUsersPage({
     user,
     role,
   } = await requireAdmin();
+
+  const myCapabilities = await getMyStaffCapabilitySet(supabase);
+  const canMessageStaff = myCapabilities.has("staff_messaging");
+  const canMessageMembers = myCapabilities.has("member_messaging");
+  const canEditProfiles = myCapabilities.has("edit_profiles");
 
   const resolvedSearchParams =
     await searchParams;
@@ -599,6 +605,27 @@ export default async function AdminUsersPage({
 
                           <td className="px-5 py-4">
                             <div className="flex justify-end gap-2">
+                              {((profile.admin_role
+                                ? canMessageStaff || canMessageMembers
+                                : canMessageMembers) &&
+                                profile.user_id !== user.id) && (
+                                <Link
+                                  href={`/messages/new?userId=${encodeURIComponent(profile.user_id)}`}
+                                  className="whitespace-nowrap rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800 transition hover:border-green-400 hover:bg-green-100"
+                                >
+                                  Message
+                                </Link>
+                              )}
+
+                              {canEditProfiles && (
+                                <Link
+                                  href={`${adminDetailHref}/edit`}
+                                  className="whitespace-nowrap rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800 transition hover:border-blue-400 hover:bg-blue-100"
+                                >
+                                  Edit
+                                </Link>
+                              )}
+
                               {publicProfileHref && (
                                 <Link
                                   href={

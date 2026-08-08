@@ -21,6 +21,7 @@ type TimelineHeaderProps = {
 
   activeMatchCount: number;
   inboxCount: number;
+  directMessageCount?: number;
   unreadNotificationCount: number;
   isAdmin: boolean;
 
@@ -139,6 +140,25 @@ function MatchesIcon() {
   );
 }
 
+function MessagesIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-5 w-5"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 5h16v11H8l-4 3V5Z" />
+      <path d="M8 9h8" />
+      <path d="M8 12h5" />
+    </svg>
+  );
+}
+
 function InboxIcon() {
   return (
     <svg
@@ -214,6 +234,7 @@ export default function TimelineHeader({
   managedProfiles,
   activeMatchCount,
   inboxCount,
+  directMessageCount = 0,
   unreadNotificationCount,
   isAdmin,
 }: TimelineHeaderProps) {
@@ -315,6 +336,14 @@ export default function TimelineHeader({
             </span>
           )}
         </Link>
+
+        <IconNavigationButton
+          href="/messages"
+          label="Messages"
+          count={directMessageCount}
+        >
+          <MessagesIcon />
+        </IconNavigationButton>
 
         <IconNavigationButton
           href="/inbox"

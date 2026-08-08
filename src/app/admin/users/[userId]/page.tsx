@@ -3,8 +3,10 @@ import {
   notFound,
 } from "next/navigation";
 
+import StaffPermissionControl from "@/components/admin/StaffPermissionControl";
 import {
   AdminRole,
+  getMyStaffCapabilitySet,
   requireAdmin,
 } from "@/utils/admin";
 
@@ -67,6 +69,20 @@ type AdminUserDetail = {
     | number
     | string
     | null;
+};
+
+type StaffOperationRow = {
+  audit_id: string;
+  actor_user_id: string | null;
+  actor_full_name: string | null;
+  action: string;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+};
+
+type StaffCapabilityRow = {
+  capability: "staff_messaging" | "member_messaging" | "edit_profiles";
+  enabled: boolean;
 };
 
 type StatisticCardProps = {
@@ -274,6 +290,46 @@ export default async function AdminUserDetailPage({
     adminUser.id ===
     profile.user_id;
 
+  const myCapabilities = await getMyStaffCapabilitySet(supabase);
+  const canMessageStaff = myCapabilities.has("staff_messaging");
+  const canMessageMembers = myCapabilities.has("member_messaging");
+  const canMessageTarget = profile.admin_role
+    ? canMessageStaff || canMessageMembers
+    : canMessageMembers;
+  const canEditProfiles = myCapabilities.has("edit_profiles");
+
+  const [targetCapabilityResponse, staffAuditResponse] = await Promise.all([
+    role === "owner" && profile.admin_role
+      ? supabase.rpc("get_staff_capabilities_for_user", {
+          p_target_user_id: profile.user_id,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    supabase.rpc("get_staff_operations_for_user", {
+      p_user_id: profile.user_id,
+      p_limit: 12,
+    }),
+  ]);
+
+  const targetCapabilities = (
+    (targetCapabilityResponse.data ?? []) as unknown as StaffCapabilityRow[]
+  ).reduce(
+    (result, row) => ({
+      ...result,
+      [row.capability]: Boolean(row.enabled),
+    }),
+    {
+      staff_messaging: false,
+      member_messaging: false,
+      edit_profiles: false,
+    } as Record<
+      "staff_messaging" | "member_messaging" | "edit_profiles",
+      boolean
+    >
+  );
+
+  const staffOperations =
+    (staffAuditResponse.data ?? []) as unknown as StaffOperationRow[];
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-6xl">
@@ -294,6 +350,24 @@ export default async function AdminUserDetailPage({
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-500 hover:text-green-700"
               >
                 View Public Profile
+              </Link>
+            )}
+
+            {canMessageTarget && !isCurrentAdmin && (
+              <Link
+                href={`/messages/new?userId=${encodeURIComponent(profile.user_id)}`}
+                className="rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-800 transition hover:border-green-400 hover:bg-green-100"
+              >
+                Message
+              </Link>
+            )}
+
+            {canEditProfiles && (
+              <Link
+                href={`/admin/users/${encodeURIComponent(profile.username ?? profile.user_id)}/edit`}
+                className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-800 transition hover:border-blue-400 hover:bg-blue-100"
+              >
+                Edit Profile
               </Link>
             )}
 
@@ -548,17 +622,79 @@ export default async function AdminUserDetailPage({
             </div>
           </dl>
 
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-            <p className="font-semibold text-amber-900">
-              Administrative actions are not enabled yet.
-            </p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {canMessageTarget && !isCurrentAdmin && (
+              <Link
+                href={`/messages/new?userId=${encodeURIComponent(profile.user_id)}`}
+                className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+              >
+                Open Conversation
+              </Link>
+            )}
 
-            <p className="mt-2 text-sm leading-6 text-amber-800">
-              Role changes, account restrictions
-              and moderation actions will be added
-              with mandatory audit logging.
-            </p>
+            {canEditProfiles && (
+              <Link
+                href={`/admin/users/${encodeURIComponent(profile.username ?? profile.user_id)}/edit`}
+                className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-blue-400 hover:text-blue-700"
+              >
+                Edit Public Profile
+              </Link>
+            )}
           </div>
+        </section>
+
+        {role === "owner" && profile.admin_role && !isCurrentAdmin && (
+          <section className="mt-8 rounded-3xl border border-purple-200 bg-purple-50/30 p-6 shadow-sm md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
+              Owner-controlled permissions
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">
+              Staff capabilities
+            </h2>
+            <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
+              Role and capability are separate. A Moderator can exist without messaging or profile-edit access until you explicitly enable it here.
+            </p>
+            <div className="mt-6">
+              <StaffPermissionControl
+                userId={profile.user_id}
+                initial={targetCapabilities}
+              />
+            </div>
+          </section>
+        )}
+
+        <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+            Staff operations
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">
+            Recent audited actions
+          </h2>
+
+          {staffOperations.length === 0 ? (
+            <p className="mt-5 text-sm text-gray-500">No staff operations recorded for this account yet.</p>
+          ) : (
+            <div className="mt-5 space-y-3">
+              {staffOperations.map((operation) => (
+                <article
+                  key={operation.audit_id}
+                  className="rounded-2xl border border-gray-100 bg-gray-50 p-4"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-semibold text-gray-900">
+                      {operation.action.replaceAll("_", " ")}
+                    </p>
+                    <span className="text-xs text-gray-400">
+                      {formatDateTime(operation.created_at)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {operation.actor_full_name || "UIN staff"}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </main>
