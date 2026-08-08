@@ -7,6 +7,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 
+import LanguagePackageManager from "@/components/admin/LanguagePackageManager";
 import { supabase } from "@/utils/supabase/client";
 
 export type AdminLanguage = {
@@ -148,6 +149,9 @@ export default function LanguagesManager({
       (language) =>
         language.code === selectedCode
     ) ?? null;
+
+  const sourceLanguage =
+    languages.find((language) => language.is_source) ?? null;
 
   const [displayName, setDisplayName] =
     useState("");
@@ -658,6 +662,15 @@ export default function LanguagesManager({
           <p className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
             {message}
           </p>
+        )}
+
+        {selectedLanguage && (
+          <LanguagePackageManager
+            selectedLanguage={selectedLanguage}
+            sourceLanguage={sourceLanguage}
+            onMessage={setMessage}
+            onReloadEditor={loadEditor}
+          />
         )}
 
         <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
