@@ -1449,6 +1449,10 @@ function getPlanStatusLabel(
     return "Cancelled";
   }
 
+  if (plan.status === "forming") {
+    return "Forming";
+  }
+
   if (
     relationship ===
       "co_host"
@@ -1525,6 +1529,10 @@ function getPlanStatusClasses(
     plan.status === "cancelled"
   ) {
     return "bg-red-50 text-red-700";
+  }
+
+  if (plan.status === "forming") {
+    return "bg-violet-50 text-violet-700";
   }
 
   if (
@@ -1941,6 +1949,17 @@ export default async function TimelinePage({
     );
   }
 
+  const { error: lineageReconcileError } = await supabase.rpc(
+    "reconcile_my_intent_plan_lineage"
+  );
+
+  if (lineageReconcileError) {
+    console.warn(
+      "Intent/Plan lineage reconciliation failed:",
+      lineageReconcileError.message
+    );
+  }
+
   const {
     data: familyCenterData,
     error: familyCenterError,
@@ -2082,7 +2101,7 @@ export default async function TimelinePage({
     ),
 
     supabase.rpc(
-      "get_my_active_match_count"
+      "get_my_active_matches"
     ),
 
     supabase.rpc("get_my_seeds_v2", {
@@ -2307,11 +2326,9 @@ export default async function TimelinePage({
     adminResult.data ===
       true;
 
-  const activeMatchCount =
-    Number(
-      activeMatchCountResult.data ??
-      0
-    );
+  const activeMatchCount = Array.isArray(activeMatchCountResult.data)
+    ? activeMatchCountResult.data.length
+    : 0;
 
 
   const growingSeeds = ((activeSeedResult.data ?? []) as SeedRecord[])
@@ -2913,7 +2930,13 @@ export default async function TimelinePage({
     );
 
   const comingUpEntries = planEntries
-    .filter((entry) => getEntryView(entry) === "planned")
+    .filter((entry) => {
+      if (entry.plan.status === "forming") {
+        return !isExpiredPlan(entry.plan);
+      }
+
+      return getEntryView(entry) === "planned";
+    })
     .sort(
       (first, second) =>
         new Date(getTimelineEntrySortDate(first)).getTime() -
@@ -3461,11 +3484,59 @@ export default async function TimelinePage({
           plan.title ||
           canonicalActivityName;
 
+    const activeSourceLinks = (plan.plan_intents ?? []).filter(
+      (link) => link.status === "active"
+    );
+    const currentUserSourceLink = activeSourceLinks.find((link) =>
+      ownedIntentById.has(link.intent_id)
+    );
+    const currentUserSourceIntent = currentUserSourceLink
+      ? ownedIntentById.get(currentUserSourceLink.intent_id) ?? null
+      : null;
+    const currentUserSourceActivity = getFirst(
+      currentUserSourceIntent?.activities
+    );
+    const showIntentLineage = Boolean(
+      currentUserSourceIntent &&
+        activeSourceLinks.length > 1 &&
+        (plan.status === "forming" || plan.status === "planned")
+    );
+    const sourceIntentHref = currentUserSourceIntent
+      ? withReturnContext(
+          `/activities/${encodeURIComponent(currentUserSourceIntent.id)}`,
+          timelineReturnHref,
+          "Timeline",
+          "timeline"
+        )
+      : null;
+
     return (
-      <article
+      <div
         key={`plan-${plan.id}`}
-        className="relative flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className={`relative min-w-0 ${showIntentLineage ? "pb-11" : ""}`}
       >
+        {showIntentLineage && currentUserSourceIntent && sourceIntentHref && (
+          <Link
+            href={sourceIntentHref}
+            className="absolute inset-x-3 bottom-0 z-0 flex h-16 items-end justify-between gap-3 rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 pb-2.5 pt-5 transition hover:border-emerald-300 hover:bg-emerald-100"
+          >
+            <div className="min-w-0">
+              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                {activeSourceLinks.length} Intents → 1 Activity
+              </p>
+              <p className="mt-0.5 truncate text-[11px] font-bold text-gray-800">
+                Your Intent · {currentUserSourceActivity?.name ?? canonicalActivityName}
+              </p>
+            </div>
+            <span className="shrink-0 text-xs font-black text-emerald-700">
+              Source ↗
+            </span>
+          </Link>
+        )}
+
+        <article
+          className="relative z-10 flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        >
         <TimelinePlanPresentation
           planId={plan.id}
           title={visiblePlanTitle}
@@ -3739,7 +3810,8 @@ export default async function TimelinePage({
             {roomButtonLabel}
           </Link>
         </div>
-      </article>
+        </article>
+      </div>
     );
   }
 
@@ -4113,18 +4185,12 @@ export default async function TimelinePage({
                       Coming up
                     </p>
                     <h2 className="mt-2 text-2xl font-black text-gray-950">
-                      Plans already becoming real
+                      Activities already becoming real
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      The nearest planned Activities in your timeline.
+                      Your nearest forming and planned Activities, ordered by what happens next.
                     </p>
                   </div>
-                  <Link
-                    href="/timeline?view=planned"
-                    className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-800 transition hover:bg-blue-100"
-                  >
-                    View all planned
-                  </Link>
                 </div>
 
                 <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -4138,9 +4204,11 @@ export default async function TimelinePage({
                     )}&returnLabel=${encodeURIComponent("Timeline")}`;
                     const roomHref = `/plans/${encodeURIComponent(
                       entry.plan.id
-                    )}/activity?from=timeline&returnTo=${encodeURIComponent(
+                    )}/${entry.plan.status === "forming" ? "planning" : "activity"}?from=timeline&returnTo=${encodeURIComponent(
                       timelineReturnTo
                     )}&returnLabel=${encodeURIComponent("Timeline")}`;
+                    const roomLabel =
+                      entry.plan.status === "forming" ? "Planning Room" : "Activity Room";
 
                     return (
                       <article
@@ -4218,7 +4286,7 @@ export default async function TimelinePage({
                               href={roomHref}
                               className="rounded-xl bg-green-600 px-3 py-2 text-center text-xs font-bold text-white transition hover:bg-green-700"
                             >
-                              Activity Room
+                              {roomLabel}
                             </Link>
                           </div>
                         </div>

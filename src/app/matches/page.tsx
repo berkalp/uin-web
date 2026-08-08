@@ -81,6 +81,17 @@ export default async function MatchesPage() {
     redirect("/");
   }
 
+  const { error: lineageReconcileError } = await supabase.rpc(
+    "reconcile_my_intent_plan_lineage"
+  );
+
+  if (lineageReconcileError) {
+    console.warn(
+      "Intent/Plan lineage reconciliation failed:",
+      lineageReconcileError.message
+    );
+  }
+
   const {
     data,
     error,
