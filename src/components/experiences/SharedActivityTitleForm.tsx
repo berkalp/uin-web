@@ -138,7 +138,7 @@ export default function SharedActivityTitleForm({
 
         {isCustomTitle && (
           <p className="mt-2 text-xs font-semibold text-white/70">
-            Original Activity · {canonicalActivityName}
+            Activity type · {canonicalActivityName}
           </p>
         )}
 
@@ -255,7 +255,7 @@ export default function SharedActivityTitleForm({
           </h2>
           {isCustomTitle && (
             <p className="mt-1 text-xs font-semibold text-gray-400">
-              Original Activity · {canonicalActivityName}
+              Activity type · {canonicalActivityName}
             </p>
           )}
           <p className="mt-1 text-xs text-gray-500">

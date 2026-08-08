@@ -3,6 +3,7 @@ import PlanWeatherPanel from "../weather/PlanWeatherPanel";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
+import PlanOriginsPanel from "../activities/PlanOriginsPanel";
 import ReputationFeedbackTargetsPanel from "../reputation/ReputationFeedbackTargetsPanel";
 import type {
   ReputationFeedbackTarget,
@@ -61,6 +62,10 @@ import {
   type VisiblePlanPresentationRow,
 } from "../../utils/planPresentationVisibility";
 import { withReturnContext } from "../../utils/returnNavigation";
+import {
+  getPlanOriginCount,
+  parsePlanOriginRows,
+} from "../../utils/planOrigins";
 
 type RoomPhase =
   | "planning"
@@ -1131,6 +1136,23 @@ export default async function PlanRoomView({
 
   const plan =
     planData as unknown as PlanRoomData;
+
+  const {
+    data: planOriginsData,
+    error: planOriginsError,
+  } = await supabase.rpc("get_visible_plan_origins", {
+    p_plan_id: plan.id,
+  });
+
+  if (planOriginsError) {
+    console.error(
+      "Plan origin query failed:",
+      planOriginsError
+    );
+  }
+
+  const planOrigins = parsePlanOriginRows(planOriginsData);
+  const planOriginCount = getPlanOriginCount(planOrigins);
 
   const {
     data: visiblePresentationData,
@@ -2263,6 +2285,17 @@ export default async function PlanRoomView({
                     <span className="rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
                       {roomPhase === "planning" ? "Planning Room" : "Activity Room"}
                     </span>
+
+                    {planOriginCount > 0 && (
+                      <a
+                        href="#plan-origins"
+                        className="rounded-full border border-emerald-300/35 bg-emerald-950/60 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-emerald-100 backdrop-blur transition hover:bg-emerald-900/75"
+                      >
+                        {planOriginCount > 1
+                          ? `↘ Formed from ${planOriginCount} Intents`
+                          : "↘ Started from 1 Intent"}
+                      </a>
+                    )}
                   </div>
 
                   <span className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
@@ -2326,7 +2359,7 @@ export default async function PlanRoomView({
                       <div className="mt-2">
                         {plan.status !== "completed" && (
                           <p className="text-xs font-semibold text-white/70">
-                            Original Activity · {canonicalActivityName}
+                            Activity type · {canonicalActivityName}
                           </p>
                         )}
                         <ReportCustomActivityTitleButton
@@ -2858,6 +2891,22 @@ export default async function PlanRoomView({
             </section>
           </CollapsiblePlanningSection>
         </div>
+
+        {planOrigins.length > 0 && (
+          <PlanOriginsPanel
+            origins={planOrigins}
+            resultTitle={heroTitle}
+            context={
+              plan.status === "completed"
+                ? "completed"
+                : roomPhase === "planning"
+                  ? "planning"
+                  : "activity"
+            }
+            id="plan-origins"
+            className="mt-6"
+          />
+        )}
 
         {roomPhase ===
           "activity" &&

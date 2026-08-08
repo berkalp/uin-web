@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
+import PlanOriginsPanel from "@/components/activities/PlanOriginsPanel";
 import PlanWeatherPanel from "@/components/weather/PlanWeatherPanel";
 import IntentWeatherPanel from "@/components/weather/IntentWeatherPanel";
 import ActivityShareMenu from "@/components/share/ActivityShareMenu";
@@ -45,6 +46,10 @@ import type {
 import {
   normalizeParticipantEligibility,
 } from "@/utils/participationEligibility";
+import {
+  getPlanOriginCount,
+  parsePlanOriginRows,
+} from "@/utils/planOrigins";
 import { parseIntentReactionContexts } from "@/utils/intentReactions";
 import {
   resolveReturnNavigation,
@@ -766,6 +771,15 @@ export default async function ActivityDetailPage({
     }
   );
 
+  const planOriginsPromise = activity.plan_id
+    ? supabase.rpc("get_visible_plan_origins", {
+        p_plan_id: activity.plan_id,
+      })
+    : Promise.resolve({
+        data: [],
+        error: null,
+      });
+
   const timelinePromise = supabase.rpc(
     "get_visible_activity_timeline",
     {
@@ -862,6 +876,7 @@ export default async function ActivityDetailPage({
     catalogueResult,
     linksResult,
     peopleResult,
+    planOriginsResult,
     timelineResult,
     professionalRequirementResult,
     experienceResult,
@@ -874,6 +889,7 @@ export default async function ActivityDetailPage({
     cataloguePromise,
     linksPromise,
     peoplePromise,
+    planOriginsPromise,
     timelinePromise,
     professionalRequirementPromise,
     experiencePromise,
@@ -902,6 +918,13 @@ export default async function ActivityDetailPage({
     console.error(
       "Activity people query failed:",
       peopleResult.error
+    );
+  }
+
+  if (planOriginsResult.error) {
+    console.error(
+      "Activity origin query failed:",
+      planOriginsResult.error
     );
   }
 
@@ -1022,6 +1045,11 @@ export default async function ActivityDetailPage({
   const activityPeople = (
     peopleResult.data ?? []
   ) as ActivityPersonRow[];
+
+  const planOrigins = parsePlanOriginRows(
+    planOriginsResult.data
+  );
+  const planOriginCount = getPlanOriginCount(planOrigins);
 
   const participants =
     activityPeople.filter(
@@ -1495,7 +1523,7 @@ export default async function ActivityDetailPage({
                   </p>
                 ) : displayTitle !== canonicalActivityName ? (
                   <p className="mt-2 text-sm font-semibold text-white/75">
-                    Original Activity · {canonicalActivityName}
+                    Activity type · {canonicalActivityName}
                   </p>
                 ) : null}
 
@@ -1517,6 +1545,17 @@ export default async function ActivityDetailPage({
                   <span className="rounded-full border border-white/20 bg-black/25 px-3 py-1.5 backdrop-blur">
                     {detailLabel}
                   </span>
+
+                  {activity.plan_id && planOriginCount > 0 && (
+                    <a
+                      href="#activity-origins"
+                      className="rounded-full border border-emerald-300/40 bg-emerald-950/55 px-3 py-1.5 font-bold text-emerald-100 backdrop-blur transition hover:bg-emerald-900/70"
+                    >
+                      ↘ {planOriginCount > 1
+                        ? `Formed from ${planOriginCount} Intents`
+                        : "Started from 1 Intent"}
+                    </a>
+                  )}
 
                   {approximateLocationLabel && (
                     <span className="rounded-full border border-white/20 bg-black/25 px-3 py-1.5 backdrop-blur">
@@ -1579,6 +1618,15 @@ export default async function ActivityDetailPage({
                 title="From Intent to outcome"
                 description="Read the dates in order: when the person was available, what the group confirmed, and what finally happened."
               />
+
+              {activity.plan_id && planOrigins.length > 0 && (
+                <PlanOriginsPanel
+                  origins={planOrigins}
+                  resultTitle={displayTitle}
+                  context={activity.status === "completed" ? "completed" : "activity"}
+                  className="mt-5"
+                />
+              )}
 
               {activity.plan_id && activity.status === "planned" && (
                 <section className="mt-5 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm md:p-6">

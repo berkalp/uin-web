@@ -100,7 +100,7 @@ export default function ReportCustomActivityTitleButton({
           </p>
           <p className="mt-2 text-sm font-bold text-gray-950">“{customTitle}”</p>
           <p className="mt-1 text-xs text-gray-500">
-            Original Activity · {canonicalTitle}
+            Activity type · {canonicalTitle}
           </p>
           <p className="mt-3 text-xs leading-5 text-gray-500">
             Reporting hides the custom title immediately and falls back to the
