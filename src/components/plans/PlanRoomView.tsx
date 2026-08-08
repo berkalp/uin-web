@@ -103,7 +103,6 @@ type AttendanceStatus =
   | "cancelled";
 
 type PlanLocation = {
-  country_name: string | null;
   city: string;
   district: string;
 };
@@ -428,7 +427,6 @@ const PLAN_SELECT_QUERY = `
   expired_at,
   created_at,
   locations (
-    country_name,
     city,
     district
   ),
@@ -1694,9 +1692,19 @@ export default async function PlanRoomView({
     }
   }
 
+  const scheduledStartTime = plan.scheduled_start
+    ? new Date(plan.scheduled_start).getTime()
+    : Number.NaN;
+
   const scheduledEndTime = plan.scheduled_end
     ? new Date(plan.scheduled_end).getTime()
     : Number.NaN;
+
+  const hasScheduledActivityStarted =
+    roomPhase === "activity" &&
+    plan.status === "planned" &&
+    Number.isFinite(scheduledStartTime) &&
+    scheduledStartTime <= Date.now();
 
   const isScheduledActivityEnded =
     roomPhase === "activity" &&
@@ -1743,6 +1751,10 @@ export default async function PlanRoomView({
 
   const isCompletionRequired =
     isScheduledActivityEnded;
+
+  const canReviewActivityOutcome =
+    hasScheduledActivityStarted &&
+    (isHost || isCoHost);
 
   const attendanceSummary =
     activeMembers.reduce(
@@ -1822,7 +1834,7 @@ export default async function PlanRoomView({
       : null;
 
   const completionPlanData: CompletionPlanData | null =
-    isCompletionRequired && (isHost || isCoHost)
+    canReviewActivityOutcome
       ? {
           id: plan.id,
           title: heroTitle,
@@ -2141,6 +2153,17 @@ export default async function PlanRoomView({
           </Link>
 
           <div className="flex flex-wrap items-center gap-2">
+            {roomPhase === "activity" &&
+              canReviewActivityOutcome &&
+              plan.status === "planned" && (
+                <a
+                  href="#attendance-review"
+                  className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
+                >
+                  Complete Activity
+                </a>
+              )}
+
             {roomPhase ===
               "planning" &&
               activityRoomExists && (
@@ -2613,9 +2636,6 @@ export default async function PlanRoomView({
               initialActivityLongitude={plan.activity_longitude}
               initialMeetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
               initialActivityLocationVisibility={plan.activity_location_visibility}
-              contextCountry={location?.country_name ?? null}
-              contextCity={location?.city ?? null}
-              contextDistrict={location?.district ?? null}
               planStatus={plan.status}
             />
           </div>
@@ -2658,9 +2678,8 @@ export default async function PlanRoomView({
         </CollapsiblePlanningSection>
 
         {roomPhase === "activity" &&
-          isCompletionRequired &&
-          completionPlanData &&
-          (isHost || isCoHost) && (
+          canReviewActivityOutcome &&
+          completionPlanData && (
             <div className="mt-6">
               <PlanCompletionReview
                 plan={completionPlanData}
@@ -2727,7 +2746,7 @@ export default async function PlanRoomView({
         {roomPhase === "activity" &&
           plan.status === "completed" &&
           reputationTargets.length > 0 && (
-            <div className="mt-6">
+            <div id="activity-feedback" className="mt-6 scroll-mt-24">
               <ReputationFeedbackTargetsPanel
                 planId={plan.id}
                 targets={reputationTargets}

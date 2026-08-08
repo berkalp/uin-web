@@ -191,7 +191,7 @@ export default function PlanCompletionReview({
 
       if (error) throw error;
 
-      router.push(`/plans/${encodeURIComponent(plan.id)}/activity`);
+      router.push(`/plans/${encodeURIComponent(plan.id)}/activity#activity-feedback`);
       router.refresh();
     } catch (error) {
       setErrorMessage(getErrorMessage(error));

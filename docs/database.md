@@ -1063,7 +1063,7 @@ Requires:
 
 Requires:
 
-- scheduled_end has passed, unless an authorized administrative override exists
+- scheduled_start has passed; a Host or Co-host may record an early real-world finish without changing the confirmed schedule
 - attendance review completed or explicitly waived by policy
 - completion actor authorized as host or co-host
 
