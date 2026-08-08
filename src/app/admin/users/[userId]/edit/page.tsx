@@ -30,10 +30,10 @@ export default async function AdminUserEditPage({ params }: AdminUserEditPagePro
   const userId = resolvedParams.userId || Object.values(resolvedParams)[0];
   if (!userId) notFound();
 
-  const { supabase } = await requireAdmin();
+  const { supabase, role } = await requireAdmin();
   const capabilities = await getMyStaffCapabilitySet(supabase);
 
-  if (!capabilities.has("edit_profiles")) {
+  if (role !== "owner" && !capabilities.has("edit_profiles")) {
     redirect(`/admin/users/${encodeURIComponent(userId)}`);
   }
 

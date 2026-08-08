@@ -291,12 +291,13 @@ export default async function AdminUserDetailPage({
     profile.user_id;
 
   const myCapabilities = await getMyStaffCapabilitySet(supabase);
-  const canMessageStaff = myCapabilities.has("staff_messaging");
-  const canMessageMembers = myCapabilities.has("member_messaging");
+  const isOwner = role === "owner";
+  const canMessageStaff = isOwner || myCapabilities.has("staff_messaging");
+  const canMessageMembers = isOwner || myCapabilities.has("member_messaging");
   const canMessageTarget = profile.admin_role
     ? canMessageStaff || canMessageMembers
     : canMessageMembers;
-  const canEditProfiles = myCapabilities.has("edit_profiles");
+  const canEditProfiles = isOwner || myCapabilities.has("edit_profiles");
 
   const [targetCapabilityResponse, staffAuditResponse] = await Promise.all([
     role === "owner" && profile.admin_role

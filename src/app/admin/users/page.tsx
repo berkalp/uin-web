@@ -194,9 +194,13 @@ export default async function AdminUsersPage({
   } = await requireAdmin();
 
   const myCapabilities = await getMyStaffCapabilitySet(supabase);
-  const canMessageStaff = myCapabilities.has("staff_messaging");
-  const canMessageMembers = myCapabilities.has("member_messaging");
-  const canEditProfiles = myCapabilities.has("edit_profiles");
+  // Owner permissions are authoritative from requireAdmin().
+  // Do not hide owner controls if the optional capability RPC is unavailable
+  // during a migration/deploy boundary. Backend RPCs still enforce access.
+  const isOwner = role === "owner";
+  const canMessageStaff = isOwner || myCapabilities.has("staff_messaging");
+  const canMessageMembers = isOwner || myCapabilities.has("member_messaging");
+  const canEditProfiles = isOwner || myCapabilities.has("edit_profiles");
 
   const resolvedSearchParams =
     await searchParams;
