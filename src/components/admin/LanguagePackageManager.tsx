@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/utils/supabase/client";
+import { APP_SOURCE_MANIFEST_COUNT } from "@/utils/i18n/generatedSourceManifestMeta";
 
 type TranslationStatus = "missing" | "outdated" | "complete";
 
@@ -89,6 +90,15 @@ type ImportPreview = {
   sourceMismatches: string[];
   localeMismatch: boolean;
   entriesToApply: Array<{ key: string; value: string }>;
+};
+
+type SourceSyncResult = {
+  received: number | string;
+  inserted: number | string;
+  updated: number | string;
+  unchanged: number | string;
+  covered_existing: number | string;
+  deactivated: number | string;
 };
 
 type LanguagePackageManagerProps = {
@@ -242,6 +252,8 @@ export default function LanguagePackageManager({
   const [isExporting, setIsExporting] = useState(false);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [isSyncingSources, setIsSyncingSources] = useState(false);
+  const [sourceSyncResult, setSourceSyncResult] = useState<SourceSyncResult | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
 
   const sourceLocale = sourceLanguage?.code ?? "en";
@@ -256,6 +268,86 @@ export default function LanguagePackageManager({
   useEffect(() => {
     setPreview(null);
   }, [selectedLanguage.code]);
+
+  async function syncSourceTexts() {
+    setIsSyncingSources(true);
+    setSourceSyncResult(null);
+    onMessage(null);
+
+    try {
+      const { APP_SOURCE_MANIFEST } = await import(
+        "@/utils/i18n/generatedSourceManifest"
+      );
+      const payload = APP_SOURCE_MANIFEST.map((entry) => ({
+        key: entry.key,
+        namespace: entry.namespace,
+        default_text: entry.default_text,
+        description: entry.description,
+      }));
+
+      const aggregate: SourceSyncResult = {
+        received: 0,
+        inserted: 0,
+        updated: 0,
+        unchanged: 0,
+        covered_existing: 0,
+        deactivated: 0,
+      };
+
+      const chunkSize = 250;
+      for (let index = 0; index < payload.length; index += chunkSize) {
+        const { data, error } = await supabase.rpc(
+          "admin_sync_translation_sources",
+          { p_entries: payload.slice(index, index + chunkSize) }
+        );
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const batch = (data ?? {}) as SourceSyncResult;
+        aggregate.received = toNumber(aggregate.received) + toNumber(batch.received);
+        aggregate.inserted = toNumber(aggregate.inserted) + toNumber(batch.inserted);
+        aggregate.updated = toNumber(aggregate.updated) + toNumber(batch.updated);
+        aggregate.unchanged = toNumber(aggregate.unchanged) + toNumber(batch.unchanged);
+        aggregate.covered_existing =
+          toNumber(aggregate.covered_existing) + toNumber(batch.covered_existing);
+      }
+
+      const { data: retiredData, error: retiredError } = await supabase.rpc(
+        "admin_finalize_translation_source_sync",
+        { p_active_keys: APP_SOURCE_MANIFEST.map((entry) => entry.key) }
+      );
+
+      if (retiredError) {
+        throw new Error(retiredError.message);
+      }
+
+      aggregate.deactivated = toNumber(retiredData);
+      const result = aggregate;
+      setSourceSyncResult(result);
+
+      const inserted = toNumber(result.inserted);
+      const updated = toNumber(result.updated);
+      const covered = toNumber(result.covered_existing);
+      const deactivated = toNumber(result.deactivated);
+
+      onMessage(
+        `Source catalogue synced: ${inserted} new, ${updated} updated, ${covered} already covered, ${deactivated} retired.`
+      );
+
+      await onReloadEditor();
+      router.refresh();
+    } catch (error) {
+      onMessage(
+        error instanceof Error
+          ? error.message
+          : "The source catalogue could not be synchronized."
+      );
+    } finally {
+      setIsSyncingSources(false);
+    }
+  }
 
   async function fetchAllEntries(status?: TranslationStatus) {
     const pageSize = 100;
@@ -543,6 +635,49 @@ export default function LanguagePackageManager({
             {sourceLocale} source → {selectedLanguage.code} target
           </p>
         </div>
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-sky-700">
+              Source catalogue sync
+            </p>
+            <h3 className="mt-2 text-lg font-bold text-gray-950">
+              Register interface text from this UIN release
+            </h3>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-gray-600">
+              This release contains {APP_SOURCE_MANIFEST_COUNT.toLocaleString()} detected static interface strings. Syncing registers new copy, updates changed source revisions and retires old auto-detected entries. User-written content is deliberately excluded.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void syncSourceTexts()}
+            disabled={isSyncingSources || isExporting || isApplying}
+            className="shrink-0 rounded-xl bg-sky-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-sky-800 disabled:opacity-40"
+          >
+            {isSyncingSources ? "Syncing source texts..." : "Sync source texts"}
+          </button>
+        </div>
+
+        {sourceSyncResult && (
+          <div className="mt-4 grid gap-2 sm:grid-cols-3 xl:grid-cols-6">
+            {[
+              ["Received", sourceSyncResult.received],
+              ["New", sourceSyncResult.inserted],
+              ["Updated", sourceSyncResult.updated],
+              ["Unchanged", sourceSyncResult.unchanged],
+              ["Already covered", sourceSyncResult.covered_existing],
+              ["Retired", sourceSyncResult.deactivated],
+            ].map(([label, value]) => (
+              <div key={String(label)} className="rounded-xl border border-sky-100 bg-white px-3 py-2">
+                <p className="text-[11px] text-gray-500">{label}</p>
+                <p className="mt-1 text-base font-bold text-gray-900">{toNumber(value)}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
