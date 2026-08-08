@@ -22,6 +22,7 @@ import PublicReputationPanel from "@/components/reputation/PublicReputationPanel
 import type {
   DiscoverIntentRow,
   IntentLifecycleStatus,
+  ViewerPlanLineage,
 } from "@/components/discover/DiscoverIntentCard";
 import type {
   ActivityVisibility,
@@ -32,6 +33,10 @@ import {
   type ProfileLink,
 } from "@/utils/profilePresence";
 import { createClient } from "@/utils/supabase/server";
+import {
+  groupActivityPeopleByResourceId,
+  type ActivityPeopleBatchRow,
+} from "@/utils/activityPeople";
 import {
   hydrateVisiblePlanPresentations,
   type VisiblePlanPresentation,
@@ -269,6 +274,13 @@ type PublicIntentPresentationContextRow =
   };
 
 
+type ViewerPlanLineageRow = {
+  plan_id: string;
+  source_count: number | string | null;
+  source_intent_id: string | null;
+  source_activity_name: string | null;
+};
+
 type ProfileIntentReactionRow = {
   reaction_id: string;
   reaction_type: "save" | "paw";
@@ -339,6 +351,12 @@ function formatMonthYear(value: string) {
 
 function dateOnly(value: string) {
   return value.slice(0, 10);
+}
+
+function toCount(value: number | string | null | undefined) {
+  if (value === null || value === undefined) return 0;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function getIntentType(startDate: string, endDate: string) {
@@ -1413,14 +1431,93 @@ export default async function PublicProfilePage({
     scheduledCard(activity, "completed")
   );
 
-  const hostedActiveCards = [
+  const allProfileCards = [
     ...activeCards,
-    ...formingCards.filter(
+    ...formingCards,
+    ...upcomingCards,
+    ...completedCards,
+  ];
+
+  const profileResourceIds = Array.from(
+    new Set(
+      allProfileCards.map((card) =>
+        card.plan_id ?? card.resource_id ?? card.intent_id
+      )
+    )
+  );
+
+  const profilePlanIds = Array.from(
+    new Set(
+      allProfileCards
+        .map((card) => card.plan_id)
+        .filter((planId): planId is string => Boolean(planId))
+    )
+  );
+
+  const [profilePeopleResponse, profileLineageResponse] = await Promise.all([
+    profileResourceIds.length > 0
+      ? supabase.rpc("get_visible_activity_people_batch", {
+          p_resource_ids: profileResourceIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    viewerUserId && profilePlanIds.length > 0
+      ? supabase.rpc("get_my_visible_plan_lineage", {
+          p_plan_ids: profilePlanIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (profilePeopleResponse.error) {
+    console.error("Profile Activity people query failed:", profilePeopleResponse.error);
+  }
+
+  if (profileLineageResponse.error) {
+    console.error("Profile viewer lineage query failed:", profileLineageResponse.error);
+  }
+
+  const profilePeopleByResourceId = groupActivityPeopleByResourceId(
+    (profilePeopleResponse.data ?? []) as ActivityPeopleBatchRow[]
+  );
+
+  const profileLineageByPlanId = new Map<string, ViewerPlanLineage>();
+
+  ((profileLineageResponse.data ?? []) as ViewerPlanLineageRow[]).forEach((row) => {
+    if (!row.source_intent_id) return;
+
+    profileLineageByPlanId.set(row.plan_id, {
+      sourceCount: toCount(row.source_count),
+      sourceIntentId: row.source_intent_id,
+      sourceIntentName: row.source_activity_name,
+      sourceIntentHref: `/activities/${encodeURIComponent(row.source_intent_id)}`,
+    });
+  });
+
+  function enrichProfileCard(card: DiscoverIntentRow): DiscoverIntentRow {
+    return {
+      ...card,
+      activity_people:
+        profilePeopleByResourceId.get(
+          card.plan_id ?? card.resource_id ?? card.intent_id
+        ) ?? [],
+      viewer_lineage: card.plan_id
+        ? profileLineageByPlanId.get(card.plan_id) ?? null
+        : null,
+    };
+  }
+
+  const enrichedActiveCards = activeCards.map(enrichProfileCard);
+  const enrichedFormingCards = formingCards.map(enrichProfileCard);
+  const enrichedUpcomingCards = upcomingCards.map(enrichProfileCard);
+  const enrichedCompletedCards = completedCards.map(enrichProfileCard);
+
+  const hostedActiveCards = [
+    ...enrichedActiveCards,
+    ...enrichedFormingCards.filter(
       (card) =>
         card.profile_role === "host" ||
         card.profile_role === "co_host"
     ),
-    ...upcomingCards.filter(
+    ...enrichedUpcomingCards.filter(
       (card) =>
         card.profile_role === "host" ||
         card.profile_role === "co_host"
@@ -1428,23 +1525,23 @@ export default async function PublicProfilePage({
   ];
 
   const participatingActiveCards = [
-    ...formingCards.filter(
+    ...enrichedFormingCards.filter(
       (card) => card.profile_role === "participant"
     ),
-    ...upcomingCards.filter(
+    ...enrichedUpcomingCards.filter(
       (card) => card.profile_role === "participant"
     ),
   ];
 
   const hostedExperienceCards =
-    completedCards.filter(
+    enrichedCompletedCards.filter(
       (card) =>
         card.profile_role === "host" ||
         card.profile_role === "co_host"
     );
 
   const participatedExperienceCards =
-    completedCards.filter(
+    enrichedCompletedCards.filter(
       (card) => card.profile_role === "participant"
     );
 

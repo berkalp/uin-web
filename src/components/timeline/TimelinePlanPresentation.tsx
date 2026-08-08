@@ -1,4 +1,5 @@
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
+import ActivityPeopleStrip from "../activities/ActivityPeopleStrip";
 import CommunityContextList from "../communities/CommunityContextList";
 import IntentLinksDisplay from "../intents/IntentLinksDisplay";
 import PlanWeatherBadges from "../weather/PlanWeatherBadges";
@@ -8,13 +9,7 @@ import type {
 import type {
   IntentLinkView,
 } from "../../utils/intentLinks";
-
-type TimelinePlanMember = {
-  id: string;
-  fullName: string | null;
-  avatarUrl: string | null;
-  role: string;
-};
+import type { ActivityPersonView } from "../../utils/activityPeople";
 
 type TimelinePlanPresentationProps = {
   planId: string;
@@ -34,7 +29,9 @@ type TimelinePlanPresentationProps = {
   hostName: string;
   hostAvatarUrl: string | null;
   isCurrentUserHost: boolean;
-  members: TimelinePlanMember[];
+  people: ActivityPersonView[];
+  currentUserId: string;
+  activityHref: string;
   participantCount: number;
   participantLimit: string;
   committedBudget: number;
@@ -95,7 +92,9 @@ export default function TimelinePlanPresentation({
   hostName,
   hostAvatarUrl,
   isCurrentUserHost,
-  members,
+  people,
+  currentUserId,
+  activityHref,
   participantCount,
   participantLimit,
   committedBudget,
@@ -122,6 +121,9 @@ export default function TimelinePlanPresentation({
   // The canonical Activity remains part of the component contract for callers,
   // but a private Shared Plan title replaces it visually instead of being repeated.
   void _canonicalActivityName;
+  void hostName;
+  void hostAvatarUrl;
+  void isCurrentUserHost;
 
   const hasExactActivityLocation =
     Boolean(
@@ -356,75 +358,14 @@ export default function TimelinePlanPresentation({
       </div>
 
       <div className="px-4 pb-4">
-        <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3">
-          <div className="flex min-w-0 items-center gap-2">
-            {hostAvatarUrl ? (
-              <img
-                src={
-                  hostAvatarUrl
-                }
-                alt={
-                  hostName
-                }
-                className="h-8 w-8 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-700">
-                {hostName
-                  .trim()
-                  .charAt(0)
-                  .toUpperCase()}
-              </div>
-            )}
-
-            <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-gray-950">
-                {hostName}
-              </p>
-
-              <p className="text-[9px] uppercase tracking-wide text-gray-400">
-                {isCurrentUserHost
-                  ? "Hosted by you"
-                  : "Host"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex -space-x-2">
-            {members
-              .slice(0, 4)
-              .map(
-                (member) =>
-                  member.avatarUrl ? (
-                    <img
-                      key={
-                        member.id
-                      }
-                      src={
-                        member.avatarUrl
-                      }
-                      alt={
-                        member.fullName ??
-                        "Member"
-                      }
-                      className="h-7 w-7 rounded-full border-2 border-white object-cover"
-                    />
-                  ) : (
-                    <div
-                      key={
-                        member.id
-                      }
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-gray-200 text-[9px] font-bold text-gray-600"
-                    >
-                      {(member.fullName ??
-                        "?")
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
-                  )
-              )}
-          </div>
-        </div>
+        <ActivityPeopleStrip
+          people={people}
+          currentUserId={currentUserId}
+          activityHref={activityHref}
+          variant="full"
+          maxVisible={7}
+          className="rounded-xl bg-gray-50 p-3"
+        />
 
         {requestCount > 0 && (
           <p className="mt-3 rounded-xl bg-green-50 px-3 py-2 text-xs font-semibold text-green-700">

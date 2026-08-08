@@ -8,6 +8,7 @@ import TimelineIntentPresentation from "../../components/timeline/TimelineIntent
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
 import TimelineShareButton from "../../components/timeline/TimelineShareButton";
 import TimelineAttentionPanel from "../../components/timeline/TimelineAttentionPanel";
+import ActivityPeopleStrip from "../../components/activities/ActivityPeopleStrip";
 import IntentResolutionPanel, {
   type IntentResolutionItem,
 } from "../../components/timeline/IntentResolutionPanel";
@@ -42,6 +43,10 @@ import {
 } from "../../utils/planPresentationVisibility";
 import type { SeedRecord } from "../../utils/seeds";
 import { withReturnContext } from "../../utils/returnNavigation";
+import {
+  dedupeActivityPeople,
+  type ActivityPersonView,
+} from "../../utils/activityPeople";
 
 type IntentStatus =
   | "active"
@@ -113,6 +118,7 @@ type TimelineActivity = {
 type TimelineProfile = {
   id: string;
   full_name: string | null;
+  username: string | null;
   avatar_url: string | null;
 };
 
@@ -590,6 +596,7 @@ const PLAN_SELECT_QUERY = `
   profiles!plans_host_user_id_fkey (
     id,
     full_name,
+    username,
     avatar_url
   ),
   plan_members (
@@ -602,6 +609,7 @@ const PLAN_SELECT_QUERY = `
     profiles!plan_members_user_id_fkey (
       id,
       full_name,
+      username,
       avatar_url
     )
   ),
@@ -879,6 +887,35 @@ function getActivePlanMembers(
     (member) =>
       member.status === "active"
   );
+}
+
+function getTimelinePlanPeople(
+  plan: TimelinePlan
+): ActivityPersonView[] {
+  const people = getActivePlanMembers(plan).map((member) => {
+    const profile = getFirst(member.profiles);
+
+    return {
+      userId: member.user_id,
+      fullName: profile?.full_name ?? null,
+      username: profile?.username ?? null,
+      avatarUrl: profile?.avatar_url ?? null,
+      role: member.role,
+    } satisfies ActivityPersonView;
+  });
+
+  if (!people.some((person) => person.userId === plan.host_user_id)) {
+    const hostProfile = getFirst(plan.profiles);
+    people.unshift({
+      userId: plan.host_user_id,
+      fullName: hostProfile?.full_name ?? null,
+      username: hostProfile?.username ?? null,
+      avatarUrl: hostProfile?.avatar_url ?? null,
+      role: "host",
+    });
+  }
+
+  return dedupeActivityPeople(people);
 }
 
 function getActivePlanParticipants(
@@ -3422,8 +3459,8 @@ export default async function TimelinePage({
         )
       : null;
 
-    const activeMembers =
-      getActivePlanMembers(
+    const planPeople =
+      getTimelinePlanPeople(
         plan
       );
 
@@ -3673,27 +3710,9 @@ export default async function TimelinePage({
             plan.host_user_id ===
             currentUserId
           }
-          members={activeMembers.map(
-            (member) => {
-              const memberProfile =
-                getFirst(
-                  member.profiles
-                );
-
-              return {
-                id:
-                  member.id,
-                fullName:
-                  memberProfile?.full_name ??
-                  null,
-                avatarUrl:
-                  memberProfile?.avatar_url ??
-                  null,
-                role:
-                  member.role,
-              };
-            }
-          )}
+          people={planPeople}
+          currentUserId={currentUserId}
+          activityHref={planViewHref}
           participantCount={
             activeParticipants.length
           }
@@ -3993,6 +4012,7 @@ export default async function TimelinePage({
         lineage.currentUserSourceActivity?.name ??
         (lineage.currentUserSourceIntent ? canonicalActivityName : null),
       sourceIntentHref: lineage.sourceIntentHref,
+      people: getTimelinePlanPeople(plan),
     };
   }
 
@@ -4362,6 +4382,14 @@ export default async function TimelinePage({
                               </span>
                             </Link>
                           )}
+                          <ActivityPeopleStrip
+                            people={info.people}
+                            currentUserId={currentUserId}
+                            activityHref={viewHref}
+                            variant="compact"
+                            maxVisible={5}
+                            className="mb-3 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5"
+                          />
                           <p className="text-xs font-black text-gray-900">
                             {info.dateLabel}
                           </p>

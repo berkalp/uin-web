@@ -11,6 +11,7 @@ import CommunityIntentFiltersForm, {
 } from "@/components/communities/CommunityIntentFiltersForm";
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
+  type ViewerPlanLineage,
 } from "@/components/discover/DiscoverIntentCard";
 
 import {
@@ -46,6 +47,10 @@ import {
 import type {
   HierarchicalLocation,
 } from "@/utils/location";
+import {
+  groupActivityPeopleByResourceId,
+  type ActivityPeopleBatchRow,
+} from "@/utils/activityPeople";
 
 export const dynamic =
   "force-dynamic";
@@ -60,6 +65,13 @@ const ELIGIBILITY_FILTERS: readonly CommunityEligibilityFilter[] = [
   "men_only",
   "all",
 ];
+
+type ViewerPlanLineageRow = {
+  plan_id: string;
+  source_count: number | string | null;
+  source_intent_id: string | null;
+  source_activity_name: string | null;
+};
 
 type CommunityPageValue = {
   id: string;
@@ -715,6 +727,62 @@ export default async function CommunityPage({
         .map((result) => result.plan_id)
         .filter((planId): planId is string => Boolean(planId))
     )
+  );
+
+  const visibleResourceIds = Array.from(
+    new Set(
+      allResults.map((intent) =>
+        intent.plan_id ?? intent.resource_id ?? intent.intent_id
+      )
+    )
+  );
+
+  const [activityPeopleResponse, viewerLineageResponse] = await Promise.all([
+    visibleResourceIds.length > 0
+      ? supabase.rpc("get_visible_activity_people_batch", {
+          p_resource_ids: visibleResourceIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visiblePlanIds.length > 0
+      ? supabase.rpc("get_my_visible_plan_lineage", {
+          p_plan_ids: visiblePlanIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (activityPeopleResponse.error) {
+    console.error(
+      "Community Activity people query failed:",
+      activityPeopleResponse.error
+    );
+  }
+
+  if (viewerLineageResponse.error) {
+    console.error(
+      "Community viewer lineage query failed:",
+      viewerLineageResponse.error
+    );
+  }
+
+  const activityPeopleByResourceId = groupActivityPeopleByResourceId(
+    (activityPeopleResponse.data ?? []) as ActivityPeopleBatchRow[]
+  );
+
+  const viewerLineageByPlanId = new Map<string, ViewerPlanLineage>();
+
+  ((viewerLineageResponse.data ?? []) as ViewerPlanLineageRow[]).forEach(
+    (row) => {
+      if (!row.source_intent_id) return;
+
+      viewerLineageByPlanId.set(row.plan_id, {
+        sourceCount: toCount(row.source_count),
+        sourceIntentId: row.source_intent_id,
+        sourceIntentName: row.source_activity_name,
+        sourceIntentHref: `/activities/${encodeURIComponent(
+          row.source_intent_id
+        )}`,
+      });
+    }
   );
 
   const visiblePresentationResponse =
@@ -1473,6 +1541,16 @@ export default async function CommunityPage({
                           intent.intent_id
                         ) ?? []
                       }
+                      activityPeople={
+                        activityPeopleByResourceId.get(
+                          intent.plan_id ?? intent.resource_id ?? intent.intent_id
+                        ) ?? []
+                      }
+                      viewerLineage={
+                        intent.plan_id
+                          ? viewerLineageByPlanId.get(intent.plan_id) ?? null
+                          : null
+                      }
                     />
                   )
                 )}
@@ -1597,6 +1675,16 @@ export default async function CommunityPage({
                           linksByIntentId.get(
                             intent.intent_id
                           ) ?? []
+                        }
+                        activityPeople={
+                          activityPeopleByResourceId.get(
+                            intent.plan_id ?? intent.resource_id ?? intent.intent_id
+                          ) ?? []
+                        }
+                        viewerLineage={
+                          intent.plan_id
+                            ? viewerLineageByPlanId.get(intent.plan_id) ?? null
+                            : null
                         }
                       />
                     )

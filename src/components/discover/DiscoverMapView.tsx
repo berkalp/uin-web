@@ -10,9 +10,11 @@ import {
 
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
+  type ViewerPlanLineage,
 } from "@/components/discover/DiscoverIntentCard";
 import type { IntentCommunityContext } from "@/utils/communities";
 import type { IntentLinkView } from "@/utils/intentLinks";
+import type { ActivityPersonView } from "@/utils/activityPeople";
 
 export type DiscoverMapPoint = {
   intentId: string;
@@ -45,6 +47,8 @@ export type DiscoverMapPoint = {
   cardPublicActivityLocationName: string | null;
   cardCommunities: IntentCommunityContext[];
   cardRelatedLinks: IntentLinkView[];
+  cardActivityPeople: ActivityPersonView[];
+  cardViewerLineage: ViewerPlanLineage | null;
 };
 
 type DiscoverMapViewProps = {
@@ -985,6 +989,8 @@ export default function DiscoverMapView({
             publicActivityLocationName={
               selectedPoint.cardPublicActivityLocationName
             }
+            activityPeople={selectedPoint.cardActivityPeople}
+            viewerLineage={selectedPoint.cardViewerLineage}
             showEmbeddedMap={false}
           />
         </div>
@@ -1038,6 +1044,8 @@ export default function DiscoverMapView({
                 publicActivityLocationName={
                   point.cardPublicActivityLocationName
                 }
+                activityPeople={point.cardActivityPeople}
+                viewerLineage={point.cardViewerLineage}
                 showEmbeddedMap={false}
               />
             </div>

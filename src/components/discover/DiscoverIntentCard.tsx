@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
+import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import CommunityContextList from "@/components/communities/CommunityContextList";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
@@ -22,6 +23,7 @@ import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
 import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
 import type { ParticipantEligibility } from "@/utils/participationEligibility";
 import type { IntentReactionContext } from "@/utils/intentReactions";
+import type { ActivityPersonView } from "@/utils/activityPeople";
 
 export type IntentLifecycleStatus =
   | "open"
@@ -148,6 +150,20 @@ export type DiscoverIntentRow = {
   context_cover_url?: string | null;
   public_activity_location_name?: string | null;
   reaction_context?: IntentReactionContext | null;
+  activity_people?: ActivityPersonView[];
+  viewer_lineage?: {
+    sourceCount: number;
+    sourceIntentId: string;
+    sourceIntentName: string | null;
+    sourceIntentHref: string;
+  } | null;
+};
+
+export type ViewerPlanLineage = {
+  sourceCount: number;
+  sourceIntentId: string;
+  sourceIntentName: string | null;
+  sourceIntentHref: string;
 };
 
 type LifecyclePresentation = {
@@ -396,6 +412,8 @@ export default function DiscoverIntentCard({
   privateCoverUrl,
   contextCoverUrl = null,
   publicActivityLocationName = null,
+  activityPeople = [],
+  viewerLineage = null,
   actionMode = "default",
   showEmbeddedMap = true,
 }: {
@@ -408,9 +426,19 @@ export default function DiscoverIntentCard({
   privateCoverUrl?: string | null;
   contextCoverUrl?: string | null;
   publicActivityLocationName?: string | null;
+  activityPeople?: ActivityPersonView[];
+  viewerLineage?: ViewerPlanLineage | null;
   actionMode?: "default" | "profile";
   showEmbeddedMap?: boolean;
 }) {
+  const resolvedActivityPeople =
+    activityPeople.length > 0
+      ? activityPeople
+      : intent.activity_people ?? [];
+
+  const resolvedViewerLineage =
+    viewerLineage ?? intent.viewer_lineage ?? null;
+
   const cardTitle =
     displayTitle?.trim() ||
     intent.activity_name;
@@ -440,6 +468,19 @@ export default function DiscoverIntentCard({
   const isOwner =
     intent.owner_user_id ===
     currentUserId;
+
+  const viewerPlanPerson = resolvedActivityPeople.find(
+    (person) => person.userId === currentUserId
+  ) ?? null;
+
+  const viewerPlanRoleLabel =
+    viewerPlanPerson?.role === "host"
+      ? "You · Host"
+      : viewerPlanPerson?.role === "co_host"
+        ? "You · Co-host"
+        : viewerPlanPerson?.role === "participant"
+          ? "You · Participant"
+          : null;
 
   const lifecycle =
     getLifecyclePresentation(
@@ -595,7 +636,11 @@ export default function DiscoverIntentCard({
               }
             />
 
-            {actionMode === "profile" &&
+            {intent.plan_id && viewerPlanRoleLabel ? (
+              <span className="rounded-full bg-gray-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur">
+                {viewerPlanRoleLabel}
+              </span>
+            ) : actionMode === "profile" &&
             intent.profile_role_label &&
             intent.profile_role !== "host" ? (
               <span className="rounded-full bg-gray-950/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white backdrop-blur">
@@ -747,6 +792,27 @@ export default function DiscoverIntentCard({
         </div>
       )}
 
+      {resolvedViewerLineage && intent.plan_id ? (
+        <div className="border-b border-black/5 bg-white/55 px-4 py-3">
+          <Link
+            href={resolvedViewerLineage.sourceIntentHref}
+            className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 transition hover:border-emerald-200 hover:bg-emerald-100"
+          >
+            <div className="min-w-0">
+              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
+                {resolvedViewerLineage.sourceCount > 1
+                  ? `${resolvedViewerLineage.sourceCount} Intents matched → 1 Activity`
+                  : "Your Intent → this Activity"}
+              </p>
+              <p className="mt-0.5 truncate text-[10px] font-black text-gray-900">
+                Your Intent · {resolvedViewerLineage.sourceIntentName ?? intent.activity_name}
+              </p>
+            </div>
+            <span className="shrink-0 text-[10px] font-black text-emerald-800">↗</span>
+          </Link>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-2 p-4 text-xs">
         <div className="rounded-xl border border-white/80 bg-white/75 p-2.5 shadow-sm">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
@@ -816,47 +882,50 @@ export default function DiscoverIntentCard({
       </div>
 
       <div className="mt-auto rounded-b-3xl border-t border-black/5 bg-white/45 p-4">
-        <div className="flex min-w-0 items-center gap-3">
-          {intent.owner_avatar_url ? (
-            <img
-              src={
-                intent.owner_avatar_url
-              }
-              alt={ownerName}
-              className="h-9 w-9 shrink-0 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-700">
-              {getInitial(
-                ownerName
+        {resolvedActivityPeople.length > 0 ? (
+          <ActivityPeopleStrip
+            people={resolvedActivityPeople}
+            currentUserId={currentUserId}
+            activityHref={`/activities/${encodeURIComponent(
+              intent.plan_id ?? intent.resource_id ?? intent.intent_id
+            )}`}
+            variant="compact"
+            maxVisible={5}
+          />
+        ) : (
+          <div className="flex min-w-0 items-center gap-3">
+            {intent.owner_avatar_url ? (
+              <img
+                src={intent.owner_avatar_url}
+                alt={ownerName}
+                className="h-9 w-9 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-xs font-bold text-green-700">
+                {getInitial(ownerName)}
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
+                {isOwner ? "Hosted by you" : "Hosted by"}
+              </p>
+
+              {ownerProfileHref && !isOwner ? (
+                <Link
+                  href={ownerProfileHref}
+                  className="block truncate text-xs font-bold text-gray-950 transition hover:text-green-700"
+                >
+                  {ownerName}
+                </Link>
+              ) : (
+                <p className="truncate text-xs font-bold text-gray-950">
+                  {ownerName}
+                </p>
               )}
             </div>
-          )}
-
-          <div className="min-w-0 flex-1">
-            <p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">
-              {isOwner
-                ? "Hosted by you"
-                : "Hosted by"}
-            </p>
-
-            {ownerProfileHref &&
-            !isOwner ? (
-              <Link
-                href={
-                  ownerProfileHref
-                }
-                className="block truncate text-xs font-bold text-gray-950 transition hover:text-green-700"
-              >
-                {ownerName}
-              </Link>
-            ) : (
-              <p className="truncate text-xs font-bold text-gray-950">
-                {ownerName}
-              </p>
-            )}
           </div>
-        </div>
+        )}
 
         {isOwner &&
         actionMode ===

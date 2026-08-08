@@ -8,6 +8,7 @@ import DiscoverFiltersForm from "@/components/discover/DiscoverFiltersForm";
 import DiscoverQuickFilters from "@/components/discover/DiscoverQuickFilters";
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
+  type ViewerPlanLineage,
 } from "@/components/discover/DiscoverIntentCard";
 import DiscoverMapView, {
   type DiscoverMapPoint,
@@ -36,6 +37,10 @@ import {
   type ParticipantEligibility,
 } from "@/utils/participationEligibility";
 import { parseIntentReactionContexts } from "@/utils/intentReactions";
+import {
+  groupActivityPeopleByResourceId,
+  type ActivityPeopleBatchRow,
+} from "@/utils/activityPeople";
 
 export const dynamic =
   "force-dynamic";
@@ -55,6 +60,13 @@ type PublicExperienceCover =
 type PublicPlanActivityLocationRow = {
   plan_id: string;
   activity_location_name: string | null;
+};
+
+type ViewerPlanLineageRow = {
+  plan_id: string;
+  source_count: number | string | null;
+  source_intent_id: string | null;
+  source_activity_name: string | null;
 };
 
 
@@ -1053,6 +1065,62 @@ export default async function DiscoverPage({
       )
     );
 
+  const visibleResourceIds = Array.from(
+    new Set(
+      results.map((intent) =>
+        intent.plan_id ?? intent.resource_id ?? intent.intent_id
+      )
+    )
+  );
+
+  const [activityPeopleResponse, viewerLineageResponse] = await Promise.all([
+    visibleResourceIds.length > 0
+      ? supabase.rpc("get_visible_activity_people_batch", {
+          p_resource_ids: visibleResourceIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visiblePlanIds.length > 0
+      ? supabase.rpc("get_my_visible_plan_lineage", {
+          p_plan_ids: visiblePlanIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (activityPeopleResponse.error) {
+    console.error(
+      "Discover Activity people query failed:",
+      activityPeopleResponse.error
+    );
+  }
+
+  if (viewerLineageResponse.error) {
+    console.error(
+      "Discover viewer lineage query failed:",
+      viewerLineageResponse.error
+    );
+  }
+
+  const activityPeopleByResourceId = groupActivityPeopleByResourceId(
+    (activityPeopleResponse.data ?? []) as ActivityPeopleBatchRow[]
+  );
+
+  const viewerLineageByPlanId = new Map<string, ViewerPlanLineage>();
+
+  ((viewerLineageResponse.data ?? []) as ViewerPlanLineageRow[]).forEach(
+    (row) => {
+      if (!row.source_intent_id) return;
+
+      viewerLineageByPlanId.set(row.plan_id, {
+        sourceCount: toCount(row.source_count),
+        sourceIntentId: row.source_intent_id,
+        sourceIntentName: row.source_activity_name,
+        sourceIntentHref: `/activities/${encodeURIComponent(
+          row.source_intent_id
+        )}`,
+      });
+    }
+  );
+
   const {
     data: privatePresentationData,
     error: privatePresentationError,
@@ -1387,6 +1455,14 @@ export default async function DiscoverPage({
           cardCommunities: communitiesForIntent,
           cardRelatedLinks:
             intentLinksByIntentId.get(intent.intent_id) ?? [],
+          cardActivityPeople:
+            activityPeopleByResourceId.get(
+              intent.plan_id ?? intent.resource_id ?? intent.intent_id
+            ) ?? [],
+          cardViewerLineage:
+            intent.plan_id
+              ? viewerLineageByPlanId.get(intent.plan_id) ?? null
+              : null,
         };
       });
 
@@ -1756,6 +1832,16 @@ export default async function DiscoverPage({
                           intentLinksByIntentId.get(
                             intent.intent_id
                           ) ?? []
+                        }
+                        activityPeople={
+                          activityPeopleByResourceId.get(
+                            intent.plan_id ?? intent.resource_id ?? intent.intent_id
+                          ) ?? []
+                        }
+                        viewerLineage={
+                          intent.plan_id
+                            ? viewerLineageByPlanId.get(intent.plan_id) ?? null
+                            : null
                         }
                       />
                     );

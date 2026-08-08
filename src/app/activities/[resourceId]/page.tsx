@@ -1862,7 +1862,7 @@ export default async function ActivityDetailPage({
                 />
               </section>
 
-              <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+              <section id="people" className="scroll-mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
