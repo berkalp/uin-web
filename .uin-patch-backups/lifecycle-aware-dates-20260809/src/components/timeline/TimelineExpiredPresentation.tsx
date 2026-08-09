@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
+import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
 import { resolveActivityCover } from "../../utils/activityCover";
 
 type TimelineExpiredPresentationProps = {
@@ -161,14 +161,17 @@ export default function TimelineExpiredPresentation({
 
       <div className="grid grid-cols-2 border-b border-black/5">
         <div className="min-w-0 p-4">
-          <LifecycleCurrentDate
+          <ActivityLifecycleTimeline
             targetStart={windowStart}
             targetEnd={windowEnd}
+            scheduledStart={null}
+            scheduledEnd={null}
+            completedAt={null}
+            cancelledAt={null}
             expiredAt={expiredAt}
             status="expired"
             timezone="Europe/Istanbul"
-            compact
-            className="w-full"
+            variant="compact"
           />
         </div>
 

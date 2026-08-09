@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
-import LifecycleCurrentDate from "@/components/activities/LifecycleCurrentDate";
 import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
@@ -793,8 +792,8 @@ export default function DiscoverIntentCard({
       {/* Normal card body. Only this area is replaced by Details. */}
       <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
         <div className="grid h-[126px] shrink-0 grid-cols-[0.95fr_1.05fr] border-b border-black/5">
-          <div className="flex min-w-0 items-center overflow-hidden p-2.5">
-            <LifecycleCurrentDate
+          <div className="min-w-0 overflow-hidden p-2.5">
+            <ActivityLifecycleTimeline
               targetStart={intent.start_date}
               targetEnd={intent.end_date}
               scheduledStart={intent.scheduled_start}
@@ -804,8 +803,7 @@ export default function DiscoverIntentCard({
               expiredAt={intent.expired_at}
               status={intent.lifecycle_status}
               timezone={intent.timezone}
-              compact
-              className="w-full"
+              variant="compact"
             />
           </div>
 
@@ -923,21 +921,6 @@ export default function DiscoverIntentCard({
             {lifecycle.label}
           </span>
         </div>
-
-        <ActivityLifecycleTimeline
-          targetStart={intent.start_date}
-          targetEnd={intent.end_date}
-          scheduledStart={intent.scheduled_start}
-          scheduledEnd={intent.scheduled_end}
-          completedAt={intent.completed_at}
-          cancelledAt={intent.cancelled_at}
-          expiredAt={intent.expired_at}
-          status={intent.lifecycle_status}
-          timezone={intent.timezone}
-          variant="horizontal"
-          title="Intent Journey"
-          description=""
-        />
 
         <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[10px]">
           <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">

@@ -1,4 +1,4 @@
-import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
+import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
 import ActivityPeopleStrip from "../activities/ActivityPeopleStrip";
 import CommunityContextList from "../communities/CommunityContextList";
 import IntentLinksDisplay from "../intents/IntentLinksDisplay";
@@ -238,18 +238,35 @@ export default function TimelinePlanPresentation({
 
       <div className="grid grid-cols-2 border-b border-black/5">
         <div className="min-w-0 p-4">
-          <LifecycleCurrentDate
-            targetStart={windowStart}
-            targetEnd={windowEnd}
-            scheduledStart={scheduledStart}
-            scheduledEnd={scheduledEnd}
-            completedAt={completedAt}
-            cancelledAt={cancelledAt}
-            expiredAt={expiredAt}
-            status={planStatus}
-            timezone={timezone}
-            compact
-            className="w-full"
+          <ActivityLifecycleTimeline
+            targetStart={
+              windowStart
+            }
+            targetEnd={
+              windowEnd
+            }
+            scheduledStart={
+              scheduledStart
+            }
+            scheduledEnd={
+              scheduledEnd
+            }
+            completedAt={
+              completedAt
+            }
+            cancelledAt={
+              cancelledAt
+            }
+            expiredAt={
+              expiredAt
+            }
+            status={
+              planStatus
+            }
+            timezone={
+              timezone
+            }
+            variant="compact"
           />
         </div>
 
