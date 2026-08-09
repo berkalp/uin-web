@@ -1,13 +1,11 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
 import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
-import CommunityContextList from "@/components/communities/CommunityContextList";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
 import IntentReactionBar from "@/components/reactions/IntentReactionBar";
-import IntentLinksDisplay from "@/components/intents/IntentLinksDisplay";
 import {
   getActivityVisibilityLabel,
   type ActivityVisibility,
@@ -19,7 +17,6 @@ import type { IntentLinkView } from "@/utils/intentLinks";
 import type { IntentCommunityContext } from "@/utils/communities";
 import { getSportPresentation } from "@/utils/sportPresentation";
 import { formatEstimatedCost } from "@/utils/estimatedCost";
-import TimelineShareButton from "@/components/timeline/TimelineShareButton";
 import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
 import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
 import type { ParticipantEligibility } from "@/utils/participationEligibility";
@@ -475,11 +472,11 @@ export default function DiscoverIntentCard({
 
   const viewerPlanRoleLabel =
     viewerPlanPerson?.role === "host"
-      ? "You Â· Host"
+      ? "You · Host"
       : viewerPlanPerson?.role === "co_host"
-        ? "You Â· Co-host"
+        ? "You · Co-host"
         : viewerPlanPerson?.role === "participant"
-          ? "You Â· Participant"
+          ? "You · Participant"
           : null;
 
   const lifecycle =
@@ -500,7 +497,7 @@ export default function DiscoverIntentCard({
   const participantLimit =
     intent.max_participants ===
     null
-      ? "âˆ"
+      ? "∞"
       : String(
           intent.max_participants
         );
@@ -624,7 +621,7 @@ export default function DiscoverIntentCard({
       />
 
       <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="relative h-28 shrink-0 overflow-hidden bg-gray-950">
+        <div className="relative h-[108px] shrink-0 overflow-hidden bg-gray-950">
           <img
             src={coverUrl}
             alt={`${cardTitle} cover`}
@@ -717,7 +714,7 @@ export default function DiscoverIntentCard({
           </div>
         </div>
 
-        <div className="grid h-[126px] shrink-0 grid-cols-2 border-b border-black/5">
+        <div className="grid h-[120px] shrink-0 grid-cols-2 border-b border-black/5">
           <div className="min-w-0 overflow-hidden p-3">
             <ActivityLifecycleTimeline
               targetStart={intent.start_date}
@@ -763,7 +760,7 @@ export default function DiscoverIntentCard({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-between px-3 py-2.5">
+        <div className="flex min-h-0 flex-1 flex-col justify-between overflow-hidden px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               {resolvedActivityPeople.length > 0 ? (
@@ -818,7 +815,7 @@ export default function DiscoverIntentCard({
             </span>
           </div>
 
-          <div className="mt-2 border-t border-black/5 pt-2">
+          <div className="mt-1.5 min-h-[34px] overflow-hidden border-t border-black/5 pt-1.5">
             <IntentReactionBar
               intentId={intent.intent_id}
               initialContext={intent.reaction_context ?? null}
@@ -830,123 +827,123 @@ export default function DiscoverIntentCard({
         </div>
       </div>
 
-      <div className="hidden min-h-0 flex-1 flex-col overflow-y-auto bg-white/75 p-4 peer-checked:flex">
+      <div className="hidden min-h-0 flex-1 flex-col overflow-hidden bg-white/80 p-3.5 peer-checked:flex">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[9px] font-black uppercase tracking-[0.16em] text-green-700">
               Details
             </p>
-            <h2 className="mt-1 line-clamp-2 text-lg font-bold leading-tight text-gray-950">
+            <h2 className="mt-0.5 line-clamp-2 text-lg font-bold leading-tight text-gray-950">
               {cardTitle}
             </h2>
           </div>
 
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide ${lifecycle.badgeClasses}`}>
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide ${lifecycle.badgeClasses}`}
+          >
             {lifecycle.label}
           </span>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
             <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
               Participants
             </p>
-            <p className="mt-1 font-bold text-gray-950">
+            <p className="mt-0.5 font-bold text-gray-950">
               {participantCount} / {participantLimit}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
             <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
               Visibility
             </p>
-            <p className="mt-1 truncate font-bold text-gray-950">
+            <p className="mt-0.5 truncate font-bold text-gray-950">
               {getActivityVisibilityLabel(intent.visibility)}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
             <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
               Recurrence
             </p>
-            <p className="mt-1 truncate font-bold capitalize text-gray-950">
+            <p className="mt-0.5 truncate font-bold capitalize text-gray-950">
               {intent.recurrence}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
             <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
               {costLabel}
             </p>
-            <p className="mt-1 truncate font-bold text-gray-950">
+            <p className="mt-0.5 truncate font-bold text-gray-950">
               {costValue}
             </p>
           </div>
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2.5 space-y-1.5 text-[10px]">
           {locationLabel && (
-            <span className="max-w-full truncate rounded-full bg-gray-950 px-2.5 py-1 text-[9px] font-semibold text-white">
-              ⌖ {locationLabel}
-            </span>
+            <div className="flex min-w-0 items-center gap-2 rounded-xl bg-gray-950 px-3 py-2 text-white">
+              <span className="shrink-0" aria-hidden="true">⌖</span>
+              <span className="truncate font-semibold">
+                {locationLabel}
+              </span>
+            </div>
           )}
+
           {publicVenueName && (
-            <span className="max-w-full truncate rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[9px] font-semibold text-green-800">
-              Venue · {publicVenueName}
-            </span>
+            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+              <span className="shrink-0 font-bold">Venue</span>
+              <span className="truncate font-semibold">
+                · {publicVenueName}
+              </span>
+            </div>
           )}
-        </div>
 
-        {resolvedCommunities.length > 0 && (
-          <div className="mt-3">
-            <CommunityContextList
-              communities={resolvedCommunities}
-              variant="card"
-            />
+          {resolvedCommunities.length > 0 && (
+            <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+              <span className="shrink-0 font-semibold text-gray-500">
+                Communities
+              </span>
+              <span className="truncate text-right font-bold text-gray-900">
+                {resolvedCommunities
+                  .slice(0, 2)
+                  .map((community) => community.name)
+                  .join(" · ")}
+                {resolvedCommunities.length > 2
+                  ? ` +${resolvedCommunities.length - 2}`
+                  : ""}
+              </span>
+            </div>
+          )}
+
+          <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+            <span className="shrink-0 font-semibold text-gray-500">
+              Related links
+            </span>
+            <span className="truncate text-right font-bold text-gray-900">
+              {relatedLinks.length > 0
+                ? `${relatedLinks.length} link${relatedLinks.length === 1 ? "" : "s"}`
+                : "None"}
+            </span>
           </div>
-        )}
 
-        {resolvedViewerLineage && intent.plan_id ? (
-          <Link
-            href={resolvedViewerLineage.sourceIntentHref}
-            className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2.5 transition hover:border-emerald-200 hover:bg-emerald-100"
-          >
-            <div className="min-w-0">
-              <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                {resolvedViewerLineage.sourceCount > 1
-                  ? `${resolvedViewerLineage.sourceCount} Intents matched → 1 Activity`
-                  : "Your Intent → this Activity"}
-              </p>
-              <p className="mt-0.5 truncate text-[10px] font-black text-gray-900">
+          {resolvedViewerLineage && intent.plan_id && (
+            <Link
+              href={resolvedViewerLineage.sourceIntentHref}
+              className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 transition hover:bg-emerald-100"
+            >
+              <span className="shrink-0 font-semibold text-emerald-700">
+                Origin
+              </span>
+              <span className="truncate text-right font-bold text-emerald-900">
                 {resolvedViewerLineage.sourceIntentName ??
                   intent.activity_name}
-              </p>
-            </div>
-            <span className="shrink-0 text-[10px] font-black text-emerald-800">
-              ↗
-            </span>
-          </Link>
-        ) : null}
-
-        <div className="mt-3 rounded-xl border border-gray-100 bg-white p-3 shadow-sm">
-          <IntentLinksDisplay
-            links={relatedLinks}
-            compact
-            maxItems={2}
-            emptyLabel="No related link attached"
-          />
-        </div>
-
-        <div className="mt-3">
-          <TimelineShareButton
-            title={`${cardTitle} Intent`}
-            text={`I have a ${cardTitle} Intent on UIN. Are you in?`}
-            url={`/activities/${encodeURIComponent(
-              intent.plan_id ??
-                intent.resource_id ??
-                intent.intent_id
-            )}`}
-          />
+              </span>
+            </Link>
+          )}
         </div>
       </div>
 
