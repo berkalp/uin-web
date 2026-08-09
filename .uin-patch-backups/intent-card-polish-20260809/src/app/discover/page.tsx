@@ -62,11 +62,6 @@ type PublicPlanActivityLocationRow = {
   activity_location_name: string | null;
 };
 
-type IntentCardNoteRow = {
-  intent_id: string;
-  notes: string | null;
-};
-
 type ViewerPlanLineageRow = {
   plan_id: string;
   source_count: number | string | null;
@@ -994,29 +989,6 @@ export default async function DiscoverPage({
   }));
 
   const {
-    data: intentCardNoteData,
-    error: intentCardNoteError,
-  } = visibleIntentIds.length > 0
-    ? await supabase.rpc("get_visible_intent_card_notes", {
-        p_intent_ids: visibleIntentIds,
-      })
-    : { data: [], error: null };
-
-  if (intentCardNoteError) {
-    console.warn(
-      "Intent card notes are temporarily unavailable:",
-      intentCardNoteError.message
-    );
-  }
-
-  const intentNoteByIntentId = new Map(
-    ((intentCardNoteData ?? []) as IntentCardNoteRow[]).map((row) => [
-      row.intent_id,
-      row.notes,
-    ])
-  );
-
-  const {
     data: discoverMapContextData,
     error: discoverMapContextError,
   } = view !== "cards" && visibleIntentIds.length > 0
@@ -1866,32 +1838,6 @@ export default async function DiscoverPage({
                             intent.intent_id
                           )?.primary_community_name ??
                           null
-                        }
-                        fallbackCommunityHref={(() => {
-                          const fallbackId =
-                            sportCoverContextByIntentId.get(
-                              intent.intent_id
-                            )?.primary_community_id ?? null;
-
-                          if (!fallbackId) {
-                            return null;
-                          }
-
-                          const option =
-                            communities.find(
-                              (community) => community.id === fallbackId
-                            ) ??
-                            followedCommunities.find(
-                              (community) => community.id === fallbackId
-                            ) ??
-                            null;
-
-                          return option?.slug
-                            ? `/communities/${encodeURIComponent(option.slug)}`
-                            : null;
-                        })()}
-                        intentNote={
-                          intentNoteByIntentId.get(intent.intent_id) ?? null
                         }
                         relatedLinks={
                           intentLinksByIntentId.get(

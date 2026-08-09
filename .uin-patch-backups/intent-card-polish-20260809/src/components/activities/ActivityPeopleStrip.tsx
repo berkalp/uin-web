@@ -70,58 +70,6 @@ export default function ActivityPeopleStrip({
 
   if (resolvedPeople.length === 0) return null;
 
-  if (variant === "compact") {
-    const primary =
-      resolvedPeople.find((person) => person.role === "host") ??
-      resolvedPeople.find((person) => person.role === "co_host") ??
-      resolvedPeople[0];
-
-    const displayName = getDisplayName(primary);
-    const roleLabel = getActivityPersonRoleLabel(primary.role);
-    const href = getProfileHref(primary);
-    const others = Math.max(0, resolvedPeople.length - 1);
-
-    const identity = (
-      <span className="flex min-w-0 items-center gap-2">
-        <PersonAvatar
-          person={primary}
-          sizeClasses="h-7 w-7"
-        />
-
-        <span className="min-w-0">
-          <span className="block max-w-[150px] truncate text-[12px] font-semibold leading-tight text-gray-950">
-            {displayName}
-          </span>
-          <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-[0.04em] text-gray-400">
-            {roleLabel}
-          </span>
-        </span>
-      </span>
-    );
-
-    return (
-      <div className={`flex min-w-0 items-center justify-between gap-2 ${className}`}>
-        {href ? (
-          <Link
-            href={href}
-            title={`${displayName} · ${roleLabel}`}
-            className="min-w-0 rounded-xl px-1 py-1 transition hover:bg-green-50"
-          >
-            {identity}
-          </Link>
-        ) : (
-          identity
-        )}
-
-        {others > 0 && (
-          <span className="shrink-0 text-[10px] font-semibold text-gray-400">
-            +{others}
-          </span>
-        )}
-      </div>
-    );
-  }
-
   const leaders = resolvedPeople
     .filter((person) => person.role === "host" || person.role === "co_host")
     .slice(0, variant === "full" ? 3 : 2);

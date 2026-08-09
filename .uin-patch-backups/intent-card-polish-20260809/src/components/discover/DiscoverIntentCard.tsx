@@ -5,7 +5,7 @@ import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
-import CompactIntentReactionBar from "@/components/reactions/CompactIntentReactionBar";
+import IntentReactionBar from "@/components/reactions/IntentReactionBar";
 import {
   getActivityVisibilityLabel,
   type ActivityVisibility,
@@ -414,8 +414,6 @@ export default function DiscoverIntentCard({
   viewerLineage = null,
   actionMode = "default",
   fallbackCommunityName = null,
-  fallbackCommunityHref = null,
-  intentNote = null,
 }: {
   intent: DiscoverIntentRow;
   currentUserId: string;
@@ -431,8 +429,6 @@ export default function DiscoverIntentCard({
   actionMode?: "default" | "profile";
   showEmbeddedMap?: boolean;
   fallbackCommunityName?: string | null;
-  fallbackCommunityHref?: string | null;
-  intentNote?: string | null;
 }) {
   const resolvedActivityPeople =
     activityPeople.length > 0
@@ -467,11 +463,6 @@ export default function DiscoverIntentCard({
   const primaryCommunityAccent =
     primaryCommunity?.accentColor ||
     "#059669";
-
-  const primaryCommunityHref =
-    primaryCommunity?.slug
-      ? `/communities/${encodeURIComponent(primaryCommunity.slug)}`
-      : fallbackCommunityHref;
 
   const resolvedContextCoverUrl =
     contextCoverUrl ||
@@ -649,7 +640,7 @@ export default function DiscoverIntentCard({
       />
 
       {/* Cover is intentionally outside the front/back swap. Details never replace it. */}
-      <div className="relative h-[136px] shrink-0 overflow-hidden bg-gray-950">
+      <div className="relative h-[118px] shrink-0 overflow-hidden bg-gray-950">
         <img
           src={coverUrl}
           alt={`${cardTitle} cover`}
@@ -670,17 +661,19 @@ export default function DiscoverIntentCard({
               eligibility={intent.participant_eligibility}
             />
 
-            {!isOwner &&
-            intent.plan_id &&
-            viewerPlanRoleLabel ? (
-              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.03em] text-white backdrop-blur">
-                {viewerPlanRoleLabel.replace(/^You · /, "")}
+            {intent.plan_id && viewerPlanRoleLabel ? (
+              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.03em] text-white backdrop-blur">
+                {viewerPlanRoleLabel}
               </span>
             ) : actionMode === "profile" &&
               intent.profile_role_label &&
               intent.profile_role !== "host" ? (
-              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.03em] text-white backdrop-blur">
+              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.03em] text-white backdrop-blur">
                 {intent.profile_role_label}
+              </span>
+            ) : actionMode !== "profile" && isOwner ? (
+              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-[0.03em] text-white backdrop-blur">
+                Hosted by you
               </span>
             ) : null}
           </div>
@@ -714,84 +707,73 @@ export default function DiscoverIntentCard({
           </div>
         </div>
 
+        {intent.plan_id &&
+        intent.lifecycle_status === "planned" ? (
+          <PlanWeatherBadges
+            planId={intent.plan_id}
+            compact
+            className="absolute right-3 top-11 z-10"
+          />
+        ) : intent.lifecycle_status === "open" ||
+          intent.lifecycle_status === "future" ||
+          intent.lifecycle_status === "forming" ? (
+          <IntentWeatherBadge
+            intentId={intent.intent_id}
+            compact
+            className="absolute right-3 top-11 z-10"
+          />
+        ) : null}
+
         <div className="absolute inset-x-0 bottom-0 px-3 pb-3">
-          <p className="truncate text-[9px] font-bold uppercase tracking-[0.11em] text-green-300">
-            {intent.category_name}
-          </p>
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="max-w-[42%] shrink-0 truncate text-[9px] font-bold uppercase tracking-[0.11em] text-green-300">
+              {intent.category_name}
+            </p>
 
-          <div className="mt-0.5 flex min-w-0 items-end justify-between gap-2">
-            <h2 className="min-w-0 flex-1 line-clamp-2 text-[17px] font-bold leading-[1.12] text-white">
-              {cardTitle}
-            </h2>
-
-            <div className="shrink-0">
-              {intent.plan_id &&
-              intent.lifecycle_status === "planned" ? (
-                <PlanWeatherBadges
-                  planId={intent.plan_id}
-                  compact
-                />
-              ) : intent.lifecycle_status === "open" ||
-                intent.lifecycle_status === "future" ||
-                intent.lifecycle_status === "forming" ? (
-                <IntentWeatherBadge
-                  intentId={intent.intent_id}
-                  compact
-                />
-              ) : null}
-            </div>
-          </div>
-
-          {primaryCommunityName && (
-            <div className="mt-1.5 flex min-w-0">
-              {primaryCommunityHref ? (
-                <Link
-                  href={primaryCommunityHref}
-                  title={`Open ${primaryCommunityName} Community`}
-                  className="inline-flex min-w-0 max-w-[72%] items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur transition hover:-translate-y-px hover:bg-white"
-                  style={{ borderColor: primaryCommunityAccent }}
-                >
-                  {primaryCommunity?.iconUrl ? (
-                    <img
-                      src={primaryCommunity.iconUrl}
-                      alt=""
-                      className="h-3.5 w-3.5 shrink-0 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
-                    />
-                  )}
-                  <span className="truncate">{primaryCommunityName}</span>
-                  {resolvedCommunities.length > 1 && (
-                    <span className="shrink-0 text-gray-500">
-                      +{resolvedCommunities.length - 1}
-                    </span>
-                  )}
-                </Link>
-              ) : (
-                <span
-                  className="inline-flex min-w-0 max-w-[72%] items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur"
-                  style={{ borderColor: primaryCommunityAccent }}
-                >
+            {primaryCommunityName && (
+              <span
+                className="inline-flex min-w-0 max-w-[58%] items-center gap-1.5 rounded-full border bg-white/95 px-2 py-1 text-[9px] font-black text-gray-950 shadow-sm backdrop-blur"
+                style={{
+                  borderColor: primaryCommunityAccent,
+                }}
+                title={primaryCommunityName}
+              >
+                {primaryCommunity?.iconUrl ? (
+                  <img
+                    src={primaryCommunity.iconUrl}
+                    alt=""
+                    className="h-3.5 w-3.5 shrink-0 rounded-full object-cover"
+                  />
+                ) : (
                   <span
                     aria-hidden="true"
                     className="h-2.5 w-2.5 shrink-0 rounded-full"
                     style={{ backgroundColor: primaryCommunityAccent }}
                   />
-                  <span className="truncate">{primaryCommunityName}</span>
+                )}
+
+                <span className="truncate">
+                  {primaryCommunityName}
                 </span>
-              )}
-            </div>
-          )}
+
+                {resolvedCommunities.length > 1 && (
+                  <span className="shrink-0 opacity-70">
+                    +{resolvedCommunities.length - 1}
+                  </span>
+                )}
+              </span>
+            )}
+          </div>
+
+          <h2 className="mt-1 line-clamp-2 text-[17px] font-bold leading-[1.12] text-white">
+            {cardTitle}
+          </h2>
         </div>
       </div>
 
       {/* Normal card body. Only this area is replaced by Details. */}
       <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="grid h-[126px] shrink-0 grid-cols-[0.95fr_1.05fr] border-b border-black/5">
+        <div className="grid h-[134px] shrink-0 grid-cols-[0.95fr_1.05fr] border-b border-black/5">
           <div className="min-w-0 overflow-hidden p-2.5">
             <ActivityLifecycleTimeline
               targetStart={intent.start_date}
@@ -817,7 +799,7 @@ export default function DiscoverIntentCard({
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <div className="flex h-full items-center justify-center p-3 text-center text-[10.5px] text-gray-500">
+              <div className="flex h-full items-center justify-center p-3 text-center text-[11px] text-gray-500">
                 No map
               </div>
             )}
@@ -867,21 +849,21 @@ export default function DiscoverIntentCard({
                   )}
 
                   <div className="min-w-0">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+                      {isOwner ? "Hosted by you" : "Hosted by"}
+                    </p>
                     {ownerProfileHref && !isOwner ? (
                       <Link
                         href={ownerProfileHref}
-                        className="block truncate text-[12px] font-semibold leading-tight text-gray-950 transition hover:text-green-700"
+                        className="block truncate text-[12px] font-bold leading-tight text-gray-950 transition hover:text-green-700"
                       >
                         {ownerName}
                       </Link>
                     ) : (
-                      <p className="truncate text-[12px] font-semibold leading-tight text-gray-950">
+                      <p className="truncate text-[12px] font-bold leading-tight text-gray-950">
                         {ownerName}
                       </p>
                     )}
-                    <p className="mt-0.5 text-[9px] font-medium text-gray-400">
-                      Host
-                    </p>
                   </div>
                 </div>
               )}
@@ -892,12 +874,13 @@ export default function DiscoverIntentCard({
             </span>
           </div>
 
-          <div className="mt-1.5 min-h-[31px] border-t border-black/5 pt-1.5">
-            <CompactIntentReactionBar
+          <div className="mt-2 min-h-[38px] border-t border-black/5 pt-2">
+            <IntentReactionBar
               intentId={intent.intent_id}
               initialContext={intent.reaction_context ?? null}
               isAuthenticated={isAuthenticated}
               isOwner={isOwner}
+              variant="card"
             />
           </div>
         </div>
@@ -922,114 +905,104 @@ export default function DiscoverIntentCard({
           </span>
         </div>
 
-        <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[10px]">
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
-            <p className="text-[8.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
+        <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Participants
             </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
+            <p className="mt-1 truncate font-bold text-gray-950">
               {participantCount} / {participantLimit}
             </p>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
-            <p className="text-[8.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Visibility
             </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
+            <p className="mt-1 truncate font-bold text-gray-950">
               {getActivityVisibilityLabel(intent.visibility)}
             </p>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
-            <p className="text-[8.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Recurrence
             </p>
-            <p className="mt-0.5 truncate font-semibold capitalize text-gray-950">
+            <p className="mt-1 truncate font-bold capitalize text-gray-950">
               {intent.recurrence}
             </p>
           </div>
 
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
-            <p className="text-[8.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
+            <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               {costLabel}
             </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
+            <p className="mt-1 truncate font-bold text-gray-950">
               {costValue}
             </p>
           </div>
         </div>
 
-        {(primaryCommunityName || publicVenueName) && (
-          <div className="mt-1.5 flex min-w-0 gap-1.5 overflow-hidden">
-            {primaryCommunityName &&
-              (primaryCommunityHref ? (
-                <Link
-                  href={primaryCommunityHref}
-                  className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-1 text-[9px] font-semibold text-green-800 transition hover:bg-green-100"
-                >
-                  <span aria-hidden="true">●</span>
-                  <span className="truncate">{primaryCommunityName}</span>
-                  {resolvedCommunities.length > 1 && (
-                    <span className="shrink-0 text-green-600">
-                      +{resolvedCommunities.length - 1}
-                    </span>
-                  )}
-                </Link>
-              ) : (
-                <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2 py-1 text-[9px] font-semibold text-green-800">
-                  <span aria-hidden="true">●</span>
-                  <span className="truncate">{primaryCommunityName}</span>
-                </span>
-              ))}
-
-            {publicVenueName && (
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-2 py-1 text-[9px] font-medium text-gray-600">
-                <span aria-hidden="true">⌖</span>
-                <span className="truncate">{publicVenueName}</span>
+        <div className="mt-2.5 space-y-1.5 text-[10px]">
+          {primaryCommunityName && (
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+              <span className="shrink-0 font-semibold text-gray-500">
+                Community
               </span>
-            )}
-          </div>
-        )}
+              <span className="truncate text-right font-bold text-gray-950">
+                {primaryCommunityName}
+                {resolvedCommunities.length > 1
+                  ? ` +${resolvedCommunities.length - 1}`
+                  : ""}
+              </span>
+            </div>
+          )}
 
-        {intentNote?.trim() && (
-          <div className="mt-1.5 rounded-xl border border-blue-100 bg-blue-50/60 px-2.5 py-1.5">
-            <p className="text-[8.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">
-              Note
-            </p>
-            <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-gray-700">
-              {intentNote.trim()}
-            </p>
-          </div>
-        )}
+          {publicVenueName && (
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+              <span className="shrink-0 font-semibold">Venue</span>
+              <span className="truncate text-right font-bold">
+                {publicVenueName}
+              </span>
+            </div>
+          )}
 
-        <div className="mt-1.5 flex min-w-0 items-center gap-2 text-[9px] text-gray-500">
-          <span className="shrink-0">
-            {relatedLinks.length} {relatedLinks.length === 1 ? "link" : "links"}
-          </span>
+          <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+            <span className="shrink-0 font-semibold text-gray-500">
+              Related links
+            </span>
+            <span className="truncate text-right font-bold text-gray-900">
+              {relatedLinks.length > 0
+                ? `${relatedLinks.length} link${relatedLinks.length === 1 ? "" : "s"}`
+                : "None"}
+            </span>
+          </div>
 
           {resolvedViewerLineage && intent.plan_id && (
-            <>
-              <span aria-hidden="true">·</span>
-              <Link
-                href={resolvedViewerLineage.sourceIntentHref}
-                className="min-w-0 truncate font-semibold text-emerald-700 hover:text-emerald-800"
-              >
-                Origin · {resolvedViewerLineage.sourceIntentName ?? intent.activity_name}
-              </Link>
-            </>
+            <Link
+              href={resolvedViewerLineage.sourceIntentHref}
+              className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 transition hover:bg-emerald-100"
+            >
+              <span className="shrink-0 font-semibold text-emerald-700">
+                Origin
+              </span>
+              <span className="truncate text-right font-bold text-emerald-900">
+                {resolvedViewerLineage.sourceIntentName ??
+                  intent.activity_name}
+              </span>
+            </Link>
           )}
         </div>
       </div>
 
-      <div className="relative grid h-[40px] shrink-0 grid-cols-2 gap-1 border-t border-black/5 bg-white/90 p-1 pr-[70px]">
+      <div className="relative grid h-[46px] shrink-0 grid-cols-2 gap-1.5 border-t border-black/5 bg-white/90 p-1.5 pr-[78px]">
         <Link
           href={`/activities/${encodeURIComponent(
             intent.plan_id ??
               intent.resource_id ??
               intent.intent_id
           )}`}
-          className="flex min-h-7 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 text-[10.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+          className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-white px-2 text-[11px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
         >
           <span className="truncate">View</span>
         </Link>
@@ -1037,19 +1010,19 @@ export default function DiscoverIntentCard({
         {isOwner ? (
           <Link
             href={ownerAction.href}
-            className="flex min-h-7 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-gray-950 px-2 text-center text-[10.5px] font-semibold leading-tight text-white transition hover:bg-gray-800"
+            className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-gray-950 px-2 text-center text-[11px] font-semibold leading-tight text-white transition hover:bg-gray-800"
           >
             <span className="truncate">{ownerAction.label}</span>
           </Link>
         ) : intent.viewer_is_member && memberRoomHref ? (
           <Link
             href={memberRoomHref}
-            className="flex min-h-7 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-green-600 px-2 text-center text-[10.5px] font-semibold leading-tight text-white transition hover:bg-green-700"
+            className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-green-600 px-2 text-center text-[11px] font-semibold leading-tight text-white transition hover:bg-green-700"
           >
             <span className="truncate">Open Room</span>
           </Link>
         ) : canDisplayJoinAction ? (
-          <div className="min-w-0 [&_button]:h-7 [&_button]:min-h-7 [&_button]:w-full [&_button]:rounded-lg [&_button]:px-2 [&_button]:text-[10.5px]">
+          <div className="min-w-0 [&_button]:h-8 [&_button]:min-h-8 [&_button]:w-full [&_button]:rounded-lg [&_button]:px-2 [&_button]:text-[11px]">
             <PublicIntentJoinButton
               intentId={intent.intent_id}
               planId={intent.plan_id}
@@ -1074,7 +1047,7 @@ export default function DiscoverIntentCard({
             />
           </div>
         ) : (
-          <span className="flex min-h-7 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 px-2 text-center text-[10.5px] font-semibold leading-tight text-gray-500">
+          <span className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-lg bg-gray-100 px-2 text-center text-[11px] font-semibold leading-tight text-gray-500">
             {lifecycle.label}
           </span>
         )}
@@ -1082,7 +1055,7 @@ export default function DiscoverIntentCard({
 
       <label
         htmlFor={detailToggleId}
-        className="absolute bottom-1.5 right-1.5 flex h-7 w-[64px] cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-[10.5px] font-bold text-gray-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+        className="absolute bottom-1.5 right-1.5 flex h-8 w-[70px] cursor-pointer items-center justify-center rounded-lg border border-gray-200 bg-white px-2 text-[11px] font-bold text-gray-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
       >
         Details
       </label>
