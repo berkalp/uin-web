@@ -445,6 +445,14 @@ export default function DiscoverIntentCard({
       ? communities
       : intent.community_contexts ?? [];
 
+  const primaryCommunity =
+    resolvedCommunities.find(
+      (community) =>
+        community.isPrimary
+    ) ??
+    resolvedCommunities[0] ??
+    null;
+
   const resolvedContextCoverUrl =
     contextCoverUrl ||
     intent.context_cover_url ||
@@ -611,7 +619,7 @@ export default function DiscoverIntentCard({
 
   return (
     <article
-      className={`relative flex h-[390px] min-w-0 flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${lifecycleSurfaceClasses}`}
+      className={`relative flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${lifecycleSurfaceClasses}`}
     >
       <input
         id={detailToggleId}
@@ -621,7 +629,7 @@ export default function DiscoverIntentCard({
       />
 
       <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="relative h-[108px] shrink-0 overflow-hidden bg-gray-950">
+        <div className="relative h-[104px] shrink-0 overflow-hidden bg-gray-950">
           <img
             src={coverUrl}
             alt={`${cardTitle} cover`}
@@ -630,10 +638,10 @@ export default function DiscoverIntentCard({
 
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/5 to-black/40" />
 
-          <div className="absolute inset-x-3 top-3 flex min-w-0 items-start justify-between gap-2">
-            <div className="flex min-w-0 flex-wrap gap-1.5">
+          <div className="absolute inset-x-2.5 top-2.5 flex min-w-0 items-start justify-between gap-1.5">
+            <div className="flex max-w-[68%] min-w-0 flex-wrap gap-1">
               <span
-                className={`rounded-full px-2 py-1 text-[9px] font-bold uppercase tracking-wide shadow-sm ${lifecycle.badgeClasses}`}
+                className={`rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] shadow-sm ${lifecycle.badgeClasses}`}
               >
                 {lifecycle.label}
               </span>
@@ -643,26 +651,26 @@ export default function DiscoverIntentCard({
               />
 
               {intent.plan_id && viewerPlanRoleLabel ? (
-                <span className="rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white backdrop-blur">
+                <span className="max-w-[118px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] text-white backdrop-blur">
                   {viewerPlanRoleLabel}
                 </span>
               ) : actionMode === "profile" &&
                 intent.profile_role_label &&
                 intent.profile_role !== "host" ? (
-                <span className="rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white backdrop-blur">
+                <span className="max-w-[118px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] text-white backdrop-blur">
                   {intent.profile_role_label}
                 </span>
               ) : actionMode !== "profile" && isOwner ? (
-                <span className="rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-bold uppercase tracking-wide text-white backdrop-blur">
+                <span className="max-w-[118px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] text-white backdrop-blur">
                   Hosted by you
                 </span>
               ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center gap-1.5">
+            <div className="flex max-w-[42%] shrink-0 items-center gap-1">
               {intent.sport_name && sportPresentation && (
                 <span
-                  className="inline-flex max-w-[145px] items-center gap-1 truncate rounded-full border px-2 py-1 text-[8px] font-bold uppercase tracking-[0.1em] shadow-sm"
+                  className="inline-flex max-w-[112px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[7.5px] font-bold uppercase tracking-[0.06em] shadow-sm"
                   style={{
                     backgroundColor: sportPresentation.backgroundColor,
                     borderColor: sportPresentation.borderColor,
@@ -703,19 +711,59 @@ export default function DiscoverIntentCard({
             />
           ) : null}
 
-          <div className="absolute inset-x-0 bottom-0 p-3">
-            <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-green-300">
-              {intent.category_name}
-            </p>
+          <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <p className="max-w-[42%] shrink-0 truncate text-[8px] font-semibold uppercase tracking-[0.12em] text-green-300">
+                {intent.category_name}
+              </p>
 
-            <h2 className="mt-0.5 line-clamp-2 text-lg font-bold leading-tight text-white">
+              {primaryCommunity && (
+                <span
+                  className="inline-flex min-w-0 max-w-[56%] items-center gap-1 rounded-full border bg-white/92 px-1.5 py-0.5 text-[7.5px] font-black shadow-sm backdrop-blur"
+                  style={{
+                    borderColor:
+                      primaryCommunity.accentColor,
+                    color:
+                      primaryCommunity.accentColor,
+                  }}
+                  title={primaryCommunity.name}
+                >
+                  {primaryCommunity.iconUrl ? (
+                    <img
+                      src={primaryCommunity.iconUrl}
+                      alt=""
+                      className="h-2.5 w-2.5 shrink-0 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0"
+                    >
+                      ●
+                    </span>
+                  )}
+
+                  <span className="truncate">
+                    {primaryCommunity.name}
+                  </span>
+
+                  {resolvedCommunities.length > 1 && (
+                    <span className="shrink-0 opacity-70">
+                      +{resolvedCommunities.length - 1}
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
+
+            <h2 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-[1.08] text-white">
               {cardTitle}
             </h2>
           </div>
         </div>
 
-        <div className="grid h-[120px] shrink-0 grid-cols-2 border-b border-black/5">
-          <div className="min-w-0 overflow-hidden p-3">
+        <div className="grid h-[130px] shrink-0 grid-cols-2 border-b border-black/5">
+          <div className="min-w-0 overflow-hidden p-2">
             <ActivityLifecycleTimeline
               targetStart={intent.start_date}
               targetEnd={intent.end_date}
@@ -740,19 +788,19 @@ export default function DiscoverIntentCard({
                 referrerPolicy="no-referrer-when-downgrade"
               />
             ) : (
-              <div className="flex h-full items-center justify-center p-3 text-center text-[10px] text-gray-400">
+              <div className="flex h-full items-center justify-center p-2 text-center text-[9px] text-gray-400">
                 No map
               </div>
             )}
 
             {publicVenueName ? (
-              <span className="absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/60 bg-white/90 px-2 py-1 text-[8px] font-bold text-gray-950 shadow-sm backdrop-blur">
+              <span className="absolute left-1.5 top-1.5 max-w-[calc(100%-0.75rem)] truncate rounded-full border border-white/60 bg-white/90 px-1.5 py-0.5 text-[7.5px] font-bold text-gray-950 shadow-sm backdrop-blur">
                 Venue · {publicVenueName}
               </span>
             ) : null}
 
             {mapEmbedUrl && (
-              <span className="absolute bottom-2 left-2 max-w-[145px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[8px] font-semibold text-white backdrop-blur">
+              <span className="absolute bottom-1.5 left-1.5 max-w-[125px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[7.5px] font-semibold text-white backdrop-blur">
                 Approximate area
                 {intent.district ? ` · ${intent.district}` : ""}
               </span>
@@ -760,8 +808,8 @@ export default function DiscoverIntentCard({
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col justify-between overflow-hidden px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
+        <div className="flex min-h-0 flex-1 flex-col justify-between overflow-hidden px-2.5 py-1.5">
+          <div className="flex min-w-0 items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               {resolvedActivityPeople.length > 0 ? (
                 <ActivityPeopleStrip
@@ -776,32 +824,32 @@ export default function DiscoverIntentCard({
                   maxVisible={4}
                 />
               ) : (
-                <div className="flex min-w-0 items-center gap-2.5">
+                <div className="flex min-w-0 items-center gap-2">
                   {intent.owner_avatar_url ? (
                     <img
                       src={intent.owner_avatar_url}
                       alt={ownerName}
-                      className="h-8 w-8 shrink-0 rounded-full object-cover"
+                      className="h-7 w-7 shrink-0 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-[11px] font-bold text-green-700">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-bold text-green-700">
                       {getInitial(ownerName)}
                     </div>
                   )}
 
                   <div className="min-w-0">
-                    <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
+                    <p className="text-[7px] font-semibold uppercase tracking-[0.06em] text-gray-400">
                       {isOwner ? "Hosted by you" : "Hosted by"}
                     </p>
                     {ownerProfileHref && !isOwner ? (
                       <Link
                         href={ownerProfileHref}
-                        className="block truncate text-[11px] font-bold text-gray-950 transition hover:text-green-700"
+                        className="block truncate text-[10px] font-bold leading-tight text-gray-950 transition hover:text-green-700"
                       >
                         {ownerName}
                       </Link>
                     ) : (
-                      <p className="truncate text-[11px] font-bold text-gray-950">
+                      <p className="truncate text-[10px] font-bold leading-tight text-gray-950">
                         {ownerName}
                       </p>
                     )}
@@ -810,12 +858,12 @@ export default function DiscoverIntentCard({
               )}
             </div>
 
-            <span className="shrink-0 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-bold text-gray-700 shadow-sm">
+            <span className="shrink-0 rounded-full bg-white/80 px-2 py-0.5 text-[9px] font-bold text-gray-700 shadow-sm">
               {participantCount} / {participantLimit}
             </span>
           </div>
 
-          <div className="mt-1.5 min-h-[34px] overflow-hidden border-t border-black/5 pt-1.5">
+          <div className="mt-1 min-h-[31px] overflow-hidden border-t border-black/5 pt-1">
             <IntentReactionBar
               intentId={intent.intent_id}
               initialContext={intent.reaction_context ?? null}
@@ -827,65 +875,65 @@ export default function DiscoverIntentCard({
         </div>
       </div>
 
-      <div className="hidden min-h-0 flex-1 flex-col overflow-hidden bg-white/80 p-3.5 peer-checked:flex">
+      <div className="hidden min-h-0 flex-1 flex-col overflow-hidden bg-white/80 p-3 peer-checked:flex">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[0.16em] text-green-700">
+            <p className="text-[8px] font-black uppercase tracking-[0.12em] text-green-700">
               Details
             </p>
-            <h2 className="mt-0.5 line-clamp-2 text-lg font-bold leading-tight text-gray-950">
+            <h2 className="mt-0.5 line-clamp-2 text-[15px] font-bold leading-[1.1] text-gray-950">
               {cardTitle}
             </h2>
           </div>
 
           <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide ${lifecycle.badgeClasses}`}
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] ${lifecycle.badgeClasses}`}
           >
             {lifecycle.label}
           </span>
         </div>
 
-        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-            <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
+        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[10px]">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm">
+            <p className="text-[7px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Participants
             </p>
-            <p className="mt-0.5 font-bold text-gray-950">
+            <p className="mt-0.5 truncate text-[10px] font-bold leading-tight text-gray-950">
               {participantCount} / {participantLimit}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-            <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm">
+            <p className="text-[7px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Visibility
             </p>
-            <p className="mt-0.5 truncate font-bold text-gray-950">
+            <p className="mt-0.5 truncate text-[10px] font-bold leading-tight text-gray-950">
               {getActivityVisibilityLabel(intent.visibility)}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-            <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm">
+            <p className="text-[7px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               Recurrence
             </p>
-            <p className="mt-0.5 truncate font-bold capitalize text-gray-950">
+            <p className="mt-0.5 truncate text-[10px] font-bold capitalize leading-tight text-gray-950">
               {intent.recurrence}
             </p>
           </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white px-3 py-2.5 shadow-sm">
-            <p className="text-[8px] font-semibold uppercase tracking-wide text-gray-400">
+          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2.5 py-2 shadow-sm">
+            <p className="text-[7px] font-semibold uppercase tracking-[0.06em] text-gray-400">
               {costLabel}
             </p>
-            <p className="mt-0.5 truncate font-bold text-gray-950">
+            <p className="mt-0.5 truncate text-[10px] font-bold leading-tight text-gray-950">
               {costValue}
             </p>
           </div>
         </div>
 
-        <div className="mt-2.5 space-y-1.5 text-[10px]">
+        <div className="mt-2 space-y-1 text-[9px]">
           {locationLabel && (
-            <div className="flex min-w-0 items-center gap-2 rounded-xl bg-gray-950 px-3 py-2 text-white">
+            <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-gray-950 px-2.5 py-1.5 text-white">
               <span className="shrink-0" aria-hidden="true">⌖</span>
               <span className="truncate font-semibold">
                 {locationLabel}
@@ -894,7 +942,7 @@ export default function DiscoverIntentCard({
           )}
 
           {publicVenueName && (
-            <div className="flex min-w-0 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-green-800">
+            <div className="flex min-w-0 items-center gap-1.5 rounded-xl border border-green-200 bg-green-50 px-2.5 py-1.5 text-green-800">
               <span className="shrink-0 font-bold">Venue</span>
               <span className="truncate font-semibold">
                 · {publicVenueName}
@@ -903,7 +951,7 @@ export default function DiscoverIntentCard({
           )}
 
           {resolvedCommunities.length > 0 && (
-            <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+            <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
               <span className="shrink-0 font-semibold text-gray-500">
                 Communities
               </span>
@@ -919,7 +967,7 @@ export default function DiscoverIntentCard({
             </div>
           )}
 
-          <div className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2 shadow-sm">
+          <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-gray-100 bg-white px-2.5 py-1.5 shadow-sm">
             <span className="shrink-0 font-semibold text-gray-500">
               Related links
             </span>
@@ -933,7 +981,7 @@ export default function DiscoverIntentCard({
           {resolvedViewerLineage && intent.plan_id && (
             <Link
               href={resolvedViewerLineage.sourceIntentHref}
-              className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 transition hover:bg-emerald-100"
+              className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-1.5 transition hover:bg-emerald-100"
             >
               <span className="shrink-0 font-semibold text-emerald-700">
                 Origin
@@ -947,31 +995,31 @@ export default function DiscoverIntentCard({
         </div>
       </div>
 
-      <div className="relative grid h-[54px] shrink-0 grid-cols-2 gap-2 border-t border-black/5 bg-white/85 p-2.5 pr-[92px]">
+      <div className="relative grid h-[52px] shrink-0 grid-cols-2 gap-1.5 border-t border-black/5 bg-white/85 p-2 pr-[82px]">
         <Link
           href={`/activities/${encodeURIComponent(
             intent.plan_id ??
               intent.resource_id ??
               intent.intent_id
           )}`}
-          className="flex min-h-9 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+          className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-white px-1.5 text-[10px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
         >
-          View
+          <span className="truncate">View</span>
         </Link>
 
         {isOwner ? (
           <Link
             href={ownerAction.href}
-            className="flex min-h-9 items-center justify-center rounded-xl bg-gray-950 px-2 text-center text-xs font-semibold text-white transition hover:bg-gray-800"
+            className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-xl bg-gray-950 px-1.5 text-center text-[10px] font-semibold leading-tight text-white transition hover:bg-gray-800"
           >
-            {ownerAction.label}
+            <span className="truncate">{ownerAction.label}</span>
           </Link>
         ) : intent.viewer_is_member && memberRoomHref ? (
           <Link
             href={memberRoomHref}
-            className="flex min-h-9 items-center justify-center rounded-xl bg-green-600 px-2 text-center text-xs font-semibold text-white transition hover:bg-green-700"
+            className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-xl bg-green-600 px-1.5 text-center text-[10px] font-semibold leading-tight text-white transition hover:bg-green-700"
           >
-            Open Room
+            <span className="truncate">Open Room</span>
           </Link>
         ) : canDisplayJoinAction ? (
           <div className="min-w-0">
@@ -999,7 +1047,7 @@ export default function DiscoverIntentCard({
             />
           </div>
         ) : (
-          <span className="flex min-h-9 items-center justify-center rounded-xl bg-gray-100 px-2 text-center text-xs font-semibold text-gray-500">
+          <span className="flex min-h-8 min-w-0 items-center justify-center overflow-hidden rounded-xl bg-gray-100 px-1.5 text-center text-[10px] font-semibold leading-tight text-gray-500">
             {lifecycle.label}
           </span>
         )}
@@ -1007,7 +1055,7 @@ export default function DiscoverIntentCard({
 
       <label
         htmlFor={detailToggleId}
-        className="absolute bottom-2.5 right-2.5 flex h-9 w-[76px] cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-bold text-gray-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+        className="absolute bottom-2 right-2 flex h-8 w-[70px] cursor-pointer items-center justify-center rounded-xl border border-gray-200 bg-white px-1.5 text-[10px] font-bold text-gray-700 shadow-sm transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
       >
         Details
       </label>
