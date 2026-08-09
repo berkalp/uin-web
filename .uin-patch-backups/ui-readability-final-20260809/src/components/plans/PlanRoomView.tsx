@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import PlanWeatherBadges from "../weather/PlanWeatherBadges";
+import PlanWeatherPanel from "../weather/PlanWeatherPanel";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
@@ -2330,13 +2330,6 @@ export default async function PlanRoomView({
                   </span>
                 </div>
 
-                {roomPhase === "activity" && (
-                  <PlanWeatherBadges
-                    planId={plan.id}
-                    className="absolute right-5 top-[72px] z-20 md:right-6 md:top-[78px]"
-                  />
-                )}
-
                 <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full border border-white/20 bg-black/35 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-green-200 backdrop-blur">
@@ -2630,6 +2623,14 @@ export default async function PlanRoomView({
           </div>
         )}
 
+        {roomPhase === "activity" && (
+          <div id="weather-context" className="mt-4 scroll-mt-24">
+            <PlanWeatherPanel
+              planId={plan.id}
+              canManagePlanNeeds={(isHost || isCoHost) && plan.status === "planned" && !isCompletionRequired}
+            />
+          </div>
+        )}
         </CollapsiblePlanningSection>
 
         {roomPhase === "activity" &&

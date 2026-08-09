@@ -3,8 +3,8 @@ import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
 import PlanOriginsPanel from "@/components/activities/PlanOriginsPanel";
-import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
-import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
+import PlanWeatherPanel from "@/components/weather/PlanWeatherPanel";
+import IntentWeatherPanel from "@/components/weather/IntentWeatherPanel";
 import ActivityShareMenu from "@/components/share/ActivityShareMenu";
 import ExperiencePanel from "@/components/experiences/ExperiencePanel";
 import ReportCustomActivityTitleButton from "@/components/experiences/ReportCustomActivityTitleButton";
@@ -1507,19 +1507,6 @@ export default async function ActivityDetailPage({
                 </span>
               </div>
 
-              {activity.plan_id && activity.status === "planned" ? (
-                <PlanWeatherBadges
-                  planId={activity.plan_id}
-                  className="absolute right-4 top-16 z-20 md:right-6 md:top-20"
-                />
-              ) : activity.intent_id &&
-                !["completed", "cancelled", "expired"].includes(activity.status) ? (
-                <IntentWeatherBadge
-                  intentId={activity.intent_id}
-                  className="absolute right-4 top-16 z-20 md:right-6 md:top-20"
-                />
-              ) : null}
-
               <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-300">
                   {activity.category_name}
@@ -1639,16 +1626,29 @@ export default async function ActivityDetailPage({
                 />
               )}
 
-              {activity.description && (
-                <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                    {aboutLabel}
-                  </p>
-                  <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-gray-700">
-                    {activity.description}
-                  </p>
+              {activity.plan_id && activity.status === "planned" && (
+                <section className="mt-5 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm md:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Weather context</p>
+                  <h2 className="mt-2 text-xl font-black text-gray-950">Meeting point & Activity location</h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">Forecasts follow the confirmed schedule and refresh automatically as the Activity gets closer.</p>
+                  <div className="mt-4">
+                    <PlanWeatherPanel planId={activity.plan_id} />
+                  </div>
                 </section>
               )}
+
+              {activity.intent_id &&
+                !(activity.plan_id && activity.status === "planned") &&
+                !["completed", "cancelled", "expired"].includes(activity.status) && (
+                  <section className="mt-5 rounded-3xl border border-sky-100 bg-white p-5 shadow-sm md:p-6">
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-sky-700">Weather outlook</p>
+                    <h2 className="mt-2 text-xl font-black text-gray-950">Target date & approximate area</h2>
+                    <p className="mt-2 text-sm leading-6 text-gray-500">Before the group confirms an exact Plan, UIN shows an approximate outlook using this Intent&apos;s target window and approximate location.</p>
+                    <div className="mt-4">
+                      <IntentWeatherPanel intentId={activity.intent_id} />
+                    </div>
+                  </section>
+                )}
 
               {seedOrigins.length > 0 && (
                 <section className="mt-5 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-lime-50 p-5 shadow-sm md:p-6">
@@ -1741,6 +1741,18 @@ export default async function ActivityDetailPage({
 
                   <p className="mt-4 text-xs leading-5 text-blue-700">
                     Credential context: {professionalRequirement.activity_name || professionalRequirement.category_name}
+                  </p>
+                </section>
+              )}
+
+              {activity.description && (
+                <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-6">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+                    {aboutLabel}
+                  </p>
+
+                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-600">
+                    {activity.description}
                   </p>
                 </section>
               )}

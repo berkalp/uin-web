@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -128,7 +129,13 @@ export default function DiscoverFiltersForm({
   const [
     isExpanded,
     setIsExpanded,
-  ] = useState(false);
+  ] = useState(
+    view === "cards"
+  );
+
+  useEffect(() => {
+    setIsExpanded(view === "cards");
+  }, [view]);
 
   const activeFilterCount = [
     query.trim(),
@@ -288,7 +295,7 @@ export default function DiscoverFiltersForm({
   }
 
   return (
-    <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+    <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
@@ -297,9 +304,9 @@ export default function DiscoverFiltersForm({
           <p className="mt-1 text-sm text-gray-500">
             {isExpanded
               ? "Refine the visible Intent results."
-              : activeFilterCount > 0
-                ? `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}.`
-                : "Open filters only when you need them."}
+              : view === "cards"
+                ? "Filters are collapsed."
+                : "Hidden to leave more room for the map."}
           </p>
         </div>
 

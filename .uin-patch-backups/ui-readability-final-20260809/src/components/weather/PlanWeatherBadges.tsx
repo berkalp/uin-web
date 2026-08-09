@@ -70,22 +70,14 @@ export default function PlanWeatherBadges({
   }
 
   return (
-    <div
-      className={`flex items-end gap-1 ${
-        compact ? "flex-row flex-wrap justify-end" : "flex-col"
-      } ${className}`}
-    >
+    <div className={`flex flex-col items-end gap-1 ${className}`}>
       {weather.locations.map((point) => (
         <span
           key={point.kind}
           title={`${point.kind === "meeting" ? "Meeting point" : "Activity location"}: ${point.condition}${
             point.precipitationProbability === null ? "" : ` · ${point.precipitationProbability}% precipitation`
           }`}
-          className={`inline-flex items-center gap-1 rounded-full border border-white/20 bg-gray-950/80 font-bold text-white shadow-sm backdrop-blur ${
-            compact
-              ? "max-w-[92px] px-2 py-1 text-[9px]"
-              : "max-w-[170px] px-2 py-1 text-[9px]"
-          }`}
+          className="inline-flex max-w-[170px] items-center gap-1 rounded-full border border-white/20 bg-gray-950/80 px-2 py-1 text-[9px] font-bold text-white shadow-sm backdrop-blur"
         >
           {!compact && (
             <span className="text-[8px] uppercase tracking-wide text-white/70">

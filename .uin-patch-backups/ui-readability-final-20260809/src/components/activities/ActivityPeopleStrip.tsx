@@ -99,11 +99,11 @@ export default function ActivityPeopleStrip({
   return (
     <div className={className}>
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-500">
+        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-gray-400">
           People
         </p>
 
-        <p className="text-[10px] font-bold text-gray-500">
+        <p className="text-[9px] font-bold text-gray-400">
           {resolvedPeople.length} {resolvedPeople.length === 1 ? "person" : "people"}
         </p>
       </div>
@@ -123,10 +123,10 @@ export default function ActivityPeopleStrip({
               />
 
               <span className="min-w-0">
-                <span className="block max-w-[130px] truncate text-[12px] font-black leading-tight text-gray-950">
+                <span className="block max-w-[118px] truncate text-[10px] font-black text-gray-950">
                   {displayName}
                 </span>
-                <span className="block text-[9px] font-black uppercase tracking-[0.05em] text-gray-500">
+                <span className="block text-[8px] font-black uppercase tracking-wide text-gray-400">
                   {isCurrentUser ? `You · ${roleLabel}` : roleLabel}
                 </span>
               </span>
@@ -194,13 +194,13 @@ export default function ActivityPeopleStrip({
           (activityHref ? (
             <Link
               href={`${activityHref}#people`}
-              className="grid h-8 min-w-8 place-items-center rounded-full border border-gray-200 bg-gray-950 px-2 text-[10px] font-black text-white transition hover:bg-gray-800"
+              className="grid h-8 min-w-8 place-items-center rounded-full border border-gray-200 bg-gray-950 px-2 text-[9px] font-black text-white transition hover:bg-gray-800"
               title={`View ${hiddenCount} more ${hiddenCount === 1 ? "person" : "people"}`}
             >
               +{hiddenCount}
             </Link>
           ) : (
-            <span className="grid h-8 min-w-8 place-items-center rounded-full border border-gray-200 bg-gray-950 px-2 text-[10px] font-black text-white">
+            <span className="grid h-8 min-w-8 place-items-center rounded-full border border-gray-200 bg-gray-950 px-2 text-[9px] font-black text-white">
               +{hiddenCount}
             </span>
           ))}

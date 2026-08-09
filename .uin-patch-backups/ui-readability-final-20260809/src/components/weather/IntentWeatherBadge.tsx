@@ -74,9 +74,7 @@ export default function IntentWeatherBadge({ intentId, className = "", compact =
       title={`Target weather outlook · ${weather.locationLabel ?? "Approximate area"} · ${weather.condition ?? "Weather"}${
         weather.precipitationProbabilityMax === null ? "" : ` · up to ${weather.precipitationProbabilityMax}% precipitation`
       }`}
-      className={`inline-flex items-center gap-1 rounded-full border border-white/20 bg-gray-950/80 px-2 py-1 font-bold text-white shadow-sm backdrop-blur ${
-        compact ? "max-w-[105px] text-[10px]" : "max-w-[185px] text-[10px]"
-      } ${className}`}
+      className={`inline-flex max-w-[185px] items-center gap-1 rounded-full border border-white/20 bg-gray-950/80 px-2 py-1 text-[9px] font-bold text-white shadow-sm backdrop-blur ${className}`}
     >
       {!compact && <span className="text-[8px] uppercase tracking-wide text-white/70">Target</span>}
       <span aria-hidden="true">{weather.icon}</span>

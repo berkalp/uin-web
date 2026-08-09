@@ -1438,12 +1438,7 @@ export default async function DiscoverPage({
             sportCoverContextByIntentId.get(intent.intent_id)?.sport_name ||
             intent.sport_name ||
             null,
-          communityNames:
-            communitiesForIntent.length > 0
-              ? communitiesForIntent.map((community) => community.name)
-              : sportCoverContextByIntentId.get(intent.intent_id)?.primary_community_name
-                ? [sportCoverContextByIntentId.get(intent.intent_id)!.primary_community_name!]
-                : [],
+          communityNames: communitiesForIntent.map((community) => community.name),
           participantCount: toCount(intent.active_participant_count),
           maxParticipants: intent.max_participants,
           viewerCanRequest: intent.viewer_can_request,
@@ -1832,12 +1827,6 @@ export default async function DiscoverPage({
                         }
                         communities={
                           intentCommunities
-                        }
-                        fallbackCommunityName={
-                          sportCoverContextByIntentId.get(
-                            intent.intent_id
-                          )?.primary_community_name ??
-                          null
                         }
                         relatedLinks={
                           intentLinksByIntentId.get(
