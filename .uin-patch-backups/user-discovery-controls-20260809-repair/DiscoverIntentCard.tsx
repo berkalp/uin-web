@@ -1,10 +1,9 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
 import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import CommunityContextList from "@/components/communities/CommunityContextList";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
-import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
 import IntentReactionBar from "@/components/reactions/IntentReactionBar";
 import IntentLinksDisplay from "@/components/intents/IntentLinksDisplay";
@@ -476,11 +475,11 @@ export default function DiscoverIntentCard({
 
   const viewerPlanRoleLabel =
     viewerPlanPerson?.role === "host"
-      ? "You Â· Host"
+      ? "You · Host"
       : viewerPlanPerson?.role === "co_host"
-        ? "You Â· Co-host"
+        ? "You · Co-host"
         : viewerPlanPerson?.role === "participant"
-          ? "You Â· Participant"
+          ? "You · Participant"
           : null;
 
   const lifecycle =
@@ -501,7 +500,7 @@ export default function DiscoverIntentCard({
   const participantLimit =
     intent.max_participants ===
     null
-      ? "âˆ"
+      ? "∞"
       : String(
           intent.max_participants
         );
@@ -748,13 +747,13 @@ export default function DiscoverIntentCard({
 
             {publicVenueName ? (
               <span className="absolute left-2 top-2 max-w-[calc(100%-1rem)] truncate rounded-full border border-white/60 bg-white/90 px-2.5 py-1 text-[9px] font-bold text-gray-950 shadow-sm backdrop-blur">
-                Venue Â· {publicVenueName}
+                Venue · {publicVenueName}
               </span>
             ) : null}
 
             {mapEmbedUrl && (
               <span className="absolute bottom-2 left-2 max-w-[150px] truncate rounded-full bg-gray-950/80 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur">
-                Approximate area{intent.district ? ` Â· ${intent.district}` : ""}
+                Approximate area{intent.district ? ` · ${intent.district}` : ""}
               </span>
             )}
           </div>
@@ -776,17 +775,17 @@ export default function DiscoverIntentCard({
 
           <div className="mt-3 flex flex-wrap gap-2 border-t border-black/5 pt-3">
             <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-gray-950/80 px-2.5 py-1 text-[9px] font-semibold text-white">
-              <span aria-hidden="true">âŒ–</span>
+              <span aria-hidden="true">⌖</span>
               <span className="truncate">
                 Approximate area
-                {locationLabel ? ` Â· ${locationLabel}` : ""}
+                {locationLabel ? ` · ${locationLabel}` : ""}
               </span>
             </span>
 
             {publicVenueName ? (
               <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-[9px] font-semibold text-green-800">
-                <span aria-hidden="true">â—</span>
-                <span className="truncate">Venue Â· {publicVenueName}</span>
+                <span aria-hidden="true">●</span>
+                <span className="truncate">Venue · {publicVenueName}</span>
               </span>
             ) : null}
           </div>
@@ -802,14 +801,14 @@ export default function DiscoverIntentCard({
             <div className="min-w-0">
               <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
                 {resolvedViewerLineage.sourceCount > 1
-                  ? `${resolvedViewerLineage.sourceCount} Intents matched â†’ 1 Activity`
-                  : "Your Intent â†’ this Activity"}
+                  ? `${resolvedViewerLineage.sourceCount} Intents matched → 1 Activity`
+                  : "Your Intent → this Activity"}
               </p>
               <p className="mt-0.5 truncate text-[10px] font-black text-gray-900">
-                Your Intent Â· {resolvedViewerLineage.sourceIntentName ?? intent.activity_name}
+                Your Intent · {resolvedViewerLineage.sourceIntentName ?? intent.activity_name}
               </p>
             </div>
-            <span className="shrink-0 text-[10px] font-black text-emerald-800">â†—</span>
+            <span className="shrink-0 text-[10px] font-black text-emerald-800">↗</span>
           </Link>
         </div>
       ) : null}
@@ -957,7 +956,7 @@ export default function DiscoverIntentCard({
               <summary className="flex min-h-10 cursor-pointer list-none items-center justify-center gap-1 rounded-xl bg-gray-950 px-2 text-xs font-semibold text-white transition hover:bg-gray-800">
                 Manage
                 <span className="text-[9px] transition group-open:rotate-180">
-                  â–¼
+                  ▼
                 </span>
               </summary>
 
@@ -994,18 +993,7 @@ export default function DiscoverIntentCard({
             </details>
           </div>
         ) : (
-          <>
-            {!isOwner && isAuthenticated && (
-              <div className="mb-3 flex justify-end">
-                <UserDiscoveryControlsMenu
-                  targetUserId={intent.owner_user_id}
-                  targetDisplayName={ownerName}
-                  compact
-                />
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={`/activities/${encodeURIComponent(
                 intent.plan_id ??
@@ -1086,10 +1074,8 @@ export default function DiscoverIntentCard({
               </span>
             )}
           </div>
-          </>
         )}
       </div>
     </article>
   );
 }
-

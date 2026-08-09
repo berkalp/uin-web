@@ -994,18 +994,21 @@ export default function DiscoverIntentCard({
             </details>
           </div>
         ) : (
-          <>
-            {!isOwner && isAuthenticated && (
-              <div className="mb-3 flex justify-end">
-                <UserDiscoveryControlsMenu
-                  targetUserId={intent.owner_user_id}
-                  targetDisplayName={ownerName}
-                  compact
-                />
-              </div>
-            )}
-
-            <div className="mt-4 flex flex-wrap gap-2">
+  
+        {!isOwner && (
+          <div className="mb-3 flex justify-end">
+            <UserDiscoveryControlsMenu
+              targetUserId={
+                intent.owner_user_id
+              }
+              targetDisplayName={
+                ownerName
+              }
+              compact
+            />
+          </div>
+        )}
+        <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={`/activities/${encodeURIComponent(
                 intent.plan_id ??
@@ -1086,7 +1089,6 @@ export default function DiscoverIntentCard({
               </span>
             )}
           </div>
-          </>
         )}
       </div>
     </article>

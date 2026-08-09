@@ -1,8 +1,7 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import MatchOpportunityActions from "@/components/matches/MatchOpportunityActions";
-import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import { createClient } from "@/utils/supabase/server";
 
 type ActiveMatchRow = {
@@ -122,7 +121,7 @@ export default async function MatchesPage() {
               href="/timeline"
               className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
             >
-              â† Back to Timeline
+              ← Back to Timeline
             </Link>
 
             <Link
@@ -196,21 +195,9 @@ export default async function MatchesPage() {
                         </h2>
                       </div>
 
-                      <div className="flex shrink-0 items-center gap-2">
-                        <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                          Active Match
-                        </span>
-
-                        <UserDiscoveryControlsMenu
-                          targetUserId={
-                            match.target_user_id
-                          }
-                          targetDisplayName={
-                            targetName
-                          }
-                          compact
-                        />
-                      </div>
+                      <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                        Active Match
+                      </span>
                     </div>
 
                     <Link
@@ -251,7 +238,7 @@ export default async function MatchesPage() {
                       </div>
 
                       <span className="text-gray-300">
-                        â†’
+                        →
                       </span>
                     </Link>
 
@@ -265,7 +252,7 @@ export default async function MatchesPage() {
                           {formatDate(
                             match.target_start_date
                           )}
-                          {" â†’ "}
+                          {" → "}
                           {formatDate(
                             match.target_end_date
                           )}
@@ -281,7 +268,7 @@ export default async function MatchesPage() {
                           {formatDate(
                             match.own_start_date
                           )}
-                          {" â†’ "}
+                          {" → "}
                           {formatDate(
                             match.own_end_date
                           )}
@@ -368,4 +355,3 @@ export default async function MatchesPage() {
     </main>
   );
 }
-
