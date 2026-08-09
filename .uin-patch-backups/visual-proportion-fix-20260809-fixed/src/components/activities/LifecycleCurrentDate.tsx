@@ -260,12 +260,12 @@ export default function LifecycleCurrentDate({
   return (
     <div
       className={`flex min-w-0 items-center gap-2.5 rounded-xl border ${
-        compact ? "px-2.5 py-1.5" : "px-4 py-3"
+        compact ? "px-3 py-2" : "px-4 py-3"
       } ${presentation.classes} ${className}`}
     >
       <span
         aria-hidden="true"
-        className={compact ? "text-sm" : "text-lg"}
+        className={compact ? "text-base" : "text-lg"}
       >
         {presentation.icon}
       </span>
@@ -273,14 +273,14 @@ export default function LifecycleCurrentDate({
       <div className="min-w-0">
         <p
           className={`font-black uppercase tracking-[0.08em] opacity-60 ${
-            compact ? "text-[7.5px]" : "text-[9px]"
+            compact ? "text-[8px]" : "text-[9px]"
           }`}
         >
           {presentation.eyebrow}
         </p>
         <p
           className={`mt-0.5 truncate font-bold leading-tight ${
-            compact ? "text-[10px]" : "text-sm"
+            compact ? "text-[10.5px]" : "text-sm"
           }`}
           title={presentation.value}
         >

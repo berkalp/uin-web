@@ -90,14 +90,14 @@ export default function CompactIntentReactionBar({
         : undefined);
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
         onClick={() => void toggle("save")}
         disabled={disabled}
         title={disabledReason || (viewerSaved ? "Remove from saved" : "Save")}
         aria-label={`${viewerSaved ? "Remove save" : "Save"} · ${saveCount}`}
-        className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
+        className={`inline-flex h-7 min-w-[48px] items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition ${
           viewerSaved
             ? "border-rose-200 bg-rose-50 text-rose-700"
             : "border-gray-200 bg-white text-gray-600 hover:border-rose-200 hover:text-rose-700"
@@ -113,7 +113,7 @@ export default function CompactIntentReactionBar({
         disabled={disabled}
         title={disabledReason || (viewerPawed ? "Remove Paw" : "Paw")}
         aria-label={`${viewerPawed ? "Remove Paw" : "Paw"} · ${pawCount}`}
-        className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
+        className={`inline-flex h-7 min-w-[48px] items-center justify-center gap-1 rounded-full border px-2 text-[11px] font-semibold transition ${
           viewerPawed
             ? "border-amber-300 bg-amber-50 text-amber-800"
             : "border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:text-amber-800"

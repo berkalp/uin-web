@@ -147,7 +147,7 @@ export default function UserDiscoveryControlsMenu({
         }}
         className={`flex shrink-0 items-center justify-center rounded-full border border-white/25 bg-gray-950/75 font-black text-white shadow-sm backdrop-blur transition hover:bg-gray-950 ${
           compact
-            ? "h-7 w-7 text-xs"
+            ? "h-9 w-9 text-base"
             : "h-8 w-8 text-sm"
         }`}
       >
