@@ -1,8 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * UIN currently uses a light-first UI.
+ *
+ * Do not let the browser/OS dark-mode preference silently flip the global
+ * foreground color while individual cards and form controls are still white.
+ * That combination can produce light text on white inputs.
+ *
+ * When UIN gets a designed Dark / Light / System theme, these tokens can be
+ * switched intentionally by the application instead of by the browser alone.
+ */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Keep native controls (inputs, date/time pickers, selects, autofill, etc.)
+     in the same light appearance as the current UIN interface. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,15 +26,82 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--background);
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/*
+ * Form-control safety net
+ *
+ * :where(...) deliberately has very low specificity. Existing Tailwind
+ * utilities such as bg-slate-900, text-white, etc. can still override these
+ * defaults on components that intentionally use another appearance.
+ */
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select
+) {
+  background-color: #ffffff;
+  color: #171717;
+  caret-color: #171717;
+  color-scheme: light;
+}
+
+:where(
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea
+)::placeholder {
+  color: #737373;
+  opacity: 1;
+}
+
+:where(select option) {
+  background-color: #ffffff;
+  color: #171717;
+}
+
+/* Native date/time controls otherwise inherit the operating-system scheme. */
+:where(
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"]
+) {
+  color-scheme: light;
+}
+
+/*
+ * Chrome / Edge autofill can inject its own foreground/background colors.
+ * Keep autofilled fields readable and visually consistent with UIN.
+ */
+:where(
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill,
+  select:-webkit-autofill:hover,
+  select:-webkit-autofill:focus
+) {
+  -webkit-text-fill-color: #171717;
+  caret-color: #171717;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Editable text areas used outside normal input/textarea elements. */
+:where([contenteditable="true"]) {
+  caret-color: currentColor;
 }
