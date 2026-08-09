@@ -279,90 +279,67 @@ export default function ActivityLocationPreview({
       ? activityLocation
       : meetingLocation;
 
-  const meetingLabel =
-    getExactLabel(resolvedMeetingLocation) ||
-    "Meeting point not set";
-
-  const activityLabel =
-    getExactLabel(activityLocation) ||
-    "Activity location not set";
-
   return (
     <section>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <div className="rounded-2xl border border-cyan-200 bg-white p-4 shadow-sm">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-700">
-            Meeting Point
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
+            Locations
           </p>
-          <p className="mt-1 truncate text-sm font-bold text-gray-950">
-            {meetingLabel}
+
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">
+            Meet here, do the Activity there
+          </h2>
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+            The public Intent area stays approximate. Public screens may show the venue name only when the host allows it; exact addresses, maps and the meeting point remain private to active Plan members.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-indigo-700">
-                Activity Location
-              </p>
-              <p className="mt-1 truncate text-sm font-bold text-gray-950">
-                {activityLabel}
-              </p>
-            </div>
-
-            <span className="shrink-0 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700">
-              {activityLocationVisibility === "public"
-                ? "Venue may be public"
-                : "Members only"}
-            </span>
-          </div>
-        </div>
+        <span className="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm">
+          Activity venue: {activityLocationVisibility === "public" ? "Venue name may be public" : "Private to members"}
+        </span>
       </div>
 
-      <details className="group mt-3">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-200 hover:bg-blue-50/40">
-          <span className="group-open:hidden">Show maps</span>
-          <span className="hidden group-open:inline">Hide maps</span>
-          <span
-            aria-hidden="true"
-            className="text-gray-400 transition-transform group-open:rotate-180"
-          >
-            ⌄
-          </span>
-        </summary>
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <LocationMapCard
+          eyebrow="Meeting Point"
+          title={
+            meetingLocationSameAsActivity
+              ? "Same as Activity location"
+              : "Where the group meets first"
+          }
+          description={
+            meetingLocationSameAsActivity
+              ? "Participants meet directly at the Activity location."
+              : "Use this for the square, station exit, café or landmark where participants gather."
+          }
+          location={
+            resolvedMeetingLocation
+          }
+          approximateLabel={
+            approximateLabel
+          }
+          emptyText="Meeting point not set"
+          tone="meeting"
+          compact={compact}
+        />
 
-        <div className="mt-3 grid grid-cols-1 gap-5 xl:grid-cols-2">
-          <LocationMapCard
-            eyebrow="Meeting Point"
-            title={
-              meetingLocationSameAsActivity
-                ? "Same as Activity location"
-                : "Where the group meets first"
-            }
-            description={
-              meetingLocationSameAsActivity
-                ? "Participants meet directly at the Activity location."
-                : "Use this for the square, station exit, café or landmark where participants gather."
-            }
-            location={resolvedMeetingLocation}
-            approximateLabel={approximateLabel}
-            emptyText="Meeting point not set"
-            tone="meeting"
-            compact={compact}
-          />
-
-          <LocationMapCard
-            eyebrow="Activity Location"
-            title="Where the Activity happens"
-            description="Use this for the stadium, arena, venue, trail, workshop or final destination."
-            location={activityLocation}
-            approximateLabel={approximateLabel}
-            emptyText="Activity location not set"
-            tone="activity"
-            compact={compact}
-          />
-        </div>
-      </details>
+        <LocationMapCard
+          eyebrow="Activity Location"
+          title="Where the Activity happens"
+          description="Use this for the stadium, arena, venue, trail, workshop or final destination."
+          location={
+            activityLocation
+          }
+          approximateLabel={
+            approximateLabel
+          }
+          emptyText="Activity location not set"
+          tone="activity"
+          compact={compact}
+        />
+      </div>
     </section>
   );
 }

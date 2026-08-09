@@ -280,22 +280,9 @@ function CompactLocationEditor({
         className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-gray-100"
       />
 
-      <details className="group mt-3 rounded-xl border border-gray-200 bg-gray-50/70">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-gray-700">
-          <span className="group-open:hidden">Show map</span>
-          <span className="hidden group-open:inline">Hide map</span>
-          <span
-            aria-hidden="true"
-            className="text-gray-400 transition-transform group-open:rotate-180"
-          >
-            ⌄
-          </span>
-        </summary>
-
-        <div className="border-t border-gray-200 p-3">
-          <MapPreview location={location} fallbackLabel={title} />
-        </div>
-      </details>
+      <div className="mt-3">
+        <MapPreview location={location} fallbackLabel={title} />
+      </div>
 
       <details className="mt-3 rounded-xl border border-gray-200 bg-gray-50/70">
         <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-700">

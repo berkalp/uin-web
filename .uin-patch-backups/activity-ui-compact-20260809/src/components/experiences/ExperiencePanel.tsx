@@ -773,39 +773,36 @@ export default function ExperiencePanel({
     router.refresh();
   }
 
-  const storyAuthorName =
-    currentExperience.storyAuthorName ||
-    currentExperience.storyAuthorUsername ||
-    "UIN member";
-
   return (
     <section className="mt-5 overflow-hidden rounded-3xl border border-purple-200 bg-white shadow-sm">
       <div className="border-b border-purple-100 bg-gradient-to-r from-purple-50 via-white to-indigo-50 p-5 md:p-6">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
-          Story
+          Activity memories
         </p>
+
+        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-950">
+              {currentExperience.title}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+              The full gallery is private to Activity participants. Only an approved photo may be used as the public Activity cover, and every tagged person must approve first.
+            </p>
+          </div>
+
+          <span className="rounded-full border border-purple-200 bg-white px-3 py-1.5 text-xs font-semibold text-purple-700">
+            {getExperienceVisibilityLabel(currentExperience.visibility)}
+          </span>
+        </div>
       </div>
 
       {currentExperience.canManage && (
-        <details className="group border-b border-gray-100">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 md:px-6">
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-gray-900">
-                Edit story & experience
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
-                {getExperienceVisibilityLabel(currentExperience.visibility)}
-              </p>
-            </div>
-            <span
-              aria-hidden="true"
-              className="text-gray-400 transition-transform group-open:rotate-180"
-            >
-              ⌄
-            </span>
-          </summary>
+        <div className="border-b border-gray-100 p-5 md:p-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700">
+            Experience details
+          </p>
 
-          <div className="grid gap-4 border-t border-gray-100 bg-gray-50/50 p-5 md:p-6">
+          <div className="mt-4 grid gap-4">
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-gray-700">
                 Shared title
@@ -815,21 +812,21 @@ export default function ExperiencePanel({
                 maxLength={120}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
+                className="rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
               />
             </label>
 
             <label className="grid gap-2">
               <span className="text-sm font-semibold text-gray-700">
-                Story, optional
+                Shared story, optional
               </span>
               <textarea
                 rows={4}
                 maxLength={2000}
                 value={story}
                 onChange={(event) => setStory(event.target.value)}
-                placeholder="What happened?"
-                className="resize-y rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
+                placeholder="What happened, what made it memorable, or what the group would like to remember."
+                className="resize-y rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-indigo-500"
               />
             </label>
 
@@ -848,6 +845,9 @@ export default function ExperiencePanel({
                 <option value="friends">Friends of participants</option>
                 <option value="public">Public</option>
               </select>
+              <span className="text-xs leading-5 text-gray-500">
+                This controls the story page. Gallery media remains participant-only. Only the selected, fully approved cover photo is visible outside the Activity.
+              </span>
             </label>
 
             <div>
@@ -861,40 +861,15 @@ export default function ExperiencePanel({
               </button>
             </div>
           </div>
-        </details>
+        </div>
       )}
 
       {currentExperience.story && (
         <div className="border-b border-gray-100 p-5 md:p-6">
-          <div className="flex items-center gap-3">
-            {currentExperience.storyAuthorAvatarUrl ? (
-              <img
-                src={currentExperience.storyAuthorAvatarUrl}
-                alt={storyAuthorName}
-                className="h-10 w-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-50 text-sm font-bold text-purple-700">
-                {storyAuthorName.trim().charAt(0).toUpperCase() || "?"}
-              </div>
-            )}
-
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-gray-950">
-                {storyAuthorName}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-gray-500">
-                {currentExperience.storyAuthorUsername
-                  ? `@${currentExperience.storyAuthorUsername}`
-                  : "Activity participant"}
-                {currentExperience.storyUpdatedAt
-                  ? ` · ${getMediaDate(currentExperience.storyUpdatedAt)}`
-                  : ""}
-              </p>
-            </div>
-          </div>
-
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
+            Story
+          </p>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-600">
             {currentExperience.story}
           </p>
         </div>

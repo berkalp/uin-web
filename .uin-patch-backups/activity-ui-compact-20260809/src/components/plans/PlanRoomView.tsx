@@ -1189,7 +1189,7 @@ export default async function PlanRoomView({
     data: experienceData,
     error: experienceError,
   } = await supabase.rpc(
-    "get_visible_experience_gallery_v3",
+    "get_visible_experience_gallery_v2",
     {
       p_plan_id:
         plan.id,
@@ -2426,19 +2426,46 @@ export default async function PlanRoomView({
                 />
               )}
 
-            <div className="mt-4">
-              <ActivityLifecycleTimeline
-                targetStart={plan.window_start}
-                targetEnd={plan.window_end}
-                scheduledStart={plan.scheduled_start}
-                scheduledEnd={plan.scheduled_end}
-                completedAt={plan.completed_at}
-                cancelledAt={plan.cancelled_at}
-                expiredAt={isExpiredPlanningArchive ? plan.expired_at ?? plan.window_end : plan.expired_at}
-                status={isExpiredPlanningArchive ? "expired" : plan.status}
-                timezone={plan.timezone}
-                variant="horizontal"
-              />
+            <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <article className="rounded-2xl border border-blue-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-700">Target availability</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {formatWindowDate(plan.window_start)} → {formatWindowDate(plan.window_end)}
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700">Confirmed plan</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {plan.scheduled_start ? formatDateTime(plan.scheduled_start, plan.timezone) : "Planning in progress"}
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-700">Outcome</p>
+                <p className="mt-2 text-sm font-bold text-gray-950">
+                  {plan.status === "completed"
+                    ? "Completed"
+                    : plan.status === "cancelled"
+                      ? "Cancelled"
+                      : "Waiting for the Activity"}
+                </p>
+              </article>
+
+              <article className="rounded-2xl border border-cyan-100 bg-white p-4 shadow-sm">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-700">Progress</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <span className="text-lg font-bold text-gray-950">
+                    {plan.status === "completed" ? 100 : plan.status === "planned" ? 70 : plan.status === "forming" ? 30 : 0}%
+                  </span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+                    <span
+                      className="block h-full rounded-full bg-emerald-500"
+                      style={{ width: `${plan.status === "completed" ? 100 : plan.status === "planned" ? 70 : plan.status === "forming" ? 30 : 0}%` }}
+                    />
+                  </span>
+                </div>
+              </article>
             </div>
           </div>
 
@@ -2554,6 +2581,23 @@ export default async function PlanRoomView({
             />
           </div>
         </CollapsiblePlanningSection>
+
+        <div className="mt-5">
+          <ActivityLifecycleTimeline
+            targetStart={plan.window_start}
+            targetEnd={plan.window_end}
+            scheduledStart={plan.scheduled_start}
+            scheduledEnd={plan.scheduled_end}
+            completedAt={plan.completed_at}
+            cancelledAt={plan.cancelled_at}
+            expiredAt={isExpiredPlanningArchive ? plan.expired_at ?? plan.window_end : plan.expired_at}
+            status={isExpiredPlanningArchive ? "expired" : plan.status}
+            timezone={plan.timezone}
+            variant="horizontal"
+            title={roomPhase === "planning" ? "From Intent to plan" : "Activity timeline"}
+            description="Availability, confirmed schedule and outcome in one compact view."
+          />
+        </div>
 
         <PlanningRoomQuickActions
           actions={[

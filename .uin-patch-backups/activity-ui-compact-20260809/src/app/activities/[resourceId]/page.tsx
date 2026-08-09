@@ -799,7 +799,7 @@ export default async function ActivityDetailPage({
   const experiencePromise =
     activity.plan_id
       ? supabase.rpc(
-          "get_visible_experience_gallery_v3",
+          "get_visible_experience_gallery_v2",
           {
             p_plan_id:
               activity.plan_id,
@@ -1614,7 +1614,9 @@ export default async function ActivityDetailPage({
                 expiredAt={activityTimeline.expired_at}
                 status={activityTimeline.status}
                 timezone={timelineTimezone}
-                variant="horizontal"
+                variant="detail"
+                title="From Intent to outcome"
+                description="Read the dates in order: when the person was available, what the group confirmed, and what finally happened."
               />
 
               {activity.plan_id && planOrigins.length > 0 && (
@@ -1667,49 +1669,24 @@ export default async function ActivityDetailPage({
               )}
 
               <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                  <div className="min-w-0">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
                       Current record
                     </p>
-                    <h2 className="mt-1 text-xl font-bold text-gray-950">
+                    <h2 className="mt-2 text-xl font-bold text-gray-950">
                       {status.label}
                     </h2>
-
-                    {activity.status === "completed" ? (
-                      activity.completed_at ? (
-                        <p className="mt-1 text-xs font-medium text-gray-500">
-                          {formatDateTime(
-                            activity.completed_at,
-                            activity.timezone
-                          )}
-                        </p>
-                      ) : null
-                    ) : (
-                      <p className="mt-1 text-sm leading-6 text-gray-500">
-                        {status.helper}
-                      </p>
-                    )}
+                    <p className="mt-2 text-sm leading-6 text-gray-500">
+                      {status.helper}
+                    </p>
                   </div>
 
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
-                    {locationLabel && (
-                      <div className="max-w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                        📍 {locationLabel}
-                      </div>
-                    )}
-
-                    {activity.status === "completed" &&
-                      activity.viewer_attendance_status && (
-                        <span className="rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-800">
-                          Your attendance: {activity.viewer_attendance_status === "attended"
-                            ? "Attended"
-                            : activity.viewer_attendance_status === "no_show"
-                              ? "Did not attend"
-                              : "Not recorded"}
-                        </span>
-                      )}
-                  </div>
+                  {locationLabel && (
+                    <div className="rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+                      📍 {locationLabel}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -1851,6 +1828,36 @@ export default async function ActivityDetailPage({
                 </div>
               </section>
 
+              {activity.status === "completed" && (
+                <section className="mt-5 rounded-3xl border border-purple-200 bg-purple-50 p-6">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
+                    Activity record
+                  </p>
+
+                  <h2 className="mt-2 text-xl font-bold text-purple-950">
+                    Completed Activity
+                  </h2>
+
+                  {activity.completed_at && (
+                    <p className="mt-2 text-sm text-purple-800">
+                      Completed {formatDateTime(
+                        activity.completed_at,
+                        activity.timezone
+                      )}
+                    </p>
+                  )}
+
+                  {activity.viewer_attendance_status && (
+                    <p className="mt-3 text-sm font-semibold text-purple-900">
+                      Your attendance: {activity.viewer_attendance_status === "attended"
+                        ? "Attended"
+                        : activity.viewer_attendance_status === "no_show"
+                          ? "Did not attend"
+                          : "Not recorded"}
+                    </p>
+                  )}
+                </section>
+              )}
             </div>
 
             <aside className="space-y-5">

@@ -521,11 +521,22 @@ export default function ActivityLifecycleTimeline({
 
   if (isHorizontal) {
     return (
-      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-green-700">
-            Timeline
-          </p>
+      <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-green-700">
+                Timeline
+              </p>
+              <span className="h-1 w-1 rounded-full bg-gray-300" />
+              <h2 className="truncate text-sm font-bold text-gray-950">
+                {title}
+              </h2>
+            </div>
+            <p className="mt-1 hidden text-xs text-gray-500 md:block">
+              {description}
+            </p>
+          </div>
         </div>
 
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -550,10 +561,14 @@ export default function ActivityLifecycleTimeline({
                     {index + 1}
                   </span>
                 </div>
-
                 <p className="mt-2 text-sm font-bold leading-5 text-gray-950">
                   {step.value}
                 </p>
+                {step.helper && (
+                  <p className="mt-1 text-[11px] leading-4 text-gray-500">
+                    {step.helper}
+                  </p>
+                )}
               </article>
             );
           })}
@@ -589,7 +604,7 @@ export default function ActivityLifecycleTimeline({
       <div
         className={
           isCompact
-            ? "space-y-1.5"
+            ? "space-y-2.5"
             : "space-y-3"
         }
       >
@@ -609,7 +624,7 @@ export default function ActivityLifecycleTimeline({
                 key={step.label}
                 className={`relative flex gap-3 ${
                   isCompact
-                    ? "min-h-[34px]"
+                    ? "min-h-[48px]"
                     : "rounded-2xl bg-gray-50 p-4 md:p-5"
                 }`}
               >

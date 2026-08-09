@@ -96,11 +96,6 @@ export type SharedExperience = {
   planId: string;
   title: string;
   story: string | null;
-  storyAuthorUserId: string | null;
-  storyAuthorName: string | null;
-  storyAuthorUsername: string | null;
-  storyAuthorAvatarUrl: string | null;
-  storyUpdatedAt: string | null;
   visibility: ExperienceVisibility;
   coverMediaId: string | null;
   completedAt: string | null;
@@ -230,11 +225,6 @@ export function parseExperienceBundle(value: unknown): ExperienceBundle | null {
           planId: asString(rawExperience.plan_id) ?? "",
           title: asString(rawExperience.title) ?? "Shared Experience",
           story: asString(rawExperience.story),
-          storyAuthorUserId: asString(rawExperience.story_author_user_id),
-          storyAuthorName: asString(rawExperience.story_author_name),
-          storyAuthorUsername: asString(rawExperience.story_author_username),
-          storyAuthorAvatarUrl: asString(rawExperience.story_author_avatar_url),
-          storyUpdatedAt: asString(rawExperience.story_updated_at),
           visibility: (asString(rawExperience.visibility) ??
             "participants") as ExperienceVisibility,
           coverMediaId: asString(rawExperience.cover_media_id),
