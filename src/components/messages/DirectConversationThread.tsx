@@ -2,8 +2,10 @@
 
 import {
   FormEvent,
+  useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import Link from "next/link";
@@ -17,6 +19,7 @@ import {
   revokeDirectConversationAccess,
   sendDirectMessage,
 } from "@/services/directMessageService";
+import { supabase } from "@/utils/supabase/client";
 
 type AccessPreset = "1d" | "7d" | "30d" | "1y" | "20y" | "custom";
 
@@ -56,12 +59,31 @@ function addPreset(now: Date, preset: AccessPreset) {
   return result;
 }
 
+function sameMessageSnapshot(
+  previous: DirectConversationMessage[],
+  next: DirectConversationMessage[]
+) {
+  if (previous.length !== next.length) return false;
+  if (previous.length === 0) return true;
+
+  const previousLast = previous[previous.length - 1];
+  const nextLast = next[next.length - 1];
+
+  return (
+    previousLast?.message_id === nextLast?.message_id &&
+    previousLast?.created_at === nextLast?.created_at
+  );
+}
+
 export default function DirectConversationThread({
   currentUserId,
   detail,
   messages,
 }: DirectConversationThreadProps) {
   const router = useRouter();
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+
+  const [liveMessages, setLiveMessages] = useState(messages);
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -72,12 +94,111 @@ export default function DirectConversationThread({
   const [isUpdatingAccess, setIsUpdatingAccess] = useState(false);
 
   useEffect(() => {
-    markDirectConversationRead(detail.conversation_id)
-      .then(() => router.refresh())
-      .catch(() => {
-        // Reading the thread should never be blocked by a badge update failure.
-      });
-  }, [detail.conversation_id, router]);
+    setLiveMessages(messages);
+  }, [messages]);
+
+  const refreshMessages = useCallback(async () => {
+    const { data, error } = await supabase.rpc(
+      "get_direct_conversation_messages",
+      {
+        p_conversation_id: detail.conversation_id,
+        p_limit: 300,
+      }
+    );
+
+    if (error) {
+      console.error("Live direct message refresh failed:", error);
+      return null;
+    }
+
+    const next = (data ?? []) as unknown as DirectConversationMessage[];
+
+    setLiveMessages((previous) =>
+      sameMessageSnapshot(previous, next) ? previous : next
+    );
+
+    return next;
+  }, [detail.conversation_id]);
+
+  useEffect(() => {
+    void markDirectConversationRead(detail.conversation_id).catch(() => {
+      // Reading the thread should never be blocked by a badge update failure.
+    });
+  }, [detail.conversation_id]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`direct-conversation:${detail.conversation_id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "direct_message_realtime_signals",
+          filter: `conversation_id=eq.${detail.conversation_id}`,
+        },
+        async () => {
+          const next = await refreshMessages();
+          const latest = next?.[next.length - 1];
+
+          if (
+            latest &&
+            latest.sender_id !== currentUserId &&
+            document.visibilityState === "visible"
+          ) {
+            void markDirectConversationRead(detail.conversation_id).catch(() => {
+              // The message should remain visible even if the read marker fails.
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    const reconcile = async () => {
+      if (document.visibilityState !== "visible") return;
+
+      const next = await refreshMessages();
+      const latest = next?.[next.length - 1];
+
+      if (latest && latest.sender_id !== currentUserId) {
+        void markDirectConversationRead(detail.conversation_id).catch(() => {
+          // Do not block message refresh because of a read-marker failure.
+        });
+      }
+    };
+
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
+
+    // Reconcile occasionally in case a laptop sleeps or the realtime socket
+    // briefly disconnects. Normal delivery is event-driven, not polling.
+    const fallbackTimer = window.setInterval(() => {
+      void reconcile();
+    }, 15_000);
+
+    void reconcile();
+
+    return () => {
+      window.clearInterval(fallbackTimer);
+      window.removeEventListener("focus", reconcile);
+      document.removeEventListener("visibilitychange", reconcile);
+      void supabase.removeChannel(channel);
+    };
+  }, [
+    currentUserId,
+    detail.conversation_id,
+    refreshMessages,
+  ]);
+
+  useEffect(() => {
+    const node = messageListRef.current;
+    if (!node) return;
+
+    node.scrollTo({
+      top: node.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [liveMessages.length]);
 
   const otherName = detail.other_full_name || detail.other_username || "UIN member";
   const otherProfileHref = detail.other_username
@@ -100,7 +221,11 @@ export default function DirectConversationThread({
     return detail.viewer_can_send
       ? `You can send messages until ${formatDateTime(detail.viewer_access_expires_at)}.`
       : `Your send access expired on ${formatDateTime(detail.viewer_access_expires_at)}.`;
-  }, [detail.viewer_access_expires_at, detail.viewer_access_kind, detail.viewer_can_send]);
+  }, [
+    detail.viewer_access_expires_at,
+    detail.viewer_access_kind,
+    detail.viewer_can_send,
+  ]);
 
   function resolveExpiry() {
     if (preset === "custom") {
@@ -110,12 +235,14 @@ export default function DirectConversationThread({
       }
       return parsed.toISOString();
     }
+
     return addPreset(new Date(), preset).toISOString();
   }
 
   async function handleSend(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setErrorMessage(null);
+
     const cleanBody = body.trim();
     if (!cleanBody) return;
 
@@ -123,7 +250,9 @@ export default function DirectConversationThread({
       setIsSending(true);
       await sendDirectMessage(detail.conversation_id, cleanBody);
       setBody("");
-      router.refresh();
+
+      // Do not wait for the realtime round-trip to show the sender's own message.
+      await refreshMessages();
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "The message could not be sent."
@@ -135,6 +264,7 @@ export default function DirectConversationThread({
 
   async function handleExtendAccess() {
     setErrorMessage(null);
+
     try {
       setIsUpdatingAccess(true);
       await extendDirectConversationAccess({
@@ -153,11 +283,16 @@ export default function DirectConversationThread({
   }
 
   async function handleRevokeAccess() {
-    if (!window.confirm(`Stop ${otherName} from sending new messages in this conversation?`)) {
+    if (
+      !window.confirm(
+        `Stop ${otherName} from sending new messages in this conversation?`
+      )
+    ) {
       return;
     }
 
     setErrorMessage(null);
+
     try {
       setIsUpdatingAccess(true);
       await revokeDirectConversationAccess({
@@ -193,14 +328,19 @@ export default function DirectConversationThread({
 
             <div className="min-w-0 flex-1">
               {otherProfileHref ? (
-                <Link href={otherProfileHref} className="font-bold text-gray-950 hover:text-green-700">
+                <Link
+                  href={otherProfileHref}
+                  className="font-bold text-gray-950 hover:text-green-700"
+                >
                   {otherName}
                 </Link>
               ) : (
                 <p className="font-bold text-gray-950">{otherName}</p>
               )}
+
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
                 {detail.other_username && <span>@{detail.other_username}</span>}
+
                 {detail.other_is_staff && (
                   <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
                     UIN staff
@@ -211,14 +351,18 @@ export default function DirectConversationThread({
           </div>
         </header>
 
-        <div className="max-h-[62vh] min-h-[420px] space-y-4 overflow-y-auto bg-gray-50/60 p-5 md:p-6">
-          {messages.length === 0 ? (
+        <div
+          ref={messageListRef}
+          className="max-h-[62vh] min-h-[420px] space-y-4 overflow-y-auto bg-gray-50/60 p-5 md:p-6"
+        >
+          {liveMessages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
               No messages yet.
             </div>
           ) : (
-            messages.map((message) => {
+            liveMessages.map((message) => {
               const isMine = message.sender_id === currentUserId;
+
               return (
                 <div
                   key={message.message_id}
@@ -231,8 +375,15 @@ export default function DirectConversationThread({
                         : "border border-gray-200 bg-white text-gray-800"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words text-sm leading-6">{message.body}</p>
-                    <p className={`mt-2 text-[11px] ${isMine ? "text-green-100" : "text-gray-400"}`}>
+                    <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                      {message.body}
+                    </p>
+
+                    <p
+                      className={`mt-2 text-[11px] ${
+                        isMine ? "text-green-100" : "text-gray-400"
+                      }`}
+                    >
                       {formatDateTime(message.created_at)}
                     </p>
                   </article>
@@ -242,7 +393,10 @@ export default function DirectConversationThread({
           )}
         </div>
 
-        <form onSubmit={handleSend} className="border-t border-gray-100 p-4 md:p-5">
+        <form
+          onSubmit={handleSend}
+          className="border-t border-gray-100 p-4 md:p-5"
+        >
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
@@ -264,9 +418,14 @@ export default function DirectConversationThread({
           )}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-xs font-semibold ${detail.viewer_can_send ? "text-green-700" : "text-amber-700"}`}>
+            <p
+              className={`text-xs font-semibold ${
+                detail.viewer_can_send ? "text-green-700" : "text-amber-700"
+              }`}
+            >
               {accessSummary}
             </p>
+
             <button
               type="submit"
               disabled={!detail.viewer_can_send || isSending || !body.trim()}
@@ -306,6 +465,7 @@ export default function DirectConversationThread({
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Change access
                   </p>
+
                   <div className="mt-3 flex flex-wrap gap-2">
                     {([
                       ["1d", "1 day"],
@@ -320,8 +480,13 @@ export default function DirectConversationThread({
                         type="button"
                         onClick={() => {
                           setPreset(value);
+
                           if (value !== "custom") {
-                            setCustomExpiry(toLocalDateTimeInput(addPreset(new Date(), value)));
+                            setCustomExpiry(
+                              toLocalDateTimeInput(
+                                addPreset(new Date(), value)
+                              )
+                            );
                           }
                         }}
                         className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
