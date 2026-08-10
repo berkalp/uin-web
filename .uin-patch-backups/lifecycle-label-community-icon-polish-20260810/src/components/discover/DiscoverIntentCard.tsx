@@ -779,13 +779,11 @@ export default function DiscoverIntentCard({
                   style={{ borderColor: primaryCommunityAccent }}
                 >
                   {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
+                    <img
+                      src={primaryCommunity.iconUrl}
+                      alt=""
+                      className="h-3.5 w-3.5 shrink-0 rounded-full object-cover"
+                    />
                   ) : (
                     <span
                       aria-hidden="true"
@@ -980,21 +978,7 @@ export default function DiscoverIntentCard({
                   href={primaryCommunityHref}
                   className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
                 >
-                  {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
-                    />
-                  )}
+                  <span aria-hidden="true">●</span>
                   <span className="truncate">{primaryCommunityName}</span>
                   {resolvedCommunities.length > 1 && (
                     <span className="shrink-0 text-green-600">
@@ -1004,21 +988,7 @@ export default function DiscoverIntentCard({
                 </Link>
               ) : (
                 <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800">
-                  {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
-                    />
-                  )}
+                  <span aria-hidden="true">●</span>
                   <span className="truncate">{primaryCommunityName}</span>
                 </span>
               ))}

@@ -522,35 +522,35 @@ export default function ActivityLifecycleTimeline({
     variant === "horizontal";
 
   if (isCompact) {
-    const stepIcons = ["🎯", "🗓", "🚩"];
-
     return (
-      <div className="h-full min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white/75 px-2.5 py-2 shadow-sm">
+      <div className="h-full min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white/75 px-3 py-2.5 shadow-sm">
         {!hideCompactTitle && (
-          <p className="text-[9px] font-black uppercase tracking-[0.1em] text-green-700">
+          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-green-700">
             Intent Journey
           </p>
         )}
 
-        <div className={`${hideCompactTitle ? "mt-0" : "mt-1.5"} space-y-1`}>
-          {steps.map((step, index) => (
-            <div
-              key={step.label}
-              className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-0.5"
-              title={`${step.label}: ${step.value}`}
-            >
-              <span
-                aria-hidden="true"
-                className="w-5 shrink-0 text-[13px] leading-none"
-              >
-                {stepIcons[index] ?? "•"}
-              </span>
+        <div className={`${hideCompactTitle ? "mt-0" : "mt-2"} space-y-1.5`}>
+          {steps.map((step) => {
+            const tone = getToneClasses(step.tone);
 
-              <span className="min-w-0 flex-1 truncate text-[10.5px] font-semibold leading-4 text-gray-900">
-                {step.value}
-              </span>
-            </div>
-          ))}
+            return (
+              <div
+                key={step.label}
+                className="flex min-w-0 items-center gap-2"
+              >
+                <span
+                  className={`h-2 w-2 shrink-0 rounded-full ring-2 ${tone.dot}`}
+                />
+                <span className="w-[70px] shrink-0 truncate text-[8.5px] font-semibold uppercase tracking-[0.04em] text-gray-400">
+                  {step.label}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[10.5px] font-semibold text-gray-900">
+                  {step.value}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );

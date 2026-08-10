@@ -150,7 +150,7 @@ function normalizeStatus(
 
 type Presentation = {
   icon: string;
-  ariaLabel: string;
+  eyebrow: string;
   value: string;
   classes: string;
 };
@@ -177,7 +177,7 @@ function getPresentation({
   if (normalized === "completed") {
     return {
       icon: "🚩",
-      ariaLabel: "Happened",
+      eyebrow: "Happened",
       value:
         schedule ??
         formatDateTime(completedAt, safeTimezone) ??
@@ -190,7 +190,7 @@ function getPresentation({
   if (normalized === "cancelled") {
     return {
       icon: "✕",
-      ariaLabel: "Cancelled",
+      eyebrow: "Cancelled",
       value:
         formatDateTime(cancelledAt, safeTimezone) ??
         schedule ??
@@ -203,7 +203,7 @@ function getPresentation({
   if (normalized === "expired") {
     return {
       icon: "⌛",
-      ariaLabel: "Expired",
+      eyebrow: "Expired",
       value:
         formatDateTime(expiredAt, safeTimezone) ??
         formatDateOnly(targetEnd) ??
@@ -216,7 +216,7 @@ function getPresentation({
   if (schedule) {
     return {
       icon: "🗓",
-      ariaLabel: "Confirmed Activity",
+      eyebrow: "Confirmed Activity",
       value: schedule,
       classes:
         "border-blue-200 bg-blue-50/85 text-blue-950",
@@ -225,7 +225,7 @@ function getPresentation({
 
   return {
     icon: "🎯",
-    ariaLabel: "Target window",
+    eyebrow: "Target window",
     value: formatTargetWindow(targetStart, targetEnd),
     classes:
       "border-orange-200 bg-orange-50/85 text-orange-950",
@@ -260,25 +260,33 @@ export default function LifecycleCurrentDate({
   return (
     <div
       className={`flex min-w-0 items-center gap-2.5 rounded-xl border ${
-        compact ? "px-3 py-2" : "px-4 py-3"
+        compact ? "px-2.5 py-1.5" : "px-4 py-3"
       } ${presentation.classes} ${className}`}
-      aria-label={`${presentation.ariaLabel}: ${presentation.value}`}
     >
       <span
         aria-hidden="true"
-        className={compact ? "text-[15px]" : "text-lg"}
+        className={compact ? "text-sm" : "text-lg"}
       >
         {presentation.icon}
       </span>
 
-      <p
-        className={`min-w-0 flex-1 truncate font-bold leading-tight ${
-          compact ? "text-[11px]" : "text-sm"
-        }`}
-        title={presentation.value}
-      >
-        {presentation.value}
-      </p>
+      <div className="min-w-0">
+        <p
+          className={`font-black uppercase tracking-[0.08em] opacity-60 ${
+            compact ? "text-[7.5px]" : "text-[9px]"
+          }`}
+        >
+          {presentation.eyebrow}
+        </p>
+        <p
+          className={`mt-0.5 truncate font-bold leading-tight ${
+            compact ? "text-[10px]" : "text-sm"
+          }`}
+          title={presentation.value}
+        >
+          {presentation.value}
+        </p>
+      </div>
     </div>
   );
 }
