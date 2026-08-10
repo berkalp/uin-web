@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import {
   FormEvent,
@@ -347,8 +347,8 @@ export default function PublicIntentJoinButton({
       "pending"
   ) {
     return (
-      <div className="inline-flex max-w-full items-center gap-1">
-        <span className="inline-flex h-6 items-center whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 text-[9px] font-semibold leading-none text-amber-700">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
           Request Pending
         </span>
 
@@ -356,7 +356,7 @@ export default function PublicIntentJoinButton({
           type="button"
           disabled={isWorking}
           onClick={withdrawRequest}
-          className="inline-flex h-6 items-center whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-none text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
+          className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
         >
           Withdraw
         </button>
@@ -534,4 +534,3 @@ export default function PublicIntentJoinButton({
     </>
   );
 }
-

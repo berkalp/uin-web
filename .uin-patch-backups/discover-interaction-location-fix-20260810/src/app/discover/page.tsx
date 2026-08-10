@@ -1019,7 +1019,7 @@ export default async function DiscoverPage({
   const {
     data: discoverMapContextData,
     error: discoverMapContextError,
-  } = visibleIntentIds.length > 0
+  } = view !== "cards" && visibleIntentIds.length > 0
     ? await supabase.rpc("get_visible_discover_map_points", {
         p_intent_ids: visibleIntentIds,
       })
@@ -1850,9 +1850,6 @@ export default async function DiscoverPage({
                             intent.intent_id
                           )?.context_cover_url ??
                           null
-                        }
-                        mapPointContext={
-                          discoverMapContextByIntentId.get(intent.intent_id) ?? null
                         }
                         publicActivityLocationName={
                           intent.plan_id

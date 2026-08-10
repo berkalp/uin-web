@@ -411,7 +411,6 @@ export default function DiscoverIntentCard({
   privateCoverUrl,
   contextCoverUrl = null,
   publicActivityLocationName = null,
-  mapPointContext = null,
   activityPeople = [],
   viewerLineage = null,
   actionMode = "default",
@@ -428,11 +427,6 @@ export default function DiscoverIntentCard({
   privateCoverUrl?: string | null;
   contextCoverUrl?: string | null;
   publicActivityLocationName?: string | null;
-  mapPointContext?: {
-    location_query: string | null;
-    public_location_name: string | null;
-    location_precision: "public_venue" | "approximate";
-  } | null;
   activityPeople?: ActivityPersonView[];
   viewerLineage?: ViewerPlanLineage | null;
   actionMode?: "default" | "profile";
@@ -584,39 +578,16 @@ export default function DiscoverIntentCard({
         intent.activity_name,
     });
 
-  const approximateLocationLabel = [
+  const locationLabel = [
     intent.district,
     intent.city,
   ]
     .filter(Boolean)
     .join(", ");
 
-  const legacyPublicVenueName =
-    publicActivityLocationName?.trim() ||
-    intent.public_activity_location_name?.trim() ||
-    null;
-
-  // One canonical location context drives BOTH the map and its label.
-  // This prevents an approximate Intent location from being rendered next
-  // to a different public Activity venue. Meeting points never belong here.
-  const mapPrecision =
-    mapPointContext?.location_precision ??
-    (legacyPublicVenueName ? "public_venue" : "approximate");
-
   const mapQuery =
-    mapPointContext?.location_query?.trim() ||
-    (mapPrecision === "public_venue"
-      ? legacyPublicVenueName
-      : null) ||
-    approximateLocationLabel ||
+    locationLabel ||
     intent.city;
-
-  const mapLocationLabel =
-    mapPointContext?.public_location_name?.trim() ||
-    (mapPrecision === "public_venue"
-      ? legacyPublicVenueName
-      : approximateLocationLabel || intent.city) ||
-    null;
 
   const mapEmbedUrl =
     mapQuery
@@ -624,6 +595,11 @@ export default function DiscoverIntentCard({
           mapQuery
         )}&z=10&output=embed`
       : null;
+
+  const publicVenueName =
+    publicActivityLocationName?.trim() ||
+    intent.public_activity_location_name?.trim() ||
+    null;
 
   const ownerProfileHref =
     intent.owner_username
@@ -664,7 +640,7 @@ export default function DiscoverIntentCard({
 
   return (
     <article
-      className={`relative flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:shadow-md ${lifecycleSurfaceClasses}`}
+      className={`relative flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${lifecycleSurfaceClasses}`}
     >
       <input
         id={detailToggleId}
@@ -686,16 +662,14 @@ export default function DiscoverIntentCard({
         <div className="absolute inset-x-3 top-3 flex min-w-0 items-start justify-between gap-2">
           <div className="flex max-w-[70%] min-w-0 flex-wrap items-center gap-1.5">
             <span
-              className={`inline-flex h-5 items-center rounded-full px-2 py-0 text-[8.5px] font-bold uppercase leading-none tracking-[0.04em] shadow-sm ${lifecycle.badgeClasses}`}
+              className={`rounded-full px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.04em] shadow-sm ${lifecycle.badgeClasses}`}
             >
               {lifecycle.label}
             </span>
 
-            <div className="flex h-5 items-center [&>*]:!h-5 [&>*]:!min-h-0 [&>*]:!rounded-full [&>*]:!px-2 [&>*]:!py-0 [&>*]:!text-[8.5px] [&>*]:!leading-none">
-              <ParticipantEligibilityBadge
-                eligibility={intent.participant_eligibility}
-              />
-            </div>
+            <ParticipantEligibilityBadge
+              eligibility={intent.participant_eligibility}
+            />
 
             {!isOwner &&
             intent.plan_id &&
@@ -839,12 +813,11 @@ export default function DiscoverIntentCard({
         <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
           {mapEmbedUrl ? (
             <iframe
-              title={`${cardTitle} location preview`}
+              title={`${cardTitle} approximate area`}
               src={mapEmbedUrl}
-              className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0"
+              className="absolute inset-0 h-full w-full border-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              tabIndex={-1}
             />
           ) : (
             <div className="flex h-full items-center justify-center p-3 text-center text-[11px] text-gray-500">
@@ -852,11 +825,28 @@ export default function DiscoverIntentCard({
             </div>
           )}
 
-          {mapLocationLabel && (
-            <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white backdrop-blur">
-              {mapPrecision === "public_venue" ? "📍" : "≈"} {mapLocationLabel}
-            </span>
+          {mapEmbedUrl && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                mapQuery ?? ""
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              className="absolute right-2 top-2 rounded-lg bg-white/95 px-2.5 py-1.5 text-[10px] font-semibold text-blue-600 shadow-sm backdrop-blur transition hover:bg-white"
+            >
+              Map ↗
+            </a>
           )}
+
+          {publicVenueName ? (
+            <span className="absolute bottom-2 left-2 max-w-[70%] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8.5px] font-semibold text-white backdrop-blur">
+              📍 {publicVenueName}
+            </span>
+          ) : mapEmbedUrl ? (
+            <span className="absolute bottom-2 left-2 max-w-[70%] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8.5px] font-semibold text-white backdrop-blur">
+              📍 {locationLabel || "Approximate area"}
+            </span>
+          ) : null}
         </div>
 
         <div className="flex h-[52px] shrink-0 min-w-0 items-center justify-between gap-3 border-b border-black/5 px-3">
@@ -915,8 +905,19 @@ export default function DiscoverIntentCard({
       </div>
 
       {/* Detail face keeps the cover and swaps only the area below it. */}
-      <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
-        <div className="shrink-0">
+      <div className="hidden min-h-0 flex-1 flex-col overflow-hidden bg-white/85 p-2.5 peer-checked:flex">
+        <div className="flex h-5 min-w-0 items-center justify-between gap-2">
+          <p className="text-[8.5px] font-black uppercase tracking-[0.12em] text-green-700">
+            Details
+          </p>
+          <span
+            className={`shrink-0 rounded-full px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em] ${lifecycle.badgeClasses}`}
+          >
+            {lifecycle.label}
+          </span>
+        </div>
+
+        <div className="mt-1.5 h-[82px] shrink-0">
           <ActivityLifecycleTimeline
             targetStart={intent.start_date}
             targetEnd={intent.end_date}
@@ -928,7 +929,6 @@ export default function DiscoverIntentCard({
             status={intent.lifecycle_status}
             timezone={intent.timezone}
             variant="compact"
-            hideCompactTitle
           />
         </div>
 
@@ -970,7 +970,7 @@ export default function DiscoverIntentCard({
           </div>
         </div>
 
-        {(primaryCommunityName || mapLocationLabel) && (
+        {(primaryCommunityName || publicVenueName) && (
           <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
             {primaryCommunityName &&
               (primaryCommunityHref ? (
@@ -993,10 +993,10 @@ export default function DiscoverIntentCard({
                 </span>
               ))}
 
-            {mapLocationLabel && (
+            {publicVenueName && (
               <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
-                <span aria-hidden="true">{mapPrecision === "public_venue" ? "📍" : "≈"}</span>
-                <span className="truncate">{mapLocationLabel}</span>
+                <span aria-hidden="true">⌖</span>
+                <span className="truncate">{publicVenueName}</span>
               </span>
             )}
           </div>

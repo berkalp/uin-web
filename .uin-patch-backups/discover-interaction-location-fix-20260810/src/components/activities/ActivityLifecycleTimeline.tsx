@@ -11,7 +11,6 @@ type ActivityLifecycleTimelineProps = {
   variant?: "compact" | "detail" | "horizontal";
   title?: string;
   description?: string;
-  hideCompactTitle?: boolean;
 };
 
 type TimelineStepTone =
@@ -502,7 +501,6 @@ export default function ActivityLifecycleTimeline({
   title = "Activity journey",
   description =
     "The original availability, the confirmed plan and the final result.",
-  hideCompactTitle = false,
 }: ActivityLifecycleTimelineProps) {
   const steps = getSteps({
     targetStart,
@@ -524,13 +522,11 @@ export default function ActivityLifecycleTimeline({
   if (isCompact) {
     return (
       <div className="h-full min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white/75 px-3 py-2.5 shadow-sm">
-        {!hideCompactTitle && (
-          <p className="text-[9px] font-black uppercase tracking-[0.12em] text-green-700">
-            Intent Journey
-          </p>
-        )}
+        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-green-700">
+          Intent Journey
+        </p>
 
-        <div className={`${hideCompactTitle ? "mt-0" : "mt-2"} space-y-1.5`}>
+        <div className="mt-2 space-y-1.5">
           {steps.map((step) => {
             const tone = getToneClasses(step.tone);
 
