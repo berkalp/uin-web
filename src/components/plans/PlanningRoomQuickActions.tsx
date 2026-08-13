@@ -8,8 +8,10 @@ type QuickAction = {
 
 export default function PlanningRoomQuickActions({
   actions,
+  ariaLabel = "Room quick actions",
 }: {
   actions: QuickAction[];
+  ariaLabel?: string;
 }) {
   function openAndScroll(targetId: string) {
     const target = document.getElementById(targetId);
@@ -35,7 +37,7 @@ export default function PlanningRoomQuickActions({
   return (
     <nav
       className="mt-5 flex flex-wrap gap-2 rounded-3xl border border-gray-200 bg-white p-3 shadow-sm"
-      aria-label="Planning Room quick actions"
+      aria-label={ariaLabel}
     >
       {actions.map((action) => (
         <button

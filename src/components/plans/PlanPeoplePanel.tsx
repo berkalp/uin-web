@@ -352,10 +352,20 @@ export default function PlanPeoplePanel({
     ).length;
 
   const canInvite =
-    roomPhase ===
-      "planning" &&
-    planStatus ===
-      "forming" &&
+    (
+      (
+        roomPhase ===
+          "planning" &&
+        planStatus ===
+          "forming"
+      ) ||
+      (
+        roomPhase ===
+          "activity" &&
+        planStatus ===
+          "planned"
+      )
+    ) &&
     recruitmentStatus ===
       "open" &&
     visibility !==

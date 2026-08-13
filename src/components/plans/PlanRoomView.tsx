@@ -27,6 +27,7 @@ import PlanBudgetPanel from "./PlanBudgetPanel";
 import PlanNeedsPanel from "./PlanNeedsPanel";
 import PlanToolkitPanel from "./PlanToolkitPanel";
 import PlanMessageComposer from "./PlanMessageComposer";
+import PlanRoomRealtimeRefresh from "./PlanRoomRealtimeRefresh";
 import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
 import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
 import ReportCustomActivityTitleButton from "../experiences/ReportCustomActivityTitleButton";
@@ -1067,6 +1068,8 @@ function ConversationPanel({
           )}
         </div>
 
+        {canSendMessages && <div id="plan-conversation-bottom" aria-hidden="true" />}
+
         {messages.length ===
           100 && (
           <p className="mt-6 text-center text-xs text-gray-400">
@@ -1629,6 +1632,16 @@ export default async function PlanRoomView({
         ? "co_host"
         : "participant";
 
+  const roomLabel =
+    roomPhase === "planning"
+      ? "Planning Room"
+      : "Activity Room";
+
+  const roomDescription =
+    roomPhase === "planning"
+      ? "Manage the team, visibility and planning details from one place."
+      : "Coordinate the confirmed Activity, team and live Activity details from one place.";
+
   let planIntentInvitations:
     PlanIntentInvitationRow[] = [];
 
@@ -1715,6 +1728,15 @@ export default async function PlanRoomView({
   const isOutcomeUnknown =
     isScheduledActivityEnded &&
     scheduledEndTime + 7 * 24 * 60 * 60 * 1000 <= Date.now();
+
+  const canInviteToCurrentRoom =
+    sourceIntentId !== null &&
+    (isHost || isCoHost) &&
+    plan.recruitment_status === "open" &&
+    !isExpiredPlanningPlan &&
+    !isOutcomeUnknown &&
+    ((roomPhase === "planning" && plan.status === "forming") ||
+      (roomPhase === "activity" && plan.status === "planned"));
 
   const canSendMessages =
     (isHost ||
@@ -2450,8 +2472,8 @@ export default async function PlanRoomView({
           </div>
 
           <aside className="h-fit rounded-3xl border border-gray-200 bg-white p-5 shadow-sm xl:sticky xl:top-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Planning Room</p>
-            <p className="mt-2 text-sm leading-6 text-gray-500">Manage the team, visibility and planning details from one place.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">{roomLabel}</p>
+            <p className="mt-2 text-sm leading-6 text-gray-500">{roomDescription}</p>
 
             <div className="mt-5 flex items-center gap-3 border-t border-gray-100 pt-5">
               {hostProfile?.avatar_url ? (
@@ -2493,7 +2515,7 @@ export default async function PlanRoomView({
               </div>
             </dl>
 
-            {sourceIntentId && (isHost || isCoHost) && !isExpiredPlanningPlan && !isOutcomeUnknown && (
+            {sourceIntentId && canInviteToCurrentRoom && (
               <div className="mt-5">
                 <IntentInvitePeopleButton
                   intentId={sourceIntentId}
@@ -2508,7 +2530,7 @@ export default async function PlanRoomView({
         <CollapsiblePlanningSection
           id="team-chat"
           title="Team & Conversation"
-          description="See the active team, invitations and Planning Room messages together."
+          description={`See the active team, invitations and ${roomLabel} messages together.`}
           badge={`${peoplePanelMembers.length} members`}
           defaultOpen
           className="mt-4"
@@ -2536,8 +2558,12 @@ export default async function PlanRoomView({
             />
 
             <ConversationPanel
-              title="Planning Room Conversation"
-              description="Coordinate the plan without leaving the room."
+              title={`${roomLabel} Conversation`}
+              description={
+                roomPhase === "planning"
+                  ? "Coordinate the plan without leaving the room."
+                  : "Coordinate the Activity without falling back into the archived planning chat."
+              }
               messages={currentMessages}
               currentUserId={user.id}
               timezone={plan.timezone}
@@ -2556,24 +2582,39 @@ export default async function PlanRoomView({
               emptyDescription={
                 isExpiredPlanningArchive
                   ? "No messages were recorded before this Planning Room expired."
-                  : "Start the room conversation."
+                  : `Start the ${roomLabel} conversation.`
               }
+            />
+
+            <PlanRoomRealtimeRefresh
+              planId={plan.id}
+              roomPhase={roomPhase}
+              currentUserId={user.id}
             />
           </div>
         </CollapsiblePlanningSection>
 
         <PlanningRoomQuickActions
+          ariaLabel={`${roomLabel} quick actions`}
           actions={[
             { targetId: "locations", icon: "⌖", label: "Locations" },
             { targetId: "privacy", icon: "▣", label: "Privacy & Visibility" },
             { targetId: "toolkit", icon: "☑", label: "Checklist & Files" },
             { targetId: "budget", icon: "▤", label: "Budget" },
-            { targetId: "schedule", icon: "▦", label: "Schedule" },
+            ...(
+              roomPhase === "planning" &&
+              plan.status === "forming" &&
+              !isExpiredPlanningPlan &&
+              (isHost || isCoHost)
+                ? [{ targetId: "schedule", icon: "▦", label: "Schedule" }]
+                : []
+            ),
             { targetId: "team-chat", icon: "◌", label: "Team & Chat" },
           ]}
         />
 
         <CollapsiblePlanningSection
+          id="locations"
           title="Locations"
           description="Edit the meeting point and Activity location without hunting through the page."
           badge={plan.meeting_point || plan.activity_location_name ? "Configured" : "Needs attention"}
@@ -2776,6 +2817,7 @@ export default async function PlanRoomView({
             : ""
         }`}>
           <CollapsiblePlanningSection
+            id="budget"
             title="Budget"
             description="Review the target, commitments and remaining estimate."
           >
@@ -2799,6 +2841,7 @@ export default async function PlanRoomView({
             !isExpiredPlanningPlan &&
             (isHost || isCoHost) && (
               <CollapsiblePlanningSection
+                id="schedule"
                 title="Schedule"
                 description="Save a draft and confirm it when the group is ready."
                 badge={hasSchedule ? "Draft saved" : "Draft"}
@@ -2826,6 +2869,7 @@ export default async function PlanRoomView({
 
         <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <CollapsiblePlanningSection
+            id="privacy"
             title="Privacy & Visibility"
             description="Control who can discover, view and request to join."
             badge={getActivityVisibilityLabel(plan.visibility)}
@@ -2838,7 +2882,7 @@ export default async function PlanRoomView({
                 compact
               />
             ) : (
-              <section id="privacy" className="scroll-mt-24 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+              <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">Privacy & Visibility</p>
                 <p className="mt-2 text-lg font-bold text-gray-950">{getActivityVisibilityLabel(plan.visibility)}</p>
                 <p className="mt-1 text-sm text-gray-500">Visibility is read-only in the current state.</p>

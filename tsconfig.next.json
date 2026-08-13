@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "**/*-review/**",
+    "supabase/functions/**",
+    "backup-edge-function-vscode-deno-*/**"
+  ]
+}
