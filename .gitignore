@@ -40,3 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 uin-alpha.rar
+
+supabase/.temp/
+tsconfig.before-supabase-exclude.json
+
+.vscode/
