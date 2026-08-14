@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
 type LifecycleCurrentDateProps = {
   targetStart?: string | null;
   targetEnd?: string | null;
@@ -148,6 +152,89 @@ function normalizeStatus(
   return status.trim().toLocaleLowerCase("en-US");
 }
 
+
+function TimerOutlineIcon({ className = "h-3.5 w-3.5" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="13" r="7.5" stroke="currentColor" strokeWidth="1.7" />
+      <path d="M9.5 2.75h5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 5.5V3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="m17.75 6.25 1.5-1.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="M12 13V9.25" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <path d="m12 13 2.25 1.25" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function formatDuration(ms: number, showSeconds = false) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (days > 0) return `${days}g ${hours}sa`;
+  if (hours > 0) return `${hours}sa ${minutes}dk`;
+  if (showSeconds || minutes < 10) return `${minutes}dk ${seconds}sn`;
+  return `${minutes}dk`;
+}
+
+type CountdownPresentation = {
+  label: string;
+  title: string;
+};
+
+function getCountdownPresentation({
+  now,
+  scheduledStart,
+  scheduledEnd,
+}: {
+  now: number;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+}): CountdownPresentation | null {
+  const start = parseDate(scheduledStart);
+  if (!start) return null;
+
+  const startMs = start.getTime();
+  const end = parseDate(scheduledEnd);
+  const endMs = end?.getTime() ?? null;
+
+  if (now < startMs) {
+    const remaining = startMs - now;
+    return {
+      label: `${formatDuration(remaining, remaining < 60 * 60 * 1000)} kaldı`,
+      title: "Aktivite başlangıcına kalan süre",
+    };
+  }
+
+  if (endMs !== null && now < endMs) {
+    const elapsed = now - startMs;
+    return {
+      label: `Başladı · ${formatDuration(elapsed, elapsed < 60 * 60 * 1000)}`,
+      title: "Aktivite başlayalı geçen süre",
+    };
+  }
+
+  if (endMs !== null) {
+    return {
+      label: "Süre doldu",
+      title: "Planlanan aktivite süresi sona erdi",
+    };
+  }
+
+  return {
+    label: `Başladı · ${formatDuration(now - startMs, now - startMs < 60 * 60 * 1000)}`,
+    title: "Aktivite başlayalı geçen süre",
+  };
+}
+
 type Presentation = {
   icon: string;
   ariaLabel: string;
@@ -257,6 +344,28 @@ export default function LifecycleCurrentDate({
     timezone,
   });
 
+  const normalizedStatus = normalizeStatus(status, expiredAt);
+  const canShowLiveTime =
+    Boolean(scheduledStart) &&
+    !["completed", "cancelled", "expired"].includes(normalizedStatus);
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!canShowLiveTime) return;
+
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [canShowLiveTime, scheduledStart, scheduledEnd]);
+
+  const countdown = useMemo(
+    () =>
+      canShowLiveTime && now !== null
+        ? getCountdownPresentation({ now, scheduledStart, scheduledEnd })
+        : null,
+    [canShowLiveTime, now, scheduledStart, scheduledEnd]
+  );
+
   return (
     <div
       className={`flex min-w-0 items-center gap-2.5 rounded-xl border ${
@@ -279,6 +388,19 @@ export default function LifecycleCurrentDate({
       >
         {presentation.value}
       </p>
+
+      {countdown && (
+        <span
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-current/10 bg-white/65 font-bold leading-none ${
+            compact ? "h-6 px-2 text-[8.5px]" : "h-7 px-2.5 text-[10px]"
+          }`}
+          title={countdown.title}
+          aria-label={`${countdown.title}: ${countdown.label}`}
+        >
+          <TimerOutlineIcon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} />
+          <span className="whitespace-nowrap">{countdown.label}</span>
+        </span>
+      )}
     </div>
   );
 }

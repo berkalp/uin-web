@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import EyeIcon from "@/components/ui/EyeIcon";
+
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
 import LifecycleCurrentDate from "@/components/activities/LifecycleCurrentDate";
 import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
@@ -1078,7 +1080,7 @@ export default function DiscoverIntentCard({
           aria-label={`View ${cardTitle}`}
           className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-[11px] text-gray-600 transition hover:border-green-300 hover:text-green-700"
         >
-          ◉
+          <EyeIcon />
         </Link>
 
         {isOwner ? (

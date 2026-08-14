@@ -236,14 +236,10 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
 
         <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
           {[
-            ["Capacity", `0 / ${participantLimit}`],
+            ["Participants", `0 / ${participantLimit}`],
             ["Visibility", visibilityLabel],
-            ["Preference", people],
-            ["Est. cost / person", formatEstimatedCost(budget, { includePerPerson: false })],
-            ["Intent type", intentType.replace(/-/g, " ")],
             ["Recurrence", recurrence],
-            ["Recruitment", recruitmentStatus],
-            ["Matching", matchingStatus],
+            ["Est. cost / person", formatEstimatedCost(budget, { includePerPerson: false })],
           ].map(([label, value]) => (
             <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
               <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
@@ -251,6 +247,34 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
             </div>
           ))}
         </div>
+
+        {(primaryCommunity || locationLabel) && (
+          <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
+            {primaryCommunity && (
+              <Link
+                href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
+                className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: primaryCommunity.accentColor }}
+                />
+                <span className="truncate">{primaryCommunity.name}</span>
+                {communities.length > 1 && (
+                  <span className="shrink-0 text-green-600">+{communities.length - 1}</span>
+                )}
+              </Link>
+            )}
+
+            {locationLabel && (
+              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
+                <span aria-hidden="true">≈</span>
+                <span className="truncate">{locationLabel}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {journeySummary && (
           journeySummary.href ? (

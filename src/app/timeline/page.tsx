@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import EyeIcon from "../../components/ui/EyeIcon";
 import { redirect } from "next/navigation";
 
 import TimelineHeader from "../../components/timeline/TimelineHeader";
@@ -12,8 +14,6 @@ import ActivityPeopleStrip from "../../components/activities/ActivityPeopleStrip
 import IntentResolutionPanel, {
   type IntentResolutionItem,
 } from "../../components/timeline/IntentResolutionPanel";
-import PlanWeatherBadges from "../../components/weather/PlanWeatherBadges";
-import CommunityContextList from "../../components/communities/CommunityContextList";
 import ManagedMinorTimeline from "../../components/family/ManagedMinorTimeline";
 import {
   type FamilyCenterData,
@@ -3423,9 +3423,11 @@ export default async function TimelinePage({
           <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
           <Link
             href={intentViewHref}
-            className="flex h-6 min-w-[58px] items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+            title="Görüntüle"
+            aria-label={`Görüntüle ${activity?.name ?? "UIN Intent"}`}
+            className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:border-green-300 hover:text-green-700"
           >
-            Görüntüle
+            <EyeIcon />
           </Link>
 
           <TimelineShareButton
@@ -3981,6 +3983,9 @@ export default async function TimelinePage({
               plan.visibility
             )
           }
+          recurrence={
+            currentUserSourceIntent?.recurrence ?? "one-time"
+          }
           relatedLinks={
             hostSourceIntentId
               ? intentLinksByIntentId.get(
@@ -4032,9 +4037,11 @@ export default async function TimelinePage({
         <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
           <Link
             href={planViewHref}
-            className="flex h-6 min-w-[58px] items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+            title="Görüntüle"
+            aria-label={`Görüntüle ${visiblePlanTitle}`}
+            className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:border-green-300 hover:text-green-700"
           >
-            Görüntüle
+            <EyeIcon />
           </Link>
 
           <TimelineShareButton
@@ -4391,128 +4398,8 @@ export default async function TimelinePage({
                   </div>
                 </div>
 
-                <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  {comingUpEntries.map((entry) => {
-                    const info = getCompactPlanPresentation(entry);
-                    const timelineReturnTo = "/timeline?view=open";
-                    const viewHref = `/activities/${encodeURIComponent(
-                      entry.plan.id
-                    )}?from=timeline&returnTo=${encodeURIComponent(
-                      timelineReturnTo
-                    )}&returnLabel=${encodeURIComponent("Timeline")}`;
-                    const roomHref = `/plans/${encodeURIComponent(
-                      entry.plan.id
-                    )}/${entry.plan.status === "forming" ? "planning" : "activity"}?from=timeline&returnTo=${encodeURIComponent(
-                      timelineReturnTo
-                    )}&returnLabel=${encodeURIComponent("Timeline")}`;
-                    const roomLabel =
-                      entry.plan.status === "forming" ? "Planning Room" : "Activity Room";
-
-                    return (
-                      <article
-                        key={`coming-${entry.plan.id}`}
-                        className="group overflow-hidden rounded-[22px] border border-gray-200 bg-white transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
-                      >
-                        <div className="block">
-                          <div className="relative h-32 overflow-hidden bg-gray-950">
-                      <PlanWeatherBadges
-                        planId={entry.plan.id}
-                        compact
-                        className="absolute right-2 top-11 z-20"
-                      />
-                            {info.coverUrl ? (
-                              <img
-                                src={info.coverUrl}
-                                alt={`${info.title} cover`}
-                                className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 bg-gradient-to-br from-gray-800 to-gray-950" />
-                            )}
-
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/5 to-black/35" />
-
-                            <div className="absolute inset-x-3 top-3 flex flex-wrap items-center gap-2">
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm ${info.statusClasses}`}
-                              >
-                                {info.statusLabel}
-                              </span>
-                              <span
-                                className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide shadow-sm ${info.relationshipClasses}`}
-                              >
-                                {info.relationshipLabel}
-                              </span>
-                            </div>
-
-                            <div className="absolute inset-x-0 bottom-0 p-3.5">
-                              <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-emerald-300">
-                                {info.categoryName}
-                              </p>
-                              <h3 className="mt-1 line-clamp-2 text-base font-black leading-tight text-white">
-                                {info.title}
-                              </h3>
-                              <CommunityContextList
-                                communities={info.communities}
-                                variant="card"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-3.5">
-                          {info.sourceIntentName && info.sourceIntentHref && (
-                            <Link
-                              href={info.sourceIntentHref}
-                              className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 transition hover:border-emerald-200 hover:bg-emerald-100"
-                            >
-                              <div className="min-w-0">
-                                <p className="text-[8px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                                  {info.sourceCount > 1
-                                    ? `${info.sourceCount} Intents matched → 1 Activity`
-                                    : "Your Intent → this Activity"}
-                                </p>
-                                <p className="mt-0.5 truncate text-[10px] font-black text-gray-900">
-                                  Your Intent · {info.sourceIntentName}
-                                </p>
-                              </div>
-                              <span className="shrink-0 text-[10px] font-black text-emerald-800">
-                                ↗
-                              </span>
-                            </Link>
-                          )}
-                          <ActivityPeopleStrip
-                            people={info.people}
-                            currentUserId={currentUserId}
-                            activityHref={viewHref}
-                            variant="compact"
-                            maxVisible={5}
-                            className="mb-3 rounded-xl border border-gray-100 bg-gray-50/80 px-3 py-2.5"
-                          />
-                          <p className="text-xs font-black text-gray-900">
-                            {info.dateLabel}
-                          </p>
-                          <p className="mt-1 truncate text-xs text-gray-500">
-                            {info.locationLabel || info.activityName || "Activity details"}
-                          </p>
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            <Link
-                              href={viewHref}
-                              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-center text-xs font-bold text-gray-700 transition hover:border-blue-300 hover:text-blue-700"
-                            >
-                              View
-                            </Link>
-                            <Link
-                              href={roomHref}
-                              className="rounded-xl bg-green-600 px-3 py-2 text-center text-xs font-bold text-white transition hover:bg-green-700"
-                            >
-                              {roomLabel}
-                            </Link>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {comingUpEntries.map(renderTimelineEntry)}
                 </div>
               </section>
             )}

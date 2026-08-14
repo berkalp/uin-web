@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import EyeIcon from "../ui/EyeIcon";
+
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
 import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
 import { resolveActivityCover } from "../../utils/activityCover";
@@ -120,7 +122,18 @@ export default function TimelineExpiredPresentation(props: Props) {
       </div>
 
       <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
-        {href ? <Link href={href} className="flex h-6 min-w-[58px] items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700">Görüntüle</Link> : <span className="h-6 min-w-[58px]" />}
+        {href ? (
+          <Link
+            href={href}
+            title="Görüntüle"
+            aria-label={`Görüntüle ${props.title}`}
+            className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-gray-600 transition hover:border-green-300 hover:text-green-700"
+          >
+            <EyeIcon />
+          </Link>
+        ) : (
+          <span className="h-6 w-7 shrink-0" />
+        )}
         <label htmlFor={detailToggleId} className="flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']">Detaylar</label>
         {props.canCreateAgain && props.sourceIntentId ? (
           <Link href={`/onboarding?copyFrom=${encodeURIComponent(props.sourceIntentId)}`} className="ml-auto flex h-6 min-w-[82px] items-center justify-center rounded-md bg-green-600 px-2 text-[9.5px] font-semibold text-white transition hover:bg-green-700">Tekrar Oluştur</Link>

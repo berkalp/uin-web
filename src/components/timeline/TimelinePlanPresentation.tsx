@@ -4,6 +4,7 @@ import Link from "next/link";
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
 import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
 import ActivityPeopleStrip from "../activities/ActivityPeopleStrip";
+import IntentLinksDisplay from "../intents/IntentLinksDisplay";
 import PlanWeatherBadges from "../weather/PlanWeatherBadges";
 import type { IntentCommunityContext } from "../../utils/communities";
 import type { IntentLinkView } from "../../utils/intentLinks";
@@ -51,6 +52,7 @@ export type TimelinePlanPresentationProps = {
   cancelledAt: string | null;
   expiredAt: string | null;
   visibilityLabel: string;
+  recurrence: string;
   relatedLinks: IntentLinkView[];
   communities: IntentCommunityContext[];
   notes?: string | null;
@@ -101,6 +103,8 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
     cancelledAt,
     expiredAt,
     visibilityLabel,
+    recurrence,
+    relatedLinks,
     communities,
     notes = null,
     attendanceLabel = null,
@@ -208,16 +212,51 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
           {[
             ["Participants", `${participantCount} / ${participantLimit}`],
             ["Visibility", visibilityLabel],
-            ["Committed", `${money(committedBudget)} TL`],
-            ["Target", targetBudget === null ? "Not set" : `${money(targetBudget)} TL`],
-            ["Your role", relationshipLabel],
-            ["Recruitment", recruitmentStatus],
+            ["Recurrence", recurrence],
+            ["Plan budget", targetBudget === null ? `${money(committedBudget)} TL` : `${money(targetBudget)} TL`],
           ].map(([label, value]) => (
             <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
               <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
-              <p className="mt-0.5 truncate font-semibold text-gray-950">{value}</p>
+              <p className="mt-0.5 truncate font-semibold capitalize text-gray-950">{value}</p>
             </div>
           ))}
+        </div>
+
+        {(primaryCommunity || locationLabel) && (
+          <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
+            {primaryCommunity && (
+              <Link
+                href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
+                className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-2 w-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: primaryCommunity.accentColor }}
+                />
+                <span className="truncate">{primaryCommunity.name}</span>
+                {communities.length > 1 && (
+                  <span className="shrink-0 text-green-600">+{communities.length - 1}</span>
+                )}
+              </Link>
+            )}
+
+            {locationLabel && (
+              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
+                <span aria-hidden="true">{exact ? "📍" : "≈"}</span>
+                <span className="truncate">{locationLabel}</span>
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
+          <span className="inline-flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
+            <span className="truncate">{relationshipLabel}</span>
+          </span>
+          <span className="inline-flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium capitalize text-gray-600">
+            <span className="truncate">Recruitment · {recruitmentStatus}</span>
+          </span>
         </div>
 
         {attendanceLabel && (
@@ -230,6 +269,12 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
           <div className="mt-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
             <p className="text-[7.5px] font-semibold uppercase text-blue-500">Note</p>
             <p className="mt-0.5 line-clamp-3 text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
+          </div>
+        )}
+
+        {relatedLinks.length > 0 && (
+          <div className="mt-1.5">
+            <IntentLinksDisplay links={relatedLinks} />
           </div>
         )}
 
