@@ -28,6 +28,9 @@ import PlanNeedsPanel from "./PlanNeedsPanel";
 import PlanToolkitPanel from "./PlanToolkitPanel";
 import PlanMessageComposer from "./PlanMessageComposer";
 import PlanRoomRealtimeRefresh from "./PlanRoomRealtimeRefresh";
+import PlanLifecycleActions, {
+  type CancelledPlanRecoveryOption,
+} from "./PlanLifecycleActions";
 import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
 import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
 import ReportCustomActivityTitleButton from "../experiences/ReportCustomActivityTitleButton";
@@ -36,6 +39,7 @@ import ProfileNameLink from "../profile/ProfileNameLink";
 import PlanPeoplePanel, {
   type PlanPeopleInvitation,
   type PlanPeopleMember,
+  type PlanPeopleDeparture,
 } from "./PlanPeoplePanel";
 import IntentInvitePeopleButton from "../intents/IntentInvitePeopleButton";
 import ActivityVisibilityManager from "../visibility/ActivityVisibilityManager";
@@ -242,6 +246,10 @@ type PlanRoomData = {
   planned_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancellation_reason: string | null;
+  cancellation_reason_code: string | null;
+  cancellation_phase: "planning" | "activity" | null;
   expired_at: string | null;
   created_at: string;
   locations:
@@ -280,6 +288,18 @@ type PlanMessage = {
     | PlanProfile
     | PlanProfile[]
     | null;
+};
+
+type PlanMemberDeparture = {
+  departure_id: string;
+  user_id: string;
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  room_phase: RoomPhase;
+  reason_code: string;
+  reason_text: string | null;
+  departed_at: string;
 };
 
 type BudgetSummaryRow = {
@@ -425,6 +445,10 @@ const PLAN_SELECT_QUERY = `
   planned_at,
   completed_at,
   cancelled_at,
+  cancelled_by,
+  cancellation_reason,
+  cancellation_reason_code,
+  cancellation_phase,
   expired_at,
   created_at,
   locations (
@@ -762,7 +786,9 @@ function getSystemMessageText(
     message.system_event ===
     "member_left"
   ) {
-    return `${memberName} left the Plan.`;
+    return message.room_phase === "activity"
+      ? `${memberName} will not attend the Activity.`
+      : `${memberName} left the Plan.`;
   }
 
   if (
@@ -847,7 +873,25 @@ function getSystemMessageText(
     message.system_event ===
     "plan_cancelled"
   ) {
-    return "The Activity was cancelled.";
+    const actorUserId =
+      getMetadataString(
+        message.metadata,
+        "actor_user_id"
+      );
+
+    const actorName = actorUserId
+      ? memberNameByUserId.get(actorUserId) ?? "A Host / Co-host"
+      : "A Host / Co-host";
+
+    const reasonLabel =
+      getMetadataString(
+        message.metadata,
+        "reason_label"
+      );
+
+    return `${actorName} cancelled the ${
+      message.room_phase === "planning" ? "Plan" : "Activity"
+    }.${reasonLabel ? ` ${reasonLabel}.` : ""}`;
   }
 
   return message.body;
@@ -1632,6 +1676,36 @@ export default async function PlanRoomView({
         ? "co_host"
         : "participant";
 
+  const [recoveryOptionResult, departureHistoryResult] = await Promise.all([
+    plan.status === "cancelled"
+      ? supabase.rpc("get_my_cancelled_plan_recovery_options", {
+          p_plan_id: plan.id,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    isHost || isCoHost
+      ? supabase.rpc("get_plan_member_departures", {
+          p_plan_id: plan.id,
+        })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (recoveryOptionResult.error) {
+    console.error(
+      "Cancelled Plan recovery options query failed:",
+      recoveryOptionResult.error
+    );
+  }
+
+  if (departureHistoryResult.error) {
+    console.error(
+      "Plan departure history query failed:",
+      departureHistoryResult.error
+    );
+  }
+
+  const recoveryOptions = (recoveryOptionResult.data ?? []) as CancelledPlanRecoveryOption[];
+  const departureHistory = (departureHistoryResult.data ?? []) as PlanMemberDeparture[];
+
   const roomLabel =
     roomPhase === "planning"
       ? "Planning Room"
@@ -2181,6 +2255,24 @@ export default async function PlanRoomView({
       })
     );
 
+  const peoplePanelDepartures: PlanPeopleDeparture[] = departureHistory.map(
+    (departure) => ({
+      departureId: departure.departure_id,
+      userId: departure.user_id,
+      fullName: departure.full_name,
+      username: departure.username,
+      avatarUrl: departure.avatar_url,
+      roomPhase: departure.room_phase,
+      reasonCode: departure.reason_code,
+      reasonText: departure.reason_text,
+      departedAt: departure.departed_at,
+    })
+  );
+
+  const cancellationActorName = plan.cancelled_by
+    ? memberNameByUserId.get(plan.cancelled_by) ?? "Host / Co-host"
+    : "Host / Co-host";
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1500px]">
@@ -2285,6 +2377,25 @@ export default async function PlanRoomView({
           </div>
         )}
 
+        {plan.status === "cancelled" && (
+          <div className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-6">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-red-700">
+              {plan.cancellation_phase === "planning" ? "Plan iptal edildi" : "Aktivite iptal edildi"}
+            </p>
+            <h2 className="mt-2 text-xl font-bold text-red-950">
+              Geçmiş korunuyor; bu oda yeniden açılmıyor.
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-red-800">
+              {cancellationActorName} tarafından iptal edildi
+              {plan.cancelled_at ? ` · ${formatDateTime(plan.cancelled_at, plan.timezone)}` : ""}.
+              {plan.cancellation_reason ? ` Gerekçe: ${plan.cancellation_reason}` : ""}
+            </p>
+            <p className="mt-2 text-sm leading-7 text-red-700">
+              Bağlı Niyetler otomatik olarak geri açılmaz. Her Niyet sahibi kendi Niyetini yeniden açabilir; eski Plan / Aktivite lineage içinde iptal edilmiş kayıt olarak kalır.
+            </p>
+          </div>
+        )}
+
         {isCompletionRequired && (
           <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-6">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
@@ -2300,7 +2411,7 @@ export default async function PlanRoomView({
             <p className="mt-3 text-sm leading-7 text-amber-800">
               {isOutcomeUnknown
                 ? "No final outcome was recorded within seven days. It is no longer treated as an active Planned Activity, but a Host or Co-host can still resolve it below."
-                : "Confirm whether the Activity happened and record attendance here in the Activity Room. Only the Primary Host can mark it as not happened."}
+                : "Confirm whether the Activity happened and record attendance here in the Activity Room. A Host or Co-host may cancel it if it did not happen."}
             </p>
 
             {(isHost || isCoHost) && (
@@ -2542,6 +2653,16 @@ export default async function PlanRoomView({
                 />
               </div>
             )}
+
+            <PlanLifecycleActions
+              planId={plan.id}
+              activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
+              planStatus={plan.status}
+              roomPhase={roomPhase}
+              actorRole={actorRole}
+              isActiveMember={isActiveMember}
+              recoveryOptions={recoveryOptions}
+            />
           </aside>
         </section>
 
@@ -2573,6 +2694,7 @@ export default async function PlanRoomView({
               activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
               members={peoplePanelMembers}
               invitations={peoplePanelInvitations}
+              departures={peoplePanelDepartures}
             />
 
             <ConversationPanel

@@ -4003,71 +4003,20 @@ export default async function TimelinePage({
     };
   }
 
-  function getCompactHistoryPresentation(entry: TimelineEntry) {
-    if (entry.kind === "plan") {
-      const info = getCompactPlanPresentation(entry);
-      return {
-        title: info.title,
-        subtitle: info.activityName ?? info.locationLabel,
-        href: withReturnContext(
-          `/activities/${encodeURIComponent(entry.plan.id)}`,
-          buildTimelineHref(),
-          "Timeline",
-          "timeline"
-        ),
-        status:
-          getEntryView(entry) === "completed"
-            ? "Completed"
-            : getEntryView(entry) === "outcome_unknown"
-              ? "Outcome Unknown"
-              : "Cancelled",
-        dateLabel: formatCompactTimelineDate(
-          entry.plan.completed_at ??
-            entry.plan.cancelled_at ??
-            entry.plan.scheduled_start ??
-            entry.plan.window_start
-        ),
-      };
-    }
-
-    const activity = getFirst(entry.intent.activities);
-    return {
-      title: activity?.name ?? "Intent",
-      subtitle: getFirst(entry.intent.locations)?.city ?? null,
-      href:
-        entry.intent.status === "completed"
-          ? "/timeline?view=completed"
-          : "/timeline?view=cancelled",
-      status: entry.intent.status === "completed" ? "Completed" : "Cancelled",
-      dateLabel: formatCompactTimelineDate(entry.intent.end_date),
-    };
-  }
-
-  const recentHistoryCards = [
+  const recentHistoryItems = [
     ...recentTimelineHistory.map((entry) => ({
+      kind: "timeline" as const,
       key: `timeline-${entry.kind}-${
         entry.kind === "plan" ? entry.plan.id : entry.intent.id
       }`,
       sortDate: getTimelineHistorySortDate(entry),
-      ...getCompactHistoryPresentation(entry),
+      entry,
     })),
     ...expiredActivities.map((item) => ({
+      kind: "expired" as const,
       key: `expired-${item.item_type}-${item.item_id}`,
       sortDate: item.expired_at,
-      title: item.title || item.activity_name || "Expired item",
-      subtitle: [item.activity_name, item.district, item.city]
-        .filter(Boolean)
-        .join(" · "),
-      href: item.plan_id
-        ? withReturnContext(
-            `/activities/${encodeURIComponent(item.plan_id)}`,
-            buildTimelineHref(),
-            "Timeline",
-            "timeline"
-          )
-        : "/timeline?view=expired",
-      status: "Expired",
-      dateLabel: formatCompactTimelineDate(item.expired_at),
+      item,
     })),
   ]
     .sort(
@@ -4620,18 +4569,18 @@ export default async function TimelinePage({
           )}
         </section>
 
-        {selectedView === "open" && recentHistoryCards.length > 0 && (
+        {selectedView === "open" && recentHistoryItems.length > 0 && (
           <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                  Recent history
+                  Yakın geçmiş
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-gray-950">
-                  What just moved behind you
+                  Yaşananlar ve süresi dolanlar
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Only the latest completed, expired or cancelled items live here. Full history stays in its own views.
+                  Son tamamlanan, süresi dolan veya iptal edilen kayıtlar da normal Niyet / Aktivite kartı düzeninde kalır.
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -4650,39 +4599,24 @@ export default async function TimelinePage({
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {recentHistoryCards.map((item) => (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className="rounded-2xl border border-gray-200 bg-gray-50 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-sm"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-wide ${
-                        item.status === "Completed"
-                          ? "bg-purple-100 text-purple-800"
-                          : item.status === "Expired"
-                            ? "bg-orange-100 text-orange-800"
-                            : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {item.status}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400">
-                      {item.dateLabel}
-                    </span>
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {recentHistoryItems.map((historyItem) =>
+                historyItem.kind === "timeline" ? (
+                  <div key={historyItem.key} className="min-w-0">
+                    {renderTimelineEntry(historyItem.entry)}
                   </div>
-                  <h3 className="mt-3 line-clamp-2 font-black text-gray-950">
-                    {item.title}
-                  </h3>
-                  {item.subtitle && (
-                    <p className="mt-1 truncate text-xs text-gray-500">
-                      {item.subtitle}
-                    </p>
-                  )}
-                </Link>
-              ))}
+                ) : (
+                  <div key={historyItem.key} className="min-w-0">
+                    <ExpiredActivityCard
+                      item={historyItem.item}
+                      ownedIntentById={ownedIntentById}
+                      planById={planById}
+                      sportCoverContextByIntentId={sportCoverContextByIntentId}
+                      privatePresentationByPlanId={privatePresentationByPlanId}
+                    />
+                  </div>
+                )
+              )}
             </div>
           </section>
         )}

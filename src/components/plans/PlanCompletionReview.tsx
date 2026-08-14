@@ -447,12 +447,12 @@ export default function PlanCompletionReview({
             </dl>
           </section>
 
-          {plan.actor_role === "host" && (
+          {(plan.actor_role === "host" || plan.actor_role === "co_host") && (
             <section className="rounded-3xl border border-red-200 bg-red-50 p-5">
               <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Activity Did Not Happen</p>
               <h3 className="mt-2 text-lg font-bold text-red-950">Mark Activity as not happened</h3>
               <p className="mt-2 text-sm leading-6 text-red-700">
-                This records a real-world outcome, not a return to planning. Attendance remains Not Recorded and linked Intents are detached safely before being reopened or expired.
+                This records a real-world cancellation. The Activity stays in history and linked Intents are detached safely. No Intent is reopened automatically; each Intent owner chooses what to do next.
               </p>
 
               {!showNotHappened ? (

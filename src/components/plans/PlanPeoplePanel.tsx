@@ -72,6 +72,18 @@ export type PlanPeopleInvitation = {
   createdAt: string;
 };
 
+export type PlanPeopleDeparture = {
+  departureId: string;
+  userId: string;
+  fullName: string | null;
+  username: string | null;
+  avatarUrl: string | null;
+  roomPhase: RoomPhase;
+  reasonCode: string;
+  reasonText: string | null;
+  departedAt: string;
+};
+
 type PlanPeoplePanelProps = {
   planId: string;
   planStatus: PlanStatus;
@@ -92,6 +104,7 @@ type PlanPeoplePanelProps = {
   activityLabel: string;
   members: PlanPeopleMember[];
   invitations: PlanPeopleInvitation[];
+  departures?: PlanPeopleDeparture[];
 };
 
 type PeopleTab =
@@ -205,6 +218,15 @@ function getInvitationStatusClasses(
   return "border-gray-200 bg-gray-100 text-gray-600";
 }
 
+function getDepartureReasonLabel(reason: string) {
+  if (reason === "schedule_changed") return "Programı değişti";
+  if (reason === "transport_problem") return "Ulaşım problemi";
+  if (reason === "cost") return "Maliyet / bütçe";
+  if (reason === "personal_reason") return "Kişisel neden";
+  if (reason === "no_longer_interested") return "Artık katılmak istemiyor";
+  return "Diğer";
+}
+
 function formatDateTime(
   value: string
 ) {
@@ -283,6 +305,7 @@ export default function PlanPeoplePanel({
   activityLabel,
   members,
   invitations,
+  departures = [],
 }: PlanPeoplePanelProps) {
   const router = useRouter();
 
@@ -644,6 +667,73 @@ export default function PlanPeoplePanel({
                 </article>
               );
             }
+          )}
+
+          {departures.length > 0 && (
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-amber-700">
+                    Ayrılanlar
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">
+                    Gerekçe yalnızca ayrılan kişi ile Host / Co-host tarafından görülür.
+                  </p>
+                </div>
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
+                  {departures.length}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {departures.map((departure) => {
+                  const displayName =
+                    departure.fullName || departure.username || "UIN member";
+
+                  return (
+                    <article
+                      key={departure.departureId}
+                      className="rounded-2xl border border-amber-100 bg-amber-50/60 p-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <PersonAvatar
+                          src={departure.avatarUrl}
+                          name={displayName}
+                          className="h-10 w-10 shrink-0 rounded-full object-cover ring-2 ring-white"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-gray-950">
+                                {displayName}
+                              </p>
+                              <p className="mt-1 text-[11px] font-semibold text-amber-800">
+                                {getDepartureReasonLabel(departure.reasonCode)}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-bold uppercase text-gray-500">
+                              {departure.roomPhase === "planning"
+                                ? "Planlama"
+                                : "Aktivite"}
+                            </span>
+                          </div>
+
+                          {departure.reasonText && (
+                            <p className="mt-2 rounded-lg bg-white px-2.5 py-2 text-[11px] leading-5 text-gray-600">
+                              {departure.reasonText}
+                            </p>
+                          )}
+
+                          <p className="mt-2 text-[10px] text-gray-400">
+                            {formatDateTime(departure.departedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           )}
         </div>
       )}
