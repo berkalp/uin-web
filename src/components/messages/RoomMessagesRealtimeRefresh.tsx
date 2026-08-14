@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 
 import { supabase } from "@/utils/supabase/client";
 
-export default function NotificationsRealtimeRefresh() {
+export default function RoomMessagesRealtimeRefresh() {
   const router = useRouter();
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -14,14 +14,9 @@ export default function NotificationsRealtimeRefresh() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
 
     function scheduleRefresh() {
-      if (refreshTimer.current) {
-        clearTimeout(refreshTimer.current);
-      }
-
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
       refreshTimer.current = setTimeout(() => {
-        if (isMounted) {
-          router.refresh();
-        }
+        if (isMounted) router.refresh();
       }, 150);
     }
 
@@ -30,12 +25,10 @@ export default function NotificationsRealtimeRefresh() {
         data: { user },
       } = await supabase.auth.getUser();
 
-      if (!isMounted || !user) {
-        return;
-      }
+      if (!isMounted || !user) return;
 
       channel = supabase
-        .channel(`web-notifications-page:${user.id}`)
+        .channel(`room-message-center:${user.id}`)
         .on(
           "postgres_changes",
           {
@@ -51,39 +44,26 @@ export default function NotificationsRealtimeRefresh() {
               nextRow.notification_type ?? previousRow.notification_type ?? ""
             ).toLowerCase();
 
-            if (!type.includes("room_message")) {
-              scheduleRefresh();
-            }
+            if (type.includes("room_message")) scheduleRefresh();
           }
         )
         .subscribe();
     }
 
-    const handleLocalChange = () => {
-      scheduleRefresh();
+    const reconcile = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
     };
 
-    window.addEventListener(
-      "uin:notifications-changed",
-      handleLocalChange
-    );
-
+    window.addEventListener("focus", reconcile);
+    document.addEventListener("visibilitychange", reconcile);
     void subscribe();
 
     return () => {
       isMounted = false;
-      window.removeEventListener(
-        "uin:notifications-changed",
-        handleLocalChange
-      );
-
-      if (refreshTimer.current) {
-        clearTimeout(refreshTimer.current);
-      }
-
-      if (channel) {
-        void supabase.removeChannel(channel);
-      }
+      window.removeEventListener("focus", reconcile);
+      document.removeEventListener("visibilitychange", reconcile);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [router]);
 

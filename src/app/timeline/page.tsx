@@ -2120,7 +2120,7 @@ export default async function TimelinePage({
     ),
 
     supabase.rpc(
-      "get_my_unread_notification_count"
+      "get_my_unread_update_notification_count"
     ),
 
     supabase.rpc(
@@ -2773,6 +2773,18 @@ export default async function TimelinePage({
       conversationSummaryResult.data ??
       []
     ) as PlanConversationSummary[];
+
+  const unreadRoomMessageCount =
+    conversationSummaries.reduce(
+      (total, summary) =>
+        total +
+        getUnreadCount(summary),
+      0
+    );
+
+  const messageCenterUnreadCount =
+    unreadDirectMessageCount +
+    unreadRoomMessageCount;
 
   const conversationSummaryByPlanId =
     new Map<
@@ -4176,7 +4188,7 @@ export default async function TimelinePage({
             inboxCount
           }
           directMessageCount={
-            unreadDirectMessageCount
+            messageCenterUnreadCount
           }
           unreadNotificationCount={
             unreadNotificationCount

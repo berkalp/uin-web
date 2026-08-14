@@ -128,26 +128,24 @@ export default function DirectConversationList({
   );
 
   return (
-    <>
-      <header className="mt-8 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-              Direct conversations
-            </p>
-            <h1 className="mt-3 text-4xl font-bold text-gray-950">Messages</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-500">
-              Staff-created conversations live here. General member-to-member DMs remain closed.
-            </p>
-          </div>
-
-          <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-bold text-white">
-            {unreadTotal} unread
-          </span>
+    <section className="mt-10">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
+            Direct conversations
+          </p>
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">Direct Messages</h2>
+          <p className="mt-2 text-sm leading-6 text-gray-500">
+            Staff-created one-to-one conversations. General member-to-member DMs remain closed.
+          </p>
         </div>
-      </header>
 
-      <section className="mt-6 space-y-3">
+        <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
+          {unreadTotal} unread
+        </span>
+      </div>
+
+      <div className="mt-4 space-y-3">
         {loadFailed && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
             Conversations could not be refreshed.
@@ -223,7 +221,7 @@ export default function DirectConversationList({
             </Link>
           );
         })}
-      </section>
-    </>
+      </div>
+    </section>
   );
 }

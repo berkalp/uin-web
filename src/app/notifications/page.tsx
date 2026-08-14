@@ -19,249 +19,188 @@ type NotificationRow = {
   is_read: boolean;
   read_at: string | null;
   created_at: string;
-
   actor_user_id: string | null;
   actor_full_name: string | null;
   actor_username: string | null;
   actor_avatar_url: string | null;
 };
 
-function getInitial(
-  value: string
-) {
-  return (
-    value
-      .trim()
-      .charAt(0)
-      .toUpperCase() || "N"
-  );
+type NotificationPagePayload = {
+  items?: NotificationRow[];
+  total_count?: number | string;
+  unread_count?: number | string;
+  limit?: number | string;
+  offset?: number | string;
+};
+
+type NotificationsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const PAGE_SIZE = 10;
+
+function toNumber(value: unknown, fallback = 0) {
+  const parsed = Number(value ?? fallback);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function formatDateTime(
-  value: string
-) {
-  const date =
-    new Date(value);
+function getInitial(value: string) {
+  return value.trim().charAt(0).toUpperCase() || "N";
+}
 
-  if (
-    Number.isNaN(
-      date.getTime()
-    )
-  ) {
+function formatDateTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
     return "Unknown time";
   }
 
-  return new Intl.DateTimeFormat(
-    "en-GB",
-    {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }
-  ).format(date);
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(date);
 }
 
-function getNotificationTone(
-  type: string
-) {
-  if (
-    type.includes(
-      "feedback"
-    )
-  ) {
+function getNotificationTone(type: string) {
+  if (type.includes("feedback")) {
     return {
-      border:
-        "border-purple-200",
-      badge:
-        "bg-purple-50 text-purple-700",
-      label:
-        "Feedback",
+      border: "border-purple-200",
+      badge: "bg-purple-50 text-purple-700",
+      label: "Feedback",
     };
   }
 
-  if (
-    type.includes(
-      "accepted"
-    ) ||
-    type.includes(
-      "planned_activity"
-    )
-  ) {
+  if (type.includes("accepted") || type.includes("planned_activity")) {
     return {
-      border:
-        "border-green-200",
-      badge:
-        "bg-green-50 text-green-700",
-      label:
-        "Update",
+      border: "border-green-200",
+      badge: "bg-green-50 text-green-700",
+      label: "Update",
     };
   }
 
-  if (
-    type.includes(
-      "declined"
-    ) ||
-    type.includes(
-      "revoked"
-    )
-  ) {
+  if (type.includes("declined") || type.includes("revoked")) {
     return {
-      border:
-        "border-red-200",
-      badge:
-        "bg-red-50 text-red-700",
-      label:
-        "Resolved",
+      border: "border-red-200",
+      badge: "bg-red-50 text-red-700",
+      label: "Resolved",
     };
   }
 
-  if (
-    type.includes(
-      "invitation"
-    )
-  ) {
+  if (type.includes("invitation")) {
     return {
-      border:
-        "border-purple-200",
-      badge:
-        "bg-purple-50 text-purple-700",
-      label:
-        "Invitation",
+      border: "border-purple-200",
+      badge: "bg-purple-50 text-purple-700",
+      label: "Invitation",
     };
   }
 
-  if (
-    type.includes(
-      "join_request"
-    )
-  ) {
+  if (type.includes("join_request")) {
     return {
-      border:
-        "border-blue-200",
-      badge:
-        "bg-blue-50 text-blue-700",
-      label:
-        "Join Request",
+      border: "border-blue-200",
+      badge: "bg-blue-50 text-blue-700",
+      label: "Join Request",
     };
   }
 
   return {
-    border:
-      "border-gray-200",
-    badge:
-      "bg-gray-100 text-gray-600",
-    label:
-      "Notification",
+    border: "border-gray-200",
+    badge: "bg-gray-100 text-gray-600",
+    label: "Notification",
   };
 }
 
-export default async function NotificationsPage() {
-  const supabase =
-    await createClient();
+function pageHref(page: number) {
+  return page <= 1 ? "/notifications" : `/notifications?page=${page}`;
+}
 
+export default async function NotificationsPage({
+  searchParams,
+}: NotificationsPageProps) {
+  const resolvedSearchParams = await searchParams;
+  const requestedPage = Math.max(
+    1,
+    Math.trunc(
+      toNumber(
+        Array.isArray(resolvedSearchParams.page)
+          ? resolvedSearchParams.page[0]
+          : resolvedSearchParams.page,
+        1
+      )
+    )
+  );
+
+  const supabase = await createClient();
   const {
     data: { user },
-  } =
-    await supabase.auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect("/");
   }
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    "get_my_notifications",
+  const offset = (requestedPage - 1) * PAGE_SIZE;
+  const { data, error } = await supabase.rpc(
+    "get_my_update_notifications_page",
     {
-      p_limit: 100,
-      p_offset: 0,
+      p_limit: PAGE_SIZE,
+      p_offset: offset,
     }
   );
 
   if (error) {
-    console.error(
-      "Notification query failed:",
-      error
-    );
+    console.error("Notification query failed:", error);
   }
 
-  const notifications =
-    (
-      data ??
-      []
-    ) as NotificationRow[];
+  const payload = (data ?? {}) as NotificationPagePayload;
+  const notifications = Array.isArray(payload.items) ? payload.items : [];
+  const totalCount = Math.max(0, toNumber(payload.total_count));
+  const unreadCount = Math.max(0, toNumber(payload.unread_count));
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
-  const unreadCount =
-    notifications.filter(
-      (notification) =>
-        !notification.is_read
-    ).length;
+  if (!error && totalCount > 0 && requestedPage > pageCount) {
+    redirect(pageHref(pageCount));
+  }
 
-  const unreadNotifications =
-    notifications.filter(
-      (notification) =>
-        !notification.is_read
-    );
+  const unreadNotifications = notifications.filter(
+    (notification) => !notification.is_read
+  );
+  const readNotifications = notifications.filter(
+    (notification) => notification.is_read
+  );
 
-  const readNotifications =
-    notifications.filter(
-      (notification) =>
-        notification.is_read
-    );
-
-  function renderNotification(
-    notification: NotificationRow
-  ) {
+  function renderNotification(notification: NotificationRow) {
     const actorName =
-      notification.actor_full_name ||
-      notification.actor_username ||
-      "UIN";
-
-    const tone =
-      getNotificationTone(
-        notification.notification_type
-      );
+      notification.actor_full_name || notification.actor_username || "UIN";
+    const tone = getNotificationTone(notification.notification_type);
 
     return (
       <article
-        key={
-          notification.notification_id
-        }
+        key={notification.notification_id}
         className={`rounded-3xl border bg-white p-5 shadow-sm ${tone.border} ${
-          notification.is_read
-            ? "opacity-75"
-            : ""
+          notification.is_read ? "opacity-75" : ""
         }`}
       >
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-4">
             {notification.actor_avatar_url ? (
               <img
-                src={
-                  notification.actor_avatar_url
-                }
-                alt={
-                  actorName
-                }
+                src={notification.actor_avatar_url}
+                alt={actorName}
                 className="h-14 w-14 shrink-0 rounded-full object-cover"
               />
             ) : (
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gray-100 text-lg font-bold text-gray-500">
-                {getInitial(
-                  actorName
-                )}
+                {getInitial(actorName)}
               </div>
             )}
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${tone.badge}`}
-                >
+                <span className={`rounded-full px-3 py-1 text-xs font-semibold ${tone.badge}`}>
                   {tone.label}
                 </span>
 
@@ -273,37 +212,25 @@ export default async function NotificationsPage() {
               </div>
 
               <h2 className="mt-3 text-lg font-bold leading-7 text-gray-950">
-                {
-                  notification.title
-                }
+                {notification.title}
               </h2>
 
               {notification.body && (
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">
-                  {
-                    notification.body
-                  }
+                  {notification.body}
                 </p>
               )}
 
               <p className="mt-3 text-xs text-gray-400">
-                {formatDateTime(
-                  notification.created_at
-                )}
+                {formatDateTime(notification.created_at)}
               </p>
             </div>
           </div>
 
           <NotificationOpenButton
-            notificationId={
-              notification.notification_id
-            }
-            actionUrl={
-              notification.action_url
-            }
-            isRead={
-              notification.is_read
-            }
+            notificationId={notification.notification_id}
+            actionUrl={notification.action_url}
+            isRead={notification.is_read}
           />
         </div>
       </article>
@@ -323,11 +250,7 @@ export default async function NotificationsPage() {
             ← Back to Timeline
           </Link>
 
-          <MarkAllNotificationsReadButton
-            disabled={
-              unreadCount === 0
-            }
-          />
+          <MarkAllNotificationsReadButton disabled={unreadCount === 0} />
         </div>
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
@@ -340,10 +263,8 @@ export default async function NotificationsPage() {
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Invitations, participation
-            requests and meaningful public
-            updates from people you
-            follow.
+            Important updates about your Intents, Plans, Activities and people you follow.
+            Room conversations live in Messages, not here.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
@@ -352,87 +273,90 @@ export default async function NotificationsPage() {
             </span>
 
             <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {
-                notifications.length
-              }{" "}
-              total
+              {totalCount} total
             </span>
+
+            {totalCount > 0 && (
+              <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+                Page {Math.min(requestedPage, pageCount)} / {pageCount}
+              </span>
+            )}
           </div>
         </header>
 
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
-            <p className="font-semibold text-red-800">
-              Notifications could not be
-              loaded.
-            </p>
-
-            <p className="mt-2 text-sm text-red-700">
-              {error.message}
-            </p>
+            <p className="font-semibold text-red-800">Notifications could not be loaded.</p>
+            <p className="mt-2 text-sm text-red-700">{error.message}</p>
           </div>
         )}
 
-        {!error &&
-          notifications.length ===
-            0 && (
-            <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-xl font-bold text-green-700">
-                ✓
-              </div>
+        {!error && totalCount === 0 && (
+          <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-xl font-bold text-green-700">
+              ✓
+            </div>
+            <h2 className="mt-5 text-xl font-bold text-gray-950">No updates yet</h2>
+            <p className="mt-3 text-sm leading-7 text-gray-500">
+              Meaningful Intent, Plan and Activity updates will appear here.
+            </p>
+          </section>
+        )}
 
-              <h2 className="mt-5 text-xl font-bold text-gray-950">
-                Nothing needs your attention
-              </h2>
+        {!error && unreadNotifications.length > 0 && (
+          <section className="mt-8">
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">New</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">Unread Notifications</h2>
+            <div className="mt-5 space-y-4">
+              {unreadNotifications.map(renderNotification)}
+            </div>
+          </section>
+        )}
 
-              <p className="mt-3 text-sm leading-7 text-gray-500">
-                New invitations, join
-                requests and followed
-                activity updates will
-                appear here.
-              </p>
-            </section>
-          )}
+        {!error && readNotifications.length > 0 && (
+          <section className="mt-10">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">History</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">Earlier Notifications</h2>
+            <div className="mt-5 space-y-4">
+              {readNotifications.map(renderNotification)}
+            </div>
+          </section>
+        )}
 
-        {!error &&
-          unreadNotifications.length >
-            0 && (
-            <section className="mt-8">
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                New
-              </p>
+        {!error && totalCount > PAGE_SIZE && (
+          <nav
+            aria-label="Notification pages"
+            className="mt-10 flex items-center justify-between gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm"
+          >
+            <Link
+              href={pageHref(Math.max(1, requestedPage - 1))}
+              aria-disabled={requestedPage <= 1}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
+                requestedPage <= 1
+                  ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+              }`}
+            >
+              ← Previous
+            </Link>
 
-              <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Unread Notifications
-              </h2>
+            <span className="text-sm font-semibold text-gray-500">
+              {requestedPage} / {pageCount}
+            </span>
 
-              <div className="mt-5 space-y-4">
-                {unreadNotifications.map(
-                  renderNotification
-                )}
-              </div>
-            </section>
-          )}
-
-        {!error &&
-          readNotifications.length >
-            0 && (
-            <section className="mt-10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                History
-              </p>
-
-              <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Earlier Notifications
-              </h2>
-
-              <div className="mt-5 space-y-4">
-                {readNotifications.map(
-                  renderNotification
-                )}
-              </div>
-            </section>
-          )}
+            <Link
+              href={pageHref(Math.min(pageCount, requestedPage + 1))}
+              aria-disabled={requestedPage >= pageCount}
+              className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
+                requestedPage >= pageCount
+                  ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                  : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+              }`}
+            >
+              Next →
+            </Link>
+          </nav>
+        )}
       </div>
     </main>
   );

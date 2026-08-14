@@ -1683,24 +1683,42 @@ export default async function PlanRoomView({
     );
 
   if (
-    isActiveMember &&
+    (isHost || isActiveMember) &&
     !isExpiredPlanningPlan
   ) {
-    const {
-      error: readError,
-    } = await supabase.rpc(
-      "mark_plan_room_read",
-      {
-        p_plan_id: plan.id,
-        p_room_phase:
-          roomPhase,
-      }
-    );
+    const [
+      roomReadResult,
+      transportReadResult,
+    ] = await Promise.all([
+      supabase.rpc(
+        "mark_plan_room_read",
+        {
+          p_plan_id: plan.id,
+          p_room_phase:
+            roomPhase,
+        }
+      ),
+      supabase.rpc(
+        "mark_my_room_message_transport_read",
+        {
+          p_plan_id: plan.id,
+          p_room_phase:
+            roomPhase,
+        }
+      ),
+    ]);
 
-    if (readError) {
+    if (roomReadResult.error) {
       console.error(
         "Mark room read failed:",
-        readError
+        roomReadResult.error
+      );
+    }
+
+    if (transportReadResult.error) {
+      console.error(
+        "Mark room message transport read failed:",
+        transportReadResult.error
       );
     }
   }

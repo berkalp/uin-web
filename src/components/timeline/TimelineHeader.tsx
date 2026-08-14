@@ -8,6 +8,7 @@ import type {
 } from "@/components/navigation/AccountContextSwitcher";
 import UserAccountMenu from "@/components/navigation/UserAccountMenu";
 import NotificationBellButton from "@/components/notifications/NotificationBellButton";
+import MessageCenterButton from "@/components/messages/MessageCenterButton";
 
 type TimelineHeaderProps = {
   email: string | null;
@@ -137,25 +138,6 @@ function MatchesIcon() {
       <path d="M7.8 7.2 10.7 16" />
       <path d="m16.2 7.2-2.9 8.8" />
       <path d="M8 6h8" />
-    </svg>
-  );
-}
-
-function MessagesIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 5h16v11H8l-4 3V5Z" />
-      <path d="M8 9h8" />
-      <path d="M8 12h5" />
     </svg>
   );
 }
@@ -320,13 +302,9 @@ export default function TimelineHeader({
           )}
         </Link>
 
-        <IconNavigationButton
-          href="/messages"
-          label="Messages"
-          count={directMessageCount}
-        >
-          <MessagesIcon />
-        </IconNavigationButton>
+        <MessageCenterButton
+          initialUnreadCount={directMessageCount}
+        />
 
         <IconNavigationButton
           href="/inbox"

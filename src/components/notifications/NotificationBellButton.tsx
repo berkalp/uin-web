@@ -41,7 +41,7 @@ export default function NotificationBellButton({
 
     async function refreshCount() {
       const { data, error } = await supabase.rpc(
-        "get_my_unread_notification_count"
+        "get_my_unread_update_notification_count"
       );
 
       if (!isMounted || error) {
