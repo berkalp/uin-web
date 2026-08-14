@@ -3246,6 +3246,7 @@ export default async function TimelinePage({
         "Timeline",
         "timeline"
       );
+      const intentDetailToggleId = `timeline-intent-details-${intent.id}`;
 
       const journeySummary =
         intentJourneySummaryByIntentId.get(intent.id) ?? null;
@@ -3272,10 +3273,16 @@ export default async function TimelinePage({
       return (
         <article
           key={`intent-${intent.id}`}
-          className="relative flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative flex h-[400px] min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
-          <div className="relative">
-            <TimelineIntentPresentation
+          <input
+            id={intentDetailToggleId}
+            type="checkbox"
+            className="peer sr-only"
+            aria-label={`Toggle details for ${activity?.name ?? "UIN Intent"}`}
+          />
+          <TimelineIntentPresentation
+              detailToggleId={intentDetailToggleId}
               intentId={intent.id}
               title={
               activity?.name ??
@@ -3408,102 +3415,54 @@ export default async function TimelinePage({
                     }
                   : null
               }
+              ownerName={personalProfile.full_name ?? personalProfile.username ?? "You"}
+              ownerAvatarUrl={personalProfile.avatar_url}
+              notes={intent.notes}
             />
 
-          </div>
+          <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+          <Link
+            href={intentViewHref}
+            className="flex h-6 min-w-[58px] items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+          >
+            Görüntüle
+          </Link>
 
-          <div className="mt-auto border-t border-gray-100 bg-white p-3">
-            {intent.notes && (
-              <p className="mb-3 line-clamp-2 whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-xs leading-5 text-gray-600">
-                {intent.notes}
-              </p>
-            )}
+          <TimelineShareButton
+            title={`${activity?.name ?? "UIN Intent"} Intent`}
+            text={`I have a ${activity?.name ?? "UIN"} Intent. Are you in?`}
+            url={`/activities/${encodeURIComponent(intent.id)}`}
+            className="!h-6 !min-h-0 !w-auto !min-w-[54px] !rounded-md !px-2 !text-[9.5px] !leading-none"
+          />
 
-            <div className="grid grid-cols-3 gap-2">
-              <Link
-                href={intentViewHref}
-                className="flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
-              >
-                View
-              </Link>
-
-              <TimelineShareButton
-                title={`${activity?.name ?? "UIN Intent"} Intent`}
-                text={`I have a ${activity?.name ?? "UIN"} Intent. Are you in?`}
-                url={`/activities/${encodeURIComponent(
-                  intent.id
-                )}`}
-              />
-
-              <details className="group relative">
-                <summary className="flex min-h-10 cursor-pointer list-none items-center justify-center gap-1 rounded-xl bg-gray-950 px-2 text-xs font-semibold text-white transition hover:bg-gray-800">
-                  Manage
-                  <span className="text-[9px] transition group-open:rotate-180">
-                    ▼
-                  </span>
-                </summary>
-
-                <div className="absolute bottom-full right-0 z-50 mb-2 w-[290px] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
-                  <div className="grid gap-2">
-                    {requestCount >
-                      0 &&
-                      intent.status ===
-                        "active" && (
-                        <Link
-                          href="/requests"
-                          className="rounded-xl bg-green-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-green-700"
-                        >
-                          Review{" "}
-                          {requestCount} request
-                          {requestCount ===
-                          1
-                            ? ""
-                            : "s"}
-                        </Link>
-                      )}
-
-                    {intent.status ===
-                      "active" &&
-                      intent.recruitment_status ===
-                        "open" &&
-                      intent.end_date >=
-                        today && (
-                        <IntentInvitePeopleButton
-                          intentId={
-                            intent.id
-                          }
-                          activityLabel={
-                            activity?.name ??
-                            "UIN Activity"
-                          }
-                          compact
-                        />
-                      )}
-
-                    <Link
-                      href={`/intents/${encodeURIComponent(
-                        intent.id
-                      )}/visibility`}
-                      className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
-                    >
-                      Manage Visibility
-                    </Link>
-
-                    <IntentActionButtons
-                      intentId={
-                        intent.id
-                      }
-                      status={
-                        intent.status
-                      }
-                      recruitmentStatus={
-                        intent.recruitment_status
-                      }
-                    />
-                  </div>
-                </div>
-              </details>
+          <details className="group relative">
+            <summary className="flex h-6 min-w-[58px] cursor-pointer list-none items-center justify-center gap-1 rounded-md bg-gray-950 px-2 text-[9.5px] font-semibold text-white transition hover:bg-gray-800">
+              Yönet <span className="text-[8px] transition group-open:rotate-180">▾</span>
+            </summary>
+            <div className="absolute bottom-full right-0 z-50 mb-2 w-[290px] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
+              <div className="grid gap-2">
+                {requestCount > 0 && intent.status === "active" && (
+                  <Link href="/requests" className="rounded-xl bg-green-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-green-700">
+                    Review {requestCount} request{requestCount === 1 ? "" : "s"}
+                  </Link>
+                )}
+                {intent.status === "active" && intent.recruitment_status === "open" && intent.end_date >= today && (
+                  <IntentInvitePeopleButton intentId={intent.id} activityLabel={activity?.name ?? "UIN Activity"} compact />
+                )}
+                <Link href={`/intents/${encodeURIComponent(intent.id)}/visibility`} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100">
+                  Manage Visibility
+                </Link>
+                <IntentActionButtons intentId={intent.id} status={intent.status} recruitmentStatus={intent.recruitment_status} />
+              </div>
             </div>
+          </details>
+
+          <label
+            htmlFor={intentDetailToggleId}
+            className="ml-auto flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+          >
+            Detaylar
+          </label>
           </div>
         </article>
       );
@@ -3670,10 +3629,9 @@ export default async function TimelinePage({
         : "Activity Room";
 
     const roomButtonLabel =
-      plan.status ===
-      "forming"
-        ? "Open Planning Room"
-        : "Open Activity Room";
+      plan.status === "forming"
+        ? "Planlama Odası"
+        : "Aktivite Odası";
 
     const timelineReturnHref = buildTimelineHref();
     const planViewHref = withReturnContext(
@@ -3690,6 +3648,7 @@ export default async function TimelinePage({
       "Timeline",
       "timeline"
     );
+    const planDetailToggleId = `timeline-plan-details-${plan.id}`;
 
     const privatePresentation =
       privatePresentationByPlanId.get(
@@ -3813,6 +3772,33 @@ export default async function TimelinePage({
       "timeline"
     );
 
+    const attendanceLabel =
+      plan.status === "completed"
+        ? currentAttendance === "attended"
+          ? "Katıldın"
+          : currentAttendance === "no_show"
+            ? "Katılmadın"
+            : "Kayıt yok"
+        : null;
+    const attendanceClasses =
+      currentAttendance === "attended"
+        ? "bg-green-50 text-green-700"
+        : currentAttendance === "no_show"
+          ? "bg-red-50 text-red-700"
+          : "bg-gray-100 text-gray-600";
+    const primaryPlanActionHref =
+      completionRequired && (relationship === "host" || relationship === "co_host")
+        ? `/plans/${encodeURIComponent(plan.id)}/activity#attendance-review`
+        : plan.status === "completed"
+          ? `/plans/${encodeURIComponent(plan.id)}/activity#memory`
+          : planRoomHref;
+    const primaryPlanActionLabel =
+      completionRequired && (relationship === "host" || relationship === "co_host")
+        ? "Sonucu Gir"
+        : plan.status === "completed"
+          ? "Memory"
+          : roomButtonLabel;
+
     return (
       <div
         key={`plan-${plan.id}`}
@@ -3840,9 +3826,16 @@ export default async function TimelinePage({
         )}
 
         <article
-          className="relative z-10 flex h-full min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative z-10 flex h-[400px] min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
+        <input
+          id={planDetailToggleId}
+          type="checkbox"
+          className="peer sr-only"
+          aria-label={`Toggle details for ${visiblePlanTitle}`}
+        />
         <TimelinePlanPresentation
+          detailToggleId={planDetailToggleId}
           planId={plan.id}
           title={visiblePlanTitle}
           canonicalActivityName={canonicalActivityName}
@@ -4002,120 +3995,67 @@ export default async function TimelinePage({
                 ) ?? []
               : []
           }
+          notes={plan.notes}
+          attendanceLabel={attendanceLabel}
+          attendanceClasses={attendanceClasses}
+          detailExtra={
+            <>
+              {plan.status === "cancelled" && (
+                <CancelledPlanHistorySummary
+                  phase={plan.cancellation_phase ?? (plan.scheduled_start ? "activity" : "planning")}
+                  cancelledAt={plan.cancelled_at}
+                  cancelledByName={cancellationActorName}
+                  reasonCode={plan.cancellation_reason_code}
+                  reasonText={plan.cancellation_reason}
+                  journeyHref={cancelledJourneyHref}
+                  sourceIntentReopened={cancelledSourceIntentReopened}
+                  sourceIntentHref={cancelledSourceIntentHref}
+                  nextAttempt={
+                    laterAttempt && laterAttemptHref && laterAttemptLabel
+                      ? { label: laterAttemptLabel, href: laterAttemptHref }
+                      : null
+                  }
+                />
+              )}
+              {completionRequired && (
+                <div className="mt-1.5 rounded-xl border border-amber-200 bg-amber-50 px-2.5 py-2">
+                  <p className="text-[8px] font-bold uppercase tracking-wide text-amber-700">İşlem gerekli</p>
+                  <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-amber-950">Onaylanan zaman sona erdi. Sonucu Activity Room içinde kaydet.</p>
+                </div>
+              )}
+            </>
+          }
         />
 
-        {plan.status === "cancelled" && (
-          <CancelledPlanHistorySummary
-            phase={plan.cancellation_phase ?? (plan.scheduled_start ? "activity" : "planning")}
-            cancelledAt={plan.cancelled_at}
-            cancelledByName={cancellationActorName}
-            reasonCode={plan.cancellation_reason_code}
-            reasonText={plan.cancellation_reason}
-            journeyHref={cancelledJourneyHref}
-            sourceIntentReopened={cancelledSourceIntentReopened}
-            sourceIntentHref={cancelledSourceIntentHref}
-            nextAttempt={
-              laterAttempt && laterAttemptHref && laterAttemptLabel
-                ? {
-                    label: laterAttemptLabel,
-                    href: laterAttemptHref,
-                  }
-                : null
-            }
-          />
-        )}
+        {/* Lifecycle details now live behind the canonical Details face. */}
 
-        {completionRequired && (
-          <div className="mx-5 mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 md:mx-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-              Action Required
-            </p>
-
-            <h4 className="mt-2 font-bold text-amber-950">
-              The confirmed schedule has ended.
-            </h4>
-
-            <p className="mt-2 text-sm leading-6 text-amber-800">
-              {relationship ===
-                "host" ||
-              relationship ===
-                "co_host"
-                ? `Review the outcome in the Activity Room.${
-                    daysUntilOutcomeUnknown !== null
-                      ? ` If it remains unresolved, it moves to Outcome Unknown in ${daysUntilOutcomeUnknown} day${daysUntilOutcomeUnknown === 1 ? "" : "s"}.`
-                      : ""
-                  }`
-                : `The Activity is waiting for the Primary Host or a Co-host.${
-                    daysUntilOutcomeUnknown !== null
-                      ? ` If nobody resolves it, UIN moves it to Outcome Unknown in ${daysUntilOutcomeUnknown} day${daysUntilOutcomeUnknown === 1 ? "" : "s"} instead of guessing what happened.`
-                      : ""
-                  }`}
-            </p>
-
-            {(relationship ===
-              "host" ||
-              relationship ===
-                "co_host") && (
-              <Link
-                href={`/plans/${plan.id}/activity#attendance-review`}
-                className="mt-4 inline-flex rounded-xl bg-amber-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-amber-700"
-              >
-                Review Outcome →
-              </Link>
-            )}
-          </div>
-        )}
-
-        {plan.status ===
-          "completed" && (
-          <div
-            className={`mx-5 mt-5 rounded-2xl border p-5 md:mx-6 ${
-              currentAttendance ===
-              "attended"
-                ? "border-green-200 bg-green-50"
-                : currentAttendance ===
-                    "no_show"
-                  ? "border-red-200 bg-red-50"
-                  : "border-gray-200 bg-gray-100"
-            }`}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Your Attendance
-            </p>
-
-            <p className="mt-2 font-bold text-gray-950">
-              {currentAttendance ===
-              "attended"
-                ? "You attended"
-                : currentAttendance ===
-                    "no_show"
-                  ? "You did not attend"
-                  : "Attendance not recorded"}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-auto grid grid-cols-3 gap-2 border-t border-gray-100 bg-white p-3">
+        <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
           <Link
             href={planViewHref}
-            className="flex min-h-10 items-center justify-center rounded-xl border border-gray-200 bg-white px-2 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
+            className="flex h-6 min-w-[58px] items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
           >
-            View
+            Görüntüle
           </Link>
 
           <TimelineShareButton
             title={`${plan.title || activity?.name || "UIN Activity"}`}
             text="See this Activity on UIN."
-            url={`/activities/${encodeURIComponent(
-              plan.id
-            )}`}
+            url={`/activities/${encodeURIComponent(plan.id)}`}
+            className="!h-6 !min-h-0 !w-auto !min-w-[54px] !rounded-md !px-2 !text-[9.5px] !leading-none"
           />
 
-          <Link
-            href={planRoomHref}
-            className="flex min-h-10 items-center justify-center rounded-xl bg-gray-950 px-2 text-center text-xs font-semibold text-white transition hover:bg-gray-800"
+          <label
+            htmlFor={planDetailToggleId}
+            className="flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
           >
-            {roomButtonLabel}
+            Detaylar
+          </label>
+
+          <Link
+            href={primaryPlanActionHref}
+            className="ml-auto flex h-6 min-w-[78px] items-center justify-center rounded-md bg-gray-950 px-2 text-center text-[9.5px] font-semibold leading-none text-white transition hover:bg-gray-800"
+          >
+            {primaryPlanActionLabel}
           </Link>
         </div>
         </article>
