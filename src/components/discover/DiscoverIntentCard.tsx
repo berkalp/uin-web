@@ -2,9 +2,9 @@ import Link from "next/link";
 
 import EyeIcon from "@/components/ui/EyeIcon";
 
-import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
-import LifecycleCurrentDate from "@/components/activities/LifecycleCurrentDate";
 import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
+import CanonicalActivityCardBody from "@/components/cards/CanonicalActivityCardBody";
+import CanonicalActivityCardDetails from "@/components/cards/CanonicalActivityCardDetails";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
@@ -822,247 +822,98 @@ export default function DiscoverIntentCard({
         </div>
       </div>
 
-      {/* Normal card body. Cover stays fixed; only this body swaps with Details. */}
-      <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="shrink-0 border-b border-black/5 px-2.5 py-2">
-          <LifecycleCurrentDate
-            targetStart={intent.start_date}
-            targetEnd={intent.end_date}
-            scheduledStart={intent.scheduled_start}
-            scheduledEnd={intent.scheduled_end}
-            completedAt={intent.completed_at}
-            cancelledAt={intent.cancelled_at}
-            expiredAt={intent.expired_at}
-            status={intent.lifecycle_status}
-            timezone={intent.timezone}
-            compact
-            className="w-full"
-          />
-        </div>
-
-        <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
-          {mapEmbedUrl ? (
-            <iframe
-              title={`${cardTitle} location preview`}
-              src={mapEmbedUrl}
-              className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              tabIndex={-1}
+      {/* Discover and Timeline share this exact canonical body. */}
+      <CanonicalActivityCardBody
+        targetStart={intent.start_date}
+        targetEnd={intent.end_date}
+        scheduledStart={intent.scheduled_start}
+        scheduledEnd={intent.scheduled_end}
+        completedAt={intent.completed_at}
+        cancelledAt={intent.cancelled_at}
+        expiredAt={intent.expired_at}
+        status={intent.lifecycle_status}
+        timezone={intent.timezone}
+        mapTitle={`${cardTitle} location preview`}
+        mapEmbedUrl={mapEmbedUrl}
+        locationLabel={mapLocationLabel}
+        locationPrecision={mapPrecision}
+        participantValue={`${participantCount} / ${participantLimit}`}
+        peopleContent={
+          resolvedActivityPeople.length > 0 ? (
+            <ActivityPeopleStrip
+              people={resolvedActivityPeople}
+              currentUserId={currentUserId}
+              activityHref={`/activities/${encodeURIComponent(
+                intent.plan_id ?? intent.resource_id ?? intent.intent_id
+              )}`}
+              variant="compact"
+              maxVisible={4}
             />
           ) : (
-            <div className="flex h-full items-center justify-center p-3 text-center text-[11px] text-gray-500">
-              No map
-            </div>
-          )}
-
-          {mapLocationLabel && (
-            <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white backdrop-blur">
-              {mapPrecision === "public_venue" ? "📍" : "≈"} {mapLocationLabel}
-            </span>
-          )}
-        </div>
-
-        <div className="flex h-[52px] shrink-0 min-w-0 items-center justify-between gap-3 border-b border-black/5 px-3">
-          <div className="min-w-0 flex-1">
-            {resolvedActivityPeople.length > 0 ? (
-              <ActivityPeopleStrip
-                people={resolvedActivityPeople}
-                currentUserId={currentUserId}
-                activityHref={`/activities/${encodeURIComponent(
-                  intent.plan_id ??
-                    intent.resource_id ??
-                    intent.intent_id
-                )}`}
-                variant="compact"
-                maxVisible={4}
-              />
-            ) : (
-              <div className="flex min-w-0 items-center gap-2">
-                {intent.owner_avatar_url ? (
-                  <img
-                    src={intent.owner_avatar_url}
-                    alt={ownerName}
-                    className="h-7 w-7 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-semibold text-green-700">
-                    {getInitial(ownerName)}
-                  </div>
-                )}
-
-                <div className="min-w-0">
-                  {ownerProfileHref && !isOwner ? (
-                    <Link
-                      href={ownerProfileHref}
-                      className="block truncate text-[12px] font-semibold leading-tight text-gray-950 transition hover:text-green-700"
-                    >
-                      {ownerName}
-                    </Link>
-                  ) : (
-                    <p className="truncate text-[12px] font-semibold leading-tight text-gray-950">
-                      {ownerName}
-                    </p>
-                  )}
-                  <p className="mt-0.5 text-[9px] font-medium text-gray-400">
-                    Host
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-600 shadow-sm">
-            {participantCount} / {participantLimit}
-          </span>
-        </div>
-      </div>
-
-      {/* Detail face keeps the cover and swaps only the area below it. */}
-      <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
-        <div className="shrink-0">
-          <ActivityLifecycleTimeline
-            targetStart={intent.start_date}
-            targetEnd={intent.end_date}
-            scheduledStart={intent.scheduled_start}
-            scheduledEnd={intent.scheduled_end}
-            completedAt={intent.completed_at}
-            cancelledAt={intent.cancelled_at}
-            expiredAt={intent.expired_at}
-            status={intent.lifecycle_status}
-            timezone={intent.timezone}
-            variant="compact"
-            hideCompactTitle
-          />
-        </div>
-
-        <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
-              Participants
-            </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
-              {participantCount} / {participantLimit}
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
-              Visibility
-            </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
-              {getActivityVisibilityLabel(intent.visibility)}
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
-              Recurrence
-            </p>
-            <p className="mt-0.5 truncate font-semibold capitalize text-gray-950">
-              {intent.recurrence}
-            </p>
-          </div>
-
-          <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">
-              {costLabel}
-            </p>
-            <p className="mt-0.5 truncate font-semibold text-gray-950">
-              {costValue}
-            </p>
-          </div>
-        </div>
-
-        {(primaryCommunityName || mapLocationLabel) && (
-          <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
-            {primaryCommunityName &&
-              (primaryCommunityHref ? (
-                <Link
-                  href={primaryCommunityHref}
-                  className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
-                >
-                  {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
-                    />
-                  )}
-                  <span className="truncate">{primaryCommunityName}</span>
-                  {resolvedCommunities.length > 1 && (
-                    <span className="shrink-0 text-green-600">
-                      +{resolvedCommunities.length - 1}
-                    </span>
-                  )}
-                </Link>
+            <div className="flex min-w-0 items-center gap-2">
+              {intent.owner_avatar_url ? (
+                <img
+                  src={intent.owner_avatar_url}
+                  alt={ownerName}
+                  className="h-7 w-7 shrink-0 rounded-full object-cover"
+                />
               ) : (
-                <span className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800">
-                  {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2 w-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
-                    />
-                  )}
-                  <span className="truncate">{primaryCommunityName}</span>
-                </span>
-              ))}
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-semibold text-green-700">
+                  {getInitial(ownerName)}
+                </div>
+              )}
+              <div className="min-w-0">
+                {ownerProfileHref && !isOwner ? (
+                  <Link
+                    href={ownerProfileHref}
+                    className="block truncate text-[12px] font-semibold leading-tight text-gray-950 transition hover:text-green-700"
+                  >
+                    {ownerName}
+                  </Link>
+                ) : (
+                  <p className="truncate text-[12px] font-semibold leading-tight text-gray-950">
+                    {ownerName}
+                  </p>
+                )}
+                <p className="mt-0.5 text-[9px] font-medium text-gray-400">Host</p>
+              </div>
+            </div>
+          )
+        }
+      />
 
-            {mapLocationLabel && (
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
-                <span aria-hidden="true">{mapPrecision === "public_venue" ? "📍" : "≈"}</span>
-                <span className="truncate">{mapLocationLabel}</span>
-              </span>
-            )}
-          </div>
-        )}
-
-        {intentNote?.trim() && (
-          <div className="mt-1 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">
-              Note
-            </p>
-            <p className="mt-0.5 line-clamp-2 text-[9.5px] leading-3.5 text-gray-700">
-              {intentNote.trim()}
-            </p>
-          </div>
-        )}
-
-        <div className="mt-1 flex min-w-0 items-center gap-2 text-[8.5px] text-gray-500">
-          <span className="shrink-0">
-            {relatedLinks.length} {relatedLinks.length === 1 ? "link" : "links"}
-          </span>
-
-          {resolvedViewerLineage && intent.plan_id && (
-            <>
-              <span aria-hidden="true">·</span>
-              <Link
-                href={resolvedViewerLineage.sourceIntentHref}
-                className="min-w-0 truncate font-semibold text-emerald-700 hover:text-emerald-800"
-              >
-                Origin · {resolvedViewerLineage.sourceIntentName ?? intent.activity_name}
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Discover and Timeline share this exact canonical Details face. */}
+      <CanonicalActivityCardDetails
+        targetStart={intent.start_date}
+        targetEnd={intent.end_date}
+        scheduledStart={intent.scheduled_start}
+        scheduledEnd={intent.scheduled_end}
+        completedAt={intent.completed_at}
+        cancelledAt={intent.cancelled_at}
+        expiredAt={intent.expired_at}
+        status={intent.lifecycle_status}
+        timezone={intent.timezone}
+        participantValue={`${participantCount} / ${participantLimit}`}
+        visibilityValue={getActivityVisibilityLabel(intent.visibility)}
+        recurrenceValue={intent.recurrence}
+        costLabel={costLabel}
+        costValue={costValue}
+        communities={resolvedCommunities}
+        locationLabel={mapLocationLabel}
+        locationPrecision={mapPrecision}
+        note={intentNote}
+        linkCount={relatedLinks.length}
+        originLabel={
+          resolvedViewerLineage && intent.plan_id
+            ? resolvedViewerLineage.sourceIntentName ?? intent.activity_name
+            : null
+        }
+        originHref={
+          resolvedViewerLineage && intent.plan_id
+            ? resolvedViewerLineage.sourceIntentHref
+            : null
+        }
+      />
 
       <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
         <CompactIntentReactionBar
@@ -1129,7 +980,7 @@ export default function DiscoverIntentCard({
           htmlFor={detailToggleId}
           className="ml-auto flex h-6 w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-1.5 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
         >
-          Details
+          Detaylar
         </label>
       </div>
     </article>

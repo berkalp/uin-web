@@ -3,9 +3,9 @@
 import Link from "next/link";
 
 import EyeIcon from "../ui/EyeIcon";
+import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
+import CanonicalActivityCardDetails from "../cards/CanonicalActivityCardDetails";
 
-import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
-import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
 import { resolveActivityCover } from "../../utils/activityCover";
 
 type Props = {
@@ -80,46 +80,56 @@ export default function TimelineExpiredPresentation(props: Props) {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="shrink-0 border-b border-black/5 px-2.5 py-2">
-          <LifecycleCurrentDate targetStart={props.windowStart} targetEnd={props.windowEnd} expiredAt={props.expiredAt} status="expired" timezone="Europe/Istanbul" compact className="w-full" />
-        </div>
-        <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
-          {mapEmbedUrl ? (
-            <iframe title={`${props.title} approximate area`} src={mapEmbedUrl} className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" tabIndex={-1} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-[10px] text-gray-400">No map</div>
-          )}
-          {locationLabel && <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white">≈ {locationLabel}</span>}
-        </div>
-        <div className="flex h-[52px] shrink-0 items-center justify-between gap-2 border-b border-black/5 px-3">
+      <CanonicalActivityCardBody
+        targetStart={props.windowStart}
+        targetEnd={props.windowEnd}
+        expiredAt={props.expiredAt}
+        status="expired"
+        timezone="Europe/Istanbul"
+        mapTitle={`${props.title} approximate area`}
+        mapEmbedUrl={mapEmbedUrl}
+        locationLabel={locationLabel}
+        locationPrecision="approximate"
+        participantValue={`${props.participantCount} / ${props.maxParticipants ?? "∞"}`}
+        peopleContent={
           <div className="min-w-0">
             <p className="truncate text-[12px] font-semibold text-gray-950">{props.roleLabel}</p>
             <p className="mt-0.5 text-[9px] font-medium text-gray-400">Geçmiş kayıt</p>
           </div>
-          <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-600 shadow-sm">{props.participantCount} / {props.maxParticipants ?? "∞"}</span>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
-        <ActivityLifecycleTimeline targetStart={props.windowStart} targetEnd={props.windowEnd} expiredAt={props.expiredAt} status="expired" timezone="Europe/Istanbul" variant="compact" hideCompactTitle />
-        <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          {[
-            ["Participants", `${props.participantCount} / ${props.maxParticipants ?? "∞"}`],
-            ["Visibility", props.visibility ?? "Not specified"],
-            ["Committed", money(props.committedBudget)],
-            ["Target", money(props.targetBudget ?? props.personalBudget)],
-            ["Recruitment", props.recruitmentStatus ?? "closed"],
-            ["Matching", props.matchingStatus ?? "closed"],
-          ].map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-              <p className="text-[7.5px] font-semibold uppercase text-gray-400">{label}</p>
-              <p className="mt-0.5 truncate font-semibold text-gray-950">{value}</p>
-            </div>
-          ))}
-        </div>
-        {props.notes?.trim() && <p className="mt-1.5 rounded-lg bg-gray-50 px-2 py-1.5 text-[9.5px] leading-4 text-gray-600">{props.notes.trim()}</p>}
-      </div>
+      <CanonicalActivityCardDetails
+        targetStart={props.windowStart}
+        targetEnd={props.windowEnd}
+        expiredAt={props.expiredAt}
+        status="expired"
+        timezone="Europe/Istanbul"
+        participantValue={`${props.participantCount} / ${props.maxParticipants ?? "∞"}`}
+        visibilityValue={props.visibility ?? "Not specified"}
+        recurrenceValue="One-time"
+        costLabel="Target"
+        costValue={money(props.targetBudget ?? props.personalBudget)}
+        locationLabel={locationLabel}
+        locationPrecision="approximate"
+        note={props.notes}
+        linkCount={0}
+        extra={
+          <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
+            {[
+              ["Committed", money(props.committedBudget)],
+              ["Recruitment", props.recruitmentStatus ?? "closed"],
+              ["Matching", props.matchingStatus ?? "closed"],
+              ["Role", props.roleLabel],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
+                <p className="text-[7.5px] font-semibold uppercase text-gray-400">{label}</p>
+                <p className="mt-0.5 truncate font-semibold text-gray-950">{value}</p>
+              </div>
+            ))}
+          </div>
+        }
+      />
 
       <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
         {href ? (
@@ -134,7 +144,7 @@ export default function TimelineExpiredPresentation(props: Props) {
         ) : (
           <span className="h-6 w-7 shrink-0" />
         )}
-        <label htmlFor={detailToggleId} className="flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']">Detaylar</label>
+        <label htmlFor={detailToggleId} className="flex h-6 w-[56px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']">Detaylar</label>
         {props.canCreateAgain && props.sourceIntentId ? (
           <Link href={`/onboarding?copyFrom=${encodeURIComponent(props.sourceIntentId)}`} className="ml-auto flex h-6 min-w-[82px] items-center justify-center rounded-md bg-green-600 px-2 text-[9.5px] font-semibold text-white transition hover:bg-green-700">Tekrar Oluştur</Link>
         ) : null}

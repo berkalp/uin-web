@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
-import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
-import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
 import ActivityPeopleStrip from "../activities/ActivityPeopleStrip";
+import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
+import CanonicalActivityCardDetails from "../cards/CanonicalActivityCardDetails";
 import IntentLinksDisplay from "../intents/IntentLinksDisplay";
 import PlanWeatherBadges from "../weather/PlanWeatherBadges";
 import type { IntentCommunityContext } from "../../utils/communities";
@@ -222,150 +222,117 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="shrink-0 border-b border-black/5 px-2.5 py-2">
-          <LifecycleCurrentDate
-            targetStart={windowStart}
-            targetEnd={windowEnd}
-            scheduledStart={scheduledStart}
-            scheduledEnd={scheduledEnd}
-            completedAt={completedAt}
-            cancelledAt={cancelledAt}
-            expiredAt={expiredAt}
-            status={planStatus}
-            timezone={timezone}
-            compact
-            className="w-full"
+      <CanonicalActivityCardBody
+        targetStart={windowStart}
+        targetEnd={windowEnd}
+        scheduledStart={scheduledStart}
+        scheduledEnd={scheduledEnd}
+        completedAt={completedAt}
+        cancelledAt={cancelledAt}
+        expiredAt={expiredAt}
+        status={planStatus}
+        timezone={timezone}
+        mapTitle={`${title} location`}
+        mapEmbedUrl={mapEmbedUrl}
+        locationLabel={locationLabel}
+        locationPrecision={exact ? "public_venue" : "approximate"}
+        mapAction={
+          mapUrl ? (
+            <a href={mapUrl} target="_blank" rel="noopener noreferrer nofollow" className="absolute right-2 top-2 rounded-md bg-white px-2 py-1 text-[8.5px] font-semibold text-blue-700 shadow-sm">
+              Harita ↗
+            </a>
+          ) : null
+        }
+        participantValue={`${participantCount} / ${participantLimit}`}
+        rightMeta={
+          attendanceLabel ? (
+            <span className={`inline-flex h-6 items-center rounded-full px-2 text-[9px] font-bold ${attendanceClasses}`}>{attendanceLabel}</span>
+          ) : null
+        }
+        peopleContent={
+          <ActivityPeopleStrip
+            people={people}
+            currentUserId={currentUserId}
+            activityHref={activityHref}
+            variant="compact"
+            maxVisible={4}
           />
-        </div>
+        }
+      />
 
-        <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
-          {mapEmbedUrl ? (
-            <iframe title={`${title} location`} src={mapEmbedUrl} className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" tabIndex={-1} />
-          ) : (
-            <div className="flex h-full items-center justify-center text-[10px] text-gray-400">No map</div>
-          )}
-          {locationLabel && <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white">{exact ? "📍" : "≈"} {locationLabel}</span>}
-          {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer nofollow" className="absolute right-2 top-2 rounded-md bg-white px-2 py-1 text-[8.5px] font-semibold text-blue-700 shadow-sm">Harita ↗</a>}
-        </div>
-
-        <div className="flex h-[52px] shrink-0 min-w-0 items-center justify-between gap-2 border-b border-black/5 px-3">
-          <div className="min-w-0 flex-1">
-            <ActivityPeopleStrip people={people} currentUserId={currentUserId} activityHref={activityHref} variant="compact" maxVisible={4} />
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {attendanceLabel && <span className={`inline-flex h-6 items-center rounded-full px-2 text-[9px] font-bold ${attendanceClasses}`}>{attendanceLabel}</span>}
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-600 shadow-sm">{participantCount} / {participantLimit}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Discover parity: same lifecycle + metrics + context + notes + links, then Timeline-only plan detail. */}
-      <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
-        <ActivityLifecycleTimeline
-          targetStart={windowStart}
-          targetEnd={windowEnd}
-          scheduledStart={scheduledStart}
-          scheduledEnd={scheduledEnd}
-          completedAt={completedAt}
-          cancelledAt={cancelledAt}
-          expiredAt={expiredAt}
-          status={planStatus}
-          timezone={timezone}
-          variant="compact"
-          hideCompactTitle
-        />
-
-        <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          <DetailMetric label="Katılımcılar" value={`${participantCount} / ${participantLimit}`} />
-          <DetailMetric label="Görünürlük" value={visibilityLabel} />
-          <DetailMetric label="Tekrar" value={readableChoice(recurrence)} />
-          <DetailMetric label="Plan bütçesi" value={targetBudget === null ? `${money(committedBudget)} TL` : `${money(targetBudget)} TL`} />
-        </div>
-
-        {(primaryCommunity || locationLabel) && (
-          <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
-            {primaryCommunity && (
-              <Link
-                href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
-                className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
-              >
-                <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: primaryCommunity.accentColor }} />
-                <span className="truncate">{primaryCommunity.name}</span>
-                {communities.length > 1 && <span className="shrink-0 text-green-600">+{communities.length - 1}</span>}
-              </Link>
-            )}
-
-            {locationLabel && (
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
-                <span aria-hidden="true">{exact ? "📍" : "≈"}</span>
-                <span className="truncate">{locationLabel}</span>
-              </span>
-            )}
-          </div>
-        )}
-
-        <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
-          <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Plan / Aktivite detayları</p>
-          <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
-            <DetailMetric label="Rolün" value={relationshipLabel} />
-            <DetailMetric label="Katılım" value={attendanceLabel ?? "Aktif"} />
-            <DetailMetric label="Katılım alımı" value={readableChoice(recruitmentStatus)} />
-            <DetailMetric label="Bekleyen istek" value={String(requestCount)} />
-            <DetailMetric label="Host" value={hostName} />
-            <DetailMetric label="Konum görünürlüğü" value={readableChoice(activityLocationVisibility)} />
-            <DetailMetric label="Konum kapsamı" value={readableChoice(locationScope)} />
-            <DetailMetric label="Aktivite" value={canonicalActivityName} />
-          </div>
-        </div>
-
-        <div className="mt-1.5 grid gap-1">
-          <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Aktivite konumu</p>
-            <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{locationLabel || "Belirlenmedi"}</p>
-          </div>
-          <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Buluşma noktası</p>
-            <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{meetingLabel}</p>
-          </div>
-          {scheduleNotes?.trim() && (
-            <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-2 py-1.5">
-              <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-amber-600">Planlama notu</p>
-              <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-4 text-gray-700">{scheduleNotes.trim()}</p>
+      <CanonicalActivityCardDetails
+        targetStart={windowStart}
+        targetEnd={windowEnd}
+        scheduledStart={scheduledStart}
+        scheduledEnd={scheduledEnd}
+        completedAt={completedAt}
+        cancelledAt={cancelledAt}
+        expiredAt={expiredAt}
+        status={planStatus}
+        timezone={timezone}
+        participantValue={`${participantCount} / ${participantLimit}`}
+        visibilityValue={visibilityLabel}
+        recurrenceValue={readableChoice(recurrence)}
+        costLabel="Plan budget"
+        costValue={targetBudget === null ? `${money(committedBudget)} TL` : `${money(targetBudget)} TL`}
+        communities={communities}
+        locationLabel={locationLabel}
+        locationPrecision={exact ? "public_venue" : "approximate"}
+        note={notes}
+        linkCount={relatedLinks.length}
+        originLabel={sourceIntentLabel}
+        originHref={sourceIntentHref}
+        extra={
+          <>
+            <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
+              <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Plan / Activity details</p>
+              <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
+                <DetailMetric label="Your role" value={relationshipLabel} />
+                <DetailMetric label="Attendance" value={attendanceLabel ?? "Active"} />
+                <DetailMetric label="Recruitment" value={readableChoice(recruitmentStatus)} />
+                <DetailMetric label="Pending requests" value={String(requestCount)} />
+                <DetailMetric label="Host" value={hostName} />
+                <DetailMetric label="Location visibility" value={readableChoice(activityLocationVisibility)} />
+                <DetailMetric label="Location scope" value={readableChoice(locationScope)} />
+                <DetailMetric label="Activity" value={canonicalActivityName} />
+              </div>
             </div>
-          )}
-        </div>
 
-        {notes?.trim() && (
-          <div className="mt-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">Not</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
-          </div>
-        )}
+            <div className="mt-1.5 grid gap-1">
+              <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
+                <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Activity location</p>
+                <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{locationLabel || "Not set"}</p>
+              </div>
+              <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
+                <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Meeting point</p>
+                <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{meetingLabel}</p>
+              </div>
+              {scheduleNotes?.trim() && (
+                <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-2 py-1.5">
+                  <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-amber-600">Planning note</p>
+                  <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-4 text-gray-700">{scheduleNotes.trim()}</p>
+                </div>
+              )}
+            </div>
 
-        <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>{relatedLinks.length} bağlantı</span>
-            {createdLabel && <span>Oluşturuldu · {createdLabel}</span>}
-            {plannedLabel && <span>Planlandı · {plannedLabel}</span>}
-          </div>
-          {sourceIntentLabel && (
-            sourceIntentHref ? (
-              <Link href={sourceIntentHref} className="mt-1 block truncate font-semibold text-emerald-700 hover:text-emerald-800">Kaynak Niyet · {sourceIntentLabel} ↗</Link>
-            ) : (
-              <p className="mt-1 truncate font-semibold text-emerald-700">Kaynak Niyet · {sourceIntentLabel}</p>
-            )
-          )}
-        </div>
+            <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span>{relatedLinks.length} links</span>
+                {createdLabel && <span>Created · {createdLabel}</span>}
+                {plannedLabel && <span>Planned · {plannedLabel}</span>}
+              </div>
+            </div>
 
-        {relatedLinks.length > 0 && (
-          <div className="mt-1.5">
-            <IntentLinksDisplay links={relatedLinks} />
-          </div>
-        )}
+            {relatedLinks.length > 0 && (
+              <div className="mt-1.5">
+                <IntentLinksDisplay links={relatedLinks} />
+              </div>
+            )}
 
-        {detailExtra}
-      </div>
+            {detailExtra}
+          </>
+        }
+      />
     </>
   );
 }

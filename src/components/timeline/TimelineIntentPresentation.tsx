@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
-import LifecycleCurrentDate from "../activities/LifecycleCurrentDate";
 import IntentLinksDisplay from "../intents/IntentLinksDisplay";
+import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
+import CanonicalActivityCardDetails from "../cards/CanonicalActivityCardDetails";
 import IntentWeatherBadge from "../weather/IntentWeatherBadge";
 import { resolveActivityCover } from "../../utils/activityCover";
 import { formatEstimatedCost } from "../../utils/estimatedCost";
@@ -227,42 +227,20 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col peer-checked:hidden">
-        <div className="shrink-0 border-b border-black/5 px-2.5 py-2">
-          <LifecycleCurrentDate
-            targetStart={startDate}
-            targetEnd={endDate}
-            completedAt={lifecycleStatus === "completed" ? endDate : null}
-            cancelledAt={lifecycleStatus === "cancelled" ? endDate : null}
-            expiredAt={expiredAt}
-            status={lifecycleStatus}
-            timezone="Europe/Istanbul"
-            compact
-            className="w-full"
-          />
-        </div>
-
-        <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
-          {mapEmbedUrl ? (
-            <iframe
-              title={`${title} approximate area`}
-              src={mapEmbedUrl}
-              className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              tabIndex={-1}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-[10px] text-gray-400">No map</div>
-          )}
-          {locationLabel && (
-            <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white">
-              ≈ {locationLabel}
-            </span>
-          )}
-        </div>
-
-        <div className="flex h-[52px] shrink-0 min-w-0 items-center justify-between gap-3 border-b border-black/5 px-3">
+      <CanonicalActivityCardBody
+        targetStart={startDate}
+        targetEnd={endDate}
+        completedAt={lifecycleStatus === "completed" ? endDate : null}
+        cancelledAt={lifecycleStatus === "cancelled" ? endDate : null}
+        expiredAt={expiredAt}
+        status={lifecycleStatus}
+        timezone="Europe/Istanbul"
+        mapTitle={`${title} approximate area`}
+        mapEmbedUrl={mapEmbedUrl}
+        locationLabel={locationLabel}
+        locationPrecision="approximate"
+        participantValue={`0 / ${participantLimit}`}
+        peopleContent={
           <div className="flex min-w-0 items-center gap-2">
             {ownerAvatarUrl ? (
               <img src={ownerAvatarUrl} alt={ownerName} className="h-7 w-7 shrink-0 rounded-full object-cover" />
@@ -276,108 +254,73 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
               <p className="mt-0.5 text-[9px] font-medium text-gray-400">Host</p>
             </div>
           </div>
-          <span className="shrink-0 rounded-full bg-white px-2.5 py-1 text-[10px] font-semibold text-gray-600 shadow-sm">
-            0 / {participantLimit}
-          </span>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Same detail grammar as Discover, with Timeline-only history added below it. */}
-      <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
-        <ActivityLifecycleTimeline
-          targetStart={startDate}
-          targetEnd={endDate}
-          completedAt={lifecycleStatus === "completed" ? endDate : null}
-          cancelledAt={lifecycleStatus === "cancelled" ? endDate : null}
-          expiredAt={expiredAt}
-          status={lifecycleStatus}
-          timezone="Europe/Istanbul"
-          variant="compact"
-          hideCompactTitle
-        />
+      <CanonicalActivityCardDetails
+        targetStart={startDate}
+        targetEnd={endDate}
+        completedAt={lifecycleStatus === "completed" ? endDate : null}
+        cancelledAt={lifecycleStatus === "cancelled" ? endDate : null}
+        expiredAt={expiredAt}
+        status={lifecycleStatus}
+        timezone="Europe/Istanbul"
+        participantValue={`0 / ${participantLimit}`}
+        visibilityValue={visibilityLabel}
+        recurrenceValue={readableChoice(recurrence)}
+        costLabel="Tahmini kişi başı maliyet"
+        costValue={formatEstimatedCost(budget, { includePerPerson: false })}
+        communities={communities}
+        locationLabel={locationLabel}
+        locationPrecision="approximate"
+        note={notes}
+        linkCount={relatedLinks.length}
+        extra={
+          <>
+            <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
+              <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Niyet detayları</p>
+              <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
+                <DetailMetric label="Eşleşme" value={readableChoice(matchingStatus)} />
+                <DetailMetric label="Katılım" value={readableChoice(recruitmentStatus)} />
+                <DetailMetric label="Kişiler" value={readableChoice(people)} />
+                <DetailMetric label="Niyet tipi" value={readableChoice(intentType)} />
+                <DetailMetric label="Konum kapsamı" value={readableChoice(locationScope)} />
+                <DetailMetric label="Spor" value={sportName || "Yok"} />
+              </div>
+            </div>
 
-        <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          <DetailMetric label="Katılımcılar" value={`0 / ${participantLimit}`} />
-          <DetailMetric label="Görünürlük" value={visibilityLabel} />
-          <DetailMetric label="Tekrar" value={readableChoice(recurrence)} />
-          <DetailMetric label="Tahmini kişi başı maliyet" value={formatEstimatedCost(budget, { includePerPerson: false })} />
-        </div>
-
-        {(primaryCommunity || locationLabel) && (
-          <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
-            {primaryCommunity && (
-              <Link
-                href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
-                className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
-              >
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: primaryCommunity.accentColor }}
-                />
-                <span className="truncate">{primaryCommunity.name}</span>
-                {communities.length > 1 && <span className="shrink-0 text-green-600">+{communities.length - 1}</span>}
-              </Link>
+            {journeySummary && (
+              journeySummary.href ? (
+                <Link href={journeySummary.href} className="mt-1.5 flex items-center justify-between gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-semibold text-emerald-800">
+                  <span className="min-w-0 truncate">↺ {journeySummary.text}</span><span>→</span>
+                </Link>
+              ) : (
+                <div className="mt-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-semibold text-emerald-800">↺ {journeySummary.text}</div>
+              )
             )}
 
-            {locationLabel && (
-              <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
-                <span aria-hidden="true">≈</span>
-                <span className="truncate">{locationLabel}</span>
-              </span>
+            <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
+              <div className="flex items-center justify-between gap-2">
+                <span>{relatedLinks.length} bağlantı</span>
+                {createdLabel && <span className="truncate">Oluşturuldu · {createdLabel}</span>}
+              </div>
+              {copiedFromIntentId && <p className="mt-1 truncate font-medium text-gray-600">Kaynak Intent · {copiedFromIntentId}</p>}
+            </div>
+
+            {relatedLinks.length > 0 && (
+              <div className="mt-1.5">
+                <IntentLinksDisplay links={relatedLinks} />
+              </div>
             )}
-          </div>
-        )}
 
-        <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
-          <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Niyet detayları</p>
-          <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
-            <DetailMetric label="Eşleşme" value={readableChoice(matchingStatus)} />
-            <DetailMetric label="Katılım" value={readableChoice(recruitmentStatus)} />
-            <DetailMetric label="Kişiler" value={readableChoice(people)} />
-            <DetailMetric label="Niyet tipi" value={readableChoice(intentType)} />
-            <DetailMetric label="Konum kapsamı" value={readableChoice(locationScope)} />
-            <DetailMetric label="Spor" value={sportName || "Yok"} />
-          </div>
-        </div>
-
-        {journeySummary && (
-          journeySummary.href ? (
-            <Link href={journeySummary.href} className="mt-1.5 flex items-center justify-between gap-2 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-semibold text-emerald-800">
-              <span className="min-w-0 truncate">↺ {journeySummary.text}</span><span>→</span>
-            </Link>
-          ) : (
-            <div className="mt-1.5 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1.5 text-[9px] font-semibold text-emerald-800">↺ {journeySummary.text}</div>
-          )
-        )}
-
-        {notes?.trim() && (
-          <div className="mt-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">Not</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
-          </div>
-        )}
-
-        <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
-          <div className="flex items-center justify-between gap-2">
-            <span>{relatedLinks.length} {relatedLinks.length === 1 ? "bağlantı" : "bağlantı"}</span>
-            {createdLabel && <span className="truncate">Oluşturuldu · {createdLabel}</span>}
-          </div>
-          {copiedFromIntentId && <p className="mt-1 truncate font-medium text-gray-600">Kaynak Intent · {copiedFromIntentId}</p>}
-        </div>
-
-        {relatedLinks.length > 0 && (
-          <div className="mt-1.5">
-            <IntentLinksDisplay links={relatedLinks} />
-          </div>
-        )}
-
-        {requestCount > 0 && (
-          <p className="mt-1.5 rounded-lg bg-green-50 px-2 py-1.5 text-[9px] font-semibold text-green-700">
-            {requestCount} katılım isteği bekliyor
-          </p>
-        )}
-      </div>
+            {requestCount > 0 && (
+              <p className="mt-1.5 rounded-lg bg-green-50 px-2 py-1.5 text-[9px] font-semibold text-green-700">
+                {requestCount} katılım isteği bekliyor
+              </p>
+            )}
+          </>
+        }
+      />
     </>
   );
 }

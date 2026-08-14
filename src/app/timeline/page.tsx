@@ -3440,7 +3440,7 @@ export default async function TimelinePage({
           />
 
           <details className="group relative">
-            <summary className="flex h-6 min-w-[58px] cursor-pointer list-none items-center justify-center gap-1 rounded-md bg-gray-950 px-2 text-[9.5px] font-semibold text-white transition hover:bg-gray-800">
+            <summary className="flex h-6 w-[56px] cursor-pointer list-none items-center justify-center gap-1 rounded-md bg-gray-950 px-2 text-[9.5px] font-semibold text-white transition hover:bg-gray-800">
               Yönet <span className="text-[8px] transition group-open:rotate-180">▾</span>
             </summary>
             <div className="absolute bottom-full right-0 z-50 mb-2 w-[290px] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
@@ -3463,7 +3463,7 @@ export default async function TimelinePage({
 
           <label
             htmlFor={intentDetailToggleId}
-            className="ml-auto flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+            className="ml-auto flex h-6 w-[56px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
           >
             Detaylar
           </label>
@@ -4064,7 +4064,7 @@ export default async function TimelinePage({
 
           <label
             htmlFor={planDetailToggleId}
-            className="flex h-6 min-w-[58px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+            className="flex h-6 w-[56px] cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
           >
             Detaylar
           </label>
