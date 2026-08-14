@@ -1,144 +1,114 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import SeedCard from "@/components/seeds/SeedCard";
+import { supabase } from "@/utils/supabase/client";
 import type { SeedRecord } from "@/utils/seeds";
 
 type TimelineGrowingSeedsProps = {
   seeds: SeedRecord[];
 };
 
-const PAGE_SIZE = 10;
+type ReminderClock = {
+  targetTime: string;
+  timezone: string;
+};
 
-function formatTargetDate(value: string | null) {
-  if (!value) {
-    return "No target date";
-  }
+const PAGE_SIZE = 4;
 
-  const date = new Date(`${value}T12:00:00Z`);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(date);
-}
-
-export default function TimelineGrowingSeeds({
-  seeds,
-}: TimelineGrowingSeedsProps) {
+export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProps) {
   const [page, setPage] = useState(0);
+  const [clocks, setClocks] = useState<Record<string, ReminderClock>>({});
+  const [fallbackClock, setFallbackClock] = useState<ReminderClock>({
+    targetTime: "09:00",
+    timezone: "Europe/Istanbul",
+  });
 
   const pageCount = Math.max(1, Math.ceil(seeds.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const visibleSeeds = useMemo(
-    () =>
-      seeds.slice(
-        safePage * PAGE_SIZE,
-        safePage * PAGE_SIZE + PAGE_SIZE
-      ),
+    () => seeds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
     [safePage, seeds]
   );
 
-  if (seeds.length === 0) {
-    return null;
-  }
+  useEffect(() => {
+    if (seeds.length === 0) return;
+    let cancelled = false;
+
+    void (async () => {
+      const ids = seeds.map((seed) => seed.seed_id);
+      const [settingsResult, defaultsResult] = await Promise.all([
+        supabase
+          .from("user_resource_reminder_settings")
+          .select("resource_id, seed_target_time, timezone")
+          .eq("resource_type", "seed")
+          .in("resource_id", ids),
+        supabase.rpc("get_my_reminder_defaults"),
+      ]);
+
+      if (cancelled) return;
+
+      const defaults = defaultsResult.data as { seed_target_time?: string | null; timezone?: string | null } | null;
+      setFallbackClock({
+        targetTime: typeof defaults?.seed_target_time === "string" ? defaults.seed_target_time.slice(0, 5) : "09:00",
+        timezone: typeof defaults?.timezone === "string" ? defaults.timezone : "Europe/Istanbul",
+      });
+
+      const next: Record<string, ReminderClock> = {};
+      for (const row of settingsResult.data ?? []) {
+        if (typeof row.resource_id !== "string") continue;
+        next[row.resource_id] = {
+          targetTime: typeof row.seed_target_time === "string" ? row.seed_target_time.slice(0, 5) : "09:00",
+          timezone: typeof row.timezone === "string" ? row.timezone : "Europe/Istanbul",
+        };
+      }
+      setClocks(next);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [seeds]);
+
+  if (seeds.length === 0) return null;
 
   return (
     <section className="mt-8 rounded-[28px] border border-green-100 bg-gradient-to-br from-green-50 via-white to-lime-50 p-4 shadow-sm md:p-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Personal layer
-          </p>
-          <h2 className="mt-2 text-2xl font-black text-gray-950">
-            Growing Seeds
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Personal possibilities still growing before they become an Intent.
-          </p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Kişisel katman</p>
+          <h2 className="mt-2 text-2xl font-black text-gray-950">Büyüyen Tohumlar</h2>
+          <p className="mt-1 text-sm text-gray-500">Bir Niyete dönüşmeden önce büyümeye devam eden kişisel olasılıkların.</p>
         </div>
 
         <div className="flex items-center gap-2">
           {pageCount > 1 && (
-            <div className="flex items-center rounded-2xl border border-green-100 bg-white p-1 shadow-sm">
-              <button
-                type="button"
-                aria-label="Previous Seeds"
-                disabled={safePage === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-base font-black text-gray-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                ←
-              </button>
-              <span className="min-w-16 px-2 text-center text-[11px] font-bold text-gray-500">
-                {safePage + 1} / {pageCount}
-              </span>
-              <button
-                type="button"
-                aria-label="Next Seeds"
-                disabled={safePage >= pageCount - 1}
-                onClick={() =>
-                  setPage((value) => Math.min(pageCount - 1, value + 1))
-                }
-                className="flex h-9 w-9 items-center justify-center rounded-xl text-base font-black text-gray-700 transition hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                →
-              </button>
+            <div className="flex items-center rounded-xl border border-green-100 bg-white p-1 shadow-sm">
+              <button type="button" aria-label="Önceki Tohumlar" disabled={safePage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black text-gray-700 hover:bg-green-50 disabled:opacity-30">←</button>
+              <span className="min-w-14 px-1 text-center text-[10px] font-bold text-gray-500">{safePage + 1} / {pageCount}</span>
+              <button type="button" aria-label="Sonraki Tohumlar" disabled={safePage >= pageCount - 1} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black text-gray-700 hover:bg-green-50 disabled:opacity-30">→</button>
             </div>
           )}
-
-          <Link
-            href="/seeds"
-            className="rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-bold text-green-800 transition hover:bg-green-100"
-          >
-            View all Seeds
-          </Link>
+          <Link href="/seeds" className="rounded-xl border border-green-200 bg-white px-3 py-2 text-xs font-black text-green-800 transition hover:bg-green-100">Tüm Tohumları Gör</Link>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10">
-        {visibleSeeds.map((seed) => (
-          <Link
-            key={seed.seed_id}
-            href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-            className="group relative h-32 overflow-hidden rounded-[18px] border border-white/90 bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            {seed.cover_url && (
-              <img
-                src={seed.cover_url}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/20" />
-
-            <div className="absolute inset-x-0 top-0 p-2.5">
-              <span className="inline-flex max-w-full truncate rounded-full bg-black/45 px-2 py-1 text-[8px] font-black uppercase tracking-wide text-white backdrop-blur">
-                {seed.seed_type_icon} {seed.seed_type_name}
-              </span>
-            </div>
-
-            <div className="absolute inset-x-0 bottom-0 p-2.5 text-white">
-              <h3 className="line-clamp-2 text-[13px] font-black leading-[1.15]">
-                {seed.title}
-              </h3>
-              {seed.subtitle && (
-                <p className="mt-1 truncate text-[9px] font-semibold text-white/75">
-                  {seed.subtitle}
-                </p>
-              )}
-              <p className="mt-2 text-[8px] font-bold uppercase tracking-wide text-white/65">
-                {formatTargetDate(seed.target_date)}
-              </p>
-            </div>
-          </Link>
-        ))}
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {visibleSeeds.map((seed) => {
+          const clock = clocks[seed.seed_id] ?? fallbackClock;
+          return (
+            <SeedCard
+              key={seed.seed_id}
+              seed={seed}
+              isAuthenticated
+              reminderTargetTime={clock.targetTime}
+              reminderTimezone={clock.timezone}
+              variant="timeline"
+            />
+          );
+        })}
       </div>
     </section>
   );

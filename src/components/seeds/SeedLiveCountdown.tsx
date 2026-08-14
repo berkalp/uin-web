@@ -7,6 +7,7 @@ type SeedLiveCountdownProps = {
   targetTime?: string | null;
   timezone?: string | null;
   compact?: boolean;
+  variant?: "pill" | "meta";
 };
 
 function timeZoneOffsetMs(date: Date, timeZone: string) {
@@ -83,6 +84,7 @@ export default function SeedLiveCountdown({
   targetTime,
   timezone,
   compact = false,
+  variant = "pill",
 }: SeedLiveCountdownProps) {
   const target = useMemo(
     () => (targetDate ? toTarget(targetDate, targetTime, timezone) : null),
@@ -101,6 +103,23 @@ export default function SeedLiveCountdown({
   const diff = target.getTime() - now;
   const reached = diff <= 0;
 
+  const label = reached ? "Hedef zamanı geldi" : formatRemaining(diff);
+
+  if (variant === "meta") {
+    return (
+      <span
+        className={`inline-flex min-w-0 items-center gap-1.5 text-[10px] font-bold ${reached ? "text-purple-700" : "text-amber-700"}`}
+        title={timezone ? `Hatırlatma saat dilimi: ${timezone}` : undefined}
+      >
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+          <circle cx="12" cy="13" r="8" />
+          <path d="M12 9v4l2.5 1.5M9 3h6M12 3v2" />
+        </svg>
+        <span className="truncate">{label}</span>
+      </span>
+    );
+  }
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border font-black ${
@@ -114,7 +133,7 @@ export default function SeedLiveCountdown({
         <circle cx="12" cy="13" r="8" />
         <path d="M12 9v4l2.5 1.5M9 3h6M12 3v2" />
       </svg>
-      {reached ? "Hedef zamanı geldi" : formatRemaining(diff)}
+      {label}
     </span>
   );
 }

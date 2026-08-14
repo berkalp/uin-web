@@ -253,7 +253,7 @@ export default function SeedDetailView({
                 href={`/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
                 className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 hover:border-green-400 hover:text-green-700"
               >
-                Düzenle
+                ✎ Düzenle
               </Link>
               {seed.status !== "archived" && (
                 <Link
@@ -306,10 +306,11 @@ export default function SeedDetailView({
                 </div>
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-2">
+              <div className="mt-5 grid grid-cols-2 gap-2 xl:grid-cols-2">
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Durum</p><p className="mt-1 text-xs font-black text-gray-950">{statusLabel}</p></div>
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Görünürlük</p><p className="mt-1 text-xs font-black text-gray-950">{isPrivateSeed ? "🔒 Yalnızca sen" : getSeedVisibilityLabel(seed.visibility)}</p></div>
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Ekildi</p><p className="mt-1 text-xs font-black text-gray-950">{formatDate(seed.created_at)}</p></div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Güncellendi</p><p className="mt-1 text-xs font-black text-gray-950">{formatDate(seed.updated_at)}</p></div>
                 <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">{seed.status === "completed" ? "Tamamlandı" : "Hedef"}</p><p className="mt-1 text-xs font-black text-gray-950">{seed.status === "completed" ? completionLabel || "Belirlenmedi" : formatDate(seed.target_date) || "Belirlenmedi"}</p></div>
               </div>
 

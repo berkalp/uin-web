@@ -238,12 +238,22 @@ export default function SeedForm({
             </p>
           </div>
 
-          <Link
-            href="/seeds"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
-          >
-            ← My Seeds
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {isEditing && seed && seed.status !== "archived" && (
+              <Link
+                href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
+                className="rounded-lg bg-green-600 px-3 py-2 text-xs font-black text-white transition hover:bg-green-700"
+              >
+                Niyete dönüştür
+              </Link>
+            )}
+            <Link
+              href="/seeds"
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
+            >
+              ← Tohumlarım
+            </Link>
+          </div>
         </div>
 
         {notice && (
@@ -737,8 +747,12 @@ export default function SeedForm({
 
           <div className="p-4">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-green-50 px-2 py-1 text-[10px] font-black text-green-800">
-                {isPrivateSeed ? "🔒 Özel Tohum" : isPendingLibrarySeed ? "Kütüphane önerisi" : "Kütüphane Tohumu"}
+              <span
+                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-green-50 text-sm font-black text-green-800"
+                title={isPrivateSeed ? "Özel Tohum" : isPendingLibrarySeed ? "Kütüphane önerisi" : "Kütüphane Tohumu"}
+                aria-label={isPrivateSeed ? "Özel Tohum" : isPendingLibrarySeed ? "Kütüphane önerisi" : "Kütüphane Tohumu"}
+              >
+                {isPrivateSeed ? "🔒" : "📂"}
               </span>
               {targetDate && (
                 <SeedLiveCountdown

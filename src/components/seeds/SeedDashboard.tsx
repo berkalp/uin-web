@@ -96,7 +96,7 @@ export default function SeedDashboard({
       </div>
 
       {visibleSeeds.length > 0 ? (
-        <section className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleSeeds.map((seed) => (
             <SeedCard
               key={seed.seed_id}
