@@ -60,12 +60,16 @@ export default async function AdminCommunitiesPage({
   const [
     catalogueResponse,
     coverResponse,
+    accessResponse,
   ] = await Promise.all([
     supabase.rpc(
       "get_admin_community_catalogue"
     ),
     supabase.rpc(
       "get_admin_community_cover_images"
+    ),
+    supabase.rpc(
+      "get_admin_community_access_catalogue"
     ),
   ]);
 
@@ -84,6 +88,13 @@ export default async function AdminCommunitiesPage({
     console.error(
       "Admin Community cover catalogue failed:",
       coverResponse.error
+    );
+  }
+
+  if (accessResponse.error) {
+    console.warn(
+      "Admin Community membership access catalogue is unavailable; using open access defaults until the membership migration is applied:",
+      accessResponse.error
     );
   }
 
@@ -110,6 +121,22 @@ export default async function AdminCommunitiesPage({
       ])
     );
 
+  const accessByCommunityId =
+    new Map(
+      (
+        (accessResponse.error
+          ? []
+          : accessResponse.data ?? []) as Array<{
+          community_id: string;
+          intent_access_mode: string;
+          active_member_count: number | string;
+        }>
+      ).map((row) => [
+        row.community_id,
+        row,
+      ])
+    );
+
   const catalogue: CommunityAdminCatalogue = {
     ...rawCatalogue,
     communities:
@@ -120,6 +147,17 @@ export default async function AdminCommunitiesPage({
             coverByCommunityId.get(
               community.id
             ) ?? null,
+          intent_access_mode:
+            accessByCommunityId.get(
+              community.id
+            )?.intent_access_mode ===
+            "verified_members"
+              ? "verified_members"
+              : "open",
+          active_member_count:
+            accessByCommunityId.get(
+              community.id
+            )?.active_member_count ?? 0,
         })
       ),
   };

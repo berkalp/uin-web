@@ -117,6 +117,14 @@ export default function CommunityPicker({
       return;
     }
 
+    if (!community.viewerCanUseForIntent) {
+      setLocalMessage({
+        tone: "error",
+        text: `Only verified members can attach an Intent to ${community.name}. Following this Community does not grant membership.`,
+      });
+      return;
+    }
+
     onChange([...value, community.id]);
     setQuery("");
     setIsFocused(false);
@@ -207,7 +215,7 @@ export default function CommunityPicker({
             </span>
           </p>
           <p className="mt-1 text-xs leading-5 text-gray-400">
-            The first Community is primary. All choices must belong directly to the selected Activity.
+            The first Community is primary. All choices must belong directly to the selected Activity. Communities marked members-only require an active verified membership; following alone never grants that access.
           </p>
         </div>
 
@@ -254,6 +262,17 @@ export default function CommunityPicker({
                   <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                     {index === 0 ? "Primary Community" : "Additional Community"}
                   </p>
+                  {community.intentAccessMode === "verified_members" && (
+                    <p className={`mt-1 text-[10px] font-bold uppercase tracking-wide ${
+                      community.viewerIsVerifiedMember
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }`}>
+                      {community.viewerIsVerifiedMember
+                        ? "Verified member"
+                        : "Membership required"}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex shrink-0 flex-col gap-1">
@@ -312,7 +331,12 @@ export default function CommunityPicker({
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => selectCommunity(community)}
-                    className="flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-green-50"
+                    aria-disabled={!community.viewerCanUseForIntent}
+                    className={`flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition ${
+                      community.viewerCanUseForIntent
+                        ? "hover:bg-green-50"
+                        : "cursor-not-allowed bg-gray-50 opacity-70"
+                    }`}
                   >
                     <span className="flex min-w-0 items-center gap-3">
                       <span
@@ -341,10 +365,29 @@ export default function CommunityPicker({
                             {community.description}
                           </span>
                         )}
+                        {community.intentAccessMode === "verified_members" && (
+                          <span className={`mt-1 block text-[10px] font-bold uppercase tracking-wide ${
+                            community.viewerIsVerifiedMember
+                              ? "text-green-700"
+                              : "text-amber-700"
+                          }`}>
+                            {community.viewerIsVerifiedMember
+                              ? "Verified member access"
+                              : "Verified members only"}
+                          </span>
+                        )}
                       </span>
                     </span>
-                    <span className="shrink-0 text-sm font-semibold text-green-700">
-                      Select
+                    <span
+                      className={`shrink-0 text-sm font-semibold ${
+                        community.viewerCanUseForIntent
+                          ? "text-green-700"
+                          : "text-gray-500"
+                      }`}
+                    >
+                      {community.viewerCanUseForIntent
+                        ? "Select"
+                        : "Locked"}
                     </span>
                   </button>
                 ))}

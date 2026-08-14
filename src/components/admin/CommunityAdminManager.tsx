@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import CommunityIcon from "@/components/communities/CommunityIcon";
+import CommunityMembershipAdminPanel from "@/components/admin/CommunityMembershipAdminPanel";
 
 import {
   COMMUNITY_ACCENT_PRESETS,
@@ -22,6 +23,7 @@ import {
   normalizeCommunitySecondary,
   slugifyCommunityName,
   type CommunityIconKey,
+  type CommunityIntentAccessMode,
   type CommunityScopeType,
 } from "@/utils/communities";
 import {
@@ -55,6 +57,8 @@ type AdminCommunity = {
   accent_color: string;
   secondary_color: string | null;
   scope_type: CommunityScopeType;
+  intent_access_mode: CommunityIntentAccessMode;
+  active_member_count: number | string;
   category_id: string | null;
   category_ids: string[];
   category_names: string[];
@@ -113,6 +117,7 @@ type CommunityFormState = {
   accentColor: string;
   secondaryColor: string;
   scopeType: CommunityScopeType;
+  intentAccessMode: CommunityIntentAccessMode;
   categoryIds: string[];
   activityIds: string[];
 };
@@ -129,6 +134,7 @@ const EMPTY_FORM: CommunityFormState = {
     DEFAULT_COMMUNITY_ACCENT,
   secondaryColor: "",
   scopeType: "restricted",
+  intentAccessMode: "open",
   categoryIds: [],
   activityIds: [],
 };
@@ -158,6 +164,8 @@ function communityToFormState(
       ) ?? "",
     scopeType:
       community.scope_type,
+    intentAccessMode:
+      community.intent_access_mode ?? "open",
     categoryIds:
       community.category_ids ?? [],
     activityIds:
@@ -1218,12 +1226,16 @@ export default function CommunityAdminManager({
     const [
       catalogueResponse,
       coverResponse,
+      accessResponse,
     ] = await Promise.all([
       supabase.rpc(
         "get_admin_community_catalogue"
       ),
       supabase.rpc(
         "get_admin_community_cover_images"
+      ),
+      supabase.rpc(
+        "get_admin_community_access_catalogue"
       ),
     ]);
 
@@ -1233,6 +1245,10 @@ export default function CommunityAdminManager({
 
     if (coverResponse.error) {
       throw coverResponse.error;
+    }
+
+    if (accessResponse.error) {
+      throw accessResponse.error;
     }
 
     const nextCatalogue =
@@ -1258,6 +1274,20 @@ export default function CommunityAdminManager({
         ])
       );
 
+    const accessByCommunityId =
+      new Map(
+        (
+          (accessResponse.data ?? []) as Array<{
+            community_id: string;
+            intent_access_mode: CommunityIntentAccessMode;
+            active_member_count: number | string;
+          }>
+        ).map((row) => [
+          row.community_id,
+          row,
+        ])
+      );
+
     setCatalogue({
       categories:
         nextCatalogue.categories ?? [],
@@ -1271,6 +1301,14 @@ export default function CommunityAdminManager({
               coverByCommunityId.get(
                 community.id
               ) ?? null,
+            intent_access_mode:
+              accessByCommunityId.get(
+                community.id
+              )?.intent_access_mode ?? "open",
+            active_member_count:
+              accessByCommunityId.get(
+                community.id
+              )?.active_member_count ?? 0,
           })
         ),
       suggestions:
@@ -1467,6 +1505,21 @@ export default function CommunityAdminManager({
 
       if (coverResponse.error) {
         throw coverResponse.error;
+      }
+
+      const accessResponse =
+        await supabase.rpc(
+          "admin_set_community_intent_access",
+          {
+            p_community_id:
+              savedCommunityId,
+            p_intent_access_mode:
+              form.intentAccessMode,
+          }
+        );
+
+      if (accessResponse.error) {
+        throw accessResponse.error;
       }
 
       await refreshCatalogue();
@@ -1973,6 +2026,73 @@ export default function CommunityAdminManager({
           )}
         </div>
 
+        <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+          <p className="text-sm font-bold text-gray-950">
+            Intent access
+          </p>
+          <p className="mt-1 text-xs leading-5 text-gray-500">
+            Following and verified membership are separate. Choose whether anyone may attach this Community to an Intent or only people whose affiliation has been verified.
+          </p>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <label
+              className={`cursor-pointer rounded-2xl border p-4 transition ${
+                form.intentAccessMode === "open"
+                  ? "border-emerald-500 bg-emerald-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                name="community-intent-access"
+                value="open"
+                checked={form.intentAccessMode === "open"}
+                onChange={() =>
+                  setForm((current) => ({
+                    ...current,
+                    intentAccessMode: "open",
+                  }))
+                }
+                className="mr-2"
+              />
+              <span className="font-bold text-gray-950">
+                Open Community context
+              </span>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Any eligible UIN user may attach this Community to a compatible Intent. Useful for teams, fandoms and broad interest contexts.
+              </p>
+            </label>
+
+            <label
+              className={`cursor-pointer rounded-2xl border p-4 transition ${
+                form.intentAccessMode === "verified_members"
+                  ? "border-emerald-500 bg-emerald-50"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                name="community-intent-access"
+                value="verified_members"
+                checked={form.intentAccessMode === "verified_members"}
+                onChange={() =>
+                  setForm((current) => ({
+                    ...current,
+                    intentAccessMode: "verified_members",
+                  }))
+                }
+                className="mr-2"
+              />
+              <span className="font-bold text-gray-950">
+                Verified members only
+              </span>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Only users with an active verified membership may attach this Community to an Intent. Use for universities, workplaces, associations and other real affiliations.
+              </p>
+            </label>
+          </div>
+        </div>
+
         <div
           className="mt-5 overflow-hidden rounded-3xl border bg-white shadow-sm"
           style={{ borderColor: visibleBorder }}
@@ -1994,7 +2114,13 @@ export default function CommunityAdminManager({
             coverImageUrl={form.coverImageUrl || null}
             accentColor={accentColor}
             secondaryColor={secondaryColor}
-            badge={form.coverImageUrl ? "Cover image set" : "No cover image"}
+            badge={
+              form.intentAccessMode === "verified_members"
+                ? "Verified members only"
+                : form.coverImageUrl
+                  ? "Open · cover image set"
+                  : "Open Community"
+            }
           />
 
           <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -2013,6 +2139,14 @@ export default function CommunityAdminManager({
             </span>
           </div>
         </div>
+
+        {form.id &&
+          form.intentAccessMode === "verified_members" && (
+            <CommunityMembershipAdminPanel
+              communityId={form.id}
+              communityName={form.name || "Community"}
+            />
+          )}
 
         {message && (
           <p className={`mt-5 rounded-xl border p-4 text-sm font-semibold ${
@@ -2167,6 +2301,30 @@ export default function CommunityAdminManager({
                           </p>
                           <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
                             Slug
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 shadow-sm">
+                          <p className={`text-sm font-black ${
+                            community.intent_access_mode === "verified_members"
+                              ? "text-emerald-700"
+                              : "text-gray-950"
+                          }`}>
+                            {community.intent_access_mode === "verified_members"
+                              ? "Members only"
+                              : "Open"}
+                          </p>
+                          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            Intent access
+                          </p>
+                        </div>
+
+                        <div className="rounded-xl bg-white p-3 shadow-sm">
+                          <p className="text-lg font-black text-gray-950">
+                            {toNumber(community.active_member_count)}
+                          </p>
+                          <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+                            Verified members
                           </p>
                         </div>
 

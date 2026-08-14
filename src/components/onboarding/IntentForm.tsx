@@ -32,6 +32,8 @@ import { getLocations } from "@/services/locationService";
 
 import { supabase } from "@/utils/supabase/client";
 import {
+  applyCommunityAccessContexts,
+  parseCommunityAccessContexts,
   parseCommunityOptions,
   type CommunityOption,
 } from "@/utils/communities";
@@ -489,6 +491,7 @@ export default function IntentForm({
         const [
           communityResult,
           sportCommunityResult,
+          communityAccessResult,
         ] = await Promise.all([
           supabase.rpc(
             "get_active_communities",
@@ -513,6 +516,10 @@ export default function IntentForm({
                 data: null,
                 error: null,
               }),
+
+          supabase.rpc(
+            "get_my_community_intent_access"
+          ),
         ]);
 
         if (
@@ -525,6 +532,13 @@ export default function IntentForm({
           sportCommunityResult.error
         ) {
           throw sportCommunityResult.error;
+        }
+
+        if (communityAccessResult.error) {
+          console.warn(
+            "Community membership access could not be loaded; defaulting to open access until the migration is applied.",
+            communityAccessResult.error
+          );
         }
 
         if (!isCurrent) {
@@ -547,8 +561,15 @@ export default function IntentForm({
           );
 
         const parsedCommunities =
-          parseCommunityOptions(
-            communityResult.data
+          applyCommunityAccessContexts(
+            parseCommunityOptions(
+              communityResult.data
+            ),
+            parseCommunityAccessContexts(
+              communityAccessResult.error
+                ? []
+                : communityAccessResult.data
+            )
           ).filter(
             (community) =>
               community.relevanceRank ===
@@ -581,7 +602,8 @@ export default function IntentForm({
                   parsedCommunities.some(
                     (community) =>
                       community.id ===
-                      communityId
+                        communityId &&
+                      community.viewerCanUseForIntent
                   )
               );
 
@@ -600,7 +622,8 @@ export default function IntentForm({
               parsedCommunities.some(
                 (community) =>
                   community.id ===
-                  requestedCommunityId
+                    requestedCommunityId &&
+                  community.viewerCanUseForIntent
               )
             ) {
               hasAppliedCommunityPrefill.current = true;
@@ -1312,14 +1335,24 @@ export default function IntentForm({
                         value={
                           community.id
                         }
-                      >
-                        {
-                          community.name
+                        disabled={
+                          !community.viewerCanUseForIntent
                         }
+                      >
+                        {community.name}
+                        {community.intentAccessMode ===
+                          "verified_members" &&
+                        !community.viewerIsVerifiedMember
+                          ? " — verified members only"
+                          : ""}
                       </option>
                     )
                   )}
                 </select>
+
+                <span className="text-xs leading-5 text-gray-400">
+                  Following and membership are separate. A members-only Community can be selected only when your affiliation is verified.
+                </span>
 
                 {!isLoadingCommunities &&
                   communities.length ===

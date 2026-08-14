@@ -20,6 +20,8 @@ import {
 import { getVisibleIntentLinks } from "@/services/intentLinksService";
 import { supabase } from "@/utils/supabase/client";
 import {
+  applyCommunityAccessContexts,
+  parseCommunityAccessContexts,
   parseCommunityOptions,
   type CommunityOption,
 } from "@/utils/communities";
@@ -495,21 +497,33 @@ export default function EditIntentForm({
       setIsLoadingCommunities(true);
 
       try {
-        const {
-          data,
-          error,
-        } = await supabase.rpc(
-          "get_active_communities",
-          {
-            p_category_id:
-              categoryId,
-            p_activity_id:
-              activityId,
-          }
-        );
+        const [
+          communityResult,
+          communityAccessResult,
+        ] = await Promise.all([
+          supabase.rpc(
+            "get_active_communities",
+            {
+              p_category_id:
+                categoryId,
+              p_activity_id:
+                activityId,
+            }
+          ),
+          supabase.rpc(
+            "get_my_community_intent_access"
+          ),
+        ]);
 
-        if (error) {
-          throw error;
+        if (communityResult.error) {
+          throw communityResult.error;
+        }
+
+        if (communityAccessResult.error) {
+          console.warn(
+            "Community membership access could not be loaded; defaulting to open access until the migration is applied.",
+            communityAccessResult.error
+          );
         }
 
         if (!isCurrent) {
@@ -517,8 +531,15 @@ export default function EditIntentForm({
         }
 
         const parsedCommunities =
-          parseCommunityOptions(
-            data
+          applyCommunityAccessContexts(
+            parseCommunityOptions(
+              communityResult.data
+            ),
+            parseCommunityAccessContexts(
+              communityAccessResult.error
+                ? []
+                : communityAccessResult.data
+            )
           ).filter(
             (community) =>
               community.relevanceRank ===

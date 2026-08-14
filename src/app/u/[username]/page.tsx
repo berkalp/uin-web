@@ -16,6 +16,7 @@ import ProfileIntentReactions, {
 } from "@/components/profile/ProfileIntentReactions";
 import PublicSeedsPanel from "@/components/seeds/PublicSeedsPanel";
 import PublicBadgesPanel from "@/components/badges/PublicBadgesPanel";
+import PublicCommunityMembershipsPanel from "@/components/communities/PublicCommunityMembershipsPanel";
 import PublicProfessionalCredentialsPanel from "@/components/professionals/PublicProfessionalCredentialsPanel";
 import VerificationMark from "@/components/professionals/VerificationMark";
 import PublicReputationPanel from "@/components/reputation/PublicReputationPanel";
@@ -49,6 +50,9 @@ import type {
 import type {
   PublicBadge,
 } from "@/utils/badges";
+import type {
+  PublicCommunityMembership,
+} from "@/utils/communityMemberships";
 import type {
   PublicProfessionalStatus,
 } from "@/utils/professionals";
@@ -1015,6 +1019,28 @@ export default async function PublicProfilePage({
     displayOrderMaps.badge
   );
 
+  const {
+    data: communityMembershipData,
+    error: communityMembershipError,
+  } = await supabase.rpc(
+    "get_public_profile_community_memberships",
+    {
+      p_user_id: profile.id,
+    }
+  );
+
+  if (communityMembershipError) {
+    console.warn(
+      "Public Community membership query failed; the membership migration may not be applied yet:",
+      communityMembershipError
+    );
+  }
+
+  const publicCommunityMemberships =
+    communityMembershipError
+      ? []
+      : (communityMembershipData ?? []) as PublicCommunityMembership[];
+
   const youtubeEmbedUrl =
     buildYouTubeEmbedUrl(
       presence.embeds.find(
@@ -1795,6 +1821,11 @@ export default async function PublicProfilePage({
 
         <PublicProfessionalCredentialsPanel
           status={professionalStatus}
+          isOwner={page.viewer.is_owner}
+        />
+
+        <PublicCommunityMembershipsPanel
+          memberships={publicCommunityMemberships}
           isOwner={page.viewer.is_owner}
         />
 

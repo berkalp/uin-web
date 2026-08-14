@@ -17,6 +17,17 @@ export type CommunityScopeType =
   | "global"
   | "restricted";
 
+export type CommunityIntentAccessMode =
+  | "open"
+  | "verified_members";
+
+export type CommunityAccessContext = {
+  communityId: string;
+  intentAccessMode: CommunityIntentAccessMode;
+  isVerifiedMember: boolean;
+  canUseForIntent: boolean;
+};
+
 export type CommunityOption = {
   id: string;
   name: string;
@@ -34,6 +45,9 @@ export type CommunityOption = {
   activityIds: string[];
   activityNames: string[];
   relevanceRank: number;
+  intentAccessMode: CommunityIntentAccessMode;
+  viewerIsVerifiedMember: boolean;
+  viewerCanUseForIntent: boolean;
 };
 
 export type IntentCommunityContext = {
@@ -507,10 +521,89 @@ export function parseCommunityOptions(
             parseNumber(
               row.relevance_rank
             ),
+          intentAccessMode:
+            row.community_intent_access_mode ===
+            "verified_members"
+              ? "verified_members"
+              : "open",
+          viewerIsVerifiedMember:
+            row.viewer_is_verified_member === true,
+          viewerCanUseForIntent:
+            row.viewer_can_use_for_intent !== false,
         },
       ];
     }
   );
+}
+
+export function parseCommunityAccessContexts(
+  value: unknown
+): CommunityAccessContext[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") {
+      return [];
+    }
+
+    const row = item as Record<string, unknown>;
+
+    if (typeof row.community_id !== "string") {
+      return [];
+    }
+
+    const intentAccessMode: CommunityIntentAccessMode =
+      row.intent_access_mode === "verified_members"
+        ? "verified_members"
+        : "open";
+
+    const isVerifiedMember =
+      row.is_verified_member === true;
+
+    return [
+      {
+        communityId: row.community_id,
+        intentAccessMode,
+        isVerifiedMember,
+        canUseForIntent:
+          row.can_use_for_intent === true ||
+          intentAccessMode === "open",
+      },
+    ];
+  });
+}
+
+export function applyCommunityAccessContexts(
+  communities: CommunityOption[],
+  accessContexts: CommunityAccessContext[]
+): CommunityOption[] {
+  if (accessContexts.length === 0) {
+    return communities;
+  }
+
+  const accessByCommunityId = new Map(
+    accessContexts.map((context) => [
+      context.communityId,
+      context,
+    ])
+  );
+
+  return communities.map((community) => {
+    const access = accessByCommunityId.get(community.id);
+
+    if (!access) {
+      return community;
+    }
+
+    return {
+      ...community,
+      intentAccessMode: access.intentAccessMode,
+      viewerIsVerifiedMember: access.isVerifiedMember,
+      viewerCanUseForIntent: access.canUseForIntent,
+    };
+  });
 }
 
 export function parseIntentCommunityRows(

@@ -5,6 +5,7 @@ import {
 } from "next/navigation";
 
 import CommunityFollowButton from "@/components/communities/CommunityFollowButton";
+import CommunityMembershipVisibilityToggle from "@/components/communities/CommunityMembershipVisibilityToggle";
 import CommunityIcon from "@/components/communities/CommunityIcon";
 import CommunityIntentFiltersForm, {
   type CommunityEligibilityFilter,
@@ -109,6 +110,18 @@ type CommunityDiscoveryMetrics = {
     | "mostly_invite_only"
     | "not_enough_data";
   resolved_cover_image_url: string | null;
+};
+
+type CommunityIntentAccessContext = {
+  community_id: string;
+  intent_access_mode: "open" | "verified_members";
+  is_verified_member: boolean;
+  can_use_for_intent: boolean;
+  member_label: string | null;
+  show_on_profile: boolean;
+  verified_at: string | null;
+  expires_at: string | null;
+  active_member_count: number | string;
 };
 
 type DiscoveryCategory = {
@@ -516,6 +529,7 @@ export default async function CommunityPage({
     followResponse,
     coverResponse,
     metricsResponse,
+    accessResponse,
     filterResponse,
     currentResponse,
     completedResponse,
@@ -541,6 +555,13 @@ export default async function CommunityPage({
 
     supabase.rpc(
       "get_community_discovery_metrics",
+      {
+        p_community_id: community.id,
+      }
+    ),
+
+    supabase.rpc(
+      "get_community_intent_access_context",
       {
         p_community_id: community.id,
       }
@@ -638,6 +659,41 @@ export default async function CommunityPage({
       metricsResponse.error
     );
   }
+
+  if (accessResponse.error) {
+    console.warn(
+      "Community membership access failed; using open-access fallback until the membership migration is applied:",
+      accessResponse.error
+    );
+  }
+
+  const accessContext =
+    !accessResponse.error &&
+    accessResponse.data &&
+    typeof accessResponse.data === "object"
+      ? (accessResponse.data as CommunityIntentAccessContext)
+      : null;
+
+  const intentAccessMode =
+    accessContext?.intent_access_mode === "verified_members"
+      ? "verified_members"
+      : "open";
+
+  const isVerifiedMember =
+    accessContext?.is_verified_member === true;
+
+  const canUseCommunityForIntent =
+    accessContext?.can_use_for_intent !== false;
+
+  const membershipLabel =
+    accessContext?.member_label || "Verified member";
+
+  const showMembershipOnProfile =
+    accessContext?.show_on_profile === true;
+
+  const activeMemberCount = Number(
+    accessContext?.active_member_count ?? 0
+  );
 
   if (filterResponse.error) {
     console.error(
@@ -1340,7 +1396,33 @@ export default async function CommunityPage({
                   }
                 />
 
-                <Link
+                {intentAccessMode === "verified_members" && (
+                  <div className="flex flex-col gap-2">
+                    <span
+                      className={`rounded-xl border border-white/35 px-4 py-2.5 text-xs font-black ${
+                        isVerifiedMember
+                          ? "bg-emerald-500/25 text-white"
+                          : "bg-black/20 text-white"
+                      }`}
+                    >
+                      {isVerifiedMember
+                        ? membershipLabel
+                        : "Verified membership required"}
+                    </span>
+
+                    {isVerifiedMember && (
+                      <CommunityMembershipVisibilityToggle
+                        communityId={community.id}
+                        initialShowOnProfile={
+                          showMembershipOnProfile
+                        }
+                      />
+                    )}
+                  </div>
+                )}
+
+                {canUseCommunityForIntent ? (
+                  <Link
                   href={createIntentHref}
                   className="rounded-xl border px-5 py-3 text-sm font-bold shadow-sm transition hover:-translate-y-0.5"
                   style={{
@@ -1357,6 +1439,14 @@ export default async function CommunityPage({
                 >
                   Create an Intent here
                 </Link>
+                ) : (
+                  <span
+                    className="cursor-not-allowed rounded-xl border border-white/30 bg-black/20 px-5 py-3 text-sm font-bold text-white/85 shadow-sm"
+                    title="Only verified members may attach an Intent to this Community."
+                  >
+                    Members-only Intent context
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -1372,6 +1462,11 @@ export default async function CommunityPage({
               <p className="mt-1 text-sm text-gray-500">
                 private follows shaping Discover
               </p>
+              {intentAccessMode === "verified_members" && (
+                <p className="mt-2 text-xs font-bold text-emerald-700">
+                  {activeMemberCount} verified {activeMemberCount === 1 ? "member" : "members"}
+                </p>
+              )}
             </div>
 
             <div className="rounded-2xl bg-blue-50 p-4">
@@ -1424,8 +1519,18 @@ export default async function CommunityPage({
               </div>
 
               <div className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-                <span className="font-bold text-gray-950">Follow, not membership.</span>{" "}
-                No Community posts, member lists or Community-owned Intent.
+                <span className="font-bold text-gray-950">
+                  {intentAccessMode === "verified_members"
+                    ? isVerifiedMember
+                      ? "Verified member."
+                      : "Follow ≠ membership."
+                    : "Open Intent context."}
+                </span>{" "}
+                {intentAccessMode === "verified_members"
+                  ? isVerifiedMember
+                    ? "Your verified affiliation lets you attach compatible Intents to this Community. Following remains a separate private interest signal."
+                    : "Only verified members can attach compatible Intents to this Community. Following personalises Discover but grants no affiliation rights."
+                  : "Compatible Intents may use this Community without a verified affiliation. Following still remains private and separate."}
               </div>
             </div>
           </div>
@@ -1499,12 +1604,18 @@ export default async function CommunityPage({
               )}
             </div>
 
-            <Link
-              href={createIntentHref}
-              className="text-sm font-semibold text-green-700 hover:text-green-800"
-            >
-              Create an Intent →
-            </Link>
+            {canUseCommunityForIntent ? (
+              <Link
+                href={createIntentHref}
+                className="text-sm font-semibold text-green-700 hover:text-green-800"
+              >
+                Create an Intent →
+              </Link>
+            ) : (
+              <span className="text-sm font-semibold text-gray-400">
+                Verified members can create here
+              </span>
+            )}
           </div>
 
           {currentIntents.length > 0 ? (

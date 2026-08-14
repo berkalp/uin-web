@@ -1,4 +1,7 @@
-import type { IntentLinkInput } from "@/utils/intentLinks";
+import {
+  serializeIntentLinks,
+  type IntentLinkInput,
+} from "@/utils/intentLinks";
 import { supabase } from "@/utils/supabase/client";
 import type { ParticipantEligibility } from "@/utils/participationEligibility";
 import {
@@ -42,6 +45,8 @@ export async function updateIntent({
   joinMessageMode,
   joinMessagePrompt,
   notes,
+  communityIds = [],
+  relatedLinks = [],
 }: UpdateIntentInput) {
   if (!intentId) {
     throw new Error(
@@ -123,36 +128,46 @@ export async function updateIntent({
   const cleanedNotes =
     notes?.trim() || null;
 
+  const normalizedCommunityIds =
+    Array.from(
+      new Set(
+        communityIds.filter(Boolean)
+      )
+    ).slice(0, sportId ? 1 : 3);
+
   const { data, error } =
-    await supabase
-      .from("intents")
-      .update({
-        activity_id: activityId,
-        sport_id: sportId,
-        location_id: locationId,
-        start_date: startDate,
-        end_date: endDate,
-        people,
-        recurrence,
-        visibility,
-        budget,
-        max_participants:
+    await supabase.rpc(
+      "update_my_intent_with_communities_eligibility_and_join_settings",
+      {
+        p_intent_id: intentId,
+        p_activity_id: activityId,
+        p_sport_id: sportId,
+        p_location_id: locationId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_people: people,
+        p_recurrence: recurrence,
+        p_visibility: visibility,
+        p_budget: budget,
+        p_max_participants:
           maxParticipants,
-        participant_eligibility:
+        p_participant_eligibility:
           participantEligibility,
-        join_message_mode:
+        p_join_message_mode:
           joinMessageMode,
-        join_message_prompt:
+        p_join_message_prompt:
           joinMessageMode === "none"
             ? null
             : joinMessagePrompt.trim(),
-        notes: cleanedNotes,
-        updated_at:
-          new Date().toISOString(),
-      })
-      .eq("id", intentId)
-      .select("id")
-      .single();
+        p_notes: cleanedNotes,
+        p_community_ids:
+          normalizedCommunityIds,
+        p_links:
+          serializeIntentLinks(
+            relatedLinks
+          ),
+      }
+    );
 
   if (error) {
     throw new Error(
@@ -161,5 +176,11 @@ export async function updateIntent({
     );
   }
 
-  return data.id as string;
+  if (typeof data !== "string") {
+    throw new Error(
+      "The Intent could not be updated."
+    );
+  }
+
+  return data;
 }
