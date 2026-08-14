@@ -321,22 +321,9 @@ export default function SeedDetailView({
                 </div>
               )}
 
-              {seed.notes && (
-                <div className="mt-4 rounded-2xl border border-green-100 bg-green-50/40 p-4">
-                  <p className="text-[10px] font-black uppercase tracking-wide text-green-700">Neden ektin?</p>
-                  <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm leading-6 text-gray-700">{seed.notes}</p>
-                </div>
-              )}
-
               {!isPrivateSeed && (
                 <div className="mt-auto pt-4">
                   <SeedReactionBar seedId={seed.seed_id} initialContext={reactionContext} isAuthenticated={isAuthenticated} isOwner={seed.is_owner} variant="detail" />
-                </div>
-              )}
-
-              {seed.is_owner && seed.status === "active" && (
-                <div className="mt-3">
-                  <SeedCompletionDialog seedId={seed.seed_id} seedTitle={seed.title} defaultVisibility={seed.visibility} buttonClassName="inline-flex h-9 items-center rounded-lg border border-purple-200 bg-purple-50 px-3 text-xs font-black text-purple-800 hover:bg-purple-100" />
                 </div>
               )}
             </aside>

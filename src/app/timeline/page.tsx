@@ -3446,17 +3446,17 @@ export default async function TimelinePage({
             <div className="absolute bottom-full right-0 z-50 mb-2 w-[290px] rounded-2xl border border-gray-200 bg-white p-3 shadow-2xl">
               <div className="grid gap-2">
                 {requestCount > 0 && intent.status === "active" && (
-                  <Link href="/requests" className="rounded-xl bg-green-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-green-700">
+                  <Link href="/requests" className="inline-flex h-7 w-full items-center justify-center rounded-md bg-green-600 px-2 text-[9.5px] font-semibold leading-none text-white transition hover:bg-green-700">
                     Review {requestCount} request{requestCount === 1 ? "" : "s"}
                   </Link>
                 )}
                 {intent.status === "active" && intent.recruitment_status === "open" && intent.end_date >= today && (
                   <IntentInvitePeopleButton intentId={intent.id} activityLabel={activity?.name ?? "UIN Activity"} compact />
                 )}
-                <Link href={`/intents/${encodeURIComponent(intent.id)}/visibility`} className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100">
+                <Link href={`/intents/${encodeURIComponent(intent.id)}/visibility`} className="inline-flex h-7 w-full items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-2 text-[9.5px] font-semibold leading-none text-indigo-700 transition hover:bg-indigo-100">
                   Manage Visibility
                 </Link>
-                <IntentActionButtons intentId={intent.id} status={intent.status} recruitmentStatus={intent.recruitment_status} />
+                <IntentActionButtons intentId={intent.id} status={intent.status} recruitmentStatus={intent.recruitment_status} compact />
               </div>
             </div>
           </details>

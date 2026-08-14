@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import ReminderSettingsPanel from "@/components/reminders/ReminderSettingsPanel";
+import SeedCompletionDialog from "@/components/seeds/SeedCompletionDialog";
 import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
-import { deleteSeed, saveSeed } from "@/services/seedService";
+import { deleteSeed, saveSeed, setSeedStatus } from "@/services/seedService";
 import {
   SEED_LINK_KIND_OPTIONS,
   SEED_VISIBILITY_OPTIONS,
@@ -97,6 +98,7 @@ export default function SeedForm({
   const [targetDate, setTargetDate] = useState(seed?.target_date ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   const selectedType = useMemo(
@@ -217,6 +219,20 @@ export default function SeedForm({
         error instanceof Error ? error.message : "The Seed could not be deleted."
       );
       setIsDeleting(false);
+    }
+  }
+
+  async function changeSeedStatus(status: "active" | "archived") {
+    if (!seed) return;
+    setIsChangingStatus(true);
+    setMessage(null);
+    try {
+      await setSeedStatus(seed.seed_id, status);
+      router.refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "The Seed could not be updated.");
+    } finally {
+      setIsChangingStatus(false);
     }
   }
 
@@ -695,22 +711,34 @@ export default function SeedForm({
             Cancel
           </Link>
 
-          {isEditing && canDelete && (
-            <button
-              type="button"
-              onClick={removeSeed}
-              disabled={isSaving || isDeleting}
-              className="ml-auto rounded-xl border border-red-200 bg-red-50 px-5 py-3.5 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isDeleting ? "Deleting..." : "Delete my Seed"}
-            </button>
-          )}
         </div>
 
-        {isEditing && !canDelete && grownIntentCount > 0 && (
-          <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-            This Seed has grown into an Intent, so its lineage is preserved. Archive it instead of deleting it.
-          </p>
+        {isEditing && seed && (
+          <section className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">Tohum işlemleri</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {seed.status === "active" && (
+                <SeedCompletionDialog
+                  seedId={seed.seed_id}
+                  seedTitle={seed.title}
+                  defaultVisibility={seed.visibility}
+                  buttonClassName="inline-flex h-8 items-center rounded-lg border border-purple-200 bg-purple-50 px-3 text-xs font-semibold text-purple-800 hover:bg-purple-100"
+                />
+              )}
+              {seed.status === "active" && (
+                <button type="button" onClick={() => changeSeedStatus("archived")} disabled={isSaving || isChangingStatus} className="inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:border-gray-400 disabled:opacity-50">Arşivle</button>
+              )}
+              {(seed.status === "completed" || seed.status === "archived") && seed.origin !== "retrospective" && (
+                <button type="button" onClick={() => changeSeedStatus("active")} disabled={isSaving || isChangingStatus} className="inline-flex h-8 items-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:opacity-50">Yeniden Aç</button>
+              )}
+              {canDelete && (
+                <button type="button" onClick={removeSeed} disabled={isSaving || isDeleting || isChangingStatus} className="ml-auto inline-flex h-8 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">{isDeleting ? "Siliniyor..." : "Sil"}</button>
+              )}
+            </div>
+            {!canDelete && grownIntentCount > 0 && (
+              <p className="mt-3 text-xs leading-5 text-amber-800">Bu Tohum bir Niyete dönüştüğü için geçmiş bağlantısı korunur; silmek yerine arşivleyebilirsin.</p>
+            )}
+          </section>
         )}
       </section>
 

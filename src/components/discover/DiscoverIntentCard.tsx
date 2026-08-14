@@ -17,6 +17,7 @@ import {
   resolveActivityCover,
 } from "@/utils/activityCover";
 import type { IntentLinkView } from "@/utils/intentLinks";
+import CommunityIcon from "@/components/communities/CommunityIcon";
 import type { IntentCommunityContext } from "@/utils/communities";
 import { getSportPresentation } from "@/utils/sportPresentation";
 import { formatEstimatedCost } from "@/utils/estimatedCost";
@@ -777,22 +778,13 @@ export default function DiscoverIntentCard({
                 <Link
                   href={primaryCommunityHref}
                   title={`Open ${primaryCommunityName} Community`}
-                  className="inline-flex min-w-0 max-w-[74%] items-center gap-1.5 rounded-full border bg-white/95 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-900 shadow-sm backdrop-blur transition hover:-translate-y-px hover:bg-white"
-                  style={{ borderColor: primaryCommunityAccent }}
+                  className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur transition hover:-translate-y-px hover:bg-white"
                 >
-                  {primaryCommunity?.iconUrl ? (
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                      <img
-                        src={primaryCommunity.iconUrl}
-                        alt=""
-                        className="h-full w-full object-contain"
-                      />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden="true"
-                      className="h-2.5 w-2.5 shrink-0 rounded-full"
-                      style={{ backgroundColor: primaryCommunityAccent }}
+                  {primaryCommunity && (
+                    <CommunityIcon
+                      iconKey={primaryCommunity.iconKey}
+                      iconUrl={primaryCommunity.iconUrl}
+                      className="h-5 w-5 shrink-0 object-contain"
                     />
                   )}
                   <span className="truncate">{primaryCommunityName}</span>
@@ -804,14 +796,11 @@ export default function DiscoverIntentCard({
                 </Link>
               ) : (
                 <span
-                  className="inline-flex min-w-0 max-w-[74%] items-center gap-1.5 rounded-full border bg-white/95 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-900 shadow-sm backdrop-blur"
-                  style={{ borderColor: primaryCommunityAccent }}
+                  className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="h-2.5 w-2.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: primaryCommunityAccent }}
-                  />
+                  {primaryCommunity && (
+                    <CommunityIcon iconKey={primaryCommunity.iconKey} iconUrl={primaryCommunity.iconUrl} className="h-5 w-5 shrink-0 object-contain" />
+                  )}
                   <span className="truncate">{primaryCommunityName}</span>
                 </span>
               )

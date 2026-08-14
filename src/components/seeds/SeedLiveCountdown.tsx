@@ -103,12 +103,16 @@ export default function SeedLiveCountdown({
   const diff = target.getTime() - now;
   const reached = diff <= 0;
 
-  const label = reached ? "Hedef zamanı geldi" : formatRemaining(diff);
+  const label = reached
+    ? variant === "meta"
+      ? "Süre doldu"
+      : "Hedef zamanı geçti"
+    : formatRemaining(diff);
 
   if (variant === "meta") {
     return (
       <span
-        className={`inline-flex min-w-0 items-center gap-1.5 text-[10px] font-bold ${reached ? "text-purple-700" : "text-amber-700"}`}
+        className={`inline-flex min-w-0 items-center gap-1.5 whitespace-nowrap text-[9px] font-semibold ${reached ? "text-rose-700" : "text-amber-700"}`}
         title={timezone ? `Hatırlatma saat dilimi: ${timezone}` : undefined}
       >
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -122,9 +126,9 @@ export default function SeedLiveCountdown({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border font-black ${
+      className={`inline-flex items-center gap-1.5 rounded-full border font-semibold ${
         reached
-          ? "border-purple-200 bg-purple-50 text-purple-800"
+          ? "border-rose-200 bg-rose-50 text-rose-800"
           : "border-amber-200 bg-amber-50 text-amber-800"
       } ${compact ? "px-2 py-1 text-[10px]" : "px-3 py-1.5 text-xs"}`}
       title={timezone ? `Hatırlatma saat dilimi: ${timezone}` : undefined}

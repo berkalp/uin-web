@@ -3,7 +3,6 @@ import Link from "next/link";
 import CommunityIcon from "@/components/communities/CommunityIcon";
 
 import {
-  getCommunityAccentForeground,
   getCommunityBrandSurface,
   getCommunityVisibleBorder,
   normalizeCommunityAccent,
@@ -41,10 +40,6 @@ export default function CommunityContextChip({
       community.secondaryColor
     );
 
-  const foregroundColor =
-    getCommunityAccentForeground(
-      accentColor
-    );
 
   const visibleBorder =
     getCommunityVisibleBorder(
@@ -102,23 +97,8 @@ export default function CommunityContextChip({
       }}
     >
       <span
-        className={`flex shrink-0 items-center justify-center rounded-full ${
-          compact
-            ? "h-5 w-5"
-            : "h-6 w-6"
-        }`}
-        style={{
-          backgroundColor:
-            accentColor,
-          color:
-            isOverlay
-              ? "#FFFFFF"
-              : foregroundColor,
-          boxShadow:
-            isOverlay
-              ? "inset 0 0 0 2px rgba(255,255,255,0.72)"
-              : `inset 0 0 0 2px ${visibleBorder}`,
-        }}
+        className={`flex shrink-0 items-center justify-center ${compact ? "h-5 w-5" : "h-6 w-6"}`}
+        style={{ color: isOverlay ? "#FFFFFF" : accentColor }}
       >
         <CommunityIcon
           iconKey={
@@ -129,8 +109,8 @@ export default function CommunityContextChip({
           }
           className={
             compact
-              ? "h-3 w-3"
-              : "h-3.5 w-3.5"
+              ? "h-4 w-4"
+              : "h-5 w-5"
           }
         />
       </span>

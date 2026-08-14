@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import SeedCompletionDialog from "@/components/seeds/SeedCompletionDialog";
 import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
-import { deleteSeed, setSeedStatus } from "@/services/seedService";
 import {
-  getSeedCompletionLabel,
   getSeedVisibilityLabel,
   toSeedCount,
   type SeedRecord,
@@ -114,40 +110,12 @@ export default function SeedCard({
   reminderTimezone,
   variant = "seeds",
 }: SeedCardProps) {
-  const router = useRouter();
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const [isWorking, setIsWorking] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const grownIntentCount = toSeedCount(seed.grown_intent_count);
   const journalCount = toSeedCount(seed.journal_count);
-  const completionLabel = getSeedCompletionLabel(seed);
   const isPrivateSeed = seed.seed_scope === "private";
   const isTimeline = variant === "timeline";
 
-  async function changeStatus(status: SeedStatus) {
-    setIsWorking(true);
-    setMessage(null);
-    try {
-      await setSeedStatus(seed.seed_id, status);
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Tohum güncellenemedi.");
-      setIsWorking(false);
-    }
-  }
-
-  async function remove() {
-    if (!window.confirm(`“${seed.title}” Tohumunu silmek istiyor musun?`)) return;
-    setIsWorking(true);
-    setMessage(null);
-    try {
-      await deleteSeed(seed.seed_id);
-      router.refresh();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Tohum silinemedi.");
-      setIsWorking(false);
-    }
-  }
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -159,10 +127,10 @@ export default function SeedCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/8 to-black/25" />
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2">
-          <span className="max-w-[68%] truncate rounded-full border border-white/15 bg-black/45 px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide text-white backdrop-blur">
+          <span className="max-w-[68%] truncate rounded-full border border-white/15 bg-black/45 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white backdrop-blur">
             {seed.seed_type_icon} {seed.seed_type_name}
           </span>
-          <span className={`rounded-full px-1.5 py-0.5 text-[7px] font-black uppercase tracking-wide ${statusTone(seed.status)}`}>
+          <span className={`rounded-full px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide ${statusTone(seed.status)}`}>
             {seed.status === "active" ? "Growing" : seed.status === "completed" ? "Done" : "Archived"}
           </span>
         </div>
@@ -176,24 +144,24 @@ export default function SeedCard({
             >
               {isPrivateSeed ? <LockIcon className="h-3 w-3" /> : <LibraryIcon className="h-3 w-3" />}
             </span>
-            <h2 className="min-w-0 line-clamp-2 text-[13px] font-black leading-tight">{seed.title}</h2>
+            <h2 className="min-w-0 line-clamp-2 text-[17px] font-bold leading-[1.12]">{seed.title}</h2>
           </div>
-          {seed.subtitle && <p className="mt-1 truncate pl-7 text-[9px] font-semibold text-white/75">{seed.subtitle}</p>}
+          {seed.subtitle && <p className="mt-1 truncate pl-7 text-[9.5px] font-semibold text-white/75">{seed.subtitle}</p>}
         </div>
       </Link>
 
       <div className="flex flex-1 flex-col p-2">
         {!detailsOpen ? (
           <div className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-gray-100 bg-gray-100">
-            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[8px] font-bold text-gray-700" title="Ekildi">
+            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[9px] font-semibold text-gray-700" title="Ekildi">
               <span className="text-green-700"><SeedPlantedIcon /></span>
               <span className="truncate">{formatDate(seed.created_at)}</span>
             </div>
-            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[8px] font-bold text-gray-700" title="Son güncelleme">
+            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[9px] font-semibold text-gray-700" title="Son güncelleme">
               <span className="text-blue-700"><UpdatedIcon /></span>
               <span className="truncate">{formatDate(seed.updated_at)}</span>
             </div>
-            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[8px] font-bold text-gray-700" title="Hedef tarihi">
+            <div className="flex h-8 items-center gap-1.5 bg-white px-2 text-[9px] font-semibold text-gray-700" title="Hedef tarihi">
               <span className="text-rose-600"><TargetIcon /></span>
               <span className="truncate">{seed.target_date ? formatDate(seed.target_date) : "—"}</span>
             </div>
@@ -206,29 +174,18 @@ export default function SeedCard({
                   variant="meta"
                 />
               ) : (
-                <span className="text-[8px] font-bold text-gray-400">—</span>
+                <span className="text-[9px] font-semibold text-gray-400">—</span>
               )}
             </div>
           </div>
         ) : (
           <div className="min-h-[65px] rounded-xl border border-gray-100 bg-gray-50 p-2 text-[9px] text-gray-600">
             <div className="grid grid-cols-2 gap-2">
-              <div><p className="text-[7px] font-black uppercase text-gray-400">Görünürlük</p><p className="mt-0.5 font-bold text-gray-900">{isPrivateSeed ? "Yalnızca sen" : getSeedVisibilityLabel(seed.visibility)}</p></div>
-              <div><p className="text-[7px] font-black uppercase text-gray-400">Durum</p><p className="mt-0.5 font-bold text-gray-900">{seed.status === "active" ? "Growing" : seed.status === "completed" ? "Completed" : "Archived"}</p></div>
-              <div><p className="text-[7px] font-black uppercase text-gray-400">Günlük</p><p className="mt-0.5 font-bold text-gray-900">{journalCount}</p></div>
-              <div><p className="text-[7px] font-black uppercase text-gray-400">Büyüyen Niyet</p><p className="mt-0.5 font-bold text-gray-900">{grownIntentCount}</p></div>
+              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Görünürlük</p><p className="mt-0.5 font-semibold text-gray-900">{isPrivateSeed ? "Yalnızca sen" : getSeedVisibilityLabel(seed.visibility)}</p></div>
+              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Durum</p><p className="mt-0.5 font-semibold text-gray-900">{seed.status === "active" ? "Growing" : seed.status === "completed" ? "Completed" : "Archived"}</p></div>
+              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Günlük</p><p className="mt-0.5 font-semibold text-gray-900">{journalCount}</p></div>
+              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Büyüyen Niyet</p><p className="mt-0.5 font-semibold text-gray-900">{grownIntentCount}</p></div>
             </div>
-            {seed.notes && <p className="mt-1.5 line-clamp-2 leading-3.5">{seed.notes}</p>}
-            {seed.status === "completed" && completionLabel && <p className="mt-2 rounded-lg bg-purple-50 px-2 py-1 font-bold text-purple-800">Tamamlandı · {completionLabel}</p>}
-            <div className="mt-1.5 flex flex-wrap gap-1">
-              {seed.status === "active" && (
-                <SeedCompletionDialog seedId={seed.seed_id} seedTitle={seed.title} defaultVisibility={seed.visibility} buttonClassName="rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-[9px] font-black text-purple-800" />
-              )}
-              {seed.status === "active" && <button type="button" disabled={isWorking} onClick={() => changeStatus("archived")} className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-[9px] font-black text-gray-700">Arşivle</button>}
-              {seed.status === "completed" && seed.origin !== "retrospective" && <button type="button" disabled={isWorking} onClick={() => changeStatus("active")} className="rounded-lg border border-green-200 bg-green-50 px-2 py-1 text-[9px] font-black text-green-800">Yeniden Aç</button>}
-              <button type="button" disabled={isWorking} onClick={remove} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-[9px] font-black text-red-700">Sil</button>
-            </div>
-            {message && <p className="mt-2 text-[9px] font-bold text-red-700">{message}</p>}
           </div>
         )}
 
@@ -261,7 +218,7 @@ export default function SeedCard({
           <button
             type="button"
             onClick={() => setDetailsOpen((value) => !value)}
-            className="ml-auto inline-flex h-7 items-center rounded-lg border border-gray-200 bg-white px-2 text-[8px] font-black text-gray-700 hover:border-green-300"
+            className="ml-auto inline-flex h-7 items-center rounded-lg border border-gray-200 bg-white px-2 text-[9.5px] font-semibold text-gray-700 hover:border-green-300"
           >
             Detaylar {detailsOpen ? "▴" : "▾"}
           </button>

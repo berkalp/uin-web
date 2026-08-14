@@ -508,7 +508,7 @@ export default function IntentInvitePeopleButton({
         }}
         className={
           compact
-            ? "rounded-xl border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+            ? "inline-flex h-7 w-full items-center justify-center rounded-md border border-purple-200 bg-purple-50 px-2 text-[9.5px] font-semibold leading-none text-purple-700 transition hover:bg-purple-100"
             : "rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
         }
       >

@@ -30,6 +30,7 @@ type IntentActionButtonsProps = {
   intentId: string;
   status: IntentStatus;
   recruitmentStatus: RecruitmentStatus;
+  compact?: boolean;
 };
 
 type PendingAction =
@@ -44,6 +45,7 @@ export default function IntentActionButtons({
   intentId,
   status,
   recruitmentStatus,
+  compact = false,
 }: IntentActionButtonsProps) {
   const router = useRouter();
 
@@ -159,9 +161,19 @@ export default function IntentActionButtons({
     return null;
   }
 
+  const wrapperClass = compact
+    ? "mt-2 border-t border-gray-100 pt-2"
+    : "mt-6 border-t border-gray-100 pt-5";
+  const headingClass = compact
+    ? "mb-1.5 text-[8.5px] font-semibold uppercase tracking-[0.08em] text-gray-500"
+    : "mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500";
+  const actionBase = compact
+    ? "inline-flex h-7 w-full items-center justify-center rounded-md px-2 text-[9.5px] font-semibold leading-none transition disabled:cursor-not-allowed disabled:opacity-50"
+    : "rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50";
+
   return (
-    <div className="mt-6 border-t border-gray-100 pt-5">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">
+    <div className={wrapperClass}>
+      <p className={headingClass}>
         {status === "planned"
           ? "Manage Activity"
           : "Manage Intent"}
@@ -173,11 +185,11 @@ export default function IntentActionButtons({
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3">
+      <div className={compact ? "grid gap-1.5" : "flex flex-wrap gap-3"}>
         {status === "active" && (
           <Link
             href={`/intents/${intentId}/edit`}
-            className="rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-700"
+            className={`${actionBase} bg-gray-900 text-white hover:bg-gray-700`}
           >
             Edit Intent
           </Link>
@@ -192,7 +204,7 @@ export default function IntentActionButtons({
               )
             }
             disabled={isSubmitting}
-            className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${actionBase} bg-green-600 text-white hover:bg-green-700`}
           >
             {pendingAction ===
             "start_planning"
@@ -214,7 +226,7 @@ export default function IntentActionButtons({
                 runAction("close")
               }
               disabled={isSubmitting}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-gray-400 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`${actionBase} border border-gray-200 bg-white text-gray-700 hover:border-gray-400`}
             >
               {pendingAction ===
               "close"
@@ -232,7 +244,7 @@ export default function IntentActionButtons({
                 runAction("reopen")
               }
               disabled={isSubmitting}
-              className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`${actionBase} border border-green-200 bg-green-50 text-green-700 hover:bg-green-100`}
             >
               {pendingAction ===
               "reopen"
@@ -248,7 +260,7 @@ export default function IntentActionButtons({
               runAction("complete")
             }
             disabled={isSubmitting}
-            className="rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className={`${actionBase} bg-purple-600 text-white hover:bg-purple-700`}
           >
             {pendingAction ===
             "complete"
@@ -263,7 +275,7 @@ export default function IntentActionButtons({
             runAction("cancel")
           }
           disabled={isSubmitting}
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`${actionBase} border border-red-200 bg-red-50 text-red-700 hover:bg-red-100`}
         >
           {pendingAction ===
           "cancel"

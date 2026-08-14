@@ -6,6 +6,7 @@ import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
 import CanonicalActivityCardDetails from "../cards/CanonicalActivityCardDetails";
 import IntentLinksDisplay from "../intents/IntentLinksDisplay";
 import PlanWeatherBadges from "../weather/PlanWeatherBadges";
+import CommunityIcon from "../communities/CommunityIcon";
 import type { IntentCommunityContext } from "../../utils/communities";
 import type { IntentLinkView } from "../../utils/intentLinks";
 import type { ActivityPersonView } from "../../utils/activityPeople";
@@ -213,8 +214,8 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
           </div>
           <div className="mt-1 flex h-6 min-w-0 items-center">
             {primaryCommunity ? (
-              <Link href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`} className="inline-flex min-w-0 max-w-[74%] items-center gap-1.5 rounded-full border bg-white/95 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-900" style={{ borderColor: primaryCommunity.accentColor }}>
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: primaryCommunity.accentColor }} />
+              <Link href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`} className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm">
+                <CommunityIcon iconKey={primaryCommunity.iconKey} iconUrl={primaryCommunity.iconUrl} className="h-5 w-5 shrink-0 object-contain" />
                 <span className="truncate">{primaryCommunity.name}</span>
               </Link>
             ) : <span aria-hidden="true" className="block h-6 w-1" />}

@@ -7,6 +7,7 @@ import IntentWeatherBadge from "../weather/IntentWeatherBadge";
 import { resolveActivityCover } from "../../utils/activityCover";
 import { formatEstimatedCost } from "../../utils/estimatedCost";
 import { getSportPresentation } from "../../utils/sportPresentation";
+import CommunityIcon from "../communities/CommunityIcon";
 import type { IntentCommunityContext } from "../../utils/communities";
 import type { IntentLinkView } from "../../utils/intentLinks";
 
@@ -214,10 +215,9 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
             {primaryCommunity ? (
               <Link
                 href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
-                className="inline-flex min-w-0 max-w-[74%] items-center gap-1.5 rounded-full border bg-white/95 px-1.5 py-0.5 text-[8.5px] font-semibold text-gray-900"
-                style={{ borderColor: primaryCommunity.accentColor }}
+                className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm"
               >
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: primaryCommunity.accentColor }} />
+                <CommunityIcon iconKey={primaryCommunity.iconKey} iconUrl={primaryCommunity.iconUrl} className="h-5 w-5 shrink-0 object-contain" />
                 <span className="truncate">{primaryCommunity.name}</span>
               </Link>
             ) : (
