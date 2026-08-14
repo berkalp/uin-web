@@ -60,24 +60,28 @@ export default function ReminderDefaultsPanel() {
   }
 
   function toggle(kind: "activity_offsets" | "seed_offsets", offset: number) {
-    const current = value![kind];
+    if (!value) return;
+    const current = value[kind];
     setValue({
-      ...value!,
+      ...value,
       [kind]: current.includes(offset) ? current.filter((item) => item !== offset) : [...current, offset].sort((a, b) => b - a),
     });
   }
 
   async function save() {
+    const current = value;
+    if (!current) return;
+
     setIsSaving(true);
     setMessage(null);
     const { error } = await supabase.rpc("save_my_reminder_defaults", {
-      p_activity_offsets: value.activity_offsets,
-      p_seed_offsets: value.seed_offsets,
-      p_activity_notify_start: value.activity_notify_start,
-      p_activity_notify_end: value.activity_notify_end,
-      p_seed_notify_due: value.seed_notify_due,
-      p_seed_target_time: value.seed_target_time,
-      p_timezone: value.timezone || browserTimezone(),
+      p_activity_offsets: current.activity_offsets,
+      p_seed_offsets: current.seed_offsets,
+      p_activity_notify_start: current.activity_notify_start,
+      p_activity_notify_end: current.activity_notify_end,
+      p_seed_notify_due: current.seed_notify_due,
+      p_seed_target_time: current.seed_target_time,
+      p_timezone: current.timezone || browserTimezone(),
     });
     if (error) {
       setMessage(error.message || "Varsayılan hatırlatıcılar kaydedilemedi.");
