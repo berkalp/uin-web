@@ -452,7 +452,7 @@ export default function PlanCompletionReview({
               <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Activity Did Not Happen</p>
               <h3 className="mt-2 text-lg font-bold text-red-950">Mark Activity as not happened</h3>
               <p className="mt-2 text-sm leading-6 text-red-700">
-                This records a real-world cancellation. The Activity stays in history and linked Intents are detached safely. No Intent is reopened automatically; each Intent owner chooses what to do next.
+                This records a real-world cancellation. The Activity stays in history and linked Intents remain attached to this cancelled attempt. No Intent is reopened automatically; each Intent owner chooses whether to reopen their own Intent.
               </p>
 
               {!showNotHappened ? (
