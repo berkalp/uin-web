@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import SeedCard from "@/components/seeds/SeedCard";
 import {
@@ -28,12 +28,15 @@ const tabs: Array<{
   { value: "archived", label: "Archived" },
 ];
 
+const PAGE_SIZE = 8;
+
 export default function SeedDashboard({
   seeds,
   isAuthenticated,
 }: SeedDashboardProps) {
   const [activeTab, setActiveTab] = useState<SeedStatus>("active");
   const [scope, setScope] = useState<"all" | "library" | "private">("all");
+  const [page, setPage] = useState(0);
 
   const counts = useMemo(
     () => ({
@@ -48,6 +51,17 @@ export default function SeedDashboard({
     () => seeds.filter((seed) => seed.status === activeTab && (scope === "all" || seed.seed_scope === scope)),
     [activeTab, scope, seeds]
   );
+
+  const pageCount = Math.max(1, Math.ceil(visibleSeeds.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageSeeds = useMemo(
+    () => visibleSeeds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [safePage, visibleSeeds]
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [activeTab, scope]);
 
   return (
     <>
@@ -78,26 +92,35 @@ export default function SeedDashboard({
           })}
         </div>
       </section>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {[
-          { value: "all", label: "All Seeds" },
-          { value: "library", label: "Library Seeds" },
-          { value: "private", label: "🔒 Private Seeds" },
-        ].map((item) => (
-          <button
-            key={item.value}
-            type="button"
-            onClick={() => setScope(item.value as "all" | "library" | "private")}
-            className={`rounded-full px-4 py-2 text-xs font-black transition ${scope === item.value ? "bg-emerald-700 text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-emerald-400"}`}
-          >
-            {item.label}
-          </button>
-        ))}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-2">
+          {[
+            { value: "all", label: "All Seeds" },
+            { value: "library", label: "Library Seeds" },
+            { value: "private", label: "🔒 Private Seeds" },
+          ].map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setScope(item.value as "all" | "library" | "private")}
+              className={`rounded-full px-4 py-2 text-xs font-black transition ${scope === item.value ? "bg-emerald-700 text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-emerald-400"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        {pageCount > 1 && (
+          <div className="flex items-center gap-1">
+            {safePage > 0 && <button type="button" aria-label="Önceki Tohumlar" onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">←</button>}
+            <span className="px-1 text-[9px] font-bold text-gray-400">{safePage + 1}/{pageCount}</span>
+            {safePage < pageCount - 1 && <button type="button" aria-label="Sonraki Tohumları Gör" onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">→</button>}
+          </div>
+        )}
       </div>
 
       {visibleSeeds.length > 0 ? (
-        <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {visibleSeeds.map((seed) => (
+        <section className="mt-5 grid items-stretch gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+          {pageSeeds.map((seed) => (
             <SeedCard
               key={seed.seed_id}
               seed={seed}

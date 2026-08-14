@@ -16,7 +16,7 @@ type ReminderClock = {
   timezone: string;
 };
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 8;
 
 export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProps) {
   const [page, setPage] = useState(0);
@@ -85,17 +85,21 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
 
         <div className="flex items-center gap-2">
           {pageCount > 1 && (
-            <div className="flex items-center rounded-xl border border-green-100 bg-white p-1 shadow-sm">
-              <button type="button" aria-label="Önceki Tohumlar" disabled={safePage === 0} onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black text-gray-700 hover:bg-green-50 disabled:opacity-30">←</button>
-              <span className="min-w-14 px-1 text-center text-[10px] font-bold text-gray-500">{safePage + 1} / {pageCount}</span>
-              <button type="button" aria-label="Sonraki Tohumlar" disabled={safePage >= pageCount - 1} onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-black text-gray-700 hover:bg-green-50 disabled:opacity-30">→</button>
+            <div className="flex items-center gap-1">
+              {safePage > 0 && (
+                <button type="button" aria-label="Önceki Tohumlar" onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-green-200 bg-white text-sm font-black text-green-800 shadow-sm hover:bg-green-50">←</button>
+              )}
+              <span className="px-1 text-[9px] font-bold text-gray-400">{safePage + 1}/{pageCount}</span>
+              {safePage < pageCount - 1 && (
+                <button type="button" aria-label="Sonraki Tohumları Gör" onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-green-200 bg-white text-sm font-black text-green-800 shadow-sm hover:bg-green-50">→</button>
+              )}
             </div>
           )}
           <Link href="/seeds" className="rounded-xl border border-green-200 bg-white px-3 py-2 text-xs font-black text-green-800 transition hover:bg-green-100">Tüm Tohumları Gör</Link>
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
         {visibleSeeds.map((seed) => {
           const clock = clocks[seed.seed_id] ?? fallbackClock;
           return (

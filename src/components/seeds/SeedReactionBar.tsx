@@ -13,7 +13,7 @@ type SeedReactionBarProps = {
   initialContext?: SeedReactionContext | null;
   isAuthenticated: boolean;
   isOwner: boolean;
-  variant?: "card" | "detail" | "compact";
+  variant?: "card" | "detail" | "compact" | "toolbar";
 };
 
 function firstFriendName(context: SeedReactionContext) {
@@ -102,6 +102,44 @@ export default function SeedReactionBar({
   const extraFriendCount = Math.max(context.friend_water_count - 1, 0);
   const isDetail = variant === "detail";
   const isCompact = variant === "compact";
+  const isToolbar = variant === "toolbar";
+
+  if (isToolbar) {
+    const heart = (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill={context.viewer_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
+      </svg>
+    );
+    const droplet = (
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill={context.viewer_watered ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+        <path d="M12 2.8S5.5 9.6 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 9.6 12 2.8 12 2.8Z" />
+      </svg>
+    );
+
+    if (isOwner) {
+      return (
+        <div className="flex items-center gap-1">
+          <span title="Kaydedilme sayısı" className="inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-lg border border-rose-100 bg-white px-1.5 text-[9px] font-black text-rose-600">
+            {heart}<span>{context.save_count}</span>
+          </span>
+          <span title="Sulama sayısı" className="inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-lg border border-cyan-100 bg-white px-1.5 text-[9px] font-black text-cyan-700">
+            {droplet}<span>{context.water_count}</span>
+          </span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={() => toggle("save")} disabled={isPending || !canReact} aria-pressed={context.viewer_saved} title="Kaydet" className={`inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[9px] font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${context.viewer_saved ? "border-rose-200 bg-rose-50 text-rose-700" : "border-gray-200 bg-white text-gray-600 hover:border-rose-200 hover:text-rose-700"}`}>
+          {pendingType === "save" && isPending ? <span>…</span> : heart}<span>{context.save_count}</span>
+        </button>
+        <button type="button" onClick={() => toggle("water")} disabled={isPending || !canReact} aria-pressed={context.viewer_watered} title="Sula" className={`inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[9px] font-black transition disabled:cursor-not-allowed disabled:opacity-45 ${context.viewer_watered ? "border-cyan-300 bg-cyan-50 text-cyan-800" : "border-gray-200 bg-white text-gray-600 hover:border-cyan-200 hover:text-cyan-700"}`}>
+          {pendingType === "water" && isPending ? <span>…</span> : droplet}<span>{context.water_count}</span>
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div
