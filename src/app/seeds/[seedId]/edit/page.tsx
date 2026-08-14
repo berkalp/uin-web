@@ -55,7 +55,7 @@ export default async function EditSeedPage({
     redirect("/");
   }
 
-  const [seedResult, seedTypeResult, catalogueIdentityResult] =
+  const [seedResult, seedTypeResult, catalogueIdentityResult, reminderResult] =
     await Promise.all([
       supabase.rpc("get_my_seed_v2", {
         p_seed_id: seedId,
@@ -64,6 +64,12 @@ export default async function EditSeedPage({
       supabase.rpc("get_my_seed_catalog_identity", {
         p_seed_id: seedId,
       }),
+      supabase
+        .from("user_resource_reminder_settings")
+        .select("seed_target_time, timezone")
+        .eq("resource_type", "seed")
+        .eq("resource_id", seedId)
+        .maybeSingle(),
     ]);
 
   if (seedResult.error) {
@@ -104,6 +110,16 @@ export default async function EditSeedPage({
           seedTypes={seedTypes}
           seed={seed}
           catalogueIdentity={catalogueIdentity}
+          reminderTargetTime={
+            typeof reminderResult.data?.seed_target_time === "string"
+              ? reminderResult.data.seed_target_time.slice(0, 5)
+              : "09:00"
+          }
+          reminderTimezone={
+            typeof reminderResult.data?.timezone === "string"
+              ? reminderResult.data.timezone
+              : "Europe/Istanbul"
+          }
           notice={
             planted
               ? "Seed planted. The shared subject stays fixed; add only your personal context below."

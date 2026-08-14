@@ -33,13 +33,21 @@ export default async function SeedDetailPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [detailResult, reactionResult] = await Promise.all([
+  const [detailResult, reactionResult, reminderResult] = await Promise.all([
     supabase.rpc("get_visible_seed_detail", {
       p_seed_id: seedId,
     }),
     supabase.rpc("get_visible_seed_reaction_context", {
       p_seed_ids: [seedId],
     }),
+    user
+      ? supabase
+          .from("user_resource_reminder_settings")
+          .select("seed_target_time, timezone")
+          .eq("resource_type", "seed")
+          .eq("resource_id", seedId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (detailResult.error) {
@@ -68,6 +76,16 @@ export default async function SeedDetailPage({
       detail={detail}
       reactionContext={reactionContext}
       isAuthenticated={Boolean(user)}
+      reminderTargetTime={
+        detail.seed.is_owner && typeof reminderResult.data?.seed_target_time === "string"
+          ? reminderResult.data.seed_target_time.slice(0, 5)
+          : null
+      }
+      reminderTimezone={
+        detail.seed.is_owner && typeof reminderResult.data?.timezone === "string"
+          ? reminderResult.data.timezone
+          : null
+      }
     />
   );
 }

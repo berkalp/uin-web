@@ -5,7 +5,7 @@ import SeedExperienceEditor from "@/components/seeds/SeedExperienceEditor";
 import SeedJournalComposer from "@/components/seeds/SeedJournalComposer";
 import SeedJournalEntryActions from "@/components/seeds/SeedJournalEntryActions";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
-import ReminderSettingsPanel from "@/components/reminders/ReminderSettingsPanel";
+import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
 import {
   getSeedCompletionLabel,
   getSeedStatusLabel,
@@ -20,6 +20,8 @@ type SeedDetailViewProps = {
   detail: SeedDetailData;
   reactionContext: SeedReactionContext | null;
   isAuthenticated: boolean;
+  reminderTargetTime?: string | null;
+  reminderTimezone?: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -219,6 +221,8 @@ export default function SeedDetailView({
   detail,
   reactionContext,
   isAuthenticated,
+  reminderTargetTime,
+  reminderTimezone,
 }: SeedDetailViewProps) {
   const { seed, links, journal, intents } = detail;
   const completionLabel = getSeedCompletionLabel(seed);
@@ -233,196 +237,107 @@ export default function SeedDetailView({
   const isPrivateSeed = seed.seed_scope === "private";
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto max-w-6xl">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <main className="min-h-screen bg-gray-50 px-4 py-5 md:px-6 md:py-7">
+      <div className="mx-auto max-w-5xl">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Link
             href={seed.is_owner ? "/seeds" : seed.owner_username ? `/u/${encodeURIComponent(seed.owner_username)}` : "/discover"}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
+            className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            ← {seed.is_owner ? "My Seeds" : "Back to profile"}
+            ← {seed.is_owner ? "Tohumlarım" : "Profile dön"}
           </Link>
 
           {seed.is_owner && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               <Link
                 href={`/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
+                className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 hover:border-green-400 hover:text-green-700"
               >
-                Edit Seed
+                Düzenle
               </Link>
               {seed.status !== "archived" && (
                 <Link
                   href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
-                  className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-green-700"
+                  className="inline-flex h-9 items-center rounded-lg bg-green-600 px-3 text-xs font-black text-white hover:bg-green-700"
                 >
-                  Grow into Intent
+                  Niyete dönüştür
                 </Link>
               )}
             </div>
           )}
         </div>
 
-        <section className="mt-5 overflow-hidden rounded-[34px] border border-gray-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.45fr)_360px]">
-            <div className="relative min-h-[390px] overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700">
+        <section className="mt-4 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+          <div className="grid gap-0 md:grid-cols-[minmax(0,420px)_1fr]">
+            <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700">
               {seed.cover_url && (
-                <img
-                  src={seed.cover_url}
-                  alt={`${seed.title} cover`}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
+                <img src={seed.cover_url} alt={`${seed.title} cover`} className="absolute inset-0 h-full w-full object-cover" />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/35" />
-
-              <div className="absolute left-5 top-5 flex flex-wrap gap-2 md:left-7 md:top-7">
-                <span className="rounded-full border border-white/20 bg-black/45 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-white backdrop-blur">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/25" />
+              <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+                <span className="rounded-full border border-white/20 bg-black/45 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-white backdrop-blur">
                   {seed.seed_type_icon} {seed.seed_type_name}
                 </span>
-                <span
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
-                    seed.status === "completed"
-                      ? "bg-purple-100 text-purple-800"
-                      : seed.status === "archived"
-                        ? "bg-gray-200 text-gray-700"
-                        : "bg-green-100 text-green-800"
-                  }`}
-                >
+                <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
+                  seed.status === "completed" ? "bg-purple-100 text-purple-800" : seed.status === "archived" ? "bg-gray-200 text-gray-700" : "bg-green-100 text-green-800"
+                }`}>
                   {statusLabel}
                 </span>
               </div>
-
-              <div className="absolute inset-x-0 bottom-0 p-6 text-white md:p-8">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-200">
-                  {seed.origin === "retrospective"
-                    ? "Past Experience"
-                    : "Planted Seed"}
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-200">
+                  {seed.origin === "retrospective" ? "Geçmiş deneyim" : "Ekilmiş Tohum"}
                 </p>
-                <h1 className="mt-3 max-w-4xl text-4xl font-black leading-tight md:text-6xl">
-                  {seed.title}
-                </h1>
-                {seed.subtitle && (
-                  <p className="mt-3 text-lg font-semibold text-white/80">
-                    {seed.subtitle}
-                  </p>
-                )}
+                <h1 className="mt-2 text-3xl font-black leading-tight">{seed.title}</h1>
+                {seed.subtitle && <p className="mt-1.5 text-sm font-semibold text-white/75">{seed.subtitle}</p>}
               </div>
             </div>
 
-            <aside className="flex flex-col border-t border-gray-200 p-6 lg:border-l lg:border-t-0">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                {seed.origin === "retrospective" ? "Added by" : "Planted by"}
-              </p>
-              <div className="mt-4 flex items-center gap-3">
+            <aside className="flex min-w-0 flex-col p-5 md:p-6">
+              <div className="flex items-center gap-3">
                 {seed.owner_avatar_url ? (
-                  <img
-                    src={seed.owner_avatar_url}
-                    alt={ownerName}
-                    className="h-12 w-12 rounded-full object-cover"
-                  />
+                  <img src={seed.owner_avatar_url} alt={ownerName} className="h-10 w-10 rounded-full object-cover" />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 font-black text-green-800">
-                    {ownerName.charAt(0).toUpperCase()}
-                  </div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 font-black text-green-800">{ownerName.charAt(0).toUpperCase()}</div>
                 )}
                 <div className="min-w-0">
-                  {seed.owner_username ? (
-                    <Link
-                      href={`/u/${encodeURIComponent(seed.owner_username)}`}
-                      className="block truncate font-bold text-gray-950 hover:text-green-700"
-                    >
-                      {ownerName}
-                    </Link>
-                  ) : (
-                    <p className="truncate font-bold text-gray-950">
-                      {ownerName}
-                    </p>
-                  )}
-                  {seed.owner_username && (
-                    <p className="mt-0.5 truncate text-xs text-gray-500">
-                      @{seed.owner_username}
-                    </p>
-                  )}
+                  <p className="truncate text-sm font-black text-gray-950">{ownerName}</p>
+                  {seed.owner_username && <p className="truncate text-[11px] text-gray-500">@{seed.owner_username}</p>}
                 </div>
               </div>
 
-              <dl className="mt-6 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-2xl bg-gray-50 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                    Status
-                  </dt>
-                  <dd className="mt-1 font-black text-gray-950">
-                    {statusLabel}
-                  </dd>
-                </div>
-                <div className="rounded-2xl bg-gray-50 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                    Visibility
-                  </dt>
-                  <dd className="mt-1 font-black text-gray-950">
-                    {isPrivateSeed ? "🔒 Only you" : getSeedVisibilityLabel(seed.visibility)}
-                  </dd>
-                </div>
-                <div className="rounded-2xl bg-gray-50 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                    {seed.origin === "retrospective" ? "Added" : "Planted"}
-                  </dt>
-                  <dd className="mt-1 font-black text-gray-950">
-                    {formatDate(seed.created_at)}
-                  </dd>
-                </div>
-                <div className="rounded-2xl bg-gray-50 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-                    {seed.status === "completed" ? "Completed" : "Target"}
-                  </dt>
-                  <dd className="mt-1 font-black text-gray-950">
-                    {seed.status === "completed"
-                      ? completionLabel || "Not set"
-                      : formatDate(seed.target_date) || "Not set"}
-                  </dd>
-                </div>
-              </dl>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Durum</p><p className="mt-1 text-xs font-black text-gray-950">{statusLabel}</p></div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Görünürlük</p><p className="mt-1 text-xs font-black text-gray-950">{isPrivateSeed ? "🔒 Yalnızca sen" : getSeedVisibilityLabel(seed.visibility)}</p></div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">Ekildi</p><p className="mt-1 text-xs font-black text-gray-950">{formatDate(seed.created_at)}</p></div>
+                <div className="rounded-xl border border-gray-100 bg-gray-50 p-3"><p className="text-[9px] font-black uppercase tracking-wide text-gray-400">{seed.status === "completed" ? "Tamamlandı" : "Hedef"}</p><p className="mt-1 text-xs font-black text-gray-950">{seed.status === "completed" ? completionLabel || "Belirlenmedi" : formatDate(seed.target_date) || "Belirlenmedi"}</p></div>
+              </div>
 
-              {isPrivateSeed ? (
-                <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-sm font-black text-gray-950">🔒 Private Seed</p>
-                  <p className="mt-1 text-xs leading-5 text-gray-600">Only you can see this Seed. It has no public reactions or profile presence.</p>
+              {seed.is_owner && seed.status === "active" && seed.target_date && (
+                <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
+                  <SeedLiveCountdown targetDate={seed.target_date} targetTime={reminderTargetTime} timezone={reminderTimezone} />
+                  <span className="text-[10px] font-semibold text-amber-800">Hatırlatıcıları Düzenle ekranından yönetebilirsin.</span>
                 </div>
-              ) : (
-                <div className="mt-6">
-                  <SeedReactionBar
-                    seedId={seed.seed_id}
-                    initialContext={reactionContext}
-                    isAuthenticated={isAuthenticated}
-                    isOwner={seed.is_owner}
-                    variant="detail"
-                  />
+              )}
+
+              {seed.notes && (
+                <div className="mt-4 rounded-2xl border border-green-100 bg-green-50/40 p-4">
+                  <p className="text-[10px] font-black uppercase tracking-wide text-green-700">Neden ektin?</p>
+                  <p className="mt-2 line-clamp-5 whitespace-pre-wrap text-sm leading-6 text-gray-700">{seed.notes}</p>
+                </div>
+              )}
+
+              {!isPrivateSeed && (
+                <div className="mt-auto pt-4">
+                  <SeedReactionBar seedId={seed.seed_id} initialContext={reactionContext} isAuthenticated={isAuthenticated} isOwner={seed.is_owner} variant="detail" />
                 </div>
               )}
 
               {seed.is_owner && seed.status === "active" && (
-                <div className="mt-5">
-                  <ReminderSettingsPanel
-                    resourceType="seed"
-                    resourceId={seed.seed_id}
-                    title={seed.title}
-                    hasTarget={Boolean(seed.target_date)}
-                    targetLabel={seed.target_date ? `Target · ${formatDate(seed.target_date)}` : "No target date yet."}
-                  />
+                <div className="mt-3">
+                  <SeedCompletionDialog seedId={seed.seed_id} seedTitle={seed.title} defaultVisibility={seed.visibility} buttonClassName="inline-flex h-9 items-center rounded-lg border border-purple-200 bg-purple-50 px-3 text-xs font-black text-purple-800 hover:bg-purple-100" />
                 </div>
               )}
-
-              {seed.is_owner && seed.status === "active" && (
-                <div className="mt-5">
-                  <SeedCompletionDialog
-                    seedId={seed.seed_id}
-                    seedTitle={seed.title}
-                    defaultVisibility={seed.visibility}
-                    buttonClassName="w-full rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-bold text-purple-800 transition hover:bg-purple-100"
-                  />
-                </div>
-              )}
-
             </aside>
           </div>
         </section>

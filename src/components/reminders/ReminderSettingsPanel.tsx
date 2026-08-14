@@ -22,6 +22,7 @@ type ReminderSettingsPanelProps = {
   hasTarget: boolean;
   timezone?: string | null;
   targetLabel?: string | null;
+  compact?: boolean;
 };
 
 const PRESETS = [1440, 180, 60, 30, 15, 5] as const;
@@ -63,6 +64,7 @@ export default function ReminderSettingsPanel({
   hasTarget,
   timezone,
   targetLabel,
+  compact = false,
 }: ReminderSettingsPanelProps) {
   const [settings, setSettings] = useState<ReminderSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -202,13 +204,13 @@ export default function ReminderSettingsPanel({
   }
 
   return (
-    <section className="rounded-3xl border border-amber-200 bg-amber-50/50 p-5">
+    <section className={`${compact ? "rounded-2xl p-4" : "rounded-3xl p-5"} border border-amber-200 bg-amber-50/50`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">
             ⏱ Kişisel Hatırlatıcılar
           </p>
-          <h3 className="mt-2 text-lg font-black text-gray-950">{title}</h3>
+          <h3 className={`${compact ? "mt-1 text-base" : "mt-2 text-lg"} font-black text-gray-950`}>{title}</h3>
           <p className="mt-1 text-sm leading-6 text-gray-600">
             {hasTarget
               ? "Bu tarih için yalnız sana ait hatırlatıcıları seç. Tarih değişirse saatler otomatik yeniden hesaplanır."
@@ -225,7 +227,7 @@ export default function ReminderSettingsPanel({
         )}
       </div>
 
-      <div className={`mt-5 ${!hasTarget ? "pointer-events-none opacity-45" : ""}`}>
+      <div className={`${compact ? "mt-3" : "mt-5"} ${!hasTarget ? "pointer-events-none opacity-45" : ""}`}>
         <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Ne kadar önce?</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {PRESETS.map((offset) => {
@@ -291,7 +293,7 @@ export default function ReminderSettingsPanel({
           </div>
         )}
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className={`${compact ? "mt-3" : "mt-5"} grid gap-2 sm:grid-cols-2`}>
           <label className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
             <span>
               <span className="block text-sm font-black text-gray-950">
@@ -329,7 +331,7 @@ export default function ReminderSettingsPanel({
 
         {resourceType === "seed" && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="rounded-2xl border border-gray-200 bg-white p-4">
+            <label className={`rounded-2xl border border-gray-200 bg-white ${compact ? "p-3" : "p-4"}`}>
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Hedef saati</span>
               <input
                 type="time"
@@ -344,7 +346,7 @@ export default function ReminderSettingsPanel({
               </span>
             </label>
 
-            <label className="rounded-2xl border border-gray-200 bg-white p-4">
+            <label className={`rounded-2xl border border-gray-200 bg-white ${compact ? "p-3" : "p-4"}`}>
               <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Saat dilimi</span>
               <input
                 value={settings.timezone}

@@ -53,6 +53,38 @@ export default async function SeedsPage() {
     savedSeedsResult.data ?? []
   ) as PublicSeedRecord[];
 
+  const reminderResult =
+    baseSeeds.length > 0
+      ? await supabase
+          .from("user_resource_reminder_settings")
+          .select("resource_id, seed_target_time, timezone")
+          .eq("resource_type", "seed")
+          .in("resource_id", baseSeeds.map((seed) => seed.seed_id))
+      : { data: [], error: null };
+
+  if (reminderResult.error) {
+    console.warn(
+      "Seed reminder times are temporarily unavailable:",
+      reminderResult.error.message
+    );
+  }
+
+  const reminderBySeedId = new Map(
+    (reminderResult.data ?? []).map((row) => [
+      String(row.resource_id),
+      {
+        targetTime:
+          typeof row.seed_target_time === "string"
+            ? row.seed_target_time.slice(0, 5)
+            : "09:00",
+        timezone:
+          typeof row.timezone === "string" && row.timezone
+            ? row.timezone
+            : "Europe/Istanbul",
+      },
+    ])
+  );
+
   const reactionSeedIds = [
     ...new Set([
       ...baseSeeds.map((seed) => seed.seed_id),
@@ -81,10 +113,15 @@ export default async function SeedsPage() {
     ])
   );
 
-  const seeds = baseSeeds.map((seed) => ({
-    ...seed,
-    reaction_context: reactionBySeedId.get(seed.seed_id) ?? null,
-  }));
+  const seeds = baseSeeds.map((seed) => {
+    const reminder = reminderBySeedId.get(seed.seed_id);
+    return {
+      ...seed,
+      reaction_context: reactionBySeedId.get(seed.seed_id) ?? null,
+      reminder_target_time: reminder?.targetTime ?? "09:00",
+      reminder_timezone: reminder?.timezone ?? "Europe/Istanbul",
+    };
+  });
 
   const savedSeeds = baseSavedSeeds.map((seed) => ({
     ...seed,
@@ -117,21 +154,21 @@ export default async function SeedsPage() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/seeds/new?mode=private"
-                  className="rounded-xl bg-green-600 px-6 py-3.5 text-sm font-bold text-white transition hover:bg-green-700"
+                  className="inline-flex h-9 items-center rounded-lg bg-green-600 px-3 text-xs font-black text-white transition hover:bg-green-700"
                 >
                   🔒 Create Private Seed
                 </Link>
 
                 <Link
                   href="/seeds/explore"
-                  className="rounded-xl border border-green-200 bg-green-50 px-6 py-3.5 text-sm font-bold text-green-800 transition hover:border-green-400 hover:bg-green-100"
+                  className="inline-flex h-9 items-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-black text-green-800 transition hover:border-green-400 hover:bg-green-100"
                 >
                   🌱 Seed Library
                 </Link>
 
                 <Link
                   href="/timeline"
-                  className="rounded-xl border border-gray-200 bg-white px-6 py-3.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
+                  className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
                 >
                   ← Timeline
                 </Link>

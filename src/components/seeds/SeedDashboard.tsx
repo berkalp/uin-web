@@ -9,8 +9,13 @@ import {
   type SeedStatus,
 } from "@/utils/seeds";
 
+type SeedWithReminder = SeedRecord & {
+  reminder_target_time?: string | null;
+  reminder_timezone?: string | null;
+};
+
 type SeedDashboardProps = {
-  seeds: SeedRecord[];
+  seeds: SeedWithReminder[];
   isAuthenticated: boolean;
 };
 
@@ -91,12 +96,14 @@ export default function SeedDashboard({
       </div>
 
       {visibleSeeds.length > 0 ? (
-        <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <section className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleSeeds.map((seed) => (
             <SeedCard
               key={seed.seed_id}
               seed={seed}
               isAuthenticated={isAuthenticated}
+              reminderTargetTime={seed.reminder_target_time}
+              reminderTimezone={seed.reminder_timezone}
             />
           ))}
         </section>

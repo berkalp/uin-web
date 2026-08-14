@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import ReminderSettingsPanel from "@/components/reminders/ReminderSettingsPanel";
+import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
 import { deleteSeed, saveSeed } from "@/services/seedService";
 import {
   SEED_LINK_KIND_OPTIONS,
@@ -32,6 +34,8 @@ type SeedFormProps = {
   catalogueIdentity?: SeedCatalogueIdentity | null;
   notice?: string | null;
   forcePrivate?: boolean;
+  reminderTargetTime?: string | null;
+  reminderTimezone?: string | null;
 };
 
 function isValidOptionalUrl(value: string) {
@@ -65,6 +69,8 @@ export default function SeedForm({
   catalogueIdentity = null,
   notice = null,
   forcePrivate = false,
+  reminderTargetTime = "09:00",
+  reminderTimezone = "Europe/Istanbul",
 }: SeedFormProps) {
   const router = useRouter();
   const isEditing = Boolean(seed);
@@ -408,6 +414,19 @@ export default function SeedForm({
             />
           </label>
 
+          {isEditing && seed && (
+            <div className="md:col-span-2">
+              <ReminderSettingsPanel
+                resourceType="seed"
+                resourceId={seed.seed_id}
+                title="Hedef & hatırlatıcılar"
+                hasTarget={Boolean(targetDate)}
+                targetLabel={targetDate ? `Hedef · ${targetDate}` : "Henüz hedef tarihi yok."}
+                compact
+              />
+            </div>
+          )}
+
           <label className="md:col-span-2">
             <span className="text-sm font-semibold text-gray-800">
               Why did you plant this Seed?
@@ -716,11 +735,21 @@ export default function SeedForm({
             </div>
           </div>
 
-          <div className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-              {isPrivateSeed ? "Private Seed" : isPendingLibrarySeed ? "Library suggestion pending" : "Library Seed"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
+          <div className="p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-green-50 px-2 py-1 text-[10px] font-black text-green-800">
+                {isPrivateSeed ? "🔒 Özel Tohum" : isPendingLibrarySeed ? "Kütüphane önerisi" : "Kütüphane Tohumu"}
+              </span>
+              {targetDate && (
+                <SeedLiveCountdown
+                  targetDate={targetDate}
+                  targetTime={reminderTargetTime}
+                  timezone={reminderTimezone}
+                  compact
+                />
+              )}
+            </div>
+            <p className="mt-2 text-xs leading-5 text-gray-600">
               {links.filter((link) => link.url.trim()).length > 0
                 ? `${links.filter((link) => link.url.trim()).length} linked item${
                     links.filter((link) => link.url.trim()).length === 1
