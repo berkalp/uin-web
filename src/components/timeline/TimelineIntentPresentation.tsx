@@ -18,14 +18,15 @@ type TimelineIntentPresentationProps = {
   recruitmentStatus: "open" | "full" | "closed"; matchingStatus: "open" | "paused" | "matched" | "closed";
   requestCount: number; participantLimit: string; budget: number | null; visibilityLabel: string;
   people: string; recurrence: string; relatedLinks: IntentLinkView[]; communities: IntentCommunityContext[];
-  sportName?: string | null; [key: string]: unknown;
+  sportName?: string | null; journeySummary?: { text: string; href: string | null } | null;
+  [key: string]: unknown;
 };
 
 export default function TimelineIntentPresentation(props: TimelineIntentPresentationProps) {
   const { intentId, title, categoryName, activityCoverUrl, categoryCoverUrl, countryName, city, district,
     startDate, endDate, lifecycleStatus, expiredAt, intentType, statusLabel, statusClasses, recruitmentStatus,
     matchingStatus, requestCount, participantLimit, budget, visibilityLabel, people, recurrence, relatedLinks,
-    communities, sportName = null } = props;
+    communities, sportName = null, journeySummary = null } = props;
 
   const coverUrl = resolveActivityCover({ planCoverUrl: null, activityCoverUrl, categoryCoverUrl, categoryName, activityName: title });
   const locationLabel = [district, city, countryName].filter(Boolean).join(", ");
@@ -69,6 +70,28 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
       <div className="border-b border-black/5 p-2">
         <LifecycleCurrentDate targetStart={startDate} targetEnd={endDate} completedAt={lifecycleStatus === "completed" ? endDate : null} cancelledAt={lifecycleStatus === "cancelled" ? endDate : null} expiredAt={expiredAt} status={lifecycleStatus} timezone="Europe/Istanbul" compact className="w-full" />
       </div>
+
+      {journeySummary && (
+        <div className="border-b border-emerald-100 bg-emerald-50/70 px-2 py-1.5">
+          {journeySummary.href ? (
+            <Link
+              href={journeySummary.href}
+              className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-[9px] font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            >
+              <span className="min-w-0 truncate">
+                <span className="mr-1 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-600">↺ Journey</span>
+                {journeySummary.text}
+              </span>
+              <span className="shrink-0 text-emerald-600">→</span>
+            </Link>
+          ) : (
+            <div className="px-1 py-1 text-[9px] font-semibold text-emerald-800">
+              <span className="mr-1 text-[8px] font-bold uppercase tracking-[0.1em] text-emerald-600">↺ Journey</span>
+              {journeySummary.text}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="relative h-28 overflow-hidden border-b border-black/5 bg-gray-100">
         {mapEmbedUrl ? <iframe title={`${title} approximate area`} src={mapEmbedUrl} className="absolute inset-0 h-full w-full border-0" loading="lazy" referrerPolicy="no-referrer-when-downgrade" /> : <div className="flex h-full items-center justify-center text-[10px] text-gray-400">No map</div>}

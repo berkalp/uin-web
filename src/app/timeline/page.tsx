@@ -234,6 +234,7 @@ type TimelinePlan = {
   planned_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
+  cancellation_phase: "planning" | "activity" | null;
   expired_at: string | null;
   created_at: string;
   locations:
@@ -575,6 +576,7 @@ const PLAN_SELECT_QUERY = `
   planned_at,
   completed_at,
   cancelled_at,
+  cancellation_phase,
   expired_at,
   created_at,
   locations (
@@ -2449,6 +2451,84 @@ export default async function TimelinePage({
       ])
     );
 
+  type IntentJourneyCardSummary = {
+    attemptCount: number;
+    latestOutcome: string;
+    reopened: boolean;
+    latestPlanId: string;
+    latestRoomPhase: "planning" | "activity";
+  };
+
+  const intentJourneySummaryByIntentId =
+    new Map<string, IntentJourneyCardSummary>();
+
+  ownedIntents.forEach((intent) => {
+    const historicalAttempts = plans
+      .filter((plan) =>
+        (plan.plan_intents ?? []).some(
+          (link) => link.intent_id === intent.id
+        )
+      )
+      .filter(
+        (plan) =>
+          plan.status === "cancelled" ||
+          plan.status === "completed" ||
+          Boolean(plan.expired_at)
+      )
+      .sort((left, right) => {
+        const leftTime = new Date(
+          left.cancelled_at ??
+            left.completed_at ??
+            left.expired_at ??
+            left.scheduled_start ??
+            left.created_at
+        ).getTime();
+        const rightTime = new Date(
+          right.cancelled_at ??
+            right.completed_at ??
+            right.expired_at ??
+            right.scheduled_start ??
+            right.created_at
+        ).getTime();
+        return rightTime - leftTime;
+      });
+
+    const latestAttempt = historicalAttempts[0];
+    if (!latestAttempt) {
+      return;
+    }
+
+    const latestIntentLink = (latestAttempt.plan_intents ?? []).find(
+      (link) => link.intent_id === intent.id
+    );
+
+    const reopened =
+      intent.status === "active" &&
+      latestAttempt.status === "cancelled" &&
+      latestIntentLink?.status === "detached";
+
+    const latestRoomPhase: "planning" | "activity" =
+      latestAttempt.cancellation_phase ??
+      (latestAttempt.scheduled_start ? "activity" : "planning");
+
+    const latestOutcome =
+      latestAttempt.status === "cancelled"
+        ? latestRoomPhase === "activity"
+          ? "Activity cancelled"
+          : "Plan cancelled"
+        : latestAttempt.status === "completed"
+          ? "Activity completed"
+          : "Attempt expired";
+
+    intentJourneySummaryByIntentId.set(intent.id, {
+      attemptCount: historicalAttempts.length,
+      latestOutcome,
+      reopened,
+      latestPlanId: latestAttempt.id,
+      latestRoomPhase,
+    });
+  });
+
   const resolutionRows = (
     intentResolutionResult.data ?? []
   ) as IntentJoinResolutionRow[];
@@ -3160,6 +3240,28 @@ export default async function TimelinePage({
         "timeline"
       );
 
+      const journeySummary =
+        intentJourneySummaryByIntentId.get(intent.id) ?? null;
+      const journeySummaryText = journeySummary
+        ? `${journeySummary.attemptCount} previous ${
+            journeySummary.attemptCount === 1 ? "attempt" : "attempts"
+          } · ${journeySummary.latestOutcome}${
+            journeySummary.reopened ? " · Intent reopened" : ""
+          }`
+        : null;
+      const journeySummaryHref = journeySummary
+        ? withReturnContext(
+            `/plans/${encodeURIComponent(journeySummary.latestPlanId)}/${
+              journeySummary.latestRoomPhase === "activity"
+                ? "activity"
+                : "planning"
+            }#journey`,
+            timelineReturnHref,
+            "Timeline",
+            "timeline"
+          )
+        : null;
+
       return (
         <article
           key={`intent-${intent.id}`}
@@ -3290,6 +3392,14 @@ export default async function TimelinePage({
               sportName={
                 sport?.name ??
                 null
+              }
+              journeySummary={
+                journeySummaryText
+                  ? {
+                      text: journeySummaryText,
+                      href: journeySummaryHref,
+                    }
+                  : null
               }
             />
 
