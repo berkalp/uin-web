@@ -8,6 +8,7 @@ type ReputationFeedbackTargetsPanelProps = {
   planId: string;
   targets: ReputationFeedbackTarget[];
   compact?: boolean;
+  memoryHref?: string;
 };
 
 function getInitial(
@@ -23,6 +24,7 @@ export default function ReputationFeedbackTargetsPanel({
   planId,
   targets,
   compact = false,
+  memoryHref,
 }: ReputationFeedbackTargetsPanelProps) {
   if (targets.length === 0) {
     return null;
@@ -48,6 +50,16 @@ export default function ReputationFeedbackTargetsPanel({
     return null;
   }
 
+  const feedbackComplete =
+    pendingTargets.length === 0 &&
+    submittedTargets.length ===
+      targets.length;
+
+  const returnTo =
+    `/plans/${encodeURIComponent(
+      planId
+    )}/activity#activity-feedback`;
+
   return (
     <section
       className={`rounded-3xl border border-purple-200 bg-purple-50/70 shadow-sm ${
@@ -63,11 +75,15 @@ export default function ReputationFeedbackTargetsPanel({
           </p>
 
           <h2 className="mt-2 text-xl font-bold text-purple-950">
-            Reputation follows the context
+            {feedbackComplete
+              ? "Your feedback is complete"
+              : "Reputation follows the context"}
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-purple-800">
-            Evaluate only the people you shared this Activity with. Basketball feedback stays with Basketball; Family Picnic feedback stays with Family Picnic.
+            {feedbackComplete
+              ? "You have evaluated every eligible person from this Activity. The responses stay attached to this exact Activity context."
+              : "Evaluate only the people you shared this Activity with. Basketball feedback stays with Basketball; Family Picnic feedback stays with Family Picnic."}
           </p>
         </div>
 
@@ -123,6 +139,8 @@ export default function ReputationFeedbackTargetsPanel({
                       planId
                     )}/${encodeURIComponent(
                       target.target_user_id
+                    )}?returnTo=${encodeURIComponent(
+                      returnTo
                     )}`}
                     className="shrink-0 rounded-xl bg-purple-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-purple-800"
                   >
@@ -138,6 +156,17 @@ export default function ReputationFeedbackTargetsPanel({
           }
         )}
       </div>
+
+      {feedbackComplete && memoryHref && (
+        <div className="mt-5 flex justify-end">
+          <a
+            href={memoryHref}
+            className="rounded-xl border border-purple-200 bg-white px-4 py-2.5 text-sm font-bold text-purple-800 transition hover:bg-purple-100"
+          >
+            Continue to Memory ↓
+          </a>
+        </div>
+      )}
     </section>
   );
 }

@@ -21,6 +21,7 @@ type AnswerValue =
 
 type ReputationFeedbackFormProps = {
   form: ReputationFeedbackFormData;
+  returnHref?: string;
 };
 
 function getInitial(
@@ -34,6 +35,7 @@ function getInitial(
 
 export default function ReputationFeedbackForm({
   form,
+  returnHref,
 }: ReputationFeedbackFormProps) {
   const router =
     useRouter();
@@ -127,7 +129,8 @@ export default function ReputationFeedbackForm({
     }
 
     router.push(
-      "/reputation/feedback?submitted=1"
+      returnHref ||
+        "/reputation/feedback?submitted=1"
     );
     router.refresh();
   }

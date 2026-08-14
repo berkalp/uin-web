@@ -2609,6 +2609,19 @@ export default async function PlanRoomView({
                 ? [{ targetId: "schedule", icon: "▦", label: "Schedule" }]
                 : []
             ),
+            ...(
+              roomPhase === "activity" &&
+              plan.status === "completed" &&
+              reputationTargets.length > 0
+                ? [{ targetId: "activity-feedback", icon: "◇", label: "Feedback" }]
+                : []
+            ),
+            ...(
+              roomPhase === "activity" &&
+              plan.status === "completed"
+                ? [{ targetId: "activity-memory", icon: "◈", label: "Memory" }]
+                : []
+            ),
             { targetId: "team-chat", icon: "◌", label: "Team & Chat" },
           ]}
         />
@@ -2727,18 +2740,6 @@ export default async function PlanRoomView({
           </section>
         )}
 
-        {roomPhase ===
-          "activity" &&
-          plan.status ===
-            "completed" &&
-          experienceBundle?.experience && (
-            <ExperiencePanel
-              bundle={
-                experienceBundle
-              }
-            />
-          )}
-
         {roomPhase === "activity" &&
           plan.status === "completed" &&
           reputationTargets.length > 0 && (
@@ -2746,8 +2747,44 @@ export default async function PlanRoomView({
               <ReputationFeedbackTargetsPanel
                 planId={plan.id}
                 targets={reputationTargets}
+                memoryHref="#activity-memory"
               />
             </div>
+          )}
+
+        {roomPhase === "activity" &&
+          plan.status === "completed" && (
+            <section
+              id="activity-memory"
+              className="mt-6 scroll-mt-24 rounded-[32px] border border-indigo-200 bg-indigo-50/50 p-5 shadow-sm md:p-6"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700">
+                    Memory
+                  </p>
+                  <h2 className="mt-2 text-2xl font-bold text-indigo-950">
+                    This Activity is now part of your UIN history
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-7 text-indigo-800">
+                    The completed Activity stays here with its people, attendance, story, photos, videos and links. Reputation records what it was like to do it together; Memory records what actually happened.
+                  </p>
+                </div>
+                <span className="rounded-full bg-indigo-700 px-3 py-1.5 text-xs font-bold text-white">
+                  Activity → Memory
+                </span>
+              </div>
+
+              {experienceBundle?.experience ? (
+                <ExperiencePanel
+                  bundle={experienceBundle}
+                />
+              ) : (
+                <div className="mt-5 rounded-2xl border border-indigo-100 bg-white p-5 text-sm leading-6 text-indigo-900">
+                  The Activity is completed, but its Memory record is not visible yet. Refresh this room once; if it still does not appear, the completed-Activity Experience sync needs attention.
+                </div>
+              )}
+            </section>
           )}
 
         <CollapsiblePlanningSection

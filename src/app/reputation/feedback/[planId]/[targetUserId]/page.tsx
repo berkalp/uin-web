@@ -17,6 +17,9 @@ type ReputationFeedbackDetailPageProps = {
     planId: string;
     targetUserId: string;
   }>;
+  searchParams?: Promise<{
+    returnTo?: string | string[];
+  }>;
 };
 
 function isUuid(
@@ -27,13 +30,58 @@ function isUuid(
   );
 }
 
+function getSafeReturnHref(
+  value: string | string[] | undefined,
+  fallback: string
+) {
+  const candidate =
+    Array.isArray(value)
+      ? value[0]
+      : value;
+
+  if (
+    typeof candidate !== "string" ||
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.length > 500
+  ) {
+    return fallback;
+  }
+
+  return candidate;
+}
+
 export default async function ReputationFeedbackDetailPage({
   params,
+  searchParams,
 }: ReputationFeedbackDetailPageProps) {
   const {
     planId,
     targetUserId,
   } = await params;
+
+  const resolvedSearchParams =
+    searchParams
+      ? await searchParams
+      : {};
+
+  const fallbackReturnHref =
+    `/plans/${encodeURIComponent(
+      planId
+    )}/activity#activity-feedback`;
+
+  const returnHref =
+    getSafeReturnHref(
+      resolvedSearchParams.returnTo,
+      fallbackReturnHref
+    );
+
+  const returnLabel =
+    returnHref.startsWith(
+      "/plans/"
+    )
+      ? "← Back to Activity Room"
+      : "← Back to feedback";
 
   if (
     !isUuid(planId) ||
@@ -77,10 +125,10 @@ export default async function ReputationFeedbackDetailPage({
       <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
         <div className="mx-auto max-w-4xl">
           <Link
-            href="/reputation/feedback"
+            href={returnHref}
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to feedback
+            {returnLabel}
           </Link>
 
           <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-8">
@@ -104,15 +152,16 @@ export default async function ReputationFeedbackDetailPage({
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-4xl">
         <Link
-          href="/reputation/feedback"
+          href={returnHref}
           className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
         >
-          ← Back to feedback
+          {returnLabel}
         </Link>
 
         <div className="mt-6">
           <ReputationFeedbackForm
             form={form}
+            returnHref={returnHref}
           />
         </div>
       </div>

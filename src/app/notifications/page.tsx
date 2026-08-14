@@ -68,6 +68,21 @@ function getNotificationTone(
 ) {
   if (
     type.includes(
+      "feedback"
+    )
+  ) {
+    return {
+      border:
+        "border-purple-200",
+      badge:
+        "bg-purple-50 text-purple-700",
+      label:
+        "Feedback",
+    };
+  }
+
+  if (
+    type.includes(
       "accepted"
     ) ||
     type.includes(

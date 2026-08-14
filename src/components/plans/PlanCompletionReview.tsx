@@ -414,11 +414,15 @@ export default function PlanCompletionReview({
             </div>
           )}
 
+          <div className="mt-5 rounded-2xl border border-purple-100 bg-purple-50 px-4 py-3 text-sm leading-6 text-purple-900">
+            Completing the Activity opens contextual feedback for eligible attendees and creates the shared Memory record automatically.
+          </div>
+
           <button
             type="button"
             disabled={isWorking}
             onClick={completeActivity}
-            className="mt-5 w-full rounded-xl bg-green-600 px-6 py-4 text-base font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="mt-3 w-full rounded-xl bg-green-600 px-6 py-4 text-base font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isWorking ? "Completing Activity..." : "Complete Activity"}
           </button>

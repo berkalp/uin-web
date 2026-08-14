@@ -193,6 +193,8 @@ export default async function ReputationFeedbackPage({
                       item.plan_id
                     )}/${encodeURIComponent(
                       item.target_user_id
+                    )}?returnTo=${encodeURIComponent(
+                      "/reputation/feedback?submitted=1"
                     )}`}
                     className="mt-5 block rounded-xl bg-purple-700 px-5 py-3 text-center text-sm font-bold text-white transition hover:bg-purple-800"
                   >
