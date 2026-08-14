@@ -7,7 +7,6 @@ import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPres
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
 import TimelineShareButton from "../../components/timeline/TimelineShareButton";
-import TimelineAttentionPanel from "../../components/timeline/TimelineAttentionPanel";
 import ActivityPeopleStrip from "../../components/activities/ActivityPeopleStrip";
 import IntentResolutionPanel, {
   type IntentResolutionItem,
@@ -3022,14 +3021,6 @@ export default async function TimelinePage({
   );
 
 
-  const attentionEntries = planEntries
-    .filter((entry) => getEntryView(entry) === "action_required")
-    .sort(
-      (first, second) =>
-        new Date(getTimelineEntrySortDate(first)).getTime() -
-        new Date(getTimelineEntrySortDate(second)).getTime()
-    );
-
   const comingUpEntries = planEntries
     .filter((entry) => {
       if (entry.plan.status === "forming") {
@@ -3044,33 +3035,6 @@ export default async function TimelinePage({
         new Date(getTimelineEntrySortDate(second)).getTime()
     )
     .slice(0, 4);
-
-  const weatherAttentionPlans = planEntries
-    .filter((entry) => getEntryView(entry) === "planned")
-    .sort(
-      (first, second) =>
-        new Date(getTimelineEntrySortDate(first)).getTime() -
-        new Date(getTimelineEntrySortDate(second)).getTime()
-    )
-    .map((entry) => {
-      const info = getCompactPlanPresentation(entry);
-      return {
-        planId: entry.plan.id,
-        title: info.title,
-        dateLabel: info.dateLabel,
-        href: `/plans/${entry.plan.id}/activity#weather-context`,
-      };
-    });
-
-  const outcomeAttentionItems = attentionEntries.slice(0, 4).map((entry) => {
-    const info = getCompactPlanPresentation(entry);
-    return {
-      planId: entry.plan.id,
-      title: info.title,
-      dateLabel: info.dateLabel,
-      href: `/plans/${entry.plan.id}/activity#attendance-review`,
-    };
-  });
 
   const recentTimelineHistory = timelineEntries
     .filter((entry) => {
@@ -4289,14 +4253,6 @@ export default async function TimelinePage({
             </section>
           </div>
         </nav>
-
-        <TimelineAttentionPanel
-          outcomes={outcomeAttentionItems}
-          weatherPlans={weatherAttentionPlans}
-          pendingJoinRequestCount={pendingJoinRequestCount}
-          pendingIntentInvitationCount={pendingIntentInvitationCount}
-          pendingManagedProfileActionCount={pendingManagedProfileActionCount}
-        />
 
         <IntentResolutionPanel items={intentResolutionItems} />
 

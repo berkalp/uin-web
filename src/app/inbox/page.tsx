@@ -43,7 +43,6 @@ export default async function InboxPage() {
     joinRequestResponse,
     managedProfileResponse,
     activeOwnedIntentResponse,
-    directMessageCountResponse,
   ] = await Promise.all([
     supabase
       .from("intent_requests")
@@ -77,8 +76,6 @@ export default async function InboxPage() {
       .eq("user_id", user.id)
       .eq("status", "active")
       .is("expired_at", null),
-
-    supabase.rpc("get_my_unread_direct_message_count"),
   ]);
 
   const pendingIntentRequestCount =
@@ -149,10 +146,6 @@ export default async function InboxPage() {
       0
     );
 
-  const unreadDirectMessageCount = Number(
-    directMessageCountResponse.data ?? 0
-  );
-
   const totalCount =
     pendingIntentRequestCount +
     pendingIntentInvitationCount +
@@ -213,41 +206,14 @@ export default async function InboxPage() {
         </div>
 
         <header className="mt-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
-            Action Center
-          </p>
-
-          <h1 className="mt-3 text-4xl font-bold text-gray-950">
-            Inbox
+          <h1 className="text-4xl font-bold text-gray-950">
+            Karar Merkezi
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Inbox contains items that need
-            a decision. Notifications are
-            separate because they only
-            report updates.
+            Karar vermen gereken istekler, davetler ve yönetilen profil işlemleri burada. Mesajlar ve Bildirimler ayrı tutulur.
           </p>
         </header>
-
-        <section className="mt-8">
-          <Link
-            href="/messages"
-            className="group flex items-center justify-between gap-5 rounded-3xl border border-green-200 bg-green-50/40 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">
-                Conversations
-              </p>
-              <h2 className="mt-2 text-xl font-bold text-gray-950">Direct Messages</h2>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Staff-created two-way conversations. These are separate from action requests.
-              </p>
-            </div>
-            <span className="rounded-full bg-green-600 px-3 py-1.5 text-sm font-bold text-white">
-              {unreadDirectMessageCount} unread
-            </span>
-          </Link>
-        </section>
 
         <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
           {actionCards.map(

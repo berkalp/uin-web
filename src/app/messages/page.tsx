@@ -15,7 +15,20 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-export default async function MessagesPage() {
+type MessagesPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function pageNumber(value: string | string[] | undefined) {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw ?? "1");
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+export default async function MessagesPage({ searchParams }: MessagesPageProps) {
+  const params = await searchParams;
+  const roomPage = pageNumber(params.roomPage);
+  const directPage = pageNumber(params.directPage);
   const supabase = await createClient();
   const {
     data: { user },
@@ -92,7 +105,7 @@ export default async function MessagesPage() {
             href="/inbox"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            Inbox
+            Karar Merkezi
           </Link>
         </div>
 
@@ -104,7 +117,7 @@ export default async function MessagesPage() {
               </p>
               <h1 className="mt-3 text-4xl font-bold text-gray-950">Messages</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-                Planning Rooms, Activity Rooms and direct UIN conversations live here. Inbox stays reserved for decisions; Notifications stay reserved for updates.
+                Planning Rooms, Activity Rooms and direct UIN conversations live here. Karar Merkezi stays reserved for decisions; Notifications stay reserved for updates.
               </p>
             </div>
 
@@ -124,11 +137,15 @@ export default async function MessagesPage() {
           currentUserId={user.id}
           summaries={roomSummaries}
           plans={plans}
+          page={roomPage}
+          directPage={directPage}
         />
 
         <DirectConversationList
           initialConversations={directConversations}
           initialLoadFailed={Boolean(directResult.error)}
+          page={directPage}
+          roomPage={roomPage}
         />
       </div>
     </main>

@@ -308,7 +308,7 @@ export default function TimelineHeader({
 
         <IconNavigationButton
           href="/inbox"
-          label="Inbox"
+          label="Karar Merkezi"
           count={inboxCount}
         >
           <InboxIcon />

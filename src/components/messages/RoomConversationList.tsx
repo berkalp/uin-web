@@ -24,7 +24,11 @@ type RoomConversationListProps = {
   currentUserId: string;
   summaries: RoomConversationSummary[];
   plans: RoomConversationPlan[];
+  page?: number;
+  directPage?: number;
 };
+
+const PAGE_SIZE = 5;
 
 function toNumber(value: unknown) {
   const parsed = Number(value ?? 0);
@@ -77,6 +81,8 @@ export default function RoomConversationList({
   currentUserId,
   summaries,
   plans,
+  page = 1,
+  directPage = 1,
 }: RoomConversationListProps) {
   const planById = new Map(plans.map((plan) => [plan.id, plan]));
 
@@ -104,6 +110,20 @@ export default function RoomConversationList({
     (total, entry) => total + toNumber(entry.summary.unread_count),
     0
   );
+
+  const pageCount = Math.max(1, Math.ceil(conversations.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const visibleConversations = conversations.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
+  function pageHref(targetPage: number) {
+    const params = new URLSearchParams();
+    params.set("roomPage", String(targetPage));
+    params.set("directPage", String(directPage));
+    return `/messages?${params.toString()}`;
+  }
 
   return (
     <section className="mt-8">
@@ -135,7 +155,7 @@ export default function RoomConversationList({
           </div>
         )}
 
-        {conversations.map(({ summary, plan }) => {
+        {visibleConversations.map(({ summary, plan }) => {
           const phase = currentRoomPhase(plan);
           const unread = toNumber(summary.unread_count);
           const roomLabel = phase === "planning" ? "Planning Room" : "Activity Room";
@@ -178,6 +198,59 @@ export default function RoomConversationList({
             </Link>
           );
         })}
+
+        {conversations.length > PAGE_SIZE && (
+          <nav
+            aria-label="Room conversation pages"
+            className="flex flex-wrap items-center justify-between gap-3 pt-2"
+          >
+            <p className="text-xs font-semibold text-gray-400">
+              Sayfa {safePage} / {pageCount} · Her sayfada en fazla {PAGE_SIZE} konuşma
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={pageHref(Math.max(1, safePage - 1))}
+                aria-disabled={safePage === 1}
+                className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                  safePage === 1
+                    ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                }`}
+              >
+                Önceki
+              </Link>
+
+              {Array.from({ length: pageCount }, (_, index) => index + 1).map(
+                (pageNumber) => (
+                  <Link
+                    key={pageNumber}
+                    href={pageHref(pageNumber)}
+                    className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                      pageNumber === safePage
+                        ? "bg-gray-950 text-white"
+                        : "border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                    }`}
+                  >
+                    {pageNumber}
+                  </Link>
+                )
+              )}
+
+              <Link
+                href={pageHref(Math.min(pageCount, safePage + 1))}
+                aria-disabled={safePage === pageCount}
+                className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                  safePage === pageCount
+                    ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                }`}
+              >
+                Sonraki
+              </Link>
+            </div>
+          </nav>
+        )}
       </div>
     </section>
   );

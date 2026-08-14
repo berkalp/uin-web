@@ -9,7 +9,11 @@ import { supabase } from "@/utils/supabase/client";
 type DirectConversationListProps = {
   initialConversations: DirectConversationSummary[];
   initialLoadFailed?: boolean;
+  page?: number;
+  roomPage?: number;
 };
+
+const PAGE_SIZE = 5;
 
 function getInitial(value: string) {
   return value.trim().charAt(0).toUpperCase() || "?";
@@ -56,6 +60,8 @@ function sameConversationSnapshot(
 export default function DirectConversationList({
   initialConversations,
   initialLoadFailed = false,
+  page = 1,
+  roomPage = 1,
 }: DirectConversationListProps) {
   const [conversations, setConversations] = useState(initialConversations);
   const [loadFailed, setLoadFailed] = useState(initialLoadFailed);
@@ -127,6 +133,20 @@ export default function DirectConversationList({
     [conversations]
   );
 
+  const pageCount = Math.max(1, Math.ceil(conversations.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(1, page), pageCount);
+  const visibleConversations = conversations.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
+  function pageHref(targetPage: number) {
+    const params = new URLSearchParams();
+    params.set("roomPage", String(roomPage));
+    params.set("directPage", String(targetPage));
+    return `/messages?${params.toString()}`;
+  }
+
   return (
     <section className="mt-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -161,7 +181,7 @@ export default function DirectConversationList({
           </div>
         )}
 
-        {conversations.map((conversation) => {
+        {visibleConversations.map((conversation) => {
           const displayName =
             conversation.other_full_name ||
             conversation.other_username ||
@@ -221,6 +241,59 @@ export default function DirectConversationList({
             </Link>
           );
         })}
+
+        {conversations.length > PAGE_SIZE && (
+          <nav
+            aria-label="Direct conversation pages"
+            className="flex flex-wrap items-center justify-between gap-3 pt-2"
+          >
+            <p className="text-xs font-semibold text-gray-400">
+              Sayfa {safePage} / {pageCount} · Her sayfada en fazla {PAGE_SIZE} konuşma
+            </p>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={pageHref(Math.max(1, safePage - 1))}
+                aria-disabled={safePage === 1}
+                className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                  safePage === 1
+                    ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                }`}
+              >
+                Önceki
+              </Link>
+
+              {Array.from({ length: pageCount }, (_, index) => index + 1).map(
+                (pageNumber) => (
+                  <Link
+                    key={pageNumber}
+                    href={pageHref(pageNumber)}
+                    className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                      pageNumber === safePage
+                        ? "bg-gray-950 text-white"
+                        : "border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                    }`}
+                  >
+                    {pageNumber}
+                  </Link>
+                )
+              )}
+
+              <Link
+                href={pageHref(Math.min(pageCount, safePage + 1))}
+                aria-disabled={safePage === pageCount}
+                className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                  safePage === pageCount
+                    ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                }`}
+              >
+                Sonraki
+              </Link>
+            </div>
+          </nav>
+        )}
       </div>
     </section>
   );
