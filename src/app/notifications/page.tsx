@@ -5,6 +5,7 @@ import {
   MarkAllNotificationsReadButton,
   NotificationOpenButton,
 } from "@/components/notifications/NotificationActions";
+import NotificationsRealtimeRefresh from "@/components/notifications/NotificationsRealtimeRefresh";
 import { createClient } from "@/utils/supabase/server";
 
 type NotificationRow = {
@@ -311,6 +312,8 @@ export default async function NotificationsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
+      <NotificationsRealtimeRefresh />
+
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link

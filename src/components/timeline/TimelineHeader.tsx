@@ -7,6 +7,7 @@ import type {
   ManagedProfileSwitcherRow,
 } from "@/components/navigation/AccountContextSwitcher";
 import UserAccountMenu from "@/components/navigation/UserAccountMenu";
+import NotificationBellButton from "@/components/notifications/NotificationBellButton";
 
 type TimelineHeaderProps = {
   email: string | null;
@@ -177,24 +178,6 @@ function InboxIcon() {
   );
 }
 
-function BellIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-      <path d="M10 21h4" />
-    </svg>
-  );
-}
-
 function IconNavigationButton({
   href,
   label,
@@ -353,13 +336,9 @@ export default function TimelineHeader({
           <InboxIcon />
         </IconNavigationButton>
 
-        <IconNavigationButton
-          href="/notifications"
-          label="Notifications"
-          count={unreadNotificationCount}
-        >
-          <BellIcon />
-        </IconNavigationButton>
+        <NotificationBellButton
+          initialUnreadCount={unreadNotificationCount}
+        />
 
         <UserAccountMenu
           fullName={personal.fullName}

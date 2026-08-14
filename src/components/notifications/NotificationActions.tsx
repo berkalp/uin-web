@@ -47,6 +47,10 @@ export function NotificationOpenButton({
         if (error) {
           throw error;
         }
+
+        window.dispatchEvent(
+          new Event("uin:notifications-changed")
+        );
       }
 
       if (actionUrl) {
@@ -125,6 +129,9 @@ export function MarkAllNotificationsReadButton({
         throw error;
       }
 
+      window.dispatchEvent(
+        new Event("uin:notifications-changed")
+      );
       router.refresh();
     } catch (error) {
       setErrorMessage(
