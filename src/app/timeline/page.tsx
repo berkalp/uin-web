@@ -7,6 +7,7 @@ import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPres
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
 import TimelineShareButton from "../../components/timeline/TimelineShareButton";
+import CancelledPlanHistorySummary from "../../components/timeline/CancelledPlanHistorySummary";
 import ActivityPeopleStrip from "../../components/activities/ActivityPeopleStrip";
 import IntentResolutionPanel, {
   type IntentResolutionItem,
@@ -234,6 +235,9 @@ type TimelinePlan = {
   planned_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
+  cancelled_by: string | null;
+  cancellation_reason: string | null;
+  cancellation_reason_code: string | null;
   cancellation_phase: "planning" | "activity" | null;
   expired_at: string | null;
   created_at: string;
@@ -576,6 +580,9 @@ const PLAN_SELECT_QUERY = `
   planned_at,
   completed_at,
   cancelled_at,
+  cancelled_by,
+  cancellation_reason,
+  cancellation_reason_code,
   cancellation_phase,
   expired_at,
   created_at,
@@ -3716,6 +3723,96 @@ export default async function TimelinePage({
         (plan.status === "forming" || plan.status === "planned")
     );
 
+    const cancellationActorProfile = plan.cancelled_by
+      ? (plan.plan_members ?? [])
+          .map((member) => getFirst(member.profiles))
+          .find((profile) => profile?.id === plan.cancelled_by) ??
+        (hostProfile?.id === plan.cancelled_by ? hostProfile : null)
+      : null;
+
+    const cancellationActorName =
+      cancellationActorProfile?.full_name ??
+      cancellationActorProfile?.username ??
+      (plan.cancelled_by === plan.host_user_id ? hostProfile?.full_name : null) ??
+      "Host / Co-host";
+
+    const cancelledSourceLink =
+      plan.status === "cancelled"
+        ? (plan.plan_intents ?? []).find((link) =>
+            ownedIntentById.has(link.intent_id)
+          ) ?? null
+        : null;
+
+    const cancelledSourceIntent = cancelledSourceLink
+      ? ownedIntentById.get(cancelledSourceLink.intent_id) ?? null
+      : null;
+
+    const cancelledSourceIntentReopened = Boolean(
+      plan.status === "cancelled" &&
+        cancelledSourceLink?.status === "detached" &&
+        cancelledSourceIntent?.status === "active"
+    );
+
+    const cancelledSourceIntentHref = cancelledSourceIntent
+      ? withReturnContext(
+          `/activities/${encodeURIComponent(cancelledSourceIntent.id)}`,
+          timelineReturnHref,
+          "Timeline",
+          "timeline"
+        )
+      : null;
+
+    const laterAttempt =
+      cancelledSourceIntent && plan.status === "cancelled"
+        ? plans
+            .filter((candidate) => candidate.id !== plan.id)
+            .filter((candidate) =>
+              (candidate.plan_intents ?? []).some(
+                (link) => link.intent_id === cancelledSourceIntent.id
+              )
+            )
+            .filter(
+              (candidate) =>
+                new Date(candidate.created_at).getTime() >
+                new Date(plan.created_at).getTime()
+            )
+            .sort(
+              (left, right) =>
+                new Date(right.created_at).getTime() -
+                new Date(left.created_at).getTime()
+            )[0] ?? null
+        : null;
+
+    const laterAttemptHref = laterAttempt
+      ? withReturnContext(
+          laterAttempt.status === "forming"
+            ? `/plans/${encodeURIComponent(laterAttempt.id)}/planning#journey`
+            : `/plans/${encodeURIComponent(laterAttempt.id)}/activity#journey`,
+          timelineReturnHref,
+          "Timeline",
+          "timeline"
+        )
+      : null;
+
+    const laterAttemptLabel = laterAttempt
+      ? laterAttempt.status === "forming"
+        ? "New Planning Room in progress"
+        : laterAttempt.status === "planned"
+          ? "New Activity planned"
+          : laterAttempt.status === "completed"
+            ? "Later attempt completed"
+            : "Later attempt cancelled"
+      : null;
+
+    const cancelledJourneyHref = withReturnContext(
+      plan.cancellation_phase === "planning"
+        ? `/plans/${encodeURIComponent(plan.id)}/planning#journey`
+        : `/plans/${encodeURIComponent(plan.id)}/activity#journey`,
+      timelineReturnHref,
+      "Timeline",
+      "timeline"
+    );
+
     return (
       <div
         key={`plan-${plan.id}`}
@@ -3906,6 +4003,27 @@ export default async function TimelinePage({
               : []
           }
         />
+
+        {plan.status === "cancelled" && (
+          <CancelledPlanHistorySummary
+            phase={plan.cancellation_phase ?? (plan.scheduled_start ? "activity" : "planning")}
+            cancelledAt={plan.cancelled_at}
+            cancelledByName={cancellationActorName}
+            reasonCode={plan.cancellation_reason_code}
+            reasonText={plan.cancellation_reason}
+            journeyHref={cancelledJourneyHref}
+            sourceIntentReopened={cancelledSourceIntentReopened}
+            sourceIntentHref={cancelledSourceIntentHref}
+            nextAttempt={
+              laterAttempt && laterAttemptHref && laterAttemptLabel
+                ? {
+                    label: laterAttemptLabel,
+                    href: laterAttemptHref,
+                  }
+                : null
+            }
+          />
+        )}
 
         {completionRequired && (
           <div className="mx-5 mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 md:mx-6">
