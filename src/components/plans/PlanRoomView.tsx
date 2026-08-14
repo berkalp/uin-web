@@ -31,6 +31,9 @@ import PlanRoomRealtimeRefresh from "./PlanRoomRealtimeRefresh";
 import PlanLifecycleActions, {
   type CancelledPlanRecoveryOption,
 } from "./PlanLifecycleActions";
+import PlanJourneyHistoryPanel, {
+  type PlanJourneyLifecycleEvent,
+} from "./PlanJourneyHistoryPanel";
 import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
 import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
 import ReportCustomActivityTitleButton from "../experiences/ReportCustomActivityTitleButton";
@@ -300,6 +303,16 @@ type PlanMemberDeparture = {
   reason_code: string;
   reason_text: string | null;
   departed_at: string;
+};
+
+type PlanLifecycleEventRow = {
+  id: string;
+  event_type: string;
+  actor_user_id: string | null;
+  subject_user_id: string | null;
+  room_phase: RoomPhase | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
 };
 
 type BudgetSummaryRow = {
@@ -1676,7 +1689,7 @@ export default async function PlanRoomView({
         ? "co_host"
         : "participant";
 
-  const [recoveryOptionResult, departureHistoryResult] = await Promise.all([
+  const [recoveryOptionResult, departureHistoryResult, lifecycleHistoryResult] = await Promise.all([
     plan.status === "cancelled"
       ? supabase.rpc("get_my_cancelled_plan_recovery_options", {
           p_plan_id: plan.id,
@@ -1687,6 +1700,11 @@ export default async function PlanRoomView({
           p_plan_id: plan.id,
         })
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from("plan_lifecycle_events")
+      .select("id,event_type,actor_user_id,subject_user_id,room_phase,metadata,created_at")
+      .eq("plan_id", plan.id)
+      .order("created_at", { ascending: true }),
   ]);
 
   if (recoveryOptionResult.error) {
@@ -1703,8 +1721,16 @@ export default async function PlanRoomView({
     );
   }
 
+  if (lifecycleHistoryResult.error) {
+    console.error(
+      "Plan lifecycle history query failed:",
+      lifecycleHistoryResult.error
+    );
+  }
+
   const recoveryOptions = (recoveryOptionResult.data ?? []) as CancelledPlanRecoveryOption[];
   const departureHistory = (departureHistoryResult.data ?? []) as PlanMemberDeparture[];
+  const lifecycleHistoryRows = (lifecycleHistoryResult.data ?? []) as PlanLifecycleEventRow[];
 
   const roomLabel =
     roomPhase === "planning"
@@ -2273,6 +2299,20 @@ export default async function PlanRoomView({
     ? memberNameByUserId.get(plan.cancelled_by) ?? "Host / Co-host"
     : "Host / Co-host";
 
+  const journeyLifecycleEvents: PlanJourneyLifecycleEvent[] = lifecycleHistoryRows.map((event) => ({
+    id: event.id,
+    eventType: event.event_type,
+    actorName: event.actor_user_id
+      ? memberNameByUserId.get(event.actor_user_id) ?? null
+      : null,
+    subjectName: event.subject_user_id
+      ? memberNameByUserId.get(event.subject_user_id) ?? null
+      : null,
+    roomPhase: event.room_phase,
+    metadata: event.metadata,
+    createdAt: event.created_at,
+  }));
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1500px]">
@@ -2762,6 +2802,7 @@ export default async function PlanRoomView({
                 ? [{ targetId: "activity-memory", icon: "◈", label: "Memory" }]
                 : []
             ),
+            { targetId: "journey-history", icon: "↺", label: "Journey" },
             { targetId: "team-chat", icon: "◌", label: "Team & Chat" },
           ]}
         />
@@ -3090,6 +3131,22 @@ export default async function PlanRoomView({
               </div>
             </section>
           </CollapsiblePlanningSection>
+        </div>
+
+        <div className="mt-6">
+          <PlanJourneyHistoryPanel
+            planId={plan.id}
+            planCreatedAt={plan.created_at}
+            plannedAt={plan.planned_at}
+            completedAt={plan.completed_at}
+            cancelledAt={plan.cancelled_at}
+            expiredAt={isExpiredPlanningArchive ? plan.expired_at ?? plan.window_end : plan.expired_at}
+            status={plan.status}
+            timezone={plan.timezone}
+            sourceIntentCount={Math.max(planOriginCount, 1)}
+            cancellationReason={plan.cancellation_reason}
+            lifecycleEvents={journeyLifecycleEvents}
+          />
         </div>
 
         {planOrigins.length > 0 && (
