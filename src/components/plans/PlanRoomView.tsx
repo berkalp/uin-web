@@ -28,6 +28,7 @@ import PlanNeedsPanel from "./PlanNeedsPanel";
 import PlanToolkitPanel from "./PlanToolkitPanel";
 import PlanMessageComposer from "./PlanMessageComposer";
 import PlanRoomRealtimeRefresh from "./PlanRoomRealtimeRefresh";
+import ReminderSettingsPanel from "../reminders/ReminderSettingsPanel";
 import PlanLifecycleActions, {
   type CancelledPlanRecoveryOption,
 } from "./PlanLifecycleActions";
@@ -2802,10 +2803,32 @@ export default async function PlanRoomView({
                 ? [{ targetId: "activity-memory", icon: "◈", label: "Memory" }]
                 : []
             ),
+            { targetId: "reminders", icon: "⏱", label: "Reminders" },
             { targetId: "journey-history", icon: "↺", label: "Journey" },
             { targetId: "team-chat", icon: "◌", label: "Team & Chat" },
           ]}
         />
+
+        <CollapsiblePlanningSection
+          id="reminders"
+          title="Reminders"
+          description="Choose personal reminders for this Plan or Activity. These settings are only yours."
+          badge={plan.scheduled_start ? "Personal" : "Waiting for schedule"}
+          className="mt-5"
+        >
+          <ReminderSettingsPanel
+            resourceType="plan"
+            resourceId={plan.id}
+            title={plan.title || "UIN Activity"}
+            hasTarget={Boolean(plan.scheduled_start)}
+            timezone={plan.timezone}
+            targetLabel={
+              plan.scheduled_start
+                ? `Scheduled · ${formatDateTime(plan.scheduled_start, plan.timezone)}`
+                : "No confirmed start time yet."
+            }
+          />
+        </CollapsiblePlanningSection>
 
         <CollapsiblePlanningSection
           id="locations"

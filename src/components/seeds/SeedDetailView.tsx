@@ -5,6 +5,7 @@ import SeedExperienceEditor from "@/components/seeds/SeedExperienceEditor";
 import SeedJournalComposer from "@/components/seeds/SeedJournalComposer";
 import SeedJournalEntryActions from "@/components/seeds/SeedJournalEntryActions";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
+import ReminderSettingsPanel from "@/components/reminders/ReminderSettingsPanel";
 import {
   getSeedCompletionLabel,
   getSeedStatusLabel,
@@ -395,6 +396,18 @@ export default function SeedDetailView({
                     isAuthenticated={isAuthenticated}
                     isOwner={seed.is_owner}
                     variant="detail"
+                  />
+                </div>
+              )}
+
+              {seed.is_owner && seed.status === "active" && (
+                <div className="mt-5">
+                  <ReminderSettingsPanel
+                    resourceType="seed"
+                    resourceId={seed.seed_id}
+                    title={seed.title}
+                    hasTarget={Boolean(seed.target_date)}
+                    targetLabel={seed.target_date ? `Target · ${formatDate(seed.target_date)}` : "No target date yet."}
                   />
                 </div>
               )}

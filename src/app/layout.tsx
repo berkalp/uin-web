@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import AppTranslationRuntime from "@/components/i18n/AppTranslationRuntime";
+import ReminderToastListener from "@/components/notifications/ReminderToastListener";
 import { getAppTranslationBundle } from "@/utils/i18n/server";
 
 import "./globals.css";
@@ -48,6 +49,8 @@ export default async function RootLayout({
         <AppTranslationRuntime
           bundle={translationBundle}
         />
+
+        <ReminderToastListener />
 
         {children}
       </body>

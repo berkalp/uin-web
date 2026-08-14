@@ -292,6 +292,13 @@ export default async function UserAccountMenu({
           </Link>
 
           <Link
+            href="/settings/notifications"
+            className="block rounded-xl px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
+          >
+            Notifications & Reminders
+          </Link>
+
+          <Link
             href="/settings/professional"
             className="block rounded-xl px-4 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
           >
