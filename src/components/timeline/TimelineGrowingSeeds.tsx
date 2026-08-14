@@ -16,7 +16,7 @@ type ReminderClock = {
   timezone: string;
 };
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 6;
 
 export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProps) {
   const [page, setPage] = useState(0);
@@ -99,7 +99,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
         </div>
       </div>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {visibleSeeds.map((seed) => {
           const clock = clocks[seed.seed_id] ?? fallbackClock;
           return (

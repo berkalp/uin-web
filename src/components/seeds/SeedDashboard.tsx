@@ -28,7 +28,7 @@ const tabs: Array<{
   { value: "archived", label: "Archived" },
 ];
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 6;
 
 export default function SeedDashboard({
   seeds,
@@ -119,7 +119,7 @@ export default function SeedDashboard({
       </div>
 
       {visibleSeeds.length > 0 ? (
-        <section className="mt-5 grid items-stretch gap-2 sm:grid-cols-2 md:grid-cols-4 xl:grid-cols-8">
+        <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
           {pageSeeds.map((seed) => (
             <SeedCard
               key={seed.seed_id}

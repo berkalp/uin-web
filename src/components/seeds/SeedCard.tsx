@@ -153,9 +153,9 @@ export default function SeedCard({
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
       <Link
         href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-        className="relative block aspect-square overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700"
+        className="relative block aspect-[1/1] w-full shrink-0 overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700"
       >
-        {seed.cover_url && <img src={seed.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover" />}
+        {seed.cover_url && <img src={seed.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/8 to-black/25" />
 
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2">
