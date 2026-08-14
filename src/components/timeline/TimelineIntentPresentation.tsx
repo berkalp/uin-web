@@ -43,16 +43,73 @@ export type TimelineIntentPresentationProps = {
   ownerName: string;
   ownerAvatarUrl: string | null;
   notes?: string | null;
+  createdAt?: string | null;
+  copiedFromIntentId?: string | null;
   [key: string]: unknown;
 };
 
 function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "U";
+  return (
+    value
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "U"
+  );
+}
+
+function readableChoice(value: string | null | undefined) {
+  if (!value) return "Belirtilmedi";
+
+  const normalized = value.trim().toLowerCase();
+  const known: Record<string, string> = {
+    anyone: "Herkes",
+    everyone: "Herkes",
+    friends: "Arkadaşlar",
+    "close_friends": "Yakın arkadaşlar",
+    open: "Açık",
+    full: "Dolu",
+    closed: "Kapalı",
+    paused: "Duraklatıldı",
+    matched: "Eşleşti",
+    "one-time": "Tek seferlik",
+    one_time: "Tek seferlik",
+    public: "Herkes",
+    members: "Üyeler",
+    short_term: "Kısa dönem",
+    long_term: "Uzun dönem",
+  };
+
+  return (
+    known[normalized] ??
+    value
+      .replace(/[_-]+/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  );
+}
+
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: "Europe/Istanbul",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
+      <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
+      <p className="mt-0.5 truncate font-semibold text-gray-950" title={value}>{value}</p>
+    </div>
+  );
 }
 
 export default function TimelineIntentPresentation(props: TimelineIntentPresentationProps) {
@@ -63,6 +120,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
     activityCoverUrl,
     categoryCoverUrl,
     countryName,
+    locationScope,
     city,
     district,
     startDate,
@@ -87,6 +145,8 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
     ownerName,
     ownerAvatarUrl,
     notes = null,
+    createdAt = null,
+    copiedFromIntentId = null,
   } = props;
 
   const coverUrl = resolveActivityCover({
@@ -102,6 +162,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
     : null;
   const sportPresentation = sportName ? getSportPresentation(sportName) : null;
   const primaryCommunity = communities.find((item) => item.isPrimary) ?? communities[0] ?? null;
+  const createdLabel = formatDateTime(createdAt);
 
   return (
     <>
@@ -116,7 +177,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
             </span>
             {recruitmentStatus !== "open" && (
               <span className="inline-flex h-5 items-center rounded-full bg-gray-950/80 px-2 text-[8.5px] font-semibold uppercase leading-none text-white">
-                {recruitmentStatus}
+                {readableChoice(recruitmentStatus)}
               </span>
             )}
           </div>
@@ -221,6 +282,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
         </div>
       </div>
 
+      {/* Same detail grammar as Discover, with Timeline-only history added below it. */}
       <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
         <ActivityLifecycleTimeline
           targetStart={startDate}
@@ -235,17 +297,10 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
         />
 
         <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          {[
-            ["Participants", `0 / ${participantLimit}`],
-            ["Visibility", visibilityLabel],
-            ["Recurrence", recurrence],
-            ["Est. cost / person", formatEstimatedCost(budget, { includePerPerson: false })],
-          ].map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-              <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
-              <p className="mt-0.5 truncate font-semibold capitalize text-gray-950">{value}</p>
-            </div>
-          ))}
+          <DetailMetric label="Katılımcılar" value={`0 / ${participantLimit}`} />
+          <DetailMetric label="Görünürlük" value={visibilityLabel} />
+          <DetailMetric label="Tekrar" value={readableChoice(recurrence)} />
+          <DetailMetric label="Tahmini kişi başı maliyet" value={formatEstimatedCost(budget, { includePerPerson: false })} />
         </div>
 
         {(primaryCommunity || locationLabel) && (
@@ -261,9 +316,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
                   style={{ backgroundColor: primaryCommunity.accentColor }}
                 />
                 <span className="truncate">{primaryCommunity.name}</span>
-                {communities.length > 1 && (
-                  <span className="shrink-0 text-green-600">+{communities.length - 1}</span>
-                )}
+                {communities.length > 1 && <span className="shrink-0 text-green-600">+{communities.length - 1}</span>}
               </Link>
             )}
 
@@ -275,6 +328,18 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
             )}
           </div>
         )}
+
+        <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
+          <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Niyet detayları</p>
+          <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
+            <DetailMetric label="Eşleşme" value={readableChoice(matchingStatus)} />
+            <DetailMetric label="Katılım" value={readableChoice(recruitmentStatus)} />
+            <DetailMetric label="Kişiler" value={readableChoice(people)} />
+            <DetailMetric label="Niyet tipi" value={readableChoice(intentType)} />
+            <DetailMetric label="Konum kapsamı" value={readableChoice(locationScope)} />
+            <DetailMetric label="Spor" value={sportName || "Yok"} />
+          </div>
+        </div>
 
         {journeySummary && (
           journeySummary.href ? (
@@ -288,18 +353,28 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
 
         {notes?.trim() && (
           <div className="mt-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase text-blue-500">Note</p>
-            <p className="mt-0.5 line-clamp-3 text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
+            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">Not</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
           </div>
         )}
 
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
+          <div className="flex items-center justify-between gap-2">
+            <span>{relatedLinks.length} {relatedLinks.length === 1 ? "bağlantı" : "bağlantı"}</span>
+            {createdLabel && <span className="truncate">Oluşturuldu · {createdLabel}</span>}
+          </div>
+          {copiedFromIntentId && <p className="mt-1 truncate font-medium text-gray-600">Kaynak Intent · {copiedFromIntentId}</p>}
+        </div>
+
         {relatedLinks.length > 0 && (
-          <div className="mt-1.5"><IntentLinksDisplay links={relatedLinks} /></div>
+          <div className="mt-1.5">
+            <IntentLinksDisplay links={relatedLinks} />
+          </div>
         )}
 
         {requestCount > 0 && (
           <p className="mt-1.5 rounded-lg bg-green-50 px-2 py-1.5 text-[9px] font-semibold text-green-700">
-            {requestCount} request{requestCount === 1 ? "" : "s"} waiting
+            {requestCount} katılım isteği bekliyor
           </p>
         )}
       </div>

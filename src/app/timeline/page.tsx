@@ -3418,6 +3418,8 @@ export default async function TimelinePage({
               ownerName={personalProfile.full_name ?? personalProfile.username ?? "You"}
               ownerAvatarUrl={personalProfile.avatar_url}
               notes={intent.notes}
+              createdAt={intent.created_at}
+              copiedFromIntentId={intent.copied_from_intent_id}
             />
 
           <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
@@ -4001,6 +4003,15 @@ export default async function TimelinePage({
               : []
           }
           notes={plan.notes}
+          meetingPoint={plan.meeting_point}
+          meetingAddressText={plan.address_text}
+          meetingLocationSameAsActivity={plan.meeting_location_same_as_activity}
+          activityLocationVisibility={plan.activity_location_visibility}
+          scheduleNotes={plan.schedule_notes}
+          plannedAt={plan.planned_at}
+          createdAt={plan.created_at}
+          sourceIntentLabel={currentUserSourceActivity?.name ?? canonicalActivityName}
+          sourceIntentHref={sourceIntentHref}
           attendanceLabel={attendanceLabel}
           attendanceClasses={attendanceClasses}
           detailExtra={

@@ -59,6 +59,15 @@ export type TimelinePlanPresentationProps = {
   attendanceLabel?: string | null;
   attendanceClasses?: string;
   detailExtra?: ReactNode;
+  meetingPoint?: string | null;
+  meetingAddressText?: string | null;
+  meetingLocationSameAsActivity?: boolean;
+  activityLocationVisibility?: "members" | "public" | null;
+  scheduleNotes?: string | null;
+  plannedAt?: string | null;
+  createdAt?: string | null;
+  sourceIntentLabel?: string | null;
+  sourceIntentHref?: string | null;
   [key: string]: unknown;
 };
 
@@ -66,13 +75,56 @@ function money(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
 }
 
+function readableChoice(value: string | null | undefined) {
+  if (!value) return "Belirtilmedi";
+  const normalized = value.trim().toLowerCase();
+  const known: Record<string, string> = {
+    open: "Açık",
+    full: "Dolu",
+    closed: "Kapalı",
+    members: "Üyeler",
+    public: "Herkes",
+    "one-time": "Tek seferlik",
+    one_time: "Tek seferlik",
+    host: "Host",
+    co_host: "Co-host",
+    participant: "Katılımcı",
+  };
+  return known[normalized] ?? value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatDateTime(value: string | null | undefined, timezone: string) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("tr-TR", {
+    timeZone: timezone || "Europe/Istanbul",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function DetailMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
+      <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
+      <p className="mt-0.5 truncate font-semibold text-gray-950" title={value}>{value}</p>
+    </div>
+  );
+}
+
 export default function TimelinePlanPresentation(props: TimelinePlanPresentationProps) {
   const {
     planId,
     title,
+    canonicalActivityName,
     categoryName,
     coverUrl,
     countryName,
+    locationScope,
     city,
     district,
     activityLocationName,
@@ -80,6 +132,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
     latitude,
     longitude,
     mapUrl,
+    hostName,
     people,
     currentUserId,
     activityHref,
@@ -110,6 +163,15 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
     attendanceLabel = null,
     attendanceClasses = "bg-green-50 text-green-700",
     detailExtra = null,
+    meetingPoint = null,
+    meetingAddressText = null,
+    meetingLocationSameAsActivity = false,
+    activityLocationVisibility = null,
+    scheduleNotes = null,
+    plannedAt = null,
+    createdAt = null,
+    sourceIntentLabel = null,
+    sourceIntentHref = null,
   } = props;
 
   const exact = Boolean(activityLocationName || activityAddressText || (latitude !== null && longitude !== null));
@@ -119,6 +181,11 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
   const query = exact && latitude !== null && longitude !== null ? `${latitude},${longitude}` : locationLabel;
   const mapEmbedUrl = query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${exact ? 15 : 11}&output=embed` : null;
   const primaryCommunity = communities.find((community) => community.isPrimary) ?? communities[0] ?? null;
+  const meetingLabel = meetingLocationSameAsActivity
+    ? "Aktivite konumuyla aynı"
+    : [meetingPoint, meetingAddressText].filter(Boolean).join(", ") || "Belirlenmedi";
+  const createdLabel = formatDateTime(createdAt, timezone);
+  const plannedLabel = formatDateTime(plannedAt, timezone);
 
   return (
     <>
@@ -135,7 +202,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
             <span className={`inline-flex h-5 max-w-[130px] items-center truncate rounded-full px-2 text-[8.5px] font-semibold uppercase leading-none ${relationshipClasses}`}>{relationshipLabel}</span>
           </div>
           {recruitmentStatus !== "open" && (
-            <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-2 text-[8.5px] font-semibold uppercase leading-none text-white">{recruitmentStatus}</span>
+            <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-2 text-[8.5px] font-semibold uppercase leading-none text-white">{readableChoice(recruitmentStatus)}</span>
           )}
         </div>
         <div className="absolute inset-x-0 bottom-0 px-3 pb-3">
@@ -193,6 +260,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
         </div>
       </div>
 
+      {/* Discover parity: same lifecycle + metrics + context + notes + links, then Timeline-only plan detail. */}
       <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
         <ActivityLifecycleTimeline
           targetStart={windowStart}
@@ -209,17 +277,10 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
         />
 
         <div className="mt-1.5 grid grid-cols-2 gap-1 text-[9.5px]">
-          {[
-            ["Participants", `${participantCount} / ${participantLimit}`],
-            ["Visibility", visibilityLabel],
-            ["Recurrence", recurrence],
-            ["Plan budget", targetBudget === null ? `${money(committedBudget)} TL` : `${money(targetBudget)} TL`],
-          ].map(([label, value]) => (
-            <div key={label} className="min-w-0 rounded-xl border border-gray-100 bg-white px-2 py-1.5 shadow-sm">
-              <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">{label}</p>
-              <p className="mt-0.5 truncate font-semibold capitalize text-gray-950">{value}</p>
-            </div>
-          ))}
+          <DetailMetric label="Katılımcılar" value={`${participantCount} / ${participantLimit}`} />
+          <DetailMetric label="Görünürlük" value={visibilityLabel} />
+          <DetailMetric label="Tekrar" value={readableChoice(recurrence)} />
+          <DetailMetric label="Plan bütçesi" value={targetBudget === null ? `${money(committedBudget)} TL` : `${money(targetBudget)} TL`} />
         </div>
 
         {(primaryCommunity || locationLabel) && (
@@ -229,15 +290,9 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
                 href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
                 className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
               >
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: primaryCommunity.accentColor }}
-                />
+                <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: primaryCommunity.accentColor }} />
                 <span className="truncate">{primaryCommunity.name}</span>
-                {communities.length > 1 && (
-                  <span className="shrink-0 text-green-600">+{communities.length - 1}</span>
-                )}
+                {communities.length > 1 && <span className="shrink-0 text-green-600">+{communities.length - 1}</span>}
               </Link>
             )}
 
@@ -250,27 +305,58 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
           </div>
         )}
 
-        <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
-          <span className="inline-flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
-            <span className="truncate">{relationshipLabel}</span>
-          </span>
-          <span className="inline-flex min-w-0 flex-1 items-center rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium capitalize text-gray-600">
-            <span className="truncate">Recruitment · {recruitmentStatus}</span>
-          </span>
+        <div className="mt-1.5 rounded-xl border border-gray-100 bg-gray-50/70 p-2">
+          <p className="text-[7.5px] font-bold uppercase tracking-[0.08em] text-gray-400">Plan / Aktivite detayları</p>
+          <div className="mt-1 grid grid-cols-2 gap-1 text-[9.5px]">
+            <DetailMetric label="Rolün" value={relationshipLabel} />
+            <DetailMetric label="Katılım" value={attendanceLabel ?? "Aktif"} />
+            <DetailMetric label="Katılım alımı" value={readableChoice(recruitmentStatus)} />
+            <DetailMetric label="Bekleyen istek" value={String(requestCount)} />
+            <DetailMetric label="Host" value={hostName} />
+            <DetailMetric label="Konum görünürlüğü" value={readableChoice(activityLocationVisibility)} />
+            <DetailMetric label="Konum kapsamı" value={readableChoice(locationScope)} />
+            <DetailMetric label="Aktivite" value={canonicalActivityName} />
+          </div>
         </div>
 
-        {attendanceLabel && (
-          <div className={`mt-1.5 rounded-lg px-2 py-1.5 text-[9.5px] font-bold ${attendanceClasses}`}>
-            Katılım durumun · {attendanceLabel}
+        <div className="mt-1.5 grid gap-1">
+          <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
+            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Aktivite konumu</p>
+            <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{locationLabel || "Belirlenmedi"}</p>
           </div>
-        )}
+          <div className="rounded-lg border border-gray-100 bg-white px-2 py-1.5">
+            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-gray-400">Buluşma noktası</p>
+            <p className="mt-0.5 text-[9.5px] font-semibold leading-4 text-gray-800">{meetingLabel}</p>
+          </div>
+          {scheduleNotes?.trim() && (
+            <div className="rounded-lg border border-amber-100 bg-amber-50/60 px-2 py-1.5">
+              <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-amber-600">Planlama notu</p>
+              <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-4 text-gray-700">{scheduleNotes.trim()}</p>
+            </div>
+          )}
+        </div>
 
         {notes?.trim() && (
           <div className="mt-1.5 rounded-lg border border-blue-100 bg-blue-50/60 px-2 py-1.5">
-            <p className="text-[7.5px] font-semibold uppercase text-blue-500">Note</p>
-            <p className="mt-0.5 line-clamp-3 text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
+            <p className="text-[7.5px] font-semibold uppercase tracking-[0.05em] text-blue-500">Not</p>
+            <p className="mt-0.5 whitespace-pre-wrap text-[9.5px] leading-3.5 text-gray-700">{notes.trim()}</p>
           </div>
         )}
+
+        <div className="mt-1.5 rounded-lg border border-gray-100 bg-white px-2 py-1.5 text-[8.5px] text-gray-500">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{relatedLinks.length} bağlantı</span>
+            {createdLabel && <span>Oluşturuldu · {createdLabel}</span>}
+            {plannedLabel && <span>Planlandı · {plannedLabel}</span>}
+          </div>
+          {sourceIntentLabel && (
+            sourceIntentHref ? (
+              <Link href={sourceIntentHref} className="mt-1 block truncate font-semibold text-emerald-700 hover:text-emerald-800">Kaynak Niyet · {sourceIntentLabel} ↗</Link>
+            ) : (
+              <p className="mt-1 truncate font-semibold text-emerald-700">Kaynak Niyet · {sourceIntentLabel}</p>
+            )
+          )}
+        </div>
 
         {relatedLinks.length > 0 && (
           <div className="mt-1.5">
@@ -278,7 +364,6 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
           </div>
         )}
 
-        {requestCount > 0 && <p className="mt-1.5 rounded-lg bg-green-50 px-2 py-1.5 text-[9px] font-semibold text-green-700">{requestCount} request{requestCount === 1 ? "" : "s"} waiting</p>}
         {detailExtra}
       </div>
     </>
