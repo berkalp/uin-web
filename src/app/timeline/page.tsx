@@ -48,9 +48,10 @@ import {
   dedupeActivityPeople,
   type ActivityPersonView,
 } from "../../utils/activityPeople";
-import ProfileIntentReactions, {
-  type ProfileIntentReactionItem,
+import type {
+  ProfileIntentReactionItem,
 } from "../../components/profile/ProfileIntentReactions";
+import TimelineInterestsPanel from "../../components/timeline/TimelineInterestsPanel";
 import PublicProfessionalCredentialsPanel from "../../components/professionals/PublicProfessionalCredentialsPanel";
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
 import PublicBadgesPanel from "../../components/badges/PublicBadgesPanel";
@@ -517,22 +518,6 @@ const TIMELINE_TABS: TimelineTab[] = [
       "bg-red-600 text-white shadow-sm",
   },
 ];
-
-const INTENT_TIMELINE_TABS =
-  TIMELINE_TABS.filter(
-    (tab) =>
-      tab.key === "open" ||
-      tab.key === "full" ||
-      tab.key === "closed"
-  );
-
-const ACTIVITY_TIMELINE_TABS =
-  TIMELINE_TABS.filter(
-    (tab) =>
-      tab.key !== "open" &&
-      tab.key !== "full" &&
-      tab.key !== "closed"
-  );
 
 const INTENT_LIFECYCLE_VIEWS =
   new Set<TimelineView>([
@@ -4459,15 +4444,21 @@ export default async function TimelinePage({
     };
   }
 
-  const recentHistoryItems = [
-    ...recentTimelineHistory.map((entry) => ({
-      kind: "timeline" as const,
-      key: `timeline-${entry.kind}-${
-        entry.kind === "plan" ? entry.plan.id : entry.intent.id
-      }`,
-      sortDate: getTimelineHistorySortDate(entry),
-      entry,
-    })),
+  const recentCompletedItems = recentTimelineHistory
+    .filter((entry) => getEntryView(entry) === "completed")
+    .slice(0, 4);
+
+  const recentExpiredCancelledItems = [
+    ...recentTimelineHistory
+      .filter((entry) => getEntryView(entry) === "cancelled")
+      .map((entry) => ({
+        kind: "timeline" as const,
+        key: `timeline-${entry.kind}-${
+          entry.kind === "plan" ? entry.plan.id : entry.intent.id
+        }`,
+        sortDate: getTimelineHistorySortDate(entry),
+        entry,
+      })),
     ...expiredActivities.map((item) => ({
       kind: "expired" as const,
       key: `expired-${item.item_type}-${item.item_id}`,
@@ -4583,75 +4574,6 @@ export default async function TimelinePage({
           connections={profileConnections}
           family={profileFamily}
         />
-
-        <nav
-          aria-label="Timeline filters"
-          className="mt-8 flex flex-col gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm"
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-green-700">
-              Intents
-            </span>
-            {INTENT_TIMELINE_TABS.map((tab) => {
-              const isActive = selectedView === tab.key;
-
-              return (
-                <Link
-                  key={tab.key}
-                  href={buildTimelineHref({ view: tab.key, page: 1 })}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                    isActive
-                      ? "border-gray-950 bg-gray-950 text-white"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-800"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                      isActive
-                        ? "bg-white/15 text-white"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {viewCounts[tab.key]}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
-            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">
-              Activities
-            </span>
-            {ACTIVITY_TIMELINE_TABS.map((tab) => {
-              const isActive = selectedView === tab.key;
-
-              return (
-                <Link
-                  key={tab.key}
-                  href={buildTimelineHref({ view: tab.key, page: 1 })}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                    isActive
-                      ? "border-gray-950 bg-gray-950 text-white"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-800"
-                  }`}
-                >
-                  <span>{tab.label}</span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
-                      isActive
-                        ? "bg-white/15 text-white"
-                        : "bg-gray-100 text-gray-500"
-                    }`}
-                  >
-                    {viewCounts[tab.key]}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
 
         <IntentResolutionPanel items={intentResolutionItems} />
 
@@ -4899,77 +4821,48 @@ export default async function TimelinePage({
           )}
         </section>
 
-        {selectedView === "open" && recentHistoryItems.length > 0 && (
+        {selectedView === "open" && recentCompletedItems.length > 0 && (
           <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
-                  Yakın geçmiş
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-700">
+                  YAKIN GEÇMİŞ
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-gray-950">
-                  Yaşananlar ve süresi dolanlar
+                  Yaşananlar
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Son tamamlanan, süresi dolan veya iptal edilen kayıtlar da normal Niyet / Aktivite kartı düzeninde kalır.
+                  Tamamladığın Aktiviteler burada kalır. Süresi dolan ve iptal edilen kayıtlar bu alana karışmaz.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  href="/timeline?view=completed"
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-purple-200 hover:text-purple-700"
-                >
-                  Completed
-                </Link>
-                <Link
-                  href="/timeline?view=expired"
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:text-orange-700"
-                >
-                  Expired
-                </Link>
-              </div>
+              <Link
+                href="/timeline?view=completed"
+                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-purple-200 hover:text-purple-700"
+              >
+                Tüm yaşananlar
+              </Link>
             </div>
 
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              {recentHistoryItems.map((historyItem) =>
-                historyItem.kind === "timeline" ? (
-                  <div key={historyItem.key} className="min-w-0">
-                    {renderTimelineEntry(historyItem.entry)}
-                  </div>
-                ) : (
-                  <div key={historyItem.key} className="min-w-0">
-                    <ExpiredActivityCard
-                      item={historyItem.item}
-                      ownedIntentById={ownedIntentById}
-                      planById={planById}
-                      sportCoverContextByIntentId={sportCoverContextByIntentId}
-                      privatePresentationByPlanId={privatePresentationByPlanId}
-                    />
-                  </div>
-                )
-              )}
+              {recentCompletedItems.map((entry) => (
+                <div
+                  key={`completed-${entry.kind}-${
+                    entry.kind === "plan" ? entry.plan.id : entry.intent.id
+                  }`}
+                  className="min-w-0"
+                >
+                  {renderTimelineEntry(entry)}
+                </div>
+              ))}
             </div>
           </section>
         )}
 
         {selectedView === "open" && (
           <>
-            <ProfileIntentReactions
-              eyebrow="Saved Intents"
-              title="Your private Intent shortlist"
-              description="Only you can see the Intents you saved for later. The cards stay in their full profile presentation instead of being compressed into shortcuts."
-              items={profileSavedReactionItems}
-              emptyTitle="No Saved Intents yet"
-              emptyDescription="Use the heart button in Discover or an Intent page to keep something here privately."
-              privateSection
-            />
-
-            <ProfileIntentReactions
-              eyebrow="Pawed Intents"
-              title={`${personalProfile.full_name ?? personalProfile.username ?? "Your"} recommendations`}
-              description="Intents you recommended with a Paw stay visible here as full cards, with the same visual information used on the profile."
-              items={profilePawedReactionItems}
-              emptyTitle="No Pawed Intents yet"
-              emptyDescription="Paw an Intent to recommend it without sending a join request."
+            <TimelineInterestsPanel
+              pawedItems={profilePawedReactionItems}
+              savedItems={profileSavedReactionItems}
             />
 
             <PublicProfessionalCredentialsPanel
@@ -5038,6 +4931,58 @@ export default async function TimelinePage({
                 ))}
               </div>
             </section>
+
+            {recentExpiredCancelledItems.length > 0 && (
+              <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+                <div className="flex flex-wrap items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-gray-500">
+                      ARŞİV
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black text-gray-950">
+                      Süresi dolanlar ve iptal edilenler
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Gerçekleşmeyen kayıtlar Yaşananlar bölümüne karışmadan burada, Timeline’ın en altında tutulur.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href="/timeline?view=expired"
+                      className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-orange-200 hover:text-orange-700"
+                    >
+                      Süresi dolanlar
+                    </Link>
+                    <Link
+                      href="/timeline?view=cancelled"
+                      className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 transition hover:border-red-200 hover:text-red-700"
+                    >
+                      İptal edilenler
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                  {recentExpiredCancelledItems.map((historyItem) =>
+                    historyItem.kind === "timeline" ? (
+                      <div key={historyItem.key} className="min-w-0">
+                        {renderTimelineEntry(historyItem.entry)}
+                      </div>
+                    ) : (
+                      <div key={historyItem.key} className="min-w-0">
+                        <ExpiredActivityCard
+                          item={historyItem.item}
+                          ownedIntentById={ownedIntentById}
+                          planById={planById}
+                          sportCoverContextByIntentId={sportCoverContextByIntentId}
+                          privatePresentationByPlanId={privatePresentationByPlanId}
+                        />
+                      </div>
+                    )
+                  )}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
