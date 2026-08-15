@@ -17,7 +17,7 @@ export default async function NotificationReminderSettingsPage() {
           <h1 className="mt-2 text-3xl font-black text-gray-950">Zamanı gelmeden UIN seni geri çağırsın</h1>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">Activity ve Tohumlar için varsayılan kişisel hatırlatmalarını seç. Her kayıt içinde ayrıca farklılaştırabilirsin.</p>
         </div>
-        <Link href="/timeline" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700">← Niyet Yolculuğu</Link>
+        <Link href="/timeline" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700"><img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" /></Link>
       </div>
 
       <div className="mt-8">

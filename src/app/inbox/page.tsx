@@ -197,7 +197,7 @@ export default async function InboxPage() {
             href="/timeline"
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
 
           <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white">

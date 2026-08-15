@@ -384,7 +384,7 @@ export default async function IntentInvitationsPage({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <Link href="/timeline" className="text-sm font-semibold text-gray-600 transition hover:text-green-700">
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
           <Link href="/requests" className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700">
             Match Requests

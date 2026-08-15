@@ -575,7 +575,7 @@ export default async function AdminIntentsPage({
                 href="/timeline"
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
               >
-                Timeline
+                <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
               </Link>
             </div>
           </div>

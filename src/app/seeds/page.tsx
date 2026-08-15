@@ -168,9 +168,10 @@ export default async function SeedsPage() {
 
                 <Link
                   href="/timeline"
-                  className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
+                  aria-label="UIN Timeline"
+                  className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-3 transition hover:border-green-400"
                 >
-                  ← Timeline
+                  <img src="/uin-logo.png" alt="uin? logo" className="h-8 w-auto" />
                 </Link>
               </div>
             </div>

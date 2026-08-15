@@ -314,9 +314,10 @@ export default async function CommunitiesPage({
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/timeline"
-                className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
+                aria-label="UIN Timeline"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 transition hover:border-green-400"
               >
-                ← Timeline
+                <img src="/uin-logo.png" alt="uin? logo" className="h-8 w-auto" />
               </Link>
 
               <Link

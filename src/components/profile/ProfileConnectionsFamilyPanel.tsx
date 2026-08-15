@@ -7,9 +7,12 @@ import {
   type RawFamilyData,
 } from "@/utils/profileConnections";
 
+type ConnectionMetricKey = "followers" | "following" | "friends";
+
 type Props = {
   connections: ProfileConnectionSummary | null;
   family: RawFamilyData;
+  metricLinks?: Partial<Record<ConnectionMetricKey, string>>;
 };
 
 function getInitial(value: string) {
@@ -19,6 +22,7 @@ function getInitial(value: string) {
 export default function ProfileConnectionsFamilyPanel({
   connections,
   family,
+  metricLinks,
 }: Props) {
   const followers = toNumberOrNull(connections?.followers_count);
   const following = toNumberOrNull(connections?.following_count);
@@ -27,10 +31,14 @@ export default function ProfileConnectionsFamilyPanel({
   const mutualFriends = connections?.mutual_friends ?? [];
   const familyMembers = getNormalizedFamilyMembers(family);
 
-  const metrics = [
-    { label: "Followers", value: followers },
-    { label: "Following", value: following },
-    { label: "Friends", value: friends },
+  const metrics: Array<{
+    key: ConnectionMetricKey;
+    label: string;
+    value: number | null;
+  }> = [
+    { key: "followers", label: "Followers", value: followers },
+    { key: "following", label: "Following", value: following },
+    { key: "friends", label: "Friends", value: friends },
   ].filter((metric) => metric.value !== null);
 
   if (
@@ -124,20 +132,36 @@ export default function ProfileConnectionsFamilyPanel({
 
           {metrics.length > 0 && (
             <div className="mt-3 grid grid-cols-3 gap-3">
-              {metrics.map((metric) => (
-                <div
-                  key={metric.label}
-                  className="min-w-0 rounded-2xl bg-gray-50 px-3 py-3"
-                >
-                  <p className="text-xl font-black text-gray-950">
-                    {metric.value?.toLocaleString("en-US")}
-                  </p>
+              {metrics.map((metric) => {
+                const metricClassName =
+                  "block min-w-0 rounded-2xl bg-gray-50 px-3 py-3 text-left transition";
+                const content = (
+                  <>
+                    <p className="text-xl font-black text-gray-950">
+                      {metric.value?.toLocaleString("en-US")}
+                    </p>
 
-                  <p className="mt-1 truncate text-xs font-semibold text-gray-500">
-                    {metric.label}
-                  </p>
-                </div>
-              ))}
+                    <p className="mt-1 truncate text-xs font-semibold text-gray-500">
+                      {metric.label}
+                    </p>
+                  </>
+                );
+                const href = metricLinks?.[metric.key];
+
+                return href ? (
+                  <Link
+                    key={metric.key}
+                    href={href}
+                    className={`${metricClassName} hover:bg-green-50 hover:ring-1 hover:ring-green-200`}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div key={metric.key} className={metricClassName}>
+                    {content}
+                  </div>
+                );
+              })}
             </div>
           )}
 

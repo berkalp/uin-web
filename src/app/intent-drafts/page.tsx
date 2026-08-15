@@ -146,7 +146,7 @@ export default async function IntentDraftsPage() {
                 href="/timeline"
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
               >
-                Timeline
+                <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
               </Link>
             </div>
           </div>

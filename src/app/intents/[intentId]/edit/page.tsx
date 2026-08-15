@@ -331,7 +331,7 @@ export default async function EditIntentPage({
             href="/timeline"
             className="inline-flex rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-500 hover:text-green-700"
           >
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
         </div>
 

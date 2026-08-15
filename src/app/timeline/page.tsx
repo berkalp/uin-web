@@ -53,6 +53,8 @@ import ProfileIntentReactions, {
 } from "../../components/profile/ProfileIntentReactions";
 import PublicProfessionalCredentialsPanel from "../../components/professionals/PublicProfessionalCredentialsPanel";
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
+import PublicBadgesPanel from "../../components/badges/PublicBadgesPanel";
+import PublicReputationPanel from "../../components/reputation/PublicReputationPanel";
 import type {
   ProfileConnectionSummary,
   RawFamilyData,
@@ -2208,7 +2210,7 @@ export default async function TimelinePage({
     ),
 
     supabase.rpc("get_my_seeds_v2", {
-      p_status: "active",
+      p_status: null,
     }),
 
     supabase
@@ -2528,12 +2530,19 @@ export default async function TimelinePage({
     (profileDisplayOrderResult.data ?? []) as TimelineProfileDisplayOrderRow[];
 
   const profileOrderMap = {
+    seed: new Map<string, number>(),
     credential: new Map<string, number>(),
     badge: new Map<string, number>(),
   };
 
   for (const row of profileDisplayOrderRows) {
-    if (row.item_type !== "credential" && row.item_type !== "badge") continue;
+    if (
+      row.item_type !== "seed" &&
+      row.item_type !== "credential" &&
+      row.item_type !== "badge"
+    ) {
+      continue;
+    }
     const order = Number(row.sort_order);
     if (Number.isFinite(order)) {
       profileOrderMap[row.item_type].set(row.item_id, order);
@@ -2614,16 +2623,13 @@ export default async function TimelinePage({
     : 0;
 
 
-  const growingSeeds = ((activeSeedResult.data ?? []) as SeedRecord[])
-    .filter((seed) => seed.status === "active")
-    .sort((first, second) => {
-      if (first.target_date && second.target_date) {
-        return first.target_date.localeCompare(second.target_date);
-      }
-      if (first.target_date) return -1;
-      if (second.target_date) return 1;
-      return (second.updated_at ?? "").localeCompare(first.updated_at ?? "");
-    });
+  const timelineSeeds = sortProfileItems(
+    ((activeSeedResult.data ?? []) as SeedRecord[]).filter(
+      (seed) => seed.status !== "archived"
+    ),
+    (seed) => seed.seed_id,
+    profileOrderMap.seed
+  );
 
   const ownedIntents =
     (
@@ -4573,102 +4579,77 @@ export default async function TimelinePage({
             createdAt: personalProfile.created_at,
           }}
           identityVerified={profileProfessional.identity_verified}
-          badges={profileBadges}
-          reputation={profileReputation}
           presence={profilePresence}
           connections={profileConnections}
           family={profileFamily}
         />
 
-        <nav className="mt-10 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,2.35fr)] lg:gap-0">
-            <section className="lg:pr-6">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-                  Intents
-                </p>
+        <nav
+          aria-label="Timeline filters"
+          className="mt-8 flex flex-col gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-green-700">
+              Intents
+            </span>
+            {INTENT_TIMELINE_TABS.map((tab) => {
+              const isActive = selectedView === tab.key;
 
-                <span className="text-xs text-gray-400">
-                  Before a Shared Plan
-                </span>
-              </div>
+              return (
+                <Link
+                  key={tab.key}
+                  href={buildTimelineHref({ view: tab.key, page: 1 })}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    isActive
+                      ? "border-gray-950 bg-gray-950 text-white"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-800"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      isActive
+                        ? "bg-white/15 text-white"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {viewCounts[tab.key]}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {INTENT_TIMELINE_TABS.map(
-                  (tab) => {
-                    const isActive =
-                      selectedView ===
-                      tab.key;
+          <div className="flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+            <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-blue-700">
+              Activities
+            </span>
+            {ACTIVITY_TIMELINE_TABS.map((tab) => {
+              const isActive = selectedView === tab.key;
 
-                    return (
-                      <Link
-                        key={tab.key}
-                        href={`/timeline?view=${tab.key}`}
-                        className={`flex min-h-20 min-w-0 flex-col items-center justify-center rounded-2xl px-2 py-3 text-center transition ${
-                          isActive
-                            ? tab.activeClasses
-                            : tab.inactiveClasses
-                        }`}
-                      >
-                        <span className="text-xs font-semibold uppercase tracking-wide">
-                          {tab.label}
-                        </span>
-
-                        <span className="mt-1.5 text-xl font-bold">
-                          {viewCounts[
-                            tab.key
-                          ]}
-                        </span>
-                      </Link>
-                    );
-                  }
-                )}
-              </div>
-            </section>
-
-            <section className="border-t border-gray-100 pt-6 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-              <div className="mb-3 flex items-center justify-between gap-3 px-1">
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                  Activities
-                </p>
-
-                <span className="text-xs text-gray-400">
-                  Shared, scheduled and completed
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-                {ACTIVITY_TIMELINE_TABS.map(
-                  (tab) => {
-                    const isActive =
-                      selectedView ===
-                      tab.key;
-
-                    return (
-                      <Link
-                        key={tab.key}
-                        href={`/timeline?view=${tab.key}`}
-                        className={`flex min-h-20 min-w-0 flex-col items-center justify-center rounded-2xl px-1.5 py-3 text-center transition ${
-                          isActive
-                            ? tab.activeClasses
-                            : tab.inactiveClasses
-                        }`}
-                      >
-                        <span className="break-words text-[10px] font-semibold uppercase leading-3.5 tracking-[0.04em]">
-                          {tab.label}
-                        </span>
-
-                        <span className="mt-1.5 text-xl font-bold">
-                          {viewCounts[
-                            tab.key
-                          ]}
-                        </span>
-                      </Link>
-                    );
-                  }
-                )}
-              </div>
-            </section>
+              return (
+                <Link
+                  key={tab.key}
+                  href={buildTimelineHref({ view: tab.key, page: 1 })}
+                  className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                    isActive
+                      ? "border-gray-950 bg-gray-950 text-white"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-800"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+                      isActive
+                        ? "bg-white/15 text-white"
+                        : "bg-gray-100 text-gray-500"
+                    }`}
+                  >
+                    {viewCounts[tab.key]}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </nav>
 
@@ -4698,7 +4679,7 @@ export default async function TimelinePage({
               </section>
             )}
 
-            <TimelineGrowingSeeds seeds={growingSeeds} />
+            <TimelineGrowingSeeds seeds={timelineSeeds} />
           </>
         )}
 
@@ -5000,6 +4981,63 @@ export default async function TimelinePage({
               memberships={profileCommunityMemberships}
               isOwner
             />
+
+            <PublicBadgesPanel
+              badges={profileBadges}
+              isOwner
+            />
+
+            <PublicReputationPanel
+              summary={profileReputation}
+            />
+
+            <section className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Private Archive
+              </p>
+
+              <h2 className="mt-2 text-xl font-bold text-gray-950">
+                Hidden from public view
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                Closed, expired and cancelled records remain visible only to you.
+              </p>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {[
+                  {
+                    label: "Closed",
+                    value: viewCounts.closed,
+                    href: "/timeline?view=closed",
+                  },
+                  {
+                    label: "Expired",
+                    value: viewCounts.expired,
+                    href: "/timeline?view=expired",
+                  },
+                  {
+                    label: "Cancelled",
+                    value: viewCounts.cancelled,
+                    href: "/timeline?view=cancelled",
+                  },
+                ].map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="rounded-2xl bg-gray-50 p-4 transition hover:bg-gray-100"
+                  >
+                    <p className="text-xs text-gray-400">
+                      {item.label}
+                    </p>
+
+                    <p className="mt-2 text-2xl font-bold text-gray-950">
+                      {item.value}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </section>
           </>
         )}
       </div>

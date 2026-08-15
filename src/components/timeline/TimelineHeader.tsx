@@ -204,22 +204,22 @@ export default function TimelineHeader({
   isAdmin,
 }: TimelineHeaderProps) {
   return (
-    <header className="relative z-[60] text-center">
-      <img
-        src="/uin-logo.png"
-        alt="uin? logo"
-        className="mx-auto h-16 w-auto"
-      />
-
-      <h1 className="mt-7 text-4xl font-bold text-gray-900">
-        Your Intent Timeline
-      </h1>
-
-
+    <header className="relative z-[60]">
       <nav
         aria-label="Primary navigation"
-        className="relative z-[70] mt-7 flex flex-wrap items-center justify-center gap-3"
+        className="relative z-[70] flex flex-wrap items-center justify-center gap-3"
       >
+        <Link
+          href="/timeline"
+          aria-label="UIN Timeline"
+          className="mr-1 flex h-12 items-center rounded-xl px-2 transition hover:bg-white"
+        >
+          <img
+            src="/uin-logo.png"
+            alt="uin? logo"
+            className="h-11 w-auto"
+          />
+        </Link>
         <details className="group relative z-[90]">
           <summary className="flex h-12 cursor-pointer list-none items-center gap-2 rounded-xl bg-green-600 px-5 font-semibold text-white shadow-sm transition hover:bg-green-700 [&::-webkit-details-marker]:hidden">
             Create

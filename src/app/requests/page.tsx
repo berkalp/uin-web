@@ -982,11 +982,13 @@ export default async function RequestsPage() {
     <main className="min-h-screen bg-gray-50 px-6 py-10">
       <div className="mx-auto max-w-5xl">
         <header className="text-center">
-          <img
-            src="/uin-logo.png"
-            alt="uin? logo"
-            className="mx-auto h-16 w-auto"
-          />
+          <Link href="/timeline" aria-label="UIN Timeline" className="inline-flex">
+            <img
+              src="/uin-logo.png"
+              alt="uin? logo"
+              className="mx-auto h-16 w-auto"
+            />
+          </Link>
 
           <h1 className="mt-8 text-4xl font-bold text-gray-900">
             Intent Requests
@@ -1003,7 +1005,7 @@ export default async function RequestsPage() {
               href="/timeline"
               className="rounded-xl border border-gray-200 bg-white px-5 py-3 font-semibold text-gray-700 transition hover:border-green-500"
             >
-              Timeline
+              <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
             </Link>
 
             <Link

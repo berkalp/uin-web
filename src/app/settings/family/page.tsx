@@ -51,7 +51,7 @@ export default async function FamilySettingsPage() {
             href="/timeline"
             className="text-sm font-semibold text-gray-600"
           >
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
 
           <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
@@ -116,7 +116,7 @@ export default async function FamilySettingsPage() {
             href="/timeline"
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
 
           <Link

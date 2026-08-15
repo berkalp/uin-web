@@ -171,7 +171,7 @@ export default async function FriendsPage() {
           href="/timeline"
           className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
         >
-          ← Back to Timeline
+          <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
         </Link>
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">

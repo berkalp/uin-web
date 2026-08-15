@@ -247,7 +247,7 @@ export default async function NotificationsPage({
             href="/timeline"
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to Timeline
+            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
 
           <MarkAllNotificationsReadButton disabled={unreadCount === 0} />

@@ -59,7 +59,7 @@ export default async function PrivacySettingsPage() {
           href="/timeline"
           className="text-sm font-bold text-gray-600 transition hover:text-green-700"
         >
-          ← Back to Timeline
+          <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
         </Link>
 
         <header className="mt-8">

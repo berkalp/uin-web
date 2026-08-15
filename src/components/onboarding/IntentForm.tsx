@@ -1176,11 +1176,13 @@ export default function IntentForm({
         )}
 
         <div className="text-center">
-          <img
-            src="/uin-logo.png"
-            alt="uin? logo"
-            className="mx-auto h-20 w-auto"
-          />
+          <Link href="/timeline" aria-label="UIN Timeline" className="inline-flex">
+            <img
+              src="/uin-logo.png"
+              alt="uin? logo"
+              className="mx-auto h-20 w-auto"
+            />
+          </Link>
 
           <h1 className="mt-8 text-3xl font-bold text-gray-900">
             What is your Intent?
