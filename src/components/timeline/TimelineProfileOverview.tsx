@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import TimelineProfileDetailsShell from "@/components/timeline/TimelineProfileDetailsShell";
+
 import ProfileConnectionsFamilyPanel from "@/components/profile/ProfileConnectionsFamilyPanel";
 import ProfilePresencePanel from "@/components/profile/ProfilePresencePanel";
 import VerificationMark from "@/components/professionals/VerificationMark";
@@ -67,7 +69,8 @@ export default function TimelineProfileOverview({
     : null;
 
   return (
-    <section className="mt-8 overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
+    <TimelineProfileDetailsShell>
+      <section className="overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
       <div
         className={`grid overflow-hidden bg-gray-950 ${
           youtubeEmbedUrl ? "md:grid-cols-2" : ""
@@ -204,6 +207,7 @@ export default function TimelineProfileOverview({
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </TimelineProfileDetailsShell>
   );
 }
