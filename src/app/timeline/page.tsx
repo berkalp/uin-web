@@ -4,6 +4,7 @@ import EyeIcon from "../../components/ui/EyeIcon";
 import { redirect } from "next/navigation";
 
 import TimelineHeader from "../../components/timeline/TimelineHeader";
+import TimelineProfileOverview from "../../components/timeline/TimelineProfileOverview";
 import TimelineGrowingSeeds from "../../components/timeline/TimelineGrowingSeeds";
 import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPresentation";
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
@@ -47,6 +48,23 @@ import {
   dedupeActivityPeople,
   type ActivityPersonView,
 } from "../../utils/activityPeople";
+import ProfileIntentReactions, {
+  type ProfileIntentReactionItem,
+} from "../../components/profile/ProfileIntentReactions";
+import PublicProfessionalCredentialsPanel from "../../components/professionals/PublicProfessionalCredentialsPanel";
+import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
+import type {
+  ProfileConnectionSummary,
+  RawFamilyData,
+} from "../../utils/profileConnections";
+import type {
+  ProfileEmbed,
+  ProfileLink,
+} from "../../utils/profilePresence";
+import type { PublicBadge } from "../../utils/badges";
+import type { PublicCommunityMembership } from "../../utils/communityMemberships";
+import type { PublicProfessionalStatus } from "../../utils/professionals";
+import type { PublicReputationSummary } from "../../utils/reputation";
 
 type IntentStatus =
   | "active"
@@ -120,6 +138,37 @@ type TimelineProfile = {
   full_name: string | null;
   username: string | null;
   avatar_url: string | null;
+};
+
+type TimelineProfileIntentReactionRow = {
+  reaction_id: string;
+  reaction_type: "save" | "paw";
+  reaction_visibility: "only_me" | "friends" | "everyone";
+  reacted_at: string;
+  intent_id: string;
+  resource_id: string;
+  plan_id: string | null;
+  owner_user_id: string;
+  owner_full_name: string | null;
+  owner_username: string | null;
+  owner_avatar_url: string | null;
+  activity_name: string;
+  activity_cover_url: string | null;
+  category_name: string;
+  category_cover_url: string | null;
+  city: string | null;
+  district: string | null;
+  start_date: string;
+  end_date: string;
+  scheduled_start: string | null;
+  scheduled_end: string | null;
+  lifecycle_status: string;
+};
+
+type TimelineProfileDisplayOrderRow = {
+  item_type: "seed" | "credential" | "badge";
+  item_id: string;
+  sort_order: number | string;
 };
 
 type TimelineIntent = {
@@ -2142,7 +2191,7 @@ export default async function TimelinePage({
     supabase
       .from("profiles")
       .select(
-        "full_name, username, avatar_url"
+        "full_name, username, avatar_url, cover_url, bio, city, country, created_at"
       )
       .eq(
         "id",
@@ -2375,12 +2424,186 @@ export default async function TimelinePage({
         full_name: null,
         username: null,
         avatar_url: null,
+        cover_url: null,
+        bio: null,
+        city: null,
+        country: null,
+        created_at: user.created_at ?? null,
       }
     ) as {
       full_name: string | null;
       username: string | null;
       avatar_url: string | null;
+      cover_url: string | null;
+      bio: string | null;
+      city: string | null;
+      country: string | null;
+      created_at: string | null;
     };
+
+  const [
+    profileFamilyResult,
+    profileConnectionResult,
+    profilePresenceResult,
+    profileReputationResult,
+    profileProfessionalResult,
+    profileBadgeResult,
+    profileCommunityMembershipResult,
+    profileSavedReactionResult,
+    profilePawedReactionResult,
+    profileDisplayOrderResult,
+  ] = await Promise.all([
+    supabase.rpc("get_visible_profile_family", {
+      p_profile_user_id: currentUserId,
+    }),
+    supabase.rpc("get_profile_connection_summary", {
+      p_profile_user_id: currentUserId,
+    }),
+    supabase.rpc("get_public_profile_presence", {
+      p_profile_user_id: currentUserId,
+    }),
+    supabase.rpc("get_public_reputation_summary", {
+      p_user_id: currentUserId,
+    }),
+    personalProfile.username
+      ? supabase.rpc("get_public_profile_professional_status", {
+          p_username: personalProfile.username,
+        })
+      : Promise.resolve({ data: null, error: null }),
+    supabase.rpc("get_public_profile_badges", {
+      p_user_id: currentUserId,
+    }),
+    supabase.rpc("get_public_profile_community_memberships", {
+      p_user_id: currentUserId,
+    }),
+    supabase.rpc("get_profile_visible_intent_reactions", {
+      p_profile_user_id: currentUserId,
+      p_reaction_type: "save",
+      p_limit: 60,
+      p_offset: 0,
+    }),
+    supabase.rpc("get_profile_visible_intent_reactions", {
+      p_profile_user_id: currentUserId,
+      p_reaction_type: "paw",
+      p_limit: 60,
+      p_offset: 0,
+    }),
+    supabase.rpc("get_visible_profile_display_order", {
+      p_profile_user_id: currentUserId,
+    }),
+  ]);
+
+  if (profileFamilyResult.error) {
+    console.warn("Timeline profile family query failed:", profileFamilyResult.error.message);
+  }
+  if (profileConnectionResult.error) {
+    console.warn("Timeline profile connections query failed:", profileConnectionResult.error.message);
+  }
+  if (profilePresenceResult.error) {
+    console.warn("Timeline profile presence query failed:", profilePresenceResult.error.message);
+  }
+  if (profileReputationResult.error) {
+    console.warn("Timeline profile reputation query failed:", profileReputationResult.error.message);
+  }
+  if (profileProfessionalResult.error) {
+    console.warn("Timeline professional status query failed:", profileProfessionalResult.error.message);
+  }
+  if (profileBadgeResult.error) {
+    console.warn("Timeline badge query failed:", profileBadgeResult.error.message);
+  }
+  if (profileCommunityMembershipResult.error) {
+    console.warn("Timeline Community membership query failed:", profileCommunityMembershipResult.error.message);
+  }
+  if (profileSavedReactionResult.error) {
+    console.warn("Timeline Saved Intent query failed:", profileSavedReactionResult.error.message);
+  }
+  if (profilePawedReactionResult.error) {
+    console.warn("Timeline Pawed Intent query failed:", profilePawedReactionResult.error.message);
+  }
+  if (profileDisplayOrderResult.error) {
+    console.warn("Timeline profile display-order query failed:", profileDisplayOrderResult.error.message);
+  }
+
+  const profileDisplayOrderRows =
+    (profileDisplayOrderResult.data ?? []) as TimelineProfileDisplayOrderRow[];
+
+  const profileOrderMap = {
+    credential: new Map<string, number>(),
+    badge: new Map<string, number>(),
+  };
+
+  for (const row of profileDisplayOrderRows) {
+    if (row.item_type !== "credential" && row.item_type !== "badge") continue;
+    const order = Number(row.sort_order);
+    if (Number.isFinite(order)) {
+      profileOrderMap[row.item_type].set(row.item_id, order);
+    }
+  }
+
+  function sortProfileItems<Item>(
+    items: Item[],
+    getId: (item: Item) => string,
+    orderMap: Map<string, number>
+  ) {
+    const fallbackStart = 1_000_000;
+    return [...items].sort((left, right) => {
+      const leftOrder = orderMap.get(getId(left));
+      const rightOrder = orderMap.get(getId(right));
+      return (leftOrder ?? fallbackStart) - (rightOrder ?? fallbackStart);
+    });
+  }
+
+  const profileFamily =
+    (profileFamilyResult.data ?? { children: [], relationships: [] }) as RawFamilyData;
+  const profileConnections =
+    (profileConnectionResult.data ?? null) as ProfileConnectionSummary | null;
+  const profilePresence =
+    (profilePresenceResult.data ?? { links: [], embeds: [] }) as {
+      links: ProfileLink[];
+      embeds: ProfileEmbed[];
+    };
+  const profileReputation =
+    (profileReputationResult.data ?? {
+      is_managed_minor: false,
+      participation_count: 0,
+      global: null,
+      role_summaries: [],
+      contexts: [],
+    }) as PublicReputationSummary;
+
+  const rawProfileProfessional =
+    (profileProfessionalResult.data ?? {
+      identity_verified: false,
+      credentials: [],
+    }) as PublicProfessionalStatus;
+  const profileProfessional: PublicProfessionalStatus = {
+    ...rawProfileProfessional,
+    credentials: sortProfileItems(
+      rawProfileProfessional.credentials,
+      (credential) => credential.id,
+      profileOrderMap.credential
+    ),
+  };
+
+  const profileBadges = sortProfileItems(
+    (profileBadgeResult.data ?? []) as PublicBadge[],
+    (badge) => badge.id,
+    profileOrderMap.badge
+  );
+  const profileCommunityMemberships =
+    (profileCommunityMembershipResult.data ?? []) as PublicCommunityMembership[];
+
+  const profileSavedReactionRows =
+    (profileSavedReactionResult.data ?? []) as TimelineProfileIntentReactionRow[];
+  const profilePawedReactionRows =
+    (profilePawedReactionResult.data ?? []) as TimelineProfileIntentReactionRow[];
+  const profileReactionIntentIds = Array.from(
+    new Set(
+      [...profileSavedReactionRows, ...profilePawedReactionRows].map(
+        (row) => row.intent_id
+      )
+    )
+  );
 
   const isAdmin =
     adminResult.data ===
@@ -2590,6 +2813,7 @@ export default async function TimelinePage({
             intent.id
         ),
         ...expiredSourceIntentIds,
+        ...profileReactionIntentIds,
         ...plans.flatMap(
           (plan) =>
             (
@@ -2709,6 +2933,7 @@ export default async function TimelinePage({
               intent.id
           ),
           ...expiredSourceIntentIds,
+          ...profileReactionIntentIds,
           ...plans.flatMap(
             (plan) =>
               (
@@ -2810,6 +3035,45 @@ export default async function TimelinePage({
     }
   );
 
+
+  function toProfileReactionItem(
+    row: TimelineProfileIntentReactionRow
+  ): ProfileIntentReactionItem {
+    const sportContext = sportCoverContextByIntentId.get(row.intent_id) ?? null;
+
+    return {
+      reactionId: row.reaction_id,
+      reactionType: row.reaction_type,
+      reactionVisibility: row.reaction_visibility,
+      reactedAt: row.reacted_at,
+      intentId: row.intent_id,
+      resourceId: row.resource_id,
+      planId: row.plan_id,
+      ownerUserId: row.owner_user_id,
+      ownerFullName: row.owner_full_name,
+      ownerUsername: row.owner_username,
+      ownerAvatarUrl: row.owner_avatar_url,
+      activityName: row.activity_name,
+      activityCoverUrl: row.activity_cover_url,
+      categoryName: row.category_name,
+      categoryCoverUrl: row.category_cover_url,
+      city: row.city,
+      district: row.district,
+      startDate: row.start_date,
+      endDate: row.end_date,
+      scheduledStart: row.scheduled_start,
+      scheduledEnd: row.scheduled_end,
+      lifecycleStatus: row.lifecycle_status,
+      sportName: sportContext?.sport_name ?? null,
+      contextCoverUrl: sportContext?.context_cover_url ?? null,
+      communities: intentCommunitiesByIntentId.get(row.intent_id) ?? [],
+    };
+  }
+
+  const profileSavedReactionItems =
+    profileSavedReactionRows.map(toProfileReactionItem);
+  const profilePawedReactionItems =
+    profilePawedReactionRows.map(toProfileReactionItem);
 
   const requests =
     (
@@ -4297,6 +4561,25 @@ export default async function TimelinePage({
           }
         />
 
+        <TimelineProfileOverview
+          profile={{
+            fullName: personalProfile.full_name,
+            username: personalProfile.username,
+            avatarUrl: personalProfile.avatar_url,
+            coverUrl: personalProfile.cover_url,
+            bio: personalProfile.bio,
+            city: personalProfile.city,
+            country: personalProfile.country,
+            createdAt: personalProfile.created_at,
+          }}
+          identityVerified={profileProfessional.identity_verified}
+          badges={profileBadges}
+          reputation={profileReputation}
+          presence={profilePresence}
+          connections={profileConnections}
+          family={profileFamily}
+        />
+
         <nav className="mt-10 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
           <div className="grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,2.35fr)] lg:gap-0">
             <section className="lg:pr-6">
@@ -4685,6 +4968,39 @@ export default async function TimelinePage({
               )}
             </div>
           </section>
+        )}
+
+        {selectedView === "open" && (
+          <>
+            <ProfileIntentReactions
+              eyebrow="Saved Intents"
+              title="Your private Intent shortlist"
+              description="Only you can see the Intents you saved for later. The cards stay in their full profile presentation instead of being compressed into shortcuts."
+              items={profileSavedReactionItems}
+              emptyTitle="No Saved Intents yet"
+              emptyDescription="Use the heart button in Discover or an Intent page to keep something here privately."
+              privateSection
+            />
+
+            <ProfileIntentReactions
+              eyebrow="Pawed Intents"
+              title={`${personalProfile.full_name ?? personalProfile.username ?? "Your"} recommendations`}
+              description="Intents you recommended with a Paw stay visible here as full cards, with the same visual information used on the profile."
+              items={profilePawedReactionItems}
+              emptyTitle="No Pawed Intents yet"
+              emptyDescription="Paw an Intent to recommend it without sending a join request."
+            />
+
+            <PublicProfessionalCredentialsPanel
+              status={profileProfessional}
+              isOwner
+            />
+
+            <PublicCommunityMembershipsPanel
+              memberships={profileCommunityMemberships}
+              isOwner
+            />
+          </>
         )}
       </div>
     </main>
