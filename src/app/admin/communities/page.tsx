@@ -66,7 +66,7 @@ export default async function AdminCommunitiesPage({
       "get_admin_community_catalogue"
     ),
     supabase.rpc(
-      "get_admin_community_cover_images"
+      "get_admin_community_cover_presentations"
     ),
     supabase.rpc(
       "get_admin_community_access_catalogue"
@@ -114,10 +114,12 @@ export default async function AdminCommunitiesPage({
         (coverResponse.data ?? []) as Array<{
           community_id: string;
           cover_image_url: string | null;
+          cover_position_x: number | string;
+          cover_position_y: number | string;
         }>
       ).map((row) => [
         row.community_id,
-        row.cover_image_url,
+        row,
       ])
     );
 
@@ -144,9 +146,11 @@ export default async function AdminCommunitiesPage({
         (community) => ({
           ...community,
           cover_image_url:
-            coverByCommunityId.get(
-              community.id
-            ) ?? null,
+            coverByCommunityId.get(community.id)?.cover_image_url ?? null,
+          cover_position_x:
+            Number(coverByCommunityId.get(community.id)?.cover_position_x ?? 50),
+          cover_position_y:
+            Number(coverByCommunityId.get(community.id)?.cover_position_y ?? 50),
           intent_access_mode:
             accessByCommunityId.get(
               community.id

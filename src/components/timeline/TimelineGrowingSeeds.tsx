@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import SeedCard from "@/components/seeds/SeedCard";
 import { setMyProfileDisplayOrder } from "@/services/profileDisplayOrderService";
 import { supabase } from "@/utils/supabase/client";
-import { toSeedCount, type SeedRecord } from "@/utils/seeds";
+import { isSeedPastDue, toSeedCount, type SeedRecord } from "@/utils/seeds";
 
 type TimelineGrowingSeedsProps = {
   seeds: SeedRecord[];
@@ -32,10 +32,10 @@ const FILTERS: Array<{
 ];
 
 function matchesFilter(seed: SeedRecord, filter: SeedFilter) {
-  if (filter === "growing") return seed.status === "active";
+  if (filter === "growing") return seed.status === "active" && !isSeedPastDue(seed);
   if (filter === "completed") return seed.status === "completed";
   if (filter === "intent") return toSeedCount(seed.grown_intent_count) > 0;
-  return seed.status !== "archived";
+  return seed.status !== "archived" && !isSeedPastDue(seed);
 }
 
 export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProps) {
@@ -56,8 +56,8 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
 
   const counts = useMemo(
     () => ({
-      all: orderedSeeds.filter((seed) => seed.status !== "archived").length,
-      growing: orderedSeeds.filter((seed) => seed.status === "active").length,
+      all: orderedSeeds.filter((seed) => seed.status !== "archived" && !isSeedPastDue(seed)).length,
+      growing: orderedSeeds.filter((seed) => seed.status === "active" && !isSeedPastDue(seed)).length,
       completed: orderedSeeds.filter((seed) => seed.status === "completed").length,
       intent: orderedSeeds.filter(
         (seed) => seed.status !== "archived" && toSeedCount(seed.grown_intent_count) > 0

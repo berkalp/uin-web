@@ -295,13 +295,51 @@ export function getSeedCompletionLabel(seed: {
   }).format(date);
 }
 
-export function getSeedStatusLabel(status: SeedStatus) {
+export type SeedDashboardStatus = SeedStatus | "past_due";
+
+export function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function isSeedPastDue(
+  seed: Pick<SeedRecord, "status" | "target_date">,
+  today = getLocalDateKey()
+) {
+  return (
+    seed.status === "active" &&
+    Boolean(seed.target_date) &&
+    String(seed.target_date) < today
+  );
+}
+
+export function getSeedDashboardStatus(
+  seed: Pick<SeedRecord, "status" | "target_date">,
+  today = getLocalDateKey()
+): SeedDashboardStatus {
+  if (isSeedPastDue(seed, today)) {
+    return "past_due";
+  }
+
+  return seed.status;
+}
+
+export function getSeedStatusLabel(
+  status: SeedStatus,
+  pastDue = false
+) {
+  if (pastDue) {
+    return "Süresi geçti";
+  }
+
   if (status === "completed") {
     return "Completed";
   }
 
   if (status === "archived") {
-    return "Archived";
+    return "Kapanmış";
   }
 
   return "Growing";

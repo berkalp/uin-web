@@ -11,6 +11,7 @@ import { deleteSeed, saveSeed, setSeedStatus } from "@/services/seedService";
 import {
   SEED_LINK_KIND_OPTIONS,
   SEED_VISIBILITY_OPTIONS,
+  isSeedPastDue,
   type SeedLink,
   type SeedLinkKind,
   type SeedRecord,
@@ -109,6 +110,7 @@ export default function SeedForm({
   const effectiveSubtitle = catalogueIdentity?.creator_name ?? subtitle;
   const effectiveCoverUrl = catalogueIdentity?.cover_url ?? coverUrl;
   const grownIntentCount = Number(seed?.grown_intent_count ?? 0);
+  const isPastDue = seed ? isSeedPastDue(seed) : false;
   const canDelete = isEditing && grownIntentCount === 0;
 
   const linksAreValid = links.every(
@@ -255,7 +257,7 @@ export default function SeedForm({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {isEditing && seed && seed.status !== "archived" && (
+            {isEditing && seed && seed.status !== "archived" && !isPastDue && (
               <Link
                 href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
                 className="rounded-lg bg-green-600 px-3 py-2 text-xs font-black text-white transition hover:bg-green-700"
@@ -441,16 +443,25 @@ export default function SeedForm({
           </label>
 
           {isEditing && seed && (
-            <div className="md:col-span-2">
-              <ReminderSettingsPanel
-                resourceType="seed"
-                resourceId={seed.seed_id}
-                title="Hedef & hatırlatıcılar"
-                hasTarget={Boolean(targetDate)}
-                targetLabel={targetDate ? `Hedef · ${targetDate}` : "Henüz hedef tarihi yok."}
-                compact
-              />
-            </div>
+            <details className="group md:col-span-2 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/40">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-amber-900 [&::-webkit-details-marker]:hidden">
+                <span>⏱ Hatırlatıcılar</span>
+                <span className="flex items-center gap-2 text-xs font-semibold text-amber-700">
+                  {targetDate ? `Hedef · ${targetDate}` : "Hedef tarihi yok"}
+                  <span className="transition group-open:rotate-180" aria-hidden="true">⌄</span>
+                </span>
+              </summary>
+              <div className="border-t border-amber-200 p-3">
+                <ReminderSettingsPanel
+                  resourceType="seed"
+                  resourceId={seed.seed_id}
+                  title="Hedef & hatırlatıcılar"
+                  hasTarget={Boolean(targetDate)}
+                  targetLabel={targetDate ? `Hedef · ${targetDate}` : "Henüz hedef tarihi yok."}
+                  compact
+                />
+              </div>
+            </details>
           )}
 
           <label className="md:col-span-2">
@@ -726,7 +737,7 @@ export default function SeedForm({
                 />
               )}
               {seed.status === "active" && (
-                <button type="button" onClick={() => changeSeedStatus("archived")} disabled={isSaving || isChangingStatus} className="inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:border-gray-400 disabled:opacity-50">Arşivle</button>
+                <button type="button" onClick={() => changeSeedStatus("archived")} disabled={isSaving || isChangingStatus} className="inline-flex h-8 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-semibold text-gray-700 hover:border-gray-400 disabled:opacity-50">Kapat</button>
               )}
               {(seed.status === "completed" || seed.status === "archived") && seed.origin !== "retrospective" && (
                 <button type="button" onClick={() => changeSeedStatus("active")} disabled={isSaving || isChangingStatus} className="inline-flex h-8 items-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-semibold text-green-800 hover:bg-green-100 disabled:opacity-50">Yeniden Aç</button>
@@ -735,8 +746,13 @@ export default function SeedForm({
                 <button type="button" onClick={removeSeed} disabled={isSaving || isDeleting || isChangingStatus} className="ml-auto inline-flex h-8 items-center rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50">{isDeleting ? "Siliniyor..." : "Sil"}</button>
               )}
             </div>
+            {isPastDue && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-5 text-amber-800">
+                Hedef tarihi geçti. Tohum “Süresi geçti” alanında. Hedef tarihini bugüne veya geleceğe taşıyıp kaydettiğinde otomatik olarak yeniden Active olur.
+              </p>
+            )}
             {!canDelete && grownIntentCount > 0 && (
-              <p className="mt-3 text-xs leading-5 text-amber-800">Bu Tohum bir Niyete dönüştüğü için geçmiş bağlantısı korunur; silmek yerine arşivleyebilirsin.</p>
+              <p className="mt-3 text-xs leading-5 text-amber-800">Bu Tohum bir Niyete dönüştüğü için geçmiş bağlantısı korunur; silmek yerine kapatabilirsin.</p>
             )}
           </section>
         )}

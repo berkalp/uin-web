@@ -5,8 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import SeedCard from "@/components/seeds/SeedCard";
 import {
+  getLocalDateKey,
+  getSeedDashboardStatus,
+  type SeedDashboardStatus,
   type SeedRecord,
-  type SeedStatus,
 } from "@/utils/seeds";
 
 type SeedWithReminder = SeedRecord & {
@@ -20,12 +22,13 @@ type SeedDashboardProps = {
 };
 
 const tabs: Array<{
-  value: SeedStatus;
+  value: SeedDashboardStatus;
   label: string;
 }> = [
   { value: "active", label: "Active" },
+  { value: "past_due", label: "Süresi geçti" },
   { value: "completed", label: "Completed" },
-  { value: "archived", label: "Archived" },
+  { value: "archived", label: "Kapananlar" },
 ];
 
 const PAGE_SIZE = 6;
@@ -34,22 +37,25 @@ export default function SeedDashboard({
   seeds,
   isAuthenticated,
 }: SeedDashboardProps) {
-  const [activeTab, setActiveTab] = useState<SeedStatus>("active");
+  const [activeTab, setActiveTab] = useState<SeedDashboardStatus>("active");
   const [scope, setScope] = useState<"all" | "library" | "private">("all");
   const [page, setPage] = useState(0);
 
+  const today = useMemo(() => getLocalDateKey(), []);
+
   const counts = useMemo(
     () => ({
-      active: seeds.filter((seed) => seed.status === "active").length,
-      completed: seeds.filter((seed) => seed.status === "completed").length,
-      archived: seeds.filter((seed) => seed.status === "archived").length,
+      active: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "active").length,
+      past_due: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "past_due").length,
+      completed: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "completed").length,
+      archived: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "archived").length,
     }),
-    [seeds]
+    [seeds, today]
   );
 
   const visibleSeeds = useMemo(
-    () => seeds.filter((seed) => seed.status === activeTab && (scope === "all" || seed.seed_scope === scope)),
-    [activeTab, scope, seeds]
+    () => seeds.filter((seed) => getSeedDashboardStatus(seed, today) === activeTab && (scope === "all" || seed.seed_scope === scope)),
+    [activeTab, scope, seeds, today]
   );
 
   const pageCount = Math.max(1, Math.ceil(visibleSeeds.length / PAGE_SIZE));
@@ -66,7 +72,7 @@ export default function SeedDashboard({
   return (
     <>
       <section className="mt-6 rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           {tabs.map((tab) => {
             const selected = activeTab === tab.value;
 
@@ -136,10 +142,18 @@ export default function SeedDashboard({
             🌱
           </div>
           <h2 className="mt-5 text-2xl font-black text-gray-950">
-            No {activeTab} Seeds
+            {activeTab === "past_due"
+              ? "Süresi geçen Tohum yok"
+              : activeTab === "archived"
+                ? "Kapanan Tohum yok"
+                : `No ${activeTab} Seeds`}
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-gray-500">
-            Seeds are personal possibilities. They do not need a date, location or participant list until you decide to turn them into something social.
+            {activeTab === "past_due"
+              ? "Hedef tarihi geçen ama tamamlanmamış Tohumlar burada kalır. Tarihini bugüne veya geleceğe taşıdığında otomatik olarak yeniden Active olur."
+              : activeTab === "archived"
+                ? "Vazgeçtiğin, iptal ettiğin veya artık peşinden gitmediğin Tohumlar burada tutulur."
+                : "Seeds are personal possibilities. They do not need a date, location or participant list until you decide to turn them into something social."}
           </p>
           {activeTab === "active" && (
             <Link

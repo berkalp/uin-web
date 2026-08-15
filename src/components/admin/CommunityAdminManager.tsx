@@ -54,6 +54,8 @@ type AdminCommunity = {
   icon_key: CommunityIconKey;
   icon_url: string | null;
   cover_image_url: string | null;
+  cover_position_x: number;
+  cover_position_y: number;
   accent_color: string;
   secondary_color: string | null;
   scope_type: CommunityScopeType;
@@ -114,6 +116,8 @@ type CommunityFormState = {
   iconKey: CommunityIconKey;
   iconUrl: string;
   coverImageUrl: string;
+  coverPositionX: number;
+  coverPositionY: number;
   accentColor: string;
   secondaryColor: string;
   scopeType: CommunityScopeType;
@@ -130,6 +134,8 @@ const EMPTY_FORM: CommunityFormState = {
   iconKey: "people",
   iconUrl: "",
   coverImageUrl: "",
+  coverPositionX: 50,
+  coverPositionY: 50,
   accentColor:
     DEFAULT_COMMUNITY_ACCENT,
   secondaryColor: "",
@@ -154,6 +160,10 @@ function communityToFormState(
       community.icon_url ?? "",
     coverImageUrl:
       community.cover_image_url ?? "",
+    coverPositionX:
+      Number(community.cover_position_x ?? 50),
+    coverPositionY:
+      Number(community.cover_position_y ?? 50),
     accentColor:
       normalizeCommunityAccent(
         community.accent_color
@@ -179,6 +189,8 @@ function CommunityAdminBrandHero({
   iconKey,
   iconUrl,
   coverImageUrl,
+  coverPositionX,
+  coverPositionY,
   accentColor: rawAccentColor,
   secondaryColor: rawSecondaryColor,
   badge,
@@ -188,6 +200,8 @@ function CommunityAdminBrandHero({
   iconKey: CommunityIconKey;
   iconUrl: string | null;
   coverImageUrl: string | null;
+  coverPositionX: number;
+  coverPositionY: number;
   accentColor: string;
   secondaryColor: string | null;
   badge?: string | null;
@@ -242,7 +256,7 @@ function CommunityAdminBrandHero({
             className="absolute inset-0 -z-30 bg-cover bg-center transition-transform duration-500 group-hover/hero:scale-[1.045]"
             style={{
               backgroundImage: `url(${JSON.stringify(coverImageUrl)})`,
-              backgroundPosition: "center",
+              backgroundPosition: `${coverPositionX}% ${coverPositionY}%`,
               backgroundSize: "cover",
               filter: "brightness(0.82) contrast(1.08) saturate(1.12)",
             }}
@@ -1232,7 +1246,7 @@ export default function CommunityAdminManager({
         "get_admin_community_catalogue"
       ),
       supabase.rpc(
-        "get_admin_community_cover_images"
+        "get_admin_community_cover_presentations"
       ),
       supabase.rpc(
         "get_admin_community_access_catalogue"
@@ -1267,10 +1281,12 @@ export default function CommunityAdminManager({
           (coverResponse.data ?? []) as Array<{
             community_id: string;
             cover_image_url: string | null;
+            cover_position_x: number | string;
+            cover_position_y: number | string;
           }>
         ).map((row) => [
           row.community_id,
-          row.cover_image_url,
+          row,
         ])
       );
 
@@ -1298,9 +1314,11 @@ export default function CommunityAdminManager({
           (community) => ({
             ...community,
             cover_image_url:
-              coverByCommunityId.get(
-                community.id
-              ) ?? null,
+              coverByCommunityId.get(community.id)?.cover_image_url ?? null,
+            cover_position_x:
+              Number(coverByCommunityId.get(community.id)?.cover_position_x ?? 50),
+            cover_position_y:
+              Number(coverByCommunityId.get(community.id)?.cover_position_y ?? 50),
             intent_access_mode:
               accessByCommunityId.get(
                 community.id
@@ -1493,13 +1511,17 @@ export default function CommunityAdminManager({
 
       const coverResponse =
         await supabase.rpc(
-          "admin_set_community_cover_image",
+          "admin_set_community_cover_presentation",
           {
             p_community_id:
               savedCommunityId,
             p_cover_image_url:
               form.coverImageUrl ||
               null,
+            p_cover_position_x:
+              form.coverPositionX,
+            p_cover_position_y:
+              form.coverPositionY,
           }
         );
 
@@ -1791,8 +1813,62 @@ export default function CommunityAdminManager({
             />
 
             <span className="text-xs leading-5 text-gray-500">
-              The image appears here and in the catalogue with the same Community cover treatment used on /communities.
+              The image appears here and in the Community detail hero. Use the controls below to choose which part stays in frame.
             </span>
+
+            <div className="mt-2 grid gap-3 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
+              <label className="flex flex-col gap-2">
+                <span className="flex items-center justify-between text-xs font-semibold text-gray-600">
+                  Horizontal position
+                  <strong className="text-gray-950">{form.coverPositionX}%</strong>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={form.coverPositionX}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      coverPositionX: Number(event.target.value),
+                    }))
+                  }
+                />
+              </label>
+
+              <label className="flex flex-col gap-2">
+                <span className="flex items-center justify-between text-xs font-semibold text-gray-600">
+                  Vertical position
+                  <strong className="text-gray-950">{form.coverPositionY}%</strong>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={form.coverPositionY}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      coverPositionY: Number(event.target.value),
+                    }))
+                  }
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((current) => ({
+                    ...current,
+                    coverPositionX: 50,
+                    coverPositionY: 50,
+                  }))
+                }
+                className="w-fit rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-600 hover:border-indigo-300 hover:text-indigo-700 sm:col-span-2"
+              >
+                Center image
+              </button>
+            </div>
           </label>
 
           <label className="flex flex-col gap-2 md:col-span-2">
@@ -2112,6 +2188,8 @@ export default function CommunityAdminManager({
             iconKey={form.iconKey}
             iconUrl={form.iconUrl || null}
             coverImageUrl={form.coverImageUrl || null}
+            coverPositionX={form.coverPositionX}
+            coverPositionY={form.coverPositionY}
             accentColor={accentColor}
             secondaryColor={secondaryColor}
             badge={
@@ -2248,6 +2326,8 @@ export default function CommunityAdminManager({
                       iconKey={community.icon_key}
                       iconUrl={community.icon_url}
                       coverImageUrl={community.cover_image_url}
+                      coverPositionX={community.cover_position_x}
+                      coverPositionY={community.cover_position_y}
                       accentColor={communityAccent}
                       secondaryColor={communitySecondary}
                       badge={community.status}

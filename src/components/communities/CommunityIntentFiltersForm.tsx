@@ -18,6 +18,13 @@ type FilterActivity = {
   category_id: string;
   name: string;
   category_name: string;
+  requires_sport?: boolean;
+};
+
+type FilterSport = {
+  id: string;
+  name: string;
+  slug?: string | null;
 };
 
 export type CommunityEligibilityFilter =
@@ -30,12 +37,14 @@ type CommunityIntentFiltersFormProps = {
   query: string;
   categoryId: string;
   activityId: string;
+  sportId: string;
   locationId: string;
   startDate: string;
   endDate: string;
   eligibility: CommunityEligibilityFilter;
   categories: FilterCategory[];
   activities: FilterActivity[];
+  sports: FilterSport[];
   locations: HierarchicalLocation[];
 };
 
@@ -44,16 +53,19 @@ export default function CommunityIntentFiltersForm({
   query,
   categoryId,
   activityId,
+  sportId,
   locationId,
   startDate,
   endDate,
   eligibility,
   categories,
   activities,
+  sports,
   locations,
 }: CommunityIntentFiltersFormProps) {
   const [selectedCategoryId, setSelectedCategoryId] = useState(categoryId);
   const [selectedActivityId, setSelectedActivityId] = useState(activityId);
+  const [selectedSportId, setSelectedSportId] = useState(sportId);
   const [selectedLocationId, setSelectedLocationId] = useState(locationId);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -61,6 +73,7 @@ export default function CommunityIntentFiltersForm({
     query.trim(),
     categoryId,
     activityId,
+    sportId,
     locationId,
     startDate,
     endDate,
@@ -76,6 +89,8 @@ export default function CommunityIntentFiltersForm({
         : activities,
     [activities, selectedCategoryId]
   );
+
+  const hasSports = sports.length > 0;
 
   function handleCategoryChange(nextCategoryId: string) {
     setSelectedCategoryId(nextCategoryId);
@@ -136,7 +151,7 @@ export default function CommunityIntentFiltersForm({
           isExpanded ? "" : "hidden"
         }`}
       >
-        <label className="xl:col-span-5">
+        <label className={hasSports ? "xl:col-span-4" : "xl:col-span-5"}>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Search
           </span>
@@ -150,7 +165,7 @@ export default function CommunityIntentFiltersForm({
           />
         </label>
 
-        <label className="xl:col-span-3">
+        <label className={hasSports ? "xl:col-span-2" : "xl:col-span-3"}>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Category
           </span>
@@ -171,7 +186,7 @@ export default function CommunityIntentFiltersForm({
           </select>
         </label>
 
-        <label className="xl:col-span-4">
+        <label className={hasSports ? "xl:col-span-3" : "xl:col-span-4"}>
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Activity
           </span>
@@ -196,6 +211,28 @@ export default function CommunityIntentFiltersForm({
           </select>
         </label>
 
+        {hasSports && (
+          <label className="xl:col-span-3">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+              Sport
+            </span>
+
+            <select
+              name="sport"
+              value={selectedSportId}
+              onChange={(event) => setSelectedSportId(event.target.value)}
+              className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-emerald-500"
+            >
+              <option value="">All sports</option>
+              {sports.map((sport) => (
+                <option key={sport.id} value={sport.id}>
+                  {sport.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <label className="xl:col-span-3">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
             Participant Eligibility
@@ -214,7 +251,7 @@ export default function CommunityIntentFiltersForm({
           </select>
         </label>
 
-        <div className="xl:col-span-4 xl:self-end">
+        <div className="xl:col-span-4">
           <LocationHierarchySelect
             locations={locations}
             value={selectedLocationId}

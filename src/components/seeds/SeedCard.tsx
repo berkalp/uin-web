@@ -6,7 +6,9 @@ import { useState } from "react";
 import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
 import {
+  getSeedStatusLabel,
   getSeedVisibilityLabel,
+  isSeedPastDue,
   toSeedCount,
   type SeedRecord,
   type SeedStatus,
@@ -32,7 +34,8 @@ function formatDate(value: string | null) {
   }).format(date);
 }
 
-function statusTone(status: SeedStatus) {
+function statusTone(status: SeedStatus, pastDue: boolean) {
+  if (pastDue) return "bg-amber-100 text-amber-800";
   if (status === "completed") return "bg-purple-100 text-purple-800";
   if (status === "archived") return "bg-gray-200 text-gray-700";
   return "bg-green-100 text-green-800";
@@ -115,7 +118,8 @@ export default function SeedCard({
   const journalCount = toSeedCount(seed.journal_count);
   const isPrivateSeed = seed.seed_scope === "private";
   const isTimeline = variant === "timeline";
-
+  const pastDue = isSeedPastDue(seed);
+  const statusLabel = getSeedStatusLabel(seed.status, pastDue);
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -130,8 +134,8 @@ export default function SeedCard({
           <span className="max-w-[68%] truncate rounded-full border border-white/15 bg-black/45 px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white backdrop-blur">
             {seed.seed_type_icon} {seed.seed_type_name}
           </span>
-          <span className={`rounded-full px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide ${statusTone(seed.status)}`}>
-            {seed.status === "active" ? "Growing" : seed.status === "completed" ? "Done" : "Archived"}
+          <span className={`rounded-full px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide ${statusTone(seed.status, pastDue)}`}>
+            {pastDue ? "Süresi geçti" : seed.status === "active" ? "Growing" : seed.status === "completed" ? "Done" : "Kapanmış"}
           </span>
         </div>
 
@@ -166,7 +170,9 @@ export default function SeedCard({
               <span className="truncate">{seed.target_date ? formatDate(seed.target_date) : "—"}</span>
             </div>
             <div className="flex h-8 items-center bg-white px-2" title="Kalan süre">
-              {seed.target_date && seed.status === "active" ? (
+              {pastDue ? (
+                <span className="text-[9px] font-bold text-amber-700">Süresi geçti</span>
+              ) : seed.target_date && seed.status === "active" ? (
                 <SeedLiveCountdown
                   targetDate={seed.target_date}
                   targetTime={reminderTargetTime}
@@ -182,7 +188,7 @@ export default function SeedCard({
           <div className="min-h-[65px] rounded-xl border border-gray-100 bg-gray-50 p-2 text-[9px] text-gray-600">
             <div className="grid grid-cols-2 gap-2">
               <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Görünürlük</p><p className="mt-0.5 font-semibold text-gray-900">{isPrivateSeed ? "Yalnızca sen" : getSeedVisibilityLabel(seed.visibility)}</p></div>
-              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Durum</p><p className="mt-0.5 font-semibold text-gray-900">{seed.status === "active" ? "Growing" : seed.status === "completed" ? "Completed" : "Archived"}</p></div>
+              <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Durum</p><p className="mt-0.5 font-semibold text-gray-900">{statusLabel}</p></div>
               <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Günlük</p><p className="mt-0.5 font-semibold text-gray-900">{journalCount}</p></div>
               <div><p className="text-[8.5px] font-bold uppercase text-gray-400">Büyüyen Niyet</p><p className="mt-0.5 font-semibold text-gray-900">{grownIntentCount}</p></div>
             </div>

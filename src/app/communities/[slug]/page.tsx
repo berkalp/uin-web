@@ -137,6 +137,21 @@ type DiscoveryActivity = {
   category_id: string;
   name: string;
   category_name: string;
+  requires_sport?: boolean;
+};
+
+type CommunitySportOption = {
+  sport_id: string;
+  sport_name: string;
+  sport_slug: string | null;
+  default_cover_url: string | null;
+  sort_order: number | string;
+};
+
+type CommunityCoverPresentation = {
+  cover_image_url: string | null;
+  cover_position_x: number | string;
+  cover_position_y: number | string;
 };
 
 type DiscoveryFilters = {
@@ -228,6 +243,7 @@ function buildCommunityHref({
   query,
   categoryId,
   activityId,
+  sportId,
   locationId,
   startDate,
   endDate,
@@ -239,6 +255,7 @@ function buildCommunityHref({
   query: string;
   categoryId: string;
   activityId: string;
+  sportId: string;
   locationId: string;
   startDate: string;
   endDate: string;
@@ -264,6 +281,13 @@ function buildCommunityHref({
     params.set(
       "activity",
       activityId
+    );
+  }
+
+  if (sportId) {
+    params.set(
+      "sport",
+      sportId
     );
   }
 
@@ -434,6 +458,12 @@ export default async function CommunityPage({
       "activity"
     );
 
+  const sportId =
+    getParam(
+      resolvedSearchParams,
+      "sport"
+    );
+
   const locationId =
     getParam(
       resolvedSearchParams,
@@ -481,6 +511,7 @@ export default async function CommunityPage({
       query ||
       categoryId ||
       activityId ||
+      sportId ||
       locationId ||
       startDate ||
       endDate ||
@@ -530,7 +561,8 @@ export default async function CommunityPage({
   const [
     adminRoleResponse,
     followResponse,
-    coverResponse,
+    coverPresentationResponse,
+    communitySportsResponse,
     metricsResponse,
     accessResponse,
     verifiedMembersResponse,
@@ -550,7 +582,15 @@ export default async function CommunityPage({
     ),
 
     supabase.rpc(
-      "get_community_cover_image",
+      "get_community_cover_presentation",
+      {
+        p_community_id:
+          community.id,
+      }
+    ),
+
+    supabase.rpc(
+      "get_active_sports_for_community",
       {
         p_community_id:
           community.id,
@@ -595,6 +635,8 @@ export default async function CommunityPage({
           categoryId || null,
         p_activity_id:
           activityId || null,
+        p_sport_id:
+          sportId || null,
         p_location_id:
           locationId || null,
         p_start_date:
@@ -622,6 +664,8 @@ export default async function CommunityPage({
           categoryId || null,
         p_activity_id:
           activityId || null,
+        p_sport_id:
+          sportId || null,
         p_location_id:
           locationId || null,
         p_start_date:
@@ -659,10 +703,17 @@ export default async function CommunityPage({
     );
   }
 
-  if (coverResponse.error) {
+  if (coverPresentationResponse.error) {
     console.error(
-      "Community cover failed:",
-      coverResponse.error
+      "Community cover presentation failed:",
+      coverPresentationResponse.error
+    );
+  }
+
+  if (communitySportsResponse.error) {
+    console.warn(
+      "Community sport filters failed:",
+      communitySportsResponse.error
     );
   }
 
@@ -762,6 +813,24 @@ export default async function CommunityPage({
         locations: [],
       }
     ) as DiscoveryFilters;
+
+  const communitySports = communitySportsResponse.error
+    ? []
+    : ((communitySportsResponse.data ?? []) as CommunitySportOption[]);
+
+  const coverPresentation =
+    (Array.isArray(coverPresentationResponse.data)
+      ? coverPresentationResponse.data[0]
+      : coverPresentationResponse.data) as CommunityCoverPresentation | null;
+
+  const coverPositionX = Math.min(
+    100,
+    Math.max(0, Number(coverPresentation?.cover_position_x ?? 50))
+  );
+  const coverPositionY = Math.min(
+    100,
+    Math.max(0, Number(coverPresentation?.cover_position_y ?? 50))
+  );
 
   const rawCurrentIntents =
     (
@@ -1088,10 +1157,9 @@ export default async function CommunityPage({
       : null;
 
   const communityCoverUrl =
-    typeof coverResponse.data ===
-      "string" &&
-    coverResponse.data.trim()
-      ? coverResponse.data.trim()
+    typeof coverPresentation?.cover_image_url === "string" &&
+    coverPresentation.cover_image_url.trim()
+      ? coverPresentation.cover_image_url.trim()
       : null;
 
   const heroCoverUrl =
@@ -1222,6 +1290,7 @@ export default async function CommunityPage({
       query,
       categoryId,
       activityId,
+      sportId,
       locationId,
       startDate,
       endDate,
@@ -1248,7 +1317,7 @@ export default async function CommunityPage({
             href="/communities"
             className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
           >
-            ← Communities
+            ← Community list
           </Link>
 
           <Link
@@ -1274,12 +1343,13 @@ export default async function CommunityPage({
             {heroCoverUrl && (
               <div
                 aria-hidden="true"
-                className="absolute inset-0 -z-20 bg-cover bg-center"
+                className="absolute inset-0 -z-20 bg-cover"
                 style={{
                   backgroundImage:
                     `url(${JSON.stringify(
                       heroCoverUrl
                     )})`,
+                  backgroundPosition: `${coverPositionX}% ${coverPositionY}%`,
                 }}
               />
             )}
@@ -1543,6 +1613,7 @@ export default async function CommunityPage({
           query={query}
           categoryId={categoryId}
           activityId={activityId}
+          sportId={sportId}
           locationId={locationId}
           startDate={startDate}
           endDate={endDate}
@@ -1553,6 +1624,11 @@ export default async function CommunityPage({
           activities={
             filters.activities ?? []
           }
+          sports={communitySports.map((sport) => ({
+            id: sport.sport_id,
+            name: sport.sport_name,
+            slug: sport.sport_slug,
+          }))}
           locations={
             filters.locations ?? []
           }

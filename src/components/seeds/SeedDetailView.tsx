@@ -10,6 +10,7 @@ import {
   getSeedCompletionLabel,
   getSeedStatusLabel,
   getSeedVisibilityLabel,
+  isSeedPastDue,
   type SeedDetailData,
   type SeedJournalAttachment,
   type SeedLink,
@@ -233,7 +234,8 @@ export default function SeedDetailView({
   const updates = journal.filter((entry) => entry.entry_kind === "update");
   const reflectionLinks =
     reflection?.attachments.filter((item) => item.kind === "link") ?? [];
-  const statusLabel = getSeedStatusLabel(seed.status);
+  const pastDue = isSeedPastDue(seed);
+  const statusLabel = getSeedStatusLabel(seed.status, pastDue);
   const isPrivateSeed = seed.seed_scope === "private";
 
   return (
@@ -279,7 +281,7 @@ export default function SeedDetailView({
                   {seed.seed_type_icon} {seed.seed_type_name}
                 </span>
                 <span className={`rounded-full px-2 py-1 text-[9px] font-black uppercase tracking-wide ${
-                  seed.status === "completed" ? "bg-purple-100 text-purple-800" : seed.status === "archived" ? "bg-gray-200 text-gray-700" : "bg-green-100 text-green-800"
+                  pastDue ? "bg-amber-100 text-amber-800" : seed.status === "completed" ? "bg-purple-100 text-purple-800" : seed.status === "archived" ? "bg-gray-200 text-gray-700" : "bg-green-100 text-green-800"
                 }`}>
                   {statusLabel}
                 </span>
@@ -316,8 +318,16 @@ export default function SeedDetailView({
 
               {seed.is_owner && seed.status === "active" && seed.target_date && (
                 <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/60 p-3">
-                  <SeedLiveCountdown targetDate={seed.target_date} targetTime={reminderTargetTime} timezone={reminderTimezone} />
-                  <span className="text-[10px] font-semibold text-amber-800">Hatırlatıcıları Düzenle ekranından yönetebilirsin.</span>
+                  {pastDue ? (
+                    <span className="text-xs font-black text-amber-800">Süresi geçti</span>
+                  ) : (
+                    <SeedLiveCountdown targetDate={seed.target_date} targetTime={reminderTargetTime} timezone={reminderTimezone} />
+                  )}
+                  <span className="text-[10px] font-semibold text-amber-800">
+                    {pastDue
+                      ? "Hedef tarihini güncellersen Tohum yeniden Active olur."
+                      : "Hatırlatıcıları Düzenle ekranından yönetebilirsin."}
+                  </span>
                 </div>
               )}
 
