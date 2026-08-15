@@ -60,6 +60,16 @@ export default function CommunityDiscoveryFiltersForm({
   const [selectedCategoryId, setSelectedCategoryId] = useState(categoryId);
   const [selectedActivityId, setSelectedActivityId] = useState(activityId);
   const [selectedLocationId, setSelectedLocationId] = useState(locationId);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const activeFilterCount = [
+    query.trim(),
+    categoryId,
+    activityId,
+    locationId,
+    eligibility !== "all" ? eligibility : "",
+    sort !== "most_followed" ? sort : "",
+  ].filter(Boolean).length;
 
   const visibleActivities = useMemo(
     () =>
@@ -96,21 +106,44 @@ export default function CommunityDiscoveryFiltersForm({
   }
 
   return (
-    <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700">
-          Search Communities
-        </p>
+    <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-700">
+            Search Communities
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            {isExpanded
+              ? "Refine Community results by context, eligibility and location."
+              : activeFilterCount > 0
+                ? `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}.`
+                : "Open filters only when you need them."}
+          </p>
+        </div>
 
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          Find Community context by name, Activity or location. Date filters live inside each Community, where they filter actual Intents rather than Communities themselves.
-        </p>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+          className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+            isExpanded
+              ? "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+          }`}
+        >
+          <span aria-hidden="true">{isExpanded ? "▴" : "▾"}</span>
+          {isExpanded
+            ? "Hide filters"
+            : `Show filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}`}
+        </button>
       </div>
 
       <form
         method="get"
         action="/communities"
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12"
+        className={`mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12 ${
+          isExpanded ? "" : "hidden"
+        }`}
       >
         <input type="hidden" name="apply" value="1" />
 
@@ -196,22 +229,16 @@ export default function CommunityDiscoveryFiltersForm({
           </select>
         </label>
 
-        <div className="xl:col-span-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Approximate location
-          </span>
-
-          <div className="mt-2">
-            <LocationHierarchySelect
-              locations={locations}
-              value={selectedLocationId}
-              onChange={setSelectedLocationId}
-              name="location"
-              allowEmpty
-              emptyLabel="All locations"
-              variant="filter"
-            />
-          </div>
+        <div className="xl:col-span-4 xl:self-end">
+          <LocationHierarchySelect
+            locations={locations}
+            value={selectedLocationId}
+            onChange={setSelectedLocationId}
+            name="location"
+            allowEmpty
+            emptyLabel="All locations"
+            variant="filter"
+          />
         </div>
 
         <label className="xl:col-span-3">

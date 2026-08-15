@@ -54,6 +54,12 @@ type CommunitySearchParams = Promise<
   Record<string, string | string[] | undefined>
 >;
 
+type CommunityVerifiedMemberCountRow = {
+  community_id: string;
+  verified_member_count: number | string;
+};
+
+
 function getParam(
   searchParams: Record<string, string | string[] | undefined>,
   key: string
@@ -271,8 +277,39 @@ export default async function CommunitiesPage({
     locations: [],
   }) as DiscoveryFilters;
 
-  const communities = (communityResponse.data ?? []) as CommunityDiscoveryRow[];
-  const totalCount = toCount(communities[0]?.total_count);
+  const rawCommunities = (communityResponse.data ?? []) as CommunityDiscoveryRow[];
+
+  let verifiedMemberCountByCommunityId = new Map<string, number>();
+
+  if (rawCommunities.length > 0) {
+    const verifiedMemberCountResponse = await supabase.rpc(
+      "get_public_community_verified_member_counts",
+      {
+        p_community_ids: rawCommunities.map((community) => community.community_id),
+      }
+    );
+
+    if (verifiedMemberCountResponse.error) {
+      console.warn(
+        "Community verified member counts failed; hiding verified member metrics until the public member directory migration is applied:",
+        verifiedMemberCountResponse.error
+      );
+    } else {
+      verifiedMemberCountByCommunityId = new Map(
+        ((verifiedMemberCountResponse.data ?? []) as CommunityVerifiedMemberCountRow[]).map(
+          (row) => [row.community_id, toCount(row.verified_member_count)]
+        )
+      );
+    }
+  }
+
+  const communities = rawCommunities.map((community) => ({
+    ...community,
+    verified_member_count:
+      verifiedMemberCountByCommunityId.get(community.community_id) ?? 0,
+  }));
+
+  const totalCount = toCount(rawCommunities[0]?.total_count);
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const currentHref = (nextPage: number) =>

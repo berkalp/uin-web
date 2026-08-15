@@ -1,20 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import {
-  useMemo,
-  useState,
-} from "react";
+import { useMemo, useState } from "react";
 
 import LocationHierarchySelect from "@/components/locations/LocationHierarchySelect";
 
-import type {
-  ParticipantEligibility,
-} from "@/utils/participationEligibility";
-
-import type {
-  HierarchicalLocation,
-} from "@/utils/location";
+import type { ParticipantEligibility } from "@/utils/participationEligibility";
+import type { HierarchicalLocation } from "@/utils/location";
 
 type FilterCategory = {
   id: string;
@@ -60,82 +52,89 @@ export default function CommunityIntentFiltersForm({
   activities,
   locations,
 }: CommunityIntentFiltersFormProps) {
-  const [
-    selectedCategoryId,
-    setSelectedCategoryId,
-  ] = useState(categoryId);
+  const [selectedCategoryId, setSelectedCategoryId] = useState(categoryId);
+  const [selectedActivityId, setSelectedActivityId] = useState(activityId);
+  const [selectedLocationId, setSelectedLocationId] = useState(locationId);
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  const [
-    selectedActivityId,
-    setSelectedActivityId,
-  ] = useState(activityId);
+  const activeFilterCount = [
+    query.trim(),
+    categoryId,
+    activityId,
+    locationId,
+    startDate,
+    endDate,
+    eligibility !== "eligible" ? eligibility : "",
+  ].filter(Boolean).length;
 
-  const [
-    selectedLocationId,
-    setSelectedLocationId,
-  ] = useState(locationId);
+  const visibleActivities = useMemo(
+    () =>
+      selectedCategoryId
+        ? activities.filter(
+            (activity) => activity.category_id === selectedCategoryId
+          )
+        : activities,
+    [activities, selectedCategoryId]
+  );
 
-  const visibleActivities =
-    useMemo(
-      () =>
-        selectedCategoryId
-          ? activities.filter(
-              (activity) =>
-                activity.category_id ===
-                selectedCategoryId
-            )
-          : activities,
-      [
-        activities,
-        selectedCategoryId,
-      ]
-    );
-
-  function handleCategoryChange(
-    nextCategoryId: string
-  ) {
-    setSelectedCategoryId(
-      nextCategoryId
-    );
+  function handleCategoryChange(nextCategoryId: string) {
+    setSelectedCategoryId(nextCategoryId);
 
     if (!nextCategoryId) {
       return;
     }
 
-    const selectedActivity =
-      activities.find(
-        (activity) =>
-          activity.id ===
-          selectedActivityId
-      );
+    const selectedActivity = activities.find(
+      (activity) => activity.id === selectedActivityId
+    );
 
     if (
       selectedActivity &&
-      selectedActivity.category_id !==
-        nextCategoryId
+      selectedActivity.category_id !== nextCategoryId
     ) {
       setSelectedActivityId("");
     }
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-700">
-          Search within this Community
-        </p>
+    <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-indigo-700">
+            Search within this Community
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            {isExpanded
+              ? "Refine this Community's visible Intents."
+              : activeFilterCount > 0
+                ? `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}.`
+                : "Open filters only when you need them."}
+          </p>
+        </div>
 
-        <p className="mt-2 text-sm leading-6 text-gray-500">
-          Find related Intents by Activity, eligibility, location or date.
-        </p>
+        <button
+          type="button"
+          onClick={() => setIsExpanded((current) => !current)}
+          aria-expanded={isExpanded}
+          className={`inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition ${
+            isExpanded
+              ? "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+          }`}
+        >
+          <span aria-hidden="true">{isExpanded ? "▴" : "▾"}</span>
+          {isExpanded
+            ? "Hide filters"
+            : `Show filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}`}
+        </button>
       </div>
 
       <form
         method="get"
-        action={`/communities/${encodeURIComponent(
-          slug
-        )}`}
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12"
+        action={`/communities/${encodeURIComponent(slug)}`}
+        className={`mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-12 ${
+          isExpanded ? "" : "hidden"
+        }`}
       >
         <label className="xl:col-span-5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
@@ -159,27 +158,16 @@ export default function CommunityIntentFiltersForm({
           <select
             name="category"
             value={selectedCategoryId}
-            onChange={(event) =>
-              handleCategoryChange(
-                event.target.value
-              )
-            }
+            onChange={(event) => handleCategoryChange(event.target.value)}
             className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-blue-500"
           >
-            <option value="">
-              All categories
-            </option>
+            <option value="">All categories</option>
 
-            {categories.map(
-              (category) => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              )
-            )}
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -191,11 +179,7 @@ export default function CommunityIntentFiltersForm({
           <select
             name="activity"
             value={selectedActivityId}
-            onChange={(event) =>
-              setSelectedActivityId(
-                event.target.value
-              )
-            }
+            onChange={(event) => setSelectedActivityId(event.target.value)}
             className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-blue-500"
           >
             <option value="">
@@ -204,16 +188,11 @@ export default function CommunityIntentFiltersForm({
                 : "All Activities"}
             </option>
 
-            {visibleActivities.map(
-              (activity) => (
-                <option
-                  key={activity.id}
-                  value={activity.id}
-                >
-                  {activity.name}
-                </option>
-              )
-            )}
+            {visibleActivities.map((activity) => (
+              <option key={activity.id} value={activity.id}>
+                {activity.name}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -227,40 +206,24 @@ export default function CommunityIntentFiltersForm({
             defaultValue={eligibility}
             className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-fuchsia-500"
           >
-            <option value="eligible">
-              Eligible for me
-            </option>
-            <option value="everyone">
-              Open to Everyone
-            </option>
-            <option value="women_only">
-              Women Only
-            </option>
-            <option value="men_only">
-              Men Only
-            </option>
-            <option value="all">
-              All eligibility rules
-            </option>
+            <option value="eligible">Eligible for me</option>
+            <option value="everyone">Open to Everyone</option>
+            <option value="women_only">Women Only</option>
+            <option value="men_only">Men Only</option>
+            <option value="all">All eligibility rules</option>
           </select>
         </label>
 
-        <div className="xl:col-span-4">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Approximate location
-          </span>
-
-          <div className="mt-2">
-            <LocationHierarchySelect
-              locations={locations}
-              value={selectedLocationId}
-              onChange={setSelectedLocationId}
-              name="location"
-              allowEmpty
-              emptyLabel="All locations"
-              variant="filter"
-            />
-          </div>
+        <div className="xl:col-span-4 xl:self-end">
+          <LocationHierarchySelect
+            locations={locations}
+            value={selectedLocationId}
+            onChange={setSelectedLocationId}
+            name="location"
+            allowEmpty
+            emptyLabel="All locations"
+            variant="filter"
+          />
         </div>
 
         <label className="xl:col-span-2">
@@ -284,6 +247,7 @@ export default function CommunityIntentFiltersForm({
           <input
             type="date"
             name="end"
+            min={startDate || undefined}
             defaultValue={endDate}
             className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-blue-500"
           />
@@ -298,9 +262,7 @@ export default function CommunityIntentFiltersForm({
           </button>
 
           <Link
-            href={`/communities/${encodeURIComponent(
-              slug
-            )}`}
+            href={`/communities/${encodeURIComponent(slug)}`}
             className="w-full rounded-xl border border-gray-200 bg-white px-5 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-gray-400"
           >
             Clear

@@ -39,6 +39,7 @@ export type CommunityDiscoveryRow = {
   activity_names: string[];
   is_following: boolean;
   follower_count: number | string;
+  verified_member_count?: number | string;
   open_intent_count: number | string;
   planning_activity_count: number | string;
   completed_experience_count: number | string;
@@ -69,20 +70,6 @@ function formatCount(value: number) {
     : compactNumberFormatter.format(value);
 }
 
-function getPlanningStyleLabel(style: CommunityPlanningStyle) {
-  switch (style) {
-    case "mostly_public":
-      return "Mostly public";
-    case "mostly_private":
-      return "Mostly private";
-    case "mostly_invite_only":
-      return "Mostly invite-only";
-    case "mixed":
-      return "Mixed visibility";
-    default:
-      return "Not enough data";
-  }
-}
 
 export default function CommunityDiscoveryCard({
   community,
@@ -105,6 +92,7 @@ export default function CommunityDiscoveryCard({
   const accentForeground = getCommunityAccentForeground(accentColor);
 
   const followerCount = toCount(community.follower_count);
+  const verifiedMemberCount = toCount(community.verified_member_count);
   const openIntentCount = toCount(community.open_intent_count);
   const planningActivityCount = toCount(
     community.planning_activity_count
@@ -310,7 +298,7 @@ export default function CommunityDiscoveryCard({
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl bg-gray-50 p-3">
-          <div className="col-span-2 rounded-xl bg-white p-3 shadow-sm">
+          <div className={`${verifiedMemberCount > 0 ? "" : "col-span-2"} rounded-xl bg-white p-3 shadow-sm`}>
             <p className="text-xl font-black text-gray-950">
               {formatCount(followerCount)}
             </p>
@@ -318,6 +306,17 @@ export default function CommunityDiscoveryCard({
               Followers
             </p>
           </div>
+
+          {verifiedMemberCount > 0 && (
+            <div className="rounded-xl bg-white p-3 shadow-sm">
+              <p className="text-xl font-black text-gray-950">
+                {formatCount(verifiedMemberCount)}
+              </p>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                Verified members
+              </p>
+            </div>
+          )}
 
           <div className="rounded-xl bg-white p-3 shadow-sm">
             <p className="text-lg font-black text-gray-950">
@@ -338,29 +337,12 @@ export default function CommunityDiscoveryCard({
           </div>
 
           <div className="col-span-2 rounded-xl bg-white p-3 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-lg font-black text-gray-950">
-                  {completedExperienceCount}
-                </p>
-                <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
-                  Completed experiences
-                </p>
-              </div>
-
-              <span
-                className="rounded-full px-3 py-1.5 text-[10px] font-bold"
-                style={{
-                  backgroundColor: communityAccentWithAlpha(
-                    accentColor,
-                    0.1
-                  ),
-                  color: accentColor,
-                }}
-              >
-                {getPlanningStyleLabel(community.planning_style)}
-              </span>
-            </div>
+            <p className="text-lg font-black text-gray-950">
+              {completedExperienceCount}
+            </p>
+            <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-gray-500">
+              Completed experiences
+            </p>
           </div>
         </div>
 

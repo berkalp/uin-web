@@ -7,6 +7,9 @@ import {
 import CommunityFollowButton from "@/components/communities/CommunityFollowButton";
 import CommunityMembershipVisibilityToggle from "@/components/communities/CommunityMembershipVisibilityToggle";
 import CommunityIcon from "@/components/communities/CommunityIcon";
+import CommunityVerifiedMembersPanel, {
+  type CommunityVerifiedMember,
+} from "@/components/communities/CommunityVerifiedMembersPanel";
 import CommunityIntentFiltersForm, {
   type CommunityEligibilityFilter,
 } from "@/components/communities/CommunityIntentFiltersForm";
@@ -530,6 +533,7 @@ export default async function CommunityPage({
     coverResponse,
     metricsResponse,
     accessResponse,
+    verifiedMembersResponse,
     filterResponse,
     currentResponse,
     completedResponse,
@@ -564,6 +568,15 @@ export default async function CommunityPage({
       "get_community_intent_access_context",
       {
         p_community_id: community.id,
+      }
+    ),
+
+    supabase.rpc(
+      "get_public_community_verified_members",
+      {
+        p_community_id: community.id,
+        p_limit: 200,
+        p_offset: 0,
       }
     ),
 
@@ -667,6 +680,13 @@ export default async function CommunityPage({
     );
   }
 
+  if (verifiedMembersResponse.error) {
+    console.warn(
+      "Community verified member directory failed; hiding public member details until the directory migration is applied:",
+      verifiedMembersResponse.error
+    );
+  }
+
   const accessContext =
     !accessResponse.error &&
     accessResponse.data &&
@@ -691,8 +711,12 @@ export default async function CommunityPage({
   const showMembershipOnProfile =
     accessContext?.show_on_profile === true;
 
-  const activeMemberCount = Number(
-    accessContext?.active_member_count ?? 0
+  const verifiedMembers = verifiedMembersResponse.error
+    ? []
+    : ((verifiedMembersResponse.data ?? []) as CommunityVerifiedMember[]);
+
+  const verifiedMemberCount = toCount(
+    verifiedMembers[0]?.total_count ?? verifiedMembers.length
   );
 
   if (filterResponse.error) {
@@ -729,17 +753,6 @@ export default async function CommunityPage({
   const completedExperienceCount = toCount(
     metrics?.completed_experience_count
   );
-
-  const planningStyleLabel =
-    metrics?.planning_style === "mostly_public"
-      ? "Mostly public"
-      : metrics?.planning_style === "mostly_invite_only"
-        ? "Mostly invite-only"
-        : metrics?.planning_style === "mostly_private"
-          ? "Mostly private"
-          : metrics?.planning_style === "mixed"
-            ? "Mixed visibility"
-            : "Not enough data";
 
   const filters =
     (
@@ -1118,10 +1131,11 @@ export default async function CommunityPage({
   const brandSecondaryColor =
     secondaryColor ?? accentColor;
 
-  const accentForeground =
-    getCommunityAccentForeground(
-      accentColor
-    );
+  const accentForeground = heroCoverUrl
+    ? "#FFFFFF"
+    : getCommunityAccentForeground(
+        accentColor
+      );
 
   const secondaryForeground =
     getCommunityAccentForeground(
@@ -1134,20 +1148,27 @@ export default async function CommunityPage({
       secondaryColor
     );
 
-  const heroBrandOverlay =
-    `linear-gradient(135deg, ${communityAccentWithAlpha(
-      accentColor,
-      heroCoverUrl ? 0.74 : 1
-    )} 0%, ${communityAccentWithAlpha(
-      accentColor,
-      heroCoverUrl ? 0.74 : 1
-    )} 82%, ${communityAccentWithAlpha(
-      brandSecondaryColor,
-      heroCoverUrl ? 0.78 : 1
-    )} 82%, ${communityAccentWithAlpha(
-      brandSecondaryColor,
-      heroCoverUrl ? 0.78 : 1
-    )} 100%)`;
+  const heroBrandOverlay = heroCoverUrl
+    ? `linear-gradient(90deg, rgba(3, 9, 24, 0.72) 0%, rgba(3, 9, 24, 0.42) 56%, rgba(3, 9, 24, 0.12) 100%), linear-gradient(135deg, ${communityAccentWithAlpha(
+        accentColor,
+        0.2
+      )} 0%, transparent 70%, ${communityAccentWithAlpha(
+        brandSecondaryColor,
+        0.24
+      )} 100%)`
+    : `linear-gradient(135deg, ${communityAccentWithAlpha(
+        accentColor,
+        1
+      )} 0%, ${communityAccentWithAlpha(
+        accentColor,
+        1
+      )} 82%, ${communityAccentWithAlpha(
+        brandSecondaryColor,
+        1
+      )} 82%, ${communityAccentWithAlpha(
+        brandSecondaryColor,
+        1
+      )} 100%)`;
 
   const availableCategoryIds =
     Array.isArray(
@@ -1214,9 +1235,33 @@ export default async function CommunityPage({
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
       <div className="mx-auto max-w-[1520px]">
+        <nav className="mb-4 flex flex-wrap items-center gap-2" aria-label="Community navigation">
+          <Link
+            href="/timeline"
+            aria-label="UIN Timeline"
+            className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-3 shadow-sm transition hover:border-green-400"
+          >
+            <img src="/uin-logo.png" alt="uin? logo" className="h-7 w-auto" />
+          </Link>
+
+          <Link
+            href="/communities"
+            className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-bold text-gray-700 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-800"
+          >
+            ← Communities
+          </Link>
+
+          <Link
+            href="/discover"
+            className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-600 shadow-sm transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+          >
+            Discover
+          </Link>
+        </nav>
+
         <header className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm">
           <div
-            className="relative isolate overflow-hidden border-t-[10px] px-6 py-8 md:px-10 md:py-12"
+            className="relative isolate min-h-[320px] overflow-hidden border-t-[10px] px-6 py-10 md:min-h-[360px] md:px-10 md:py-14"
             style={{
               color:
                 accentForeground,
@@ -1229,7 +1274,7 @@ export default async function CommunityPage({
             {heroCoverUrl && (
               <div
                 aria-hidden="true"
-                className="absolute -inset-5 -z-20 scale-105 bg-cover bg-center blur-[5px]"
+                className="absolute inset-0 -z-20 bg-cover bg-center"
                 style={{
                   backgroundImage:
                     `url(${JSON.stringify(
@@ -1451,89 +1496,14 @@ export default async function CommunityPage({
             </div>
           </div>
 
-          <div className="grid gap-4 p-6 sm:grid-cols-2 xl:grid-cols-4 md:p-8">
-            <div className="rounded-2xl bg-indigo-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                Followers
-              </p>
-              <p className="mt-2 text-2xl font-black text-gray-950">
-                {followerCount}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                private follows shaping Discover
-              </p>
-              {intentAccessMode === "verified_members" && (
-                <p className="mt-2 text-xs font-bold text-emerald-700">
-                  {activeMemberCount} verified {activeMemberCount === 1 ? "member" : "members"}
-                </p>
-              )}
-            </div>
-
-            <div className="rounded-2xl bg-blue-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Open Intents
-              </p>
-              <p className="mt-2 text-2xl font-black text-gray-950">
-                {openIntentCount}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                visible current opportunities
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-amber-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Planning
-              </p>
-              <p className="mt-2 text-2xl font-black text-gray-950">
-                {planningActivityCount}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                visible Forming or Planned Activities
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-green-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                Completed
-              </p>
-              <p className="mt-2 text-2xl font-black text-gray-950">
-                {completedExperienceCount}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                visible completed Experiences
-              </p>
-            </div>
-
-            <div className="sm:col-span-2 xl:col-span-4 flex flex-col gap-3 rounded-2xl bg-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-                  How this Community usually plans
-                </p>
-                <p className="mt-2 text-sm font-bold text-gray-950">
-                  {planningStyleLabel}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-gray-500">
-                  An anonymised recent pattern. Exact Friends-only and Invite-only Activity counts are not exposed.
-                </p>
-              </div>
-
-              <div className="shrink-0 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-600">
-                <span className="font-bold text-gray-950">
-                  {intentAccessMode === "verified_members"
-                    ? isVerifiedMember
-                      ? "Verified member."
-                      : "Follow ≠ membership."
-                    : "Open Intent context."}
-                </span>{" "}
-                {intentAccessMode === "verified_members"
-                  ? isVerifiedMember
-                    ? "Your verified affiliation lets you attach compatible Intents to this Community. Following remains a separate private interest signal."
-                    : "Only verified members can attach compatible Intents to this Community. Following personalises Discover but grants no affiliation rights."
-                  : "Compatible Intents may use this Community without a verified affiliation. Following still remains private and separate."}
-              </div>
-            </div>
-          </div>
+          <CommunityVerifiedMembersPanel
+            followerCount={followerCount}
+            verifiedMemberCount={verifiedMemberCount}
+            openIntentCount={openIntentCount}
+            planningActivityCount={planningActivityCount}
+            completedExperienceCount={completedExperienceCount}
+            members={verifiedMembers}
+          />
         </header>
 
         <div className="mt-5 flex flex-wrap gap-3">
