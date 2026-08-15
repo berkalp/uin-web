@@ -31,7 +31,7 @@ export default function ProfileConnectionsFamilyPanel({
   const mutualFriends = connections?.mutual_friends ?? [];
   const familyMembers = getNormalizedFamilyMembers(family);
 
-  const metrics: Array<{
+  const allMetrics: Array<{
     key: ConnectionMetricKey;
     label: string;
     value: number | null;
@@ -39,7 +39,9 @@ export default function ProfileConnectionsFamilyPanel({
     { key: "followers", label: "Followers", value: followers },
     { key: "following", label: "Following", value: following },
     { key: "friends", label: "Friends", value: friends },
-  ].filter((metric) => metric.value !== null);
+  ];
+
+  const metrics = allMetrics.filter((metric) => metric.value !== null);
 
   if (
     metrics.length === 0 &&
