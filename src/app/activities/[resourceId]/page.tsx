@@ -22,9 +22,9 @@ import ResourceArchiveButton from "@/components/archive/ResourceArchiveButton";
 import IntentRelatedResourcesDisplay from "@/components/intents/IntentRelatedResourcesDisplay";
 import ReportButton from "@/components/moderation/ReportButton";
 import {
-  getActivityGörünürlükLabel,
-  type ActivityGörünürlük,
-} from "@/utils/activityGörünürlük";
+  getActivityVisibilityLabel,
+  type ActivityVisibility,
+} from "@/utils/activityVisibility";
 import {
   formatEstimatedCost,
 } from "@/utils/estimatedCost";
@@ -35,7 +35,7 @@ import { createClient } from "@/utils/supabase/server";
 import {
   hydrateVisiblePlanPresentations,
   type VisiblePlanPresentationRow,
-} from "@/utils/planPresentationGörünürlük";
+} from "@/utils/planPresentationVisibility";
 import {
   parseIntentLinkRows,
   type IntentLinkRpcRow,
@@ -103,7 +103,7 @@ type ActivityDetailData = {
     category_name: string;
     description: string | null;
     status: string;
-    visibility: ActivityGörünürlük;
+    visibility: ActivityVisibility;
     recruitment_status: "open" | "full" | "closed";
     city: string | null;
     district: string | null;
@@ -1494,7 +1494,7 @@ const detailLabel =
                 </span>
 
                 <span className="rounded-full bg-gray-950/75 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-                  {getActivityGörünürlükLabel(
+                  {getActivityVisibilityLabel(
                     activity.visibility
                   )}
                 </span>
@@ -1750,7 +1750,7 @@ const detailLabel =
                     Görünürlük
                   </p>
                   <p className="mt-2 text-sm font-black text-gray-950">
-                    {getActivityGörünürlükLabel(
+                    {getActivityVisibilityLabel(
                       activity.visibility
                     )}
                   </p>
