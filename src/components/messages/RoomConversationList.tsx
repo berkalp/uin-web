@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isRoomConversationOpen } from "@/utils/roomConversationLifecycle";
 
 export type RoomConversationSummary = {
   plan_id: string;
@@ -18,6 +19,9 @@ export type RoomConversationPlan = {
   creation_mode: string | null;
   status: string | null;
   planned_at: string | null;
+  expired_at: string | null;
+  window_end: string | null;
+  timezone: string | null;
 };
 
 type RoomConversationListProps = {
@@ -36,12 +40,12 @@ function toNumber(value: unknown) {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return "No messages yet";
+  if (!value) return "Henüz mesaj yok";
 
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown time";
+  if (Number.isNaN(date.getTime())) return "Bilinmeyen zaman";
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -63,7 +67,7 @@ function currentRoomPhase(plan: RoomConversationPlan) {
 
 function preview(summary: RoomConversationSummary, currentUserId: string) {
   const body = (summary.latest_body ?? "").trim();
-  if (!body) return "Conversation activity";
+  if (!body) return "Konuşma hareketi";
 
   if (summary.latest_message_type === "system") {
     return body;
@@ -71,8 +75,8 @@ function preview(summary: RoomConversationSummary, currentUserId: string) {
 
   const sender =
     summary.latest_sender_id === currentUserId
-      ? "You"
-      : summary.latest_sender_name || "UIN member";
+      ? "Sen"
+      : summary.latest_sender_name || "UIN üyesi";
 
   return `${sender}: ${body}`;
 }
@@ -94,7 +98,7 @@ export default function RoomConversationList({
     }))
     .filter(
       (entry): entry is { summary: RoomConversationSummary; plan: RoomConversationPlan } =>
-        Boolean(entry.plan)
+        Boolean(entry.plan) && isRoomConversationOpen(entry.plan as RoomConversationPlan)
     )
     .sort((first, second) => {
       const firstTime = first.summary.latest_created_at
@@ -130,27 +134,27 @@ export default function RoomConversationList({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Room conversations
+            Oda sohbetleri
           </p>
           <h2 className="mt-2 text-2xl font-bold text-gray-950">
-            Planning & Activity Rooms
+            Planlama & Aktivite Odaları
           </h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            One conversation per Plan. New messages stay grouped with their Room instead of filling Notifications.
+            Her Plan için tek konuşma bulunur. Yeni mesajlar Bildirimleri doldurmak yerine kendi Odasında gruplanır.
           </p>
         </div>
 
         <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-700">
-          {unreadTotal} unread
+          {unreadTotal} okunmamış
         </span>
       </div>
 
       <div className="mt-4 space-y-3">
         {conversations.length === 0 && (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-            <p className="font-bold text-gray-900">No Room conversations yet</p>
+            <p className="font-bold text-gray-900">No Oda sohbetleri yet</p>
             <p className="mt-2 text-sm text-gray-500">
-              Planning and Activity Room conversations will appear here after the first message.
+              Planning and Activity Oda sohbetleri will appear here after the first message.
             </p>
           </div>
         )}
@@ -158,7 +162,7 @@ export default function RoomConversationList({
         {visibleConversations.map(({ summary, plan }) => {
           const phase = currentRoomPhase(plan);
           const unread = toNumber(summary.unread_count);
-          const roomLabel = phase === "planning" ? "Planning Room" : "Activity Room";
+          const roomLabel = phase === "planning" ? "Planlama Odası" : "Aktivite Odası";
 
           return (
             <Link

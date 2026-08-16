@@ -599,7 +599,7 @@ function formatDateTime(
   timezone: string
 ) {
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: timezone,
       day: "numeric",
@@ -619,7 +619,7 @@ function formatTime(
   timezone: string
 ) {
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: timezone,
       hour: "2-digit",
@@ -653,7 +653,7 @@ function getLocalDateLabel(
   timezone: string
 ) {
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: timezone,
       weekday: "long",
@@ -753,7 +753,7 @@ function formatWindowDate(
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: "UTC",
       day: "numeric",
@@ -787,14 +787,14 @@ function getSystemMessageText(
     message.system_event ===
     "plan_created"
   ) {
-    return "The Planning Room was created.";
+    return "Planlama Odası oluşturuldu.";
   }
 
   if (
     message.system_event ===
     "member_joined"
   ) {
-    return `${memberName} joined the Plan.`;
+    return `${memberName} Plana katıldı.`;
   }
 
   if (
@@ -803,14 +803,14 @@ function getSystemMessageText(
   ) {
     return message.room_phase === "activity"
       ? `${memberName} will not attend the Activity.`
-      : `${memberName} left the Plan.`;
+      : `${memberName} Plandan ayrıldı.`;
   }
 
   if (
     message.system_event ===
     "member_removed"
   ) {
-    return `${memberName} was removed from the Plan.`;
+    return `${memberName} Plandan çıkarıldı.`;
   }
 
   if (
@@ -881,7 +881,7 @@ function getSystemMessageText(
     message.system_event ===
     "plan_completed"
   ) {
-    return "The Activity was marked as completed.";
+    return "Aktivite tamamlandı olarak işaretlendi.";
   }
 
   if (
@@ -1785,8 +1785,7 @@ export default async function PlanRoomView({
     );
 
   if (
-    (isHost || isActiveMember) &&
-    !isExpiredPlanningPlan
+    isHost || isActiveMember
   ) {
     const [
       roomReadResult,
@@ -2366,9 +2365,9 @@ export default async function PlanRoomView({
               }`}
             >
               {isExpiredPlanningArchive
-                ? "Expired"
+                ? "Süresi Doldu"
                 : isOutcomeUnknown
-                  ? "Outcome Unknown"
+                  ? "Sonuç Belirsiz"
                   : plan.status}
             </span>
           </div>
@@ -2390,7 +2389,7 @@ export default async function PlanRoomView({
               }`}
             >
               {isExpiredPlanningArchive
-                ? "This Planning Room has expired."
+                ? "Bu Planlama Odasının süresi doldu."
                 : "This Planning Room is archived."}
             </p>
 
@@ -2519,7 +2518,7 @@ export default async function PlanRoomView({
                   <span className={`rounded-full px-3 py-1.5 text-xs font-semibold capitalize ${
                     isOutcomeUnknown ? "bg-slate-100 text-slate-800" : getStatusClasses(plan.status)
                   }`}>
-                    {isOutcomeUnknown ? "Outcome Unknown" : plan.status}
+                    {isOutcomeUnknown ? "Sonuç Belirsiz" : plan.status}
                   </span>
                 </div>
 
@@ -2694,17 +2693,17 @@ export default async function PlanRoomView({
                   compact
                 />
               </div>
+            )}            {!isExpiredPlanningArchive && (
+              <PlanLifecycleActions
+                planId={plan.id}
+                activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
+                planStatus={plan.status}
+                roomPhase={roomPhase}
+                actorRole={actorRole}
+                isActiveMember={isActiveMember}
+                recoveryOptions={recoveryOptions}
+              />
             )}
-
-            <PlanLifecycleActions
-              planId={plan.id}
-              activityLabel={sharedTitle || plan.title || activity?.name || "UIN Activity"}
-              planStatus={plan.status}
-              roomPhase={roomPhase}
-              actorRole={actorRole}
-              isActiveMember={isActiveMember}
-              recoveryOptions={recoveryOptions}
-            />
           </aside>
         </section>
 
@@ -2752,18 +2751,18 @@ export default async function PlanRoomView({
               planId={plan.id}
               memberNameByUserId={memberNameByUserId}
               canSendMessages={canSendMessages}
-              readOnlyTitle={isExpiredPlanningArchive ? "This Planning Room has expired." : "This room is read-only."}
+              readOnlyTitle={isExpiredPlanningArchive ? "Bu Planlama Odasının süresi doldu." : "Bu Oda yalnızca okunabilir."}
               readOnlyDescription={
                 isExpiredPlanningArchive
-                  ? `The availability window ended on ${formatWindowDate(plan.window_end)}. This conversation cannot be continued.`
+                  ? `Uygunluk aralığı ${formatWindowDate(plan.window_end)} tarihinde sona erdi. Bu konuşma devam ettirilemez.`
                   : isPlanningArchived
                     ? "Planning ended when the schedule was confirmed."
                     : "Messages cannot be sent in the current Activity state."
               }
-              emptyTitle="No messages yet."
+              emptyTitle="Henüz mesaj yok."
               emptyDescription={
                 isExpiredPlanningArchive
-                  ? "No messages were recorded before this Planning Room expired."
+                  ? "Bu Planlama Odasının süresi dolmadan önce gerçek bir mesaj kaydedilmedi."
                   : `Start the ${roomLabel} conversation.`
               }
             />
@@ -2929,7 +2928,7 @@ export default async function PlanRoomView({
             <section id="attendance-review" className="mt-6 scroll-mt-24 rounded-3xl border border-amber-200 bg-amber-50 p-6">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Activity Outcome</p>
               <h2 className="mt-2 text-xl font-bold text-amber-950">
-                {isOutcomeUnknown ? "Outcome Unknown" : "Waiting for Host confirmation"}
+                {isOutcomeUnknown ? "Sonuç Belirsiz" : "Waiting for Host confirmation"}
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-amber-800">
                 {isOutcomeUnknown

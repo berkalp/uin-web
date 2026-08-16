@@ -9,6 +9,7 @@ import RoomConversationList, {
 import RoomMessagesRealtimeRefresh from "@/components/messages/RoomMessagesRealtimeRefresh";
 import type { DirectConversationSummary } from "@/services/directMessageService";
 import { createClient } from "@/utils/supabase/server";
+import { isRoomConversationOpen } from "@/utils/roomConversationLifecycle";
 
 function toNumber(value: unknown) {
   const parsed = Number(value ?? 0);
@@ -38,6 +39,16 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     redirect("/");
   }
 
+  const { error: closedRoomSettleError } = await supabase.rpc(
+    "settle_my_closed_room_unreads"
+  );
+
+  if (closedRoomSettleError) {
+    console.warn(
+      "Closed Room unread settlement failed:",
+      closedRoomSettleError.message
+    );
+  }
   const [directResult, roomResult] = await Promise.all([
     supabase.rpc("get_my_direct_conversations"),
     supabase.rpc("get_plan_conversation_summaries"),
@@ -51,7 +62,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     console.error("Room conversations query failed:", roomResult.error);
   }
 
-  const directConversations = (directResult.data ?? []) as unknown as DirectConversationSummary[];
+  const directKonuşmalar = (directResult.data ?? []) as unknown as DirectConversationSummary[];
   const roomSummaries = (roomResult.data ?? []) as unknown as RoomConversationSummary[];
   const planIds = Array.from(
     new Set(
@@ -67,7 +78,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   if (planIds.length > 0) {
     const planResult = await supabase
       .from("plans")
-      .select("id, title, creation_mode, status, planned_at")
+      .select("id, title, creation_mode, status, planned_at, expired_at, window_end, timezone")
       .in("id", planIds);
 
     if (planResult.error) {
@@ -78,11 +89,16 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     }
   }
 
-  const roomUnread = roomSummaries.reduce(
+  const openPlans = plans.filter(isRoomConversationOpen);
+  const openPlanIds = new Set(openPlans.map((plan) => plan.id));
+  const activeRoomSummaries = roomSummaries.filter((summary) =>
+    openPlanIds.has(summary.plan_id)
+  );
+  const roomUnread = activeRoomSummaries.reduce(
     (total, summary) => total + toNumber(summary.unread_count),
     0
   );
-  const directUnread = directConversations.reduce(
+  const directUnread = directKonuşmalar.reduce(
     (total, conversation) => total + toNumber(conversation.unread_count),
     0
   );
@@ -113,36 +129,36 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-                Conversations
+                Konuşmalar
               </p>
-              <h1 className="mt-3 text-4xl font-bold text-gray-950">Messages</h1>
+              <h1 className="mt-3 text-4xl font-bold text-gray-950">Mesajlar</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-                Planning Rooms, Activity Rooms and direct UIN conversations live here. Karar Merkezi stays reserved for decisions; Notifications stay reserved for updates.
+                Planlama Odaları, Aktivite Odaları ve doğrudan UIN konuşmaları burada yer alır. Karar Merkezi kararlar için, Bildirimler ise güncellemeler için ayrıdır.
               </p>
             </div>
 
             <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-bold text-white">
-              {totalUnread} unread
+              {totalUnread} okunmamış
             </span>
           </div>
         </header>
 
         {planLoadFailed && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            Some Room conversations could not be loaded.
+            Bazı Oda konuşmaları yüklenemedi.
           </div>
         )}
 
         <RoomConversationList
           currentUserId={user.id}
-          summaries={roomSummaries}
-          plans={plans}
+          summaries={activeRoomSummaries}
+          plans={openPlans}
           page={roomPage}
           directPage={directPage}
         />
 
         <DirectConversationList
-          initialConversations={directConversations}
+          initialKonuşmalar={directKonuşmalar}
           initialLoadFailed={Boolean(directResult.error)}
           page={directPage}
           roomPage={roomPage}

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import MatchOpportunityActions from "@/components/matches/MatchOpportunityActions";
@@ -49,7 +49,7 @@ function formatDate(
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       day: "numeric",
       month: "short",
@@ -102,7 +102,7 @@ export default async function MatchesPage() {
 
   if (error) {
     console.error(
-      "Active Match query failed:",
+      "Aktif Eşleşme query failed:",
       error
     );
   }
@@ -129,18 +129,18 @@ export default async function MatchesPage() {
               href="/discover"
               className="text-sm font-semibold text-blue-700 transition hover:text-blue-900"
             >
-              Discover Intents
+              Niyetleri Keşfet
             </Link>
           </div>
 
           <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-            {matches.length} active
+            {matches.length} aktif
           </span>
         </div>
 
         <header className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
-            Match Opportunities
+            Eşleşme Fırsatları
           </p>
 
           <h1 className="mt-3 text-4xl font-bold text-gray-950">
@@ -160,7 +160,7 @@ export default async function MatchesPage() {
         {error ? (
           <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
             <h2 className="font-bold text-red-900">
-              Matches could not be loaded
+              Eşleşmeler yüklenemedi
             </h2>
 
             <p className="mt-2 text-sm text-red-700">
@@ -198,7 +198,7 @@ export default async function MatchesPage() {
 
                       <div className="flex shrink-0 items-center gap-2">
                         <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                          Active Match
+                          Aktif Eşleşme
                         </span>
 
                         <UserDiscoveryControlsMenu
@@ -251,21 +251,21 @@ export default async function MatchesPage() {
                       </div>
 
                       <span className="text-gray-300">
-                        â†’
+                        →
                       </span>
                     </Link>
 
                     <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          Their dates
+                          Onun tarihleri
                         </p>
 
                         <p className="mt-2 text-sm font-bold text-gray-950">
                           {formatDate(
                             match.target_start_date
                           )}
-                          {" â†’ "}
+                          {" → "}
                           {formatDate(
                             match.target_end_date
                           )}
@@ -274,14 +274,14 @@ export default async function MatchesPage() {
 
                       <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          Your dates
+                          Senin tarihlerin
                         </p>
 
                         <p className="mt-2 text-sm font-bold text-gray-950">
                           {formatDate(
                             match.own_start_date
                           )}
-                          {" â†’ "}
+                          {" → "}
                           {formatDate(
                             match.own_end_date
                           )}
@@ -290,7 +290,7 @@ export default async function MatchesPage() {
 
                       <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          Location
+                          Konum
                         </p>
 
                         <p className="mt-2 text-sm font-bold text-gray-950">
@@ -306,13 +306,13 @@ export default async function MatchesPage() {
 
                       <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                          Capacity
+                          Kapasite
                         </p>
 
                         <p className="mt-2 text-sm font-bold text-gray-950">
                           {match.target_max_participants ===
                           null
-                            ? "Unlimited"
+                            ? "Sınırsız"
                             : match.target_max_participants}
                         </p>
                       </div>
@@ -333,7 +333,7 @@ export default async function MatchesPage() {
                         )}`}
                         className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
                       >
-                        View Activity
+                        Aktiviteyi Gör
                       </Link>
                     </div>
 
@@ -353,7 +353,7 @@ export default async function MatchesPage() {
         ) : (
           <section className="mt-8 rounded-[28px] border border-gray-200 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-gray-950">
-              No active Match opportunities
+              Aktif eşleşme fırsatı yok
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-gray-500">
