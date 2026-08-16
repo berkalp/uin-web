@@ -238,7 +238,7 @@ function AdminModuleCard({
           )}
 
           <span className="text-xl text-gray-400 transition group-hover:translate-x-1 group-hover:text-green-600">
-            â†’
+            →
           </span>
         </div>
       </div>
@@ -630,8 +630,8 @@ export default async function AdminDashboardPage() {
 
 
             <AdminModuleCard
-              title="Ä°lk KarÅŸÄ±lama MesajÄ±"
-              description="Yeni kullanÄ±cÄ± onboarding'i ilk kez tamamladÄ±ÄŸÄ±nda UIN Owner hesabÄ±ndan gidecek otomatik Ã¶zel mesajÄ± yÃ¶net."
+              title="İlk Karşılama Mesajı"
+              description="Yeni kullanıcı onboarding'i ilk kez tamamladığında UIN Owner hesabından gidecek otomatik özel mesajı yönet."
               href="/admin/welcome-message"
               available
             />
