@@ -10,6 +10,7 @@ import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPres
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
 import TimelineShareButton from "../../components/timeline/TimelineShareButton";
+import CompactIntentReactionBar from "../../components/reactions/CompactIntentReactionBar";
 import CancelledPlanHistorySummary from "../../components/timeline/CancelledPlanHistorySummary";
 import ActivityPeopleStrip from "../../components/activities/ActivityPeopleStrip";
 import IntentResolutionPanel, {
@@ -50,7 +51,10 @@ import {
 } from "../../utils/activityPeople";
 import type {
   ProfileIntentReactionItem,
-} from "../../components/profile/ProfileIntentReactions";
+} from "../../components/profile/ProfileIntentReactions";import {
+  parseIntentReactionContexts,
+  type IntentReactionContext,
+} from "../../utils/intentReactions";
 import TimelineInterestsPanel from "../../components/timeline/TimelineInterestsPanel";
 import PublicProfessionalCredentialsPanel from "../../components/professionals/PublicProfessionalCredentialsPanel";
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
@@ -3027,6 +3031,31 @@ export default async function TimelinePage({
   );
 
 
+  const timelineReactionContextByIntentId = new Map<string, IntentReactionContext>();
+
+  for (
+    let startIndex = 0;
+    startIndex < visibleIntentIds.length;
+    startIndex += 100
+  ) {
+    const intentIdBatch = visibleIntentIds.slice(startIndex, startIndex + 100);
+    const reactionContextResponse = await supabase.rpc(
+      "get_visible_intent_reaction_context",
+      { p_intent_ids: intentIdBatch }
+    );
+
+    if (reactionContextResponse.error) {
+      console.warn(
+        "Timeline Intent reaction context is temporarily unavailable:",
+        reactionContextResponse.error.message
+      );
+      continue;
+    }
+
+    parseIntentReactionContexts(reactionContextResponse.data).forEach((context) => {
+      timelineReactionContextByIntentId.set(context.intent_id, context);
+    });
+  }
   function toProfileReactionItem(
     row: TimelineProfileIntentReactionRow
   ): ProfileIntentReactionItem {
@@ -3678,6 +3707,12 @@ export default async function TimelinePage({
             />
 
           <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+          <CompactIntentReactionBar
+            intentId={intent.id}
+            initialContext={timelineReactionContextByIntentId.get(intent.id) ?? null}
+            isAuthenticated
+            isOwner={intent.user_id === currentUserId}
+          />
           <Link
             href={intentViewHref}
             title="Görüntüle"
