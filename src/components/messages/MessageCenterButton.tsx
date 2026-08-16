@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { supabase } from "@/utils/supabase/client";
+import { isRoomConversationOpen } from "@/utils/roomConversationLifecycle";
 
 function formatBadge(value: number) {
   return value > 9 ? "9+" : String(value);
@@ -34,7 +35,16 @@ function toNumber(value: unknown) {
 }
 
 type PlanConversationSummary = {
+  plan_id: string;
   unread_count?: number | string | null;
+};
+
+type MessageCenterPlan = {
+  id: string;
+  status: string | null;
+  expired_at: string | null;
+  window_end: string | null;
+  timezone: string | null;
 };
 
 export default function MessageCenterButton({
@@ -51,27 +61,60 @@ export default function MessageCenterButton({
     let directChannel: ReturnType<typeof supabase.channel> | null = null;
 
     async function refreshCount() {
-      const [directResult, roomResult] = await Promise.all([
-        supabase.rpc("get_my_unread_direct_message_count"),
-        supabase.rpc("get_plan_conversation_summaries"),
-      ]);
+    const [directResult, roomResult] = await Promise.all([
+      supabase.rpc("get_my_unread_direct_message_count"),
+      supabase.rpc("get_plan_conversation_summaries"),
+    ]);
+
+    if (!isMounted) return;
+
+    const directUnread = directResult.error ? 0 : toNumber(directResult.data);
+    const summaries = roomResult.error
+      ? []
+      : ((roomResult.data ?? []) as PlanConversationSummary[]);
+
+    let roomUnread = 0;
+
+    if (summaries.length > 0) {
+      const planIds = Array.from(
+        new Set(summaries.map((summary) => summary.plan_id))
+      );
+
+      const planResult = await supabase
+        .from("plans")
+        .select("id, status, expired_at, window_end, timezone")
+        .in("id", planIds);
 
       if (!isMounted) return;
 
-      const directUnread = directResult.error ? 0 : toNumber(directResult.data);
-      const roomUnread = roomResult.error
-        ? 0
-        : ((roomResult.data ?? []) as PlanConversationSummary[]).reduce(
+      if (!planResult.error) {
+        const openPlanIds = new Set(
+          ((planResult.data ?? []) as MessageCenterPlan[])
+            .filter(isRoomConversationOpen)
+            .map((plan) => plan.id)
+        );
+
+        roomUnread = summaries
+          .filter((summary) => openPlanIds.has(summary.plan_id))
+          .reduce(
             (total, summary) => total + toNumber(summary.unread_count),
             0
           );
-
-      if (!directResult.error || !roomResult.error) {
-        setCount(directUnread + roomUnread);
+      } else {
+        // Fallback only when lifecycle metadata cannot be loaded.
+        roomUnread = summaries.reduce(
+          (total, summary) => total + toNumber(summary.unread_count),
+          0
+        );
       }
     }
 
-    function scheduleRefresh() {
+    if (!directResult.error || !roomResult.error) {
+      setCount(directUnread + roomUnread);
+    }
+  }
+
+  function scheduleRefresh() {
       if (refreshTimer.current) {
         clearTimeout(refreshTimer.current);
       }

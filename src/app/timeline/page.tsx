@@ -38,6 +38,7 @@ import {
   type ManagedProfileSwitcherRow,
 } from "../../components/navigation/AccountContextSwitcher";
 import { createClient } from "../../utils/supabase/server";
+import { isRoomConversationOpen } from "../../utils/roomConversationLifecycle";
 import {
   hydrateVisiblePlanPresentations,
   type VisiblePlanPresentation,
@@ -3144,13 +3145,23 @@ export default async function TimelinePage({
       []
     ) as PlanConversationSummary[];
 
+  const openMessagePlanIds = new Set(
+    plans
+      .filter(isRoomConversationOpen)
+      .map((plan) => plan.id)
+  );
+
   const unreadRoomMessageCount =
-    conversationSummaries.reduce(
-      (total, summary) =>
-        total +
-        getUnreadCount(summary),
-      0
-    );
+    conversationSummaries
+      .filter((summary) =>
+        openMessagePlanIds.has(summary.plan_id)
+      )
+      .reduce(
+        (total, summary) =>
+          total +
+          getUnreadCount(summary),
+        0
+      );
 
   const messageCenterUnreadCount =
     unreadDirectMessageCount +
