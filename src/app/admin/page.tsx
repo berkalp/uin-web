@@ -238,7 +238,7 @@ function AdminModuleCard({
           )}
 
           <span className="text-xl text-gray-400 transition group-hover:translate-x-1 group-hover:text-green-600">
-            →
+            â†’
           </span>
         </div>
       </div>
@@ -449,7 +449,7 @@ export default async function AdminDashboardPage() {
                   {formatNumber(seedItemsNeedingAttention)} Seed Library item{seedItemsNeedingAttention === 1 ? "" : "s"} need attention
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
-                  {formatNumber(pendingSeedSuggestions)} suggestion{pendingSeedSuggestions === 1 ? "" : "s"} waiting · {formatNumber(reportedSeedSubjects)} reported subject{reportedSeedSubjects === 1 ? "" : "s"}
+                  {formatNumber(pendingSeedSuggestions)} suggestion{pendingSeedSuggestions === 1 ? "" : "s"} waiting Â· {formatNumber(reportedSeedSubjects)} reported subject{reportedSeedSubjects === 1 ? "" : "s"}
                 </p>
               </div>
               <Link
@@ -628,6 +628,13 @@ export default async function AdminDashboardPage() {
               available
             />
 
+
+            <AdminModuleCard
+              title="Ä°lk KarÅŸÄ±lama MesajÄ±"
+              description="Yeni kullanÄ±cÄ± onboarding'i ilk kez tamamladÄ±ÄŸÄ±nda UIN Owner hesabÄ±ndan gidecek otomatik Ã¶zel mesajÄ± yÃ¶net."
+              href="/admin/welcome-message"
+              available
+            />
             <AdminModuleCard
               title="Languages"
               description="Install languages, translate application text and choose the default locale."
