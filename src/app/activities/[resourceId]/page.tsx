@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
+import ActivityPublicMapPanel from "@/components/activities/ActivityPublicMapPanel";
+import ActivityCompactOrigins from "@/components/activities/ActivityCompactOrigins";
+import TimelineHomeLogo from "@/components/navigation/TimelineHomeLogo";
 import PublicPlanMeetingPoint from "@/components/plans/PublicPlanMeetingPoint";
 import PlanOriginsPanel from "@/components/activities/PlanOriginsPanel";
 import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
@@ -19,9 +22,9 @@ import ResourceArchiveButton from "@/components/archive/ResourceArchiveButton";
 import IntentRelatedResourcesDisplay from "@/components/intents/IntentRelatedResourcesDisplay";
 import ReportButton from "@/components/moderation/ReportButton";
 import {
-  getActivityVisibilityLabel,
-  type ActivityVisibility,
-} from "@/utils/activityVisibility";
+  getActivityGörünürlükLabel,
+  type ActivityGörünürlük,
+} from "@/utils/activityGörünürlük";
 import {
   formatEstimatedCost,
 } from "@/utils/estimatedCost";
@@ -32,7 +35,7 @@ import { createClient } from "@/utils/supabase/server";
 import {
   hydrateVisiblePlanPresentations,
   type VisiblePlanPresentationRow,
-} from "@/utils/planPresentationVisibility";
+} from "@/utils/planPresentationGörünürlük";
 import {
   parseIntentLinkRows,
   type IntentLinkRpcRow,
@@ -100,7 +103,7 @@ type ActivityDetailData = {
     category_name: string;
     description: string | null;
     status: string;
-    visibility: ActivityVisibility;
+    visibility: ActivityGörünürlük;
     recruitment_status: "open" | "full" | "closed";
     city: string | null;
     district: string | null;
@@ -215,7 +218,7 @@ function getInitial(value: string) {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "Not set";
+    return "Belirtilmedi";
   }
 
   const date = new Date(value);
@@ -236,7 +239,7 @@ function formatDateTime(
   timezone: string
 ) {
   if (!value) {
-    return "Not set";
+    return "Belirtilmedi";
   }
 
   const date = new Date(value);
@@ -313,11 +316,11 @@ function getCategoryCoverRecord(
 }
 
 function getParticipantLimit(
-  maxParticipants: number | null
+  maxKatılımcılar: number | null
 ) {
-  return maxParticipants === null
+  return maxKatılımcılar === null
     ? "Unlimited"
-    : String(maxParticipants);
+    : String(maxKatılımcılar);
 }
 
 function getSiteUrl() {
@@ -657,6 +660,7 @@ export async function generateMetadata({
   };
 }
 
+// UIN_ACTIVITY_DETAIL_REDESIGN_V1
 export default async function ActivityDetailPage({
   params,
   searchParams,
@@ -677,7 +681,7 @@ export default async function ActivityDetailPage({
             href={backNavigation.href}
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to {backNavigation.label}
+            ← Geri {backNavigation.label}
           </Link>
 
           <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
@@ -712,7 +716,7 @@ export default async function ActivityDetailPage({
             href={backNavigation.href}
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Back to {backNavigation.label}
+            ← Geri {backNavigation.label}
           </Link>
 
           <section className="mt-8 rounded-3xl border border-amber-200 bg-white p-8 shadow-sm">
@@ -1350,24 +1354,7 @@ export default async function ActivityDetailPage({
   ]
     .filter(Boolean)
     .join(", ");
-
-  const mapQuery =
-    activity.meeting_point ||
-    approximateLocationLabel;
-
-  const mapEmbedUrl = mapQuery
-    ? `https://www.google.com/maps?q=${encodeURIComponent(
-        mapQuery
-      )}&z=12&output=embed`
-    : null;
-
-  const mapOpenUrl = mapQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        mapQuery
-      )}`
-    : null;
-
-  const detailLabel =
+const detailLabel =
     page.resource_type === "intent"
       ? "Intent detail"
       : activity.status === "completed"
@@ -1394,12 +1381,13 @@ export default async function ActivityDetailPage({
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <TimelineHomeLogo className="-ml-2 mr-1" />
             <Link
               href={backNavigation.href}
               className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
             >
-              ← Back to {backNavigation.label}
+              ← Geri {backNavigation.label}
             </Link>
 
             {activity.host_username && (
@@ -1409,7 +1397,7 @@ export default async function ActivityDetailPage({
                 )}`}
                 className="text-sm font-semibold text-gray-400 transition hover:text-green-700"
               >
-                View host profile
+                Yürütenin profilini gör
               </Link>
             )}
           </div>
@@ -1481,14 +1469,14 @@ export default async function ActivityDetailPage({
                   )}/visibility`}
                   className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 >
-                  Manage Visibility
+                  Manage Görünürlük
                 </Link>
               )}
           </div>
         </div>
 
-        <section className="mt-7 overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
+        <section className="mt-6 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+          <div className="grid lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.82fr)]">
             <div className="relative min-h-[330px] overflow-hidden bg-gray-950 lg:min-h-[390px]">
               <img
                 src={coverUrl}
@@ -1506,7 +1494,7 @@ export default async function ActivityDetailPage({
                 </span>
 
                 <span className="rounded-full bg-gray-950/75 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-                  {getActivityVisibilityLabel(
+                  {getActivityGörünürlükLabel(
                     activity.visibility
                   )}
                 </span>
@@ -1594,43 +1582,15 @@ export default async function ActivityDetailPage({
               </div>
             </div>
 
-            <div className="relative min-h-[260px] overflow-hidden border-t border-gray-200 bg-gray-100 lg:min-h-[390px] lg:border-l lg:border-t-0">
-              {mapEmbedUrl ? (
-                <iframe
-                  title={`${displayTitle} location`}
-                  src={mapEmbedUrl}
-                  className="absolute inset-0 h-full w-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-              ) : (
-                <div className="flex h-full min-h-[260px] items-center justify-center p-8 text-center text-sm text-gray-500">
-                  No location preview is available.
-                </div>
-              )}
-
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent" />
-
-              <span className="absolute left-4 top-4 rounded-full bg-gray-950/80 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-                {activity.meeting_point
-                  ? "Meeting point"
-                  : "Approximate area"}
-              </span>
-
-              {mapOpenUrl && (
-                <a
-                  href={mapOpenUrl}
-                  target="_blank"
-                  rel="noopener noreferrer nofollow"
-                  className="absolute bottom-4 right-4 rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-blue-700 shadow-lg transition hover:bg-blue-50"
-                >
-                  Open map ↗
-                </a>
-              )}
+            <div className="overflow-hidden border-t border-gray-200 bg-white lg:border-l lg:border-t-0">
+              <ActivityPublicMapPanel
+                planId={activity.plan_id}
+                title={displayTitle}
+                fallbackActivityLocation={approximateLocationLabel || null}
+              />
             </div>
           </div>
-
-          <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0">
               <ActivityLifecycleTimeline
                 targetStart={activityTimeline.target_start}
@@ -1645,17 +1605,8 @@ export default async function ActivityDetailPage({
                 variant="horizontal"
               />
 
-              {activity.plan_id && planOrigins.length > 0 && (
-                <PlanOriginsPanel
-                  origins={planOrigins}
-                  resultTitle={displayTitle}
-                  context={activity.status === "completed" ? "completed" : "activity"}
-                  className="mt-5"
-                />
-              )}
-
               {activity.description && (
-                <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+                <section className="mt-5 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
                     {aboutLabel}
                   </p>
@@ -1663,10 +1614,6 @@ export default async function ActivityDetailPage({
                     {activity.description}
                   </p>
                 </section>
-              )}
-
-              {activity.plan_id && !viewer.is_member && (
-                <PublicPlanMeetingPoint planId={activity.plan_id} />
               )}
               {seedOrigins.length > 0 && (
                 <section className="mt-5 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-lime-50 p-5 shadow-sm md:p-6">
@@ -1683,53 +1630,6 @@ export default async function ActivityDetailPage({
                   </div>
                 </section>
               )}
-
-              <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-                <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                      Current record
-                    </p>
-                    <h2 className="mt-1 text-xl font-bold text-gray-950">
-                      {status.label}
-                    </h2>
-
-                    {activity.status === "completed" ? (
-                      activity.completed_at ? (
-                        <p className="mt-1 text-xs font-medium text-gray-500">
-                          {formatDateTime(
-                            activity.completed_at,
-                            activity.timezone
-                          )}
-                        </p>
-                      ) : null
-                    ) : (
-                      <p className="mt-1 text-sm leading-6 text-gray-500">
-                        {status.helper}
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
-                    {locationLabel && (
-                      <div className="max-w-full rounded-2xl bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                        📍 {locationLabel}
-                      </div>
-                    )}
-
-                    {activity.status === "completed" &&
-                      activity.viewer_attendance_status && (
-                        <span className="rounded-full bg-purple-50 px-3 py-1.5 text-xs font-semibold text-purple-800">
-                          Your attendance: {activity.viewer_attendance_status === "attended"
-                            ? "Attended"
-                            : activity.viewer_attendance_status === "no_show"
-                              ? "Did not attend"
-                              : "Not recorded"}
-                        </span>
-                      )}
-                  </div>
-                </div>
-              </section>
 
               {professionalRequirement && (
                 <section className="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm md:p-6">
@@ -1768,16 +1668,16 @@ export default async function ActivityDetailPage({
                   <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-                        Related links
+                        Bağlantılar ve videolar
                       </p>
 
                       <h2 className="mt-2 text-lg font-bold text-gray-950">
-                        Event, ticket and organizer information
+                        Resmî sayfalar, biletler, videolar ve diğer kaynaklar
                       </h2>
                     </div>
 
                     <span className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-blue-700 shadow-sm">
-                      {relatedLinks.length} link{relatedLinks.length === 1 ? "" : "s"}
+                      {relatedLinks.length} bağlantı
                     </span>
                   </div>
 
@@ -1800,7 +1700,7 @@ export default async function ActivityDetailPage({
               <section className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div className="rounded-2xl bg-gray-50 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Participants
+                    Katılımcılar
                   </p>
                   <p className="mt-2 text-xl font-black text-gray-950">
                     {activity.participant_count} / {getParticipantLimit(activity.max_participants)}
@@ -1809,7 +1709,7 @@ export default async function ActivityDetailPage({
 
                 <div className="rounded-2xl bg-gray-50 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Plan members
+                    Plan üyeleri
                   </p>
                   <p className="mt-2 text-xl font-black text-gray-950">
                     {activity.member_count}
@@ -1821,7 +1721,7 @@ export default async function ActivityDetailPage({
                     {page.resource_type ===
                     "intent"
                       ? "Estimated cost / person"
-                      : "Plan budget"}
+                      : "Plan bütçesi"}
                   </p>
 
                   <p className="mt-2 text-lg font-black text-gray-950">
@@ -1841,16 +1741,16 @@ export default async function ActivityDetailPage({
                           ).toLocaleString(
                             "en-US"
                           )} TL`
-                        : "Not set"}
+                        : "Belirtilmedi"}
                   </p>
                 </div>
 
                 <div className="rounded-2xl bg-gray-50 p-4">
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                    Visibility
+                    Görünürlük
                   </p>
                   <p className="mt-2 text-sm font-black text-gray-950">
-                    {getActivityVisibilityLabel(
+                    {getActivityGörünürlükLabel(
                       activity.visibility
                     )}
                   </p>
@@ -1862,7 +1762,7 @@ export default async function ActivityDetailPage({
             <aside className="space-y-5">
               <section className="rounded-3xl border border-cyan-200 bg-cyan-50 p-5">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
-                  Hosted by
+                  Yürüten
                 </p>
 
                 <div className="mt-4 flex items-center gap-4">
@@ -1913,7 +1813,7 @@ export default async function ActivityDetailPage({
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">
-                      Participants
+                      Katılımcılar
                     </p>
 
                     <h2 className="mt-2 text-lg font-bold text-gray-950">
@@ -2074,7 +1974,7 @@ export default async function ActivityDetailPage({
                         )}/visibility`}
                         className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                       >
-                        Manage Visibility
+                        Manage Görünürlük
                       </Link>
                     </div>
                   </section>
@@ -2101,6 +2001,14 @@ export default async function ActivityDetailPage({
                   />
                 )}
             </aside>
+            {activity.plan_id && planOrigins.length > 0 && (
+              <div className="lg:col-span-2">
+                <ActivityCompactOrigins
+                  origins={planOrigins}
+                  resultTitle={displayTitle}
+                />
+              </div>
+            )}
           </div>
         </section>
       </div>
