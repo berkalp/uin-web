@@ -62,7 +62,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     console.error("Room conversations query failed:", roomResult.error);
   }
 
-  const directKonuşmalar = (directResult.data ?? []) as unknown as DirectConversationSummary[];
+  const directConversations = (directResult.data ?? []) as unknown as DirectConversationSummary[];
   const roomSummaries = (roomResult.data ?? []) as unknown as RoomConversationSummary[];
   const planIds = Array.from(
     new Set(
@@ -98,7 +98,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     (total, summary) => total + toNumber(summary.unread_count),
     0
   );
-  const directUnread = directKonuşmalar.reduce(
+  const directUnread = directConversations.reduce(
     (total, conversation) => total + toNumber(conversation.unread_count),
     0
   );
@@ -158,7 +158,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
         />
 
         <DirectConversationList
-          initialKonuşmalar={directKonuşmalar}
+          initialConversations={directConversations}
           initialLoadFailed={Boolean(directResult.error)}
           page={directPage}
           roomPage={roomPage}
