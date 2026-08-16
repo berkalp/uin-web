@@ -11,6 +11,7 @@ import {
 import {
   supabase,
 } from "@/utils/supabase/client";
+import ExternalMediaPreview from "@/components/experiences/ExternalMediaPreview";
 import PlanArchiveMemoryPhotos from "@/components/experiences/PlanArchiveMemoryPhotos";
 import {
   getExperienceMediaPublicStatusLabel,
@@ -191,16 +192,17 @@ function MediaVisual({
       />
     );
   }
-
   if (
-    media.mediaType === "external_photo" &&
-    media.provider === "direct" &&
+    (
+      media.mediaType === "external_photo" ||
+      media.mediaType === "external_album" ||
+      media.mediaType === "external_post"
+    ) &&
     media.externalUrl
   ) {
     return (
-      <img
-        src={media.externalUrl}
-        alt={media.caption || media.label || "Linked Activity photo"}
+      <ExternalMediaPreview
+        media={media}
         className={className}
       />
     );
