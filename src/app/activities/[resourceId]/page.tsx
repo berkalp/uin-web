@@ -6,6 +6,7 @@ import PlanOriginsPanel from "@/components/activities/PlanOriginsPanel";
 import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
 import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
 import ActivityShareMenu from "@/components/share/ActivityShareMenu";
+import OpenInUinAppButton from "@/components/mobile/OpenInUinAppButton";
 import ExperiencePanel from "@/components/experiences/ExperiencePanel";
 import ReportCustomActivityTitleButton from "@/components/experiences/ReportCustomActivityTitleButton";
 import ContextReputationBadge from "@/components/reputation/ContextReputationBadge";
@@ -1413,6 +1414,7 @@ export default async function ActivityDetailPage({
           </div>
 
           <div className="flex flex-wrap gap-3">
+            <OpenInUinAppButton resourceId={resourceId} />
             <ActivityShareMenu
               title={shareContent.title}
               text={shareContent.description}
