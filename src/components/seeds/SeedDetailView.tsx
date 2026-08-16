@@ -6,6 +6,7 @@ import SeedJournalComposer from "@/components/seeds/SeedJournalComposer";
 import SeedJournalEntryActions from "@/components/seeds/SeedJournalEntryActions";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
 import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
+import SeedReopenButton from "@/components/seeds/SeedReopenButton";
 import {
   getSeedCompletionLabel,
   getSeedStatusLabel,
@@ -257,7 +258,11 @@ export default function SeedDetailView({
               >
                 ✎ Düzenle
               </Link>
-              {seed.status !== "archived" && (
+              {seed.status === "completed" &&
+                seed.origin !== "retrospective" && (
+                  <SeedReopenButton seedId={seed.seed_id} />
+                )}
+{seed.status !== "archived" && (
                 <Link
                   href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
                   className="inline-flex h-9 items-center rounded-lg bg-green-600 px-3 text-xs font-black text-white hover:bg-green-700"

@@ -11,6 +11,7 @@ import {
 import {
   supabase,
 } from "@/utils/supabase/client";
+import PlanArchiveMemoryPhotos from "@/components/experiences/PlanArchiveMemoryPhotos";
 import {
   getExperienceMediaPublicStatusLabel,
   getExperienceProviderLabel,
@@ -917,7 +918,8 @@ export default function ExperiencePanel({
           </span>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <PlanArchiveMemoryPhotos planId={currentExperience.planId} />
+<div className="mt-5 flex flex-wrap gap-2">
           {([
             ["all", `All ${bundle.media.length}`],
             ["photos", "Photos"],

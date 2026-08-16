@@ -34,7 +34,7 @@ function InterestCard({ item }: { item: ProfileIntentReactionItem }) {
       <div className="relative h-28 overflow-hidden bg-gray-950">
         <img
           src={coverUrl}
-          alt={`${item.activityName} cover`}
+          alt={`${item.displayTitle || item.activityName} cover`}
           className="h-full w-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/15 to-black/25" />
@@ -46,7 +46,7 @@ function InterestCard({ item }: { item: ProfileIntentReactionItem }) {
             {item.categoryName}
           </p>
           <h3 className="mt-1 line-clamp-1 text-base font-black leading-tight">
-            {item.activityName}
+            {item.displayTitle || item.activityName}
           </h3>
         </div>
       </div>

@@ -22,6 +22,7 @@ export type ProfileIntentReactionItem = {
   ownerUsername: string | null;
   ownerAvatarUrl: string | null;
   activityName: string;
+  displayTitle?: string | null;
   activityCoverUrl: string | null;
   categoryName: string;
   categoryCoverUrl: string | null;
@@ -150,7 +151,7 @@ export default function ProfileIntentReactions({
                   <div className="relative h-40 overflow-hidden bg-gray-950">
                     <img
                       src={coverUrl}
-                      alt={`${item.activityName} cover`}
+                      alt={`${item.displayTitle || item.activityName} cover`}
                       className="h-full w-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/35" />
@@ -183,7 +184,7 @@ export default function ProfileIntentReactions({
                         )}
                       </div>
                       <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight">
-                        {item.activityName}
+                        {item.displayTitle || item.activityName}
                       </h3>
                       <CommunityContextList
                         communities={item.communities}

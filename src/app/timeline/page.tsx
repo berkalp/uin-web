@@ -2870,18 +2870,29 @@ export default async function TimelinePage({
       )
     );
 
-  const {
+    const reactionPresentationPlanIds =
+    [
+      ...profileSavedReactionRows,
+      ...profilePawedReactionRows,
+    ]
+      .map((row) => row.plan_id)
+      .filter((planId): planId is string => Boolean(planId));
+
+  const presentationPlanIds =
+    Array.from(
+      new Set([
+        ...plans.map((plan) => plan.id),
+        ...reactionPresentationPlanIds,
+      ])
+    );
+const {
     data: privatePlanPresentationData,
     error: privatePlanPresentationError,
-  } = plans.length > 0
+  } = presentationPlanIds.length > 0
     ? await supabase.rpc(
         "get_visible_plan_presentations",
         {
-          p_plan_ids:
-            plans.map(
-              (plan) =>
-                plan.id
-            ),
+                    p_plan_ids: presentationPlanIds,
         }
       )
     : {
@@ -3061,6 +3072,10 @@ export default async function TimelinePage({
     row: TimelineProfileIntentReactionRow
   ): ProfileIntentReactionItem {
     const sportContext = sportCoverContextByIntentId.get(row.intent_id) ?? null;
+    const reactionPresentation =
+      row.plan_id
+        ? privatePresentationByPlanId.get(row.plan_id) ?? null
+        : null;
 
     return {
       reactionId: row.reaction_id,
@@ -3075,6 +3090,8 @@ export default async function TimelinePage({
       ownerUsername: row.owner_username,
       ownerAvatarUrl: row.owner_avatar_url,
       activityName: row.activity_name,
+      displayTitle:
+        reactionPresentation?.custom_title || row.activity_name,
       activityCoverUrl: row.activity_cover_url,
       categoryName: row.category_name,
       categoryCoverUrl: row.category_cover_url,
@@ -3086,7 +3103,10 @@ export default async function TimelinePage({
       scheduledEnd: row.scheduled_end,
       lifecycleStatus: row.lifecycle_status,
       sportName: sportContext?.sport_name ?? null,
-      contextCoverUrl: sportContext?.context_cover_url ?? null,
+      contextCoverUrl:
+        reactionPresentation?.visible_cover_url ||
+        sportContext?.context_cover_url ||
+        null,
       communities: intentCommunitiesByIntentId.get(row.intent_id) ?? [],
     };
   }
