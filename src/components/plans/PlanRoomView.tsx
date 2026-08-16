@@ -22,6 +22,7 @@ import PlanCompletionReview, {
 import CommunityContextList from "../communities/CommunityContextList";
 import ActivityCoverImage from "../media/ActivityCoverImage";
 import PlanPresentationSettingsForm from "./PlanPresentationSettingsForm";
+import PlanPublicContentEditor from "./PlanPublicContentEditor";
 import PlanningRoomQuickActions from "./PlanningRoomQuickActions";
 import PlanBudgetPanel from "./PlanBudgetPanel";
 import PlanNeedsPanel from "./PlanNeedsPanel";
@@ -2778,6 +2779,7 @@ export default async function PlanRoomView({
         <PlanningRoomQuickActions
           ariaLabel={`${roomLabel} quick actions`}
           actions={[
+            { targetId: "public-content", icon: "✎", label: "Görünen bilgiler" },
             { targetId: "locations", icon: "⌖", label: "Locations" },
             { targetId: "privacy", icon: "▣", label: "Privacy & Visibility" },
             { targetId: "toolkit", icon: "☑", label: "Checklist & Files" },
@@ -2830,7 +2832,25 @@ export default async function PlanRoomView({
           />
         </CollapsiblePlanningSection>
 
-        <CollapsiblePlanningSection
+                {(isHost || isCoHost) &&
+          (plan.status === "forming" || plan.status === "planned") && (
+            <CollapsiblePlanningSection
+              id="public-content"
+              title="Görünen bilgiler"
+              description="Açıklamayı, bağlantıları, videoları ve buluşma noktası görünürlüğünü düzenle."
+              defaultOpen={false}
+              className="mt-5"
+            >
+              <PlanPublicContentEditor
+                planId={plan.id}
+                canManage={
+                  plan.expired_at === null &&
+                  (isHost || isCoHost)
+                }
+              />
+            </CollapsiblePlanningSection>
+          )}
+<CollapsiblePlanningSection
           id="locations"
           title="Locations"
           description="Edit the meeting point and Activity location without hunting through the page."

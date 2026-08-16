@@ -4,6 +4,7 @@ export const INTENT_LINK_TYPES = [
   "organizer",
   "venue",
   "reference",
+  "video",
   "other",
 ] as const;
 
@@ -58,6 +59,10 @@ export const INTENT_LINK_TYPE_OPTIONS: Array<{
   {
     value: "reference",
     label: "More information",
+  },
+  {
+    value: "video",
+    label: "Video",
   },
   {
     value: "other",

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
+import PublicPlanMeetingPoint from "@/components/plans/PublicPlanMeetingPoint";
 import PlanOriginsPanel from "@/components/activities/PlanOriginsPanel";
 import PlanWeatherBadges from "@/components/weather/PlanWeatherBadges";
 import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
@@ -15,7 +16,7 @@ import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton"
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
 import IntentReactionBar from "@/components/reactions/IntentReactionBar";
 import ResourceArchiveButton from "@/components/archive/ResourceArchiveButton";
-import IntentLinksDisplay from "@/components/intents/IntentLinksDisplay";
+import IntentRelatedResourcesDisplay from "@/components/intents/IntentRelatedResourcesDisplay";
 import ReportButton from "@/components/moderation/ReportButton";
 import {
   getActivityVisibilityLabel,
@@ -1438,7 +1439,19 @@ export default async function ActivityDetailPage({
                 </Link>
               )}
 
-            {viewer.is_member && roomHref && (
+                        {viewer.is_owner &&
+              activity.plan_id &&
+              (isForming || activity.status === "planned") && (
+                <Link
+                  href={`/plans/${encodeURIComponent(
+                    activity.plan_id
+                  )}/${isForming ? "planning" : "activity"}#public-content`}
+                  className="rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-800 transition hover:bg-green-100"
+                >
+                  Bilgileri Düzenle
+                </Link>
+              )}
+{viewer.is_member && roomHref && (
               <Link
                 href={roomHref}
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
@@ -1652,6 +1665,9 @@ export default async function ActivityDetailPage({
                 </section>
               )}
 
+              {activity.plan_id && !viewer.is_member && (
+                <PublicPlanMeetingPoint planId={activity.plan_id} />
+              )}
               {seedOrigins.length > 0 && (
                 <section className="mt-5 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-lime-50 p-5 shadow-sm md:p-6">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Intent DNA</p>
@@ -1766,7 +1782,7 @@ export default async function ActivityDetailPage({
                   </div>
 
                   <div className="mt-4">
-                    <IntentLinksDisplay links={relatedLinks} />
+                    <IntentRelatedResourcesDisplay links={relatedLinks} />
                   </div>
                 </section>
               )}
