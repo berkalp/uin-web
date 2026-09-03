@@ -153,7 +153,7 @@ export default function FavoritesManager({ initialItems }: { initialItems: Favor
   return (
     <>
       <Link
-        href="/seeds/explore?mode=favorite"
+        href="/favorite/new"
         className="mt-6 flex items-center justify-between gap-4 rounded-[24px] bg-rose-600 px-5 py-4 text-white shadow-sm transition hover:bg-rose-700"
       >
         <div>
@@ -313,4 +313,5 @@ function FilterButton({
     </button>
   );
 }
+
 
