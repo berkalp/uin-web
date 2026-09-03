@@ -68,7 +68,7 @@ export default function PublicSeedsPanel({
   mode = "all",
   eyebrow = "Kişisel Niyetler",
   title,
-  {description}
+  description = "Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel kayıtlar.",
 }: PublicSeedsPanelProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
   const [page, setPage] = useState(0);
