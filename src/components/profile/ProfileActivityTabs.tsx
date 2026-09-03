@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
-  type IntentLifecycleDurum,
+  type IntentLifecycleStatus,
 } from "@/components/discover/DiscoverIntentCard";
 import ProfilePagination from "@/components/profile/ProfilePagination";
 
@@ -124,7 +124,7 @@ function sortProfileCards(
 }
 
 function lifecycleMatches(
-  lifecycle: IntentLifecycleDurum,
+  lifecycle: IntentLifecycleStatus,
   filter: ActiveLifecycleFilter
 ) {
   return filter === "all" || lifecycle === filter;
@@ -138,8 +138,8 @@ export default function ProfileActivityTabs({
   participatingCards,
   currentUserId,
   isAuthenticated,
-  hostingLabel = "Yürüttükleri",
-  participatingLabel = "Katıldıkları",
+  hostingLabel = "YÃ¼rÃ¼ttÃ¼kleri",
+  participatingLabel = "KatÄ±ldÄ±klarÄ±",
   emptyTitle,
   emptyDescription,
   sortMode = "active",
@@ -192,10 +192,10 @@ export default function ProfileActivityTabs({
       value: ActiveLifecycleFilter;
       label: string;
     }> = [
-      { value: "all", label: "Tümü" },
+      { value: "all", label: "TÃ¼mÃ¼" },
       { value: "open", label: "Aktif" },
-      { value: "forming", label: "Planlanıyor" },
-      { value: "planned", label: "Planlandı" },
+      { value: "forming", label: "PlanlanÄ±yor" },
+      { value: "planned", label: "PlanlandÄ±" },
       { value: "future", label: "Gelecek" },
     ];
 
@@ -247,7 +247,7 @@ export default function ProfileActivityTabs({
   }> = [
     {
       value: "all",
-      label: "Tümü",
+      label: "TÃ¼mÃ¼",
       count: allCards.length,
     },
     {
@@ -359,7 +359,7 @@ export default function ProfileActivityTabs({
             page={safePage}
             pageCount={pageCount}
             onPageChange={setPage}
-            label={`${eyebrow} sayfaları`}
+            label={`${eyebrow} sayfalarÄ±`}
           />
         </>
       ) : (
@@ -375,3 +375,4 @@ export default function ProfileActivityTabs({
     </section>
   );
 }
+
