@@ -10,11 +10,20 @@ import {
   type PublicSeedRecord,
 } from "@/utils/seeds";
 
+type PublicSeedsMode =
+  | "all"
+  | "active"
+  | "completed";
+
 type PublicSeedsPanelProps = {
   displayName: string;
   seeds: PublicSeedRecord[];
   isOwner: boolean;
   isAuthenticated: boolean;
+  mode?: PublicSeedsMode;
+  eyebrow?: string;
+  title?: string;
+  description?: string;
 };
 
 type SeedFilter =
@@ -56,6 +65,10 @@ export default function PublicSeedsPanel({
   seeds,
   isOwner,
   isAuthenticated,
+  mode = "all",
+  eyebrow = "Kişisel Niyetler",
+  title,
+  {description}
 }: PublicSeedsPanelProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
   const [page, setPage] = useState(0);
@@ -79,10 +92,18 @@ export default function PublicSeedsPanel({
     [orderedSeeds]
   );
 
-  const filteredSeeds = useMemo(
-    () => orderedSeeds.filter((seed) => matchesFilter(seed, filter)),
-    [filter, orderedSeeds]
-  );
+  const filteredSeeds = useMemo(() => {
+    if (mode === "active") {
+      return orderedSeeds.filter((seed) => seed.status === "active");
+    }
+
+    if (mode === "completed") {
+      return orderedSeeds.filter((seed) => seed.status === "completed");
+    }
+
+    return orderedSeeds.filter((seed) => matchesFilter(seed, filter));
+  }, [filter, mode, orderedSeeds]);
+
 
   const pageCount = Math.max(1, Math.ceil(filteredSeeds.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -155,10 +176,10 @@ export default function PublicSeedsPanel({
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Kişisel Niyetler
+            {eyebrow}
           </p>
           <h2 className="mt-2 text-2xl font-black text-gray-950">
-            {displayName} · Kişisel Niyetler
+            {title ?? `${displayName} · ${eyebrow}`}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">
             Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel kayıtlar.
@@ -166,7 +187,7 @@ export default function PublicSeedsPanel({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {orderedSeeds.length > 0 && (
+          {mode === "all" && orderedSeeds.length > 0 && (
             <div className="flex flex-wrap rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
               {filters.map((item) => (
                 <button
