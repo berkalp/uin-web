@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -16,6 +16,12 @@ type ProfileActivityTab =
 type ProfileActivitySortMode =
   | "active"
   | "experience";
+
+type ProfileLifecycleMode =
+  | "all"
+  | "active"
+  | "forming"
+  | "upcoming";
 
 type ActiveLifecycleFilter =
   | "all"
@@ -37,6 +43,7 @@ type ProfileActivityTabsProps = {
   emptyTitle: string;
   emptyDescription: string;
   sortMode?: ProfileActivitySortMode;
+  lifecycleMode?: ProfileLifecycleMode;
 };
 
 const PAGE_SIZE = 6;
@@ -138,11 +145,12 @@ export default function ProfileActivityTabs({
   participatingCards,
   currentUserId,
   isAuthenticated,
-  hostingLabel = "YÃ¼rÃ¼ttÃ¼kleri",
-  participatingLabel = "KatÄ±ldÄ±klarÄ±",
+  hostingLabel = "Yürüttükleri",
+  participatingLabel = "Katıldıkları",
   emptyTitle,
   emptyDescription,
   sortMode = "active",
+  lifecycleMode = "all",
 }: ProfileActivityTabsProps) {
   const [activeTab, setActiveTab] =
     useState<ProfileActivityTab>("all");
@@ -215,10 +223,26 @@ export default function ProfileActivityTabs({
       return roleCards;
     }
 
+    if (lifecycleMode === "active") {
+      return roleCards.filter((card) => card.lifecycle_status === "open");
+    }
+
+    if (lifecycleMode === "forming") {
+      return roleCards.filter((card) => card.lifecycle_status === "forming");
+    }
+
+    if (lifecycleMode === "upcoming") {
+      return roleCards.filter(
+        (card) =>
+          card.lifecycle_status === "planned" ||
+          card.lifecycle_status === "future"
+      );
+    }
+
     return roleCards.filter((card) =>
       lifecycleMatches(card.lifecycle_status, lifecycleFilter)
     );
-  }, [lifecycleFilter, roleCards, sortMode]);
+  }, [lifecycleFilter, lifecycleMode, roleCards, sortMode]);
 
   const pageCount = Math.max(
     1,
@@ -314,7 +338,7 @@ export default function ProfileActivityTabs({
         </div>
       </div>
 
-      {sortMode === "active" && roleCards.length > 0 && (
+      {sortMode === "active" && lifecycleMode === "all" && roleCards.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
             Durum
