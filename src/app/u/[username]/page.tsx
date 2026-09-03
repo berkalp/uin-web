@@ -1776,12 +1776,12 @@ export default async function PublicProfilePage({
 
         <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {[
-            { label: "Aktif Sosyal Niyet", value: activeIntents.length, href: "#active-intents" },
-            { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#personal-intents" },
-            { label: "Planlanıyor", value: formingActivities.length + upcomingActivities.length, href: "#active-intents" },
+            { label: "Aktif Sosyal Niyet", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
+            { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
+            { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
             { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
-            { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-intents" },
-            { label: "Yaklaşan", value: upcomingActivities.length, href: "#active-intents" },
+            { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-experiences" },
+            { label: "Yaklaşan", value: upcomingActivities.length + activeCards.filter((card) => card.lifecycle_status === "future").length, href: "#upcoming" },
           ].map((item) => (
             <a
               key={item.label}
@@ -1806,45 +1806,97 @@ export default async function PublicProfilePage({
           isOwner={page.viewer.is_owner}
         />
 
-        <div id="active-intents">
+        <div id="active-social" className="scroll-mt-8">
           <ProfileActivityTabs
-            eyebrow="Sosyal Niyetler"
-            title={`${displayName} · Sosyal Niyetler`}
-            description="Planlanıyor, aktif ve yaşanan sosyal niyetler."
+            eyebrow="Aktif Sosyal"
+            title={`${displayName} · Aktif Sosyal Niyetler`}
+            description="Şu anda açık olan sosyal niyetler."
             hostedCards={hostedActiveCards}
             participatingCards={participatingActiveCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
             hostingLabel="Yürüttükleri"
             participatingLabel="Katıldıkları"
-            emptyTitle="Görünür sosyal niyet yok"
-            emptyDescription="Bu bölümde gösterilebilecek güncel bir sosyal niyet bulunmuyor."
+            emptyTitle="Aktif sosyal niyet yok"
+            emptyDescription="Şu anda gösterilebilecek aktif bir sosyal niyet bulunmuyor."
+            lifecycleMode="active"
           />
         </div>
 
-        <div id="personal-intents" className="scroll-mt-8">
+        <div id="active-personal" className="scroll-mt-8">
           <PublicSeedsPanel
             displayName={displayName}
             seeds={visibleSeeds}
             isOwner={page.viewer.is_owner}
             isAuthenticated={page.viewer.is_authenticated}
+            mode="active"
+            eyebrow="Aktif Kişisel"
+            title={`${displayName} · Aktif Kişisel Niyetler`}
+            description="Henüz deneyime dönüşmemiş aktif kişisel niyetler."
+          />
+        </div>
+
+        <div id="planning" className="scroll-mt-8">
+          <ProfileActivityTabs
+            eyebrow="Planlanıyor"
+            title={`${displayName} · Planlanıyor`}
+            description="Planlama aşamasındaki sosyal niyetler."
+            hostedCards={hostedActiveCards}
+            participatingCards={participatingActiveCards}
+            currentUserId={viewerUserId}
+            isAuthenticated={page.viewer.is_authenticated}
+            hostingLabel="Yürüttükleri"
+            participatingLabel="Katıldıkları"
+            emptyTitle="Planlanan sosyal niyet yok"
+            emptyDescription="Şu anda planlama aşamasında görünen bir sosyal niyet bulunmuyor."
+            lifecycleMode="forming"
           />
         </div>
 
         <div id="social-experiences" className="scroll-mt-8">
           <ProfileActivityTabs
-            eyebrow="Deneyimler"
-            title={`${displayName} · Deneyimler`}
-            description="Yürütücü veya katılımcı olarak yaşanmış etkinlikler."
+            eyebrow="Sosyal Deneyimler"
+            title={`${displayName} · Sosyal Deneyimler`}
+            description="Yürütücü veya katılımcı olarak tamamlanmış sosyal deneyimler."
             hostedCards={hostedExperienceCards}
             participatingCards={participatedExperienceCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
             hostingLabel="Yürüttükleri"
             participatingLabel="Katıldıkları"
-            emptyTitle="Görünür deneyim yok"
-            emptyDescription="Bu bölümde gösterilebilecek tamamlanmış bir deneyim bulunmuyor."
+            emptyTitle="Sosyal deneyim yok"
+            emptyDescription="Bu bölümde gösterilebilecek tamamlanmış bir sosyal deneyim bulunmuyor."
             sortMode="experience"
+          />
+        </div>
+
+        <div id="personal-experiences" className="scroll-mt-8">
+          <PublicSeedsPanel
+            displayName={displayName}
+            seeds={visibleSeeds}
+            isOwner={page.viewer.is_owner}
+            isAuthenticated={page.viewer.is_authenticated}
+            mode="completed"
+            eyebrow="Kişisel Deneyimler"
+            title={`${displayName} · Kişisel Deneyimler`}
+            description="Tamamlanmış kişisel niyetler ve yaşanmış deneyimler."
+          />
+        </div>
+
+        <div id="upcoming" className="scroll-mt-8">
+          <ProfileActivityTabs
+            eyebrow="Yaklaşan"
+            title={`${displayName} · Yaklaşan`}
+            description="Tarihi yaklaşan veya ileri bir tarihe planlanmış sosyal niyetler."
+            hostedCards={hostedActiveCards}
+            participatingCards={participatingActiveCards}
+            currentUserId={viewerUserId}
+            isAuthenticated={page.viewer.is_authenticated}
+            hostingLabel="Yürüttükleri"
+            participatingLabel="Katıldıkları"
+            emptyTitle="Yaklaşan sosyal niyet yok"
+            emptyDescription="Şu anda yaklaşan bir sosyal niyet bulunmuyor."
+            lifecycleMode="upcoming"
           />
         </div>
 
