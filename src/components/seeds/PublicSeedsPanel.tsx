@@ -23,7 +23,7 @@ type SeedFilter =
   | "completed"
   | "intent";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 6;
 
 const filters: Array<{
   value: SeedFilter;
@@ -130,18 +130,18 @@ export default function PublicSeedsPanel({
     ];
 
     setOrderedSeeds(next);
-    setOrderMessage("Saving order…");
+    setOrderMessage("Sıralama kaydediliyor…");
 
     try {
       await setMyProfileDisplayOrder(
         "seed",
         next.map((seed) => seed.seed_id)
       );
-      setOrderMessage("Order saved");
+      setOrderMessage("Sıralama kaydedildi");
     } catch (error) {
       setOrderedSeeds(previous);
       setOrderMessage(
-        error instanceof Error ? error.message : "Order could not be saved."
+        error instanceof Error ? error.message : "Sıralama kaydedilemedi."
       );
     }
   }
@@ -198,7 +198,7 @@ export default function PublicSeedsPanel({
             <div className="flex items-center rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
               <button
                 type="button"
-                aria-label="Previous Seeds"
+                aria-label="Önceki kayıtlar"
                 disabled={safePage === 0}
                 onClick={() => setPage((value) => Math.max(0, value - 1))}
                 className="rounded-xl px-3 py-2 text-sm font-black text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
@@ -207,12 +207,12 @@ export default function PublicSeedsPanel({
               </button>
               <span className="min-w-20 px-2 text-center text-[11px] font-bold text-gray-500">
                 {safePage * PAGE_SIZE + 1}–
-                {Math.min((safePage + 1) * PAGE_SIZE, filteredSeeds.length)} of{" "}
+                {Math.min((safePage + 1) * PAGE_SIZE, filteredSeeds.length)} /{" "}
                 {filteredSeeds.length}
               </span>
               <button
                 type="button"
-                aria-label="Next Seeds"
+                aria-label="Sonraki kayıtlar"
                 disabled={safePage >= pageCount - 1}
                 onClick={() =>
                   setPage((value) => Math.min(pageCount - 1, value + 1))
@@ -255,7 +255,7 @@ export default function PublicSeedsPanel({
       {reordering && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-white/80 px-4 py-3 text-xs text-gray-600">
           <span>
-            Use the arrows on each visible card. This order is saved to the public profile.
+            Görünen kartları oklarla sırala. Bu sıra herkese açık profiline kaydedilir.
           </span>
           {orderMessage && (
             <span className="font-bold text-green-800">{orderMessage}</span>
@@ -264,7 +264,7 @@ export default function PublicSeedsPanel({
       )}
 
       {visibleSeeds.length > 0 ? (
-        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
           {visibleSeeds.map((seed) => {
             const grownIntentCount = toSeedCount(seed.grown_intent_count);
             const journalCount = toSeedCount(seed.journal_count);
@@ -281,7 +281,7 @@ export default function PublicSeedsPanel({
                   <div className="absolute right-2 top-2 z-20 flex gap-1 rounded-xl bg-white/95 p-1 shadow-md backdrop-blur">
                     <button
                       type="button"
-                      aria-label={`Move ${seed.title} earlier`}
+                      aria-label={`${seed.title} kaydını öne taşı`}
                       disabled={filterIndex <= 0}
                       onClick={() => void moveSeed(seed.seed_id, -1)}
                       className="grid h-7 w-7 place-items-center rounded-lg text-xs font-black text-gray-800 transition hover:bg-gray-100 disabled:opacity-25"
@@ -290,7 +290,7 @@ export default function PublicSeedsPanel({
                     </button>
                     <button
                       type="button"
-                      aria-label={`Move ${seed.title} later`}
+                      aria-label={`${seed.title} kaydını geriye taşı`}
                       disabled={filterIndex >= filteredSeeds.length - 1}
                       onClick={() => void moveSeed(seed.seed_id, 1)}
                       className="grid h-7 w-7 place-items-center rounded-lg text-xs font-black text-gray-800 transition hover:bg-gray-100 disabled:opacity-25"

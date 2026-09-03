@@ -39,7 +39,7 @@ type ProfileActivityTabsProps = {
   sortMode?: ProfileActivitySortMode;
 };
 
-const PAGE_SIZE = 8;
+const PAGE_SIZE = 6;
 
 function cardKey(card: DiscoverIntentRow) {
   return card.resource_id ?? card.plan_id ?? card.intent_id;
@@ -138,8 +138,8 @@ export default function ProfileActivityTabs({
   participatingCards,
   currentUserId,
   isAuthenticated,
-  hostingLabel = "Hosting",
-  participatingLabel = "Participating",
+  hostingLabel = "Yürüttükleri",
+  participatingLabel = "Katıldıkları",
   emptyTitle,
   emptyDescription,
   sortMode = "active",
@@ -280,7 +280,7 @@ export default function ProfileActivityTabs({
         <div
           className="inline-flex w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm lg:w-auto"
           role="tablist"
-          aria-label={`${eyebrow} role filters`}
+          aria-label={`${eyebrow} rol filtreleri`}
         >
           {tabs.map((tab) => {
             const isActive = activeTab === tab.value;
@@ -343,7 +343,7 @@ export default function ProfileActivityTabs({
 
       {filteredCards.length > 0 ? (
         <>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {visibleCards.map((intent) => (
               <DiscoverIntentCard
                 key={`${eyebrow}-${activeTab}-${cardKey(intent)}`}
