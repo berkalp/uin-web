@@ -54,6 +54,15 @@ const KINDS: Array<{ id: Kind; label: string; icon: string; placeholder: string 
   { id: "activity", label: "Aktivite", icon: "✨", placeholder: "Piknik, kamp, quiz..." },
 ];
 
+function experienceQuestion(kind: Kind) {
+  if (kind === "movie" || kind === "series") return "Bunu izledin mi?";
+  if (kind === "artist") return "Bu sanatçıyı dinledin mi?";
+  if (kind === "book" || kind === "writer") return "Bunu okudun mu?";
+  if (kind === "game") return "Bunu oynadın mı?";
+  if (kind === "place") return "Buraya gittin mi?";
+  return "Bunu deneyimledin mi?";
+}
+
 export default function AddFavoriteWeb() {
   const router = useRouter();
   const [kind, setKind] = useState<Kind>("artist");
@@ -62,6 +71,8 @@ export default function AddFavoriteWeb() {
   const [loading, setLoading] = useState(false);
   const [working, setWorking] = useState("");
   const [error, setError] = useState("");
+  const [pending, setPending] = useState<SearchItem | null>(null);
+  const [favoriteAdded, setFavoriteAdded] = useState(false);
 
   const current = useMemo(() => KINDS.find((item) => item.id === kind) ?? KINDS[0], [kind]);
 
@@ -91,7 +102,7 @@ export default function AddFavoriteWeb() {
     }
   }
 
-  async function add(item: SearchItem) {
+  async function beginAdd(item: SearchItem) {
     const key = `${item.provider}:${item.externalId}`;
     setWorking(key);
     setError("");
@@ -110,10 +121,52 @@ export default function AddFavoriteWeb() {
 
       if (addError) throw addError;
 
-      router.push("/favorites");
-      router.refresh();
+      setFavoriteAdded(true);
+      setPending(item);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Sevdiklerine eklenemedi.");
+    } finally {
+      setWorking("");
+    }
+  }
+
+  function finishFavoriteOnly() {
+    setPending(null);
+    setFavoriteAdded(false);
+    router.push("/favorites");
+    router.refresh();
+  }
+
+  async function addExperienceToo() {
+    if (!pending) return;
+    const key = `${pending.provider}:${pending.externalId}`;
+    setWorking(key);
+    setError("");
+
+    try {
+      const response = await fetch("/api/favorites/experience", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          title: pending.title,
+          subtitle: pending.subtitle,
+          creatorName: pending.creatorName,
+          coverUrl: pending.coverUrl,
+          sourceUrl: pending.sourceUrl,
+          metadata: pending.metadata,
+        }),
+      });
+
+      const payload = (await response.json()) as { seedId?: string; error?: string };
+      if (!response.ok) throw new Error(payload.error || "Deneyime eklenemedi.");
+
+      setPending(null);
+      setFavoriteAdded(false);
+      router.push("/experiences");
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Deneyime eklenemedi.");
     } finally {
       setWorking("");
     }
@@ -245,7 +298,7 @@ export default function AddFavoriteWeb() {
                   <button
                     type="button"
                     disabled={isWorking}
-                    onClick={() => void add(item)}
+                    onClick={() => void beginAdd(item)}
                     title="Sevdiklerime ekle"
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-rose-600 text-xl text-white shadow-sm disabled:opacity-50"
                   >
@@ -257,6 +310,50 @@ export default function AddFavoriteWeb() {
           </div>
         ) : null}
       </section>
+
+      {pending && favoriteAdded ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[30px] bg-white p-6 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-600">
+              Sevdiklerine eklendi
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-gray-950">Deneyimine de eklensin mi?</h2>
+            <p className="mt-2 text-sm leading-6 text-gray-500">{experienceQuestion(kind)}</p>
+
+            <div className="mt-5 rounded-2xl bg-gray-50 p-4">
+              <p className="font-black text-gray-950">{pending.title}</p>
+              {pending.subtitle || pending.creatorName ? (
+                <p className="mt-1 text-sm text-gray-500">{pending.subtitle ?? pending.creatorName}</p>
+              ) : null}
+            </div>
+
+            {error ? (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            <div className="mt-6 grid gap-2">
+              <button
+                type="button"
+                onClick={() => void addExperienceToo()}
+                disabled={Boolean(working)}
+                className="rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-black text-white disabled:opacity-50"
+              >
+                {working ? "Ekleniyor…" : "Evet, ikisine ekle"}
+              </button>
+              <button
+                type="button"
+                onClick={finishFavoriteOnly}
+                disabled={Boolean(working)}
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-black text-gray-800 disabled:opacity-50"
+              >
+                Sadece Sevdiklerim
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
