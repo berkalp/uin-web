@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { connectPrivateSeedToCatalogue, plantSeedFromCatalogue } from "@/app/seeds/explore/actions";
+import { addFavoriteFromCatalogue, connectPrivateSeedToCatalogue, plantSeedFromCatalogue } from "@/app/seeds/explore/actions";
 
 export type SeedSubjectSearchRow = {
   catalog_item_id: string;
@@ -29,6 +29,7 @@ type SeedSubjectCardProps = {
   subject: SeedSubjectSearchRow;
   returnTo: string;
   sourceSeedId?: string | null;
+  mode?: "intent" | "experience" | "favorite";
 };
 
 function toCount(value: number | string): number {
@@ -57,6 +58,7 @@ export default function SeedSubjectCard({
   subject,
   returnTo,
   sourceSeedId = null,
+  mode = "intent",
 }: SeedSubjectCardProps) {
   const plantedCount = toCount(subject.planted_count);
   const activeCount = toCount(subject.active_count);
@@ -137,7 +139,16 @@ export default function SeedSubjectCard({
               View subject
             </Link>
 
-            {sourceSeedId ? (
+            {mode === "favorite" ? (
+              <form action={addFavoriteFromCatalogue} className="flex flex-wrap gap-2">
+                <input type="hidden" name="catalog_item_id" value={subject.catalog_item_id} />
+                <input type="hidden" name="return_to" value={returnTo} />
+                <button name="experienced" value="false" type="submit" className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-black text-rose-700 hover:bg-rose-100">Sadece Sevdiklerim</button>
+                <button name="experienced" value="true" type="submit" className="rounded-full bg-green-600 px-4 py-2 text-sm font-black text-white hover:bg-green-700">Sevdiklerim + Deneyim</button>
+              </form>
+            ) : mode === "experience" ? (
+              <Link href={`/seeds/subjects/${encodeURIComponent(subject.catalog_item_id)}/past`} className="rounded-full bg-purple-600 px-4 py-2 text-sm font-black text-white hover:bg-purple-700">{getPastExperienceLabel(subject.seed_type_slug)}</Link>
+            ) : sourceSeedId ? (
               <form action={connectPrivateSeedToCatalogue}>
                 <input type="hidden" name="source_seed_id" value={sourceSeedId} />
                 <input type="hidden" name="catalog_item_id" value={subject.catalog_item_id} />
@@ -163,14 +174,14 @@ export default function SeedSubjectCard({
               </form>
             )}
 
-            <Link
+            {mode === "intent" && <Link
               href={`/seeds/subjects/${encodeURIComponent(
                 subject.catalog_item_id
               )}/past`}
               className="rounded-full border border-purple-200 bg-purple-50 px-4 py-2 text-sm font-bold text-purple-800 transition hover:bg-purple-100"
             >
               {getPastExperienceLabel(subject.seed_type_slug)}
-            </Link>
+            </Link>}
           </div>
         </div>
       </div>

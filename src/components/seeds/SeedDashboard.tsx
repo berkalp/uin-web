@@ -19,15 +19,16 @@ type SeedWithReminder = SeedRecord & {
 type SeedDashboardProps = {
   seeds: SeedWithReminder[];
   isAuthenticated: boolean;
+  mode?: "intentions" | "experiences";
 };
 
 const tabs: Array<{
   value: SeedDashboardStatus;
   label: string;
 }> = [
-  { value: "active", label: "Active" },
+  { value: "active", label: "Aktif" },
   { value: "past_due", label: "Süresi geçti" },
-  { value: "completed", label: "Completed" },
+  { value: "completed", label: "Deneyimler" },
   { value: "archived", label: "Kapananlar" },
 ];
 
@@ -36,8 +37,9 @@ const PAGE_SIZE = 6;
 export default function SeedDashboard({
   seeds,
   isAuthenticated,
+  mode = "intentions",
 }: SeedDashboardProps) {
-  const [activeTab, setActiveTab] = useState<SeedDashboardStatus>("active");
+  const [activeTab, setActiveTab] = useState<SeedDashboardStatus>(mode === "experiences" ? "completed" : "active");
   const [scope, setScope] = useState<"all" | "library" | "private">("all");
   const [page, setPage] = useState(0);
 
@@ -72,8 +74,8 @@ export default function SeedDashboard({
   return (
     <>
       <section className="mt-6 rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          {tabs.map((tab) => {
+        <div className={`grid gap-2 ${mode === "experiences" ? "grid-cols-1" : "grid-cols-2 md:grid-cols-3"}`}>
+          {tabs.filter((tab) => mode === "experiences" ? tab.value === "completed" : tab.value !== "completed").map((tab) => {
             const selected = activeTab === tab.value;
 
             return (
@@ -101,9 +103,9 @@ export default function SeedDashboard({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           {[
-            { value: "all", label: "All Seeds" },
-            { value: "library", label: "Library Seeds" },
-            { value: "private", label: "🔒 Private Seeds" },
+            { value: "all", label: "Tümü" },
+            { value: "library", label: "Kütüphaneden" },
+            { value: "private", label: "🔒 Kendi eklediklerim" },
           ].map((item) => (
             <button
               key={item.value}

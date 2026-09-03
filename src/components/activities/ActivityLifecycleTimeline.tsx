@@ -191,7 +191,7 @@ function formatTargetWindow(
   return (
     start ??
     end ??
-    "No target window recorded"
+    "Hedef zaman aralığı yok"
   );
 }
 
@@ -314,11 +314,11 @@ function getSteps({
     confirmedSchedule
       ? {
           label:
-            "Confirmed plan",
+            "Netleşen Aktivite",
           value:
             confirmedSchedule,
           helper:
-            "The date and time agreed in the Planning Room.",
+            "Niyet planlanırken netleştirilen tarih ve saat.",
           tone: "plan",
         }
       : {
@@ -327,13 +327,13 @@ function getSteps({
           value:
             normalizedStatus ===
               "forming"
-              ? "Planning in progress"
-              : "Not scheduled yet",
+              ? "Planlanıyor"
+              : "Henüz netleşmedi",
           helper:
             normalizedStatus ===
               "forming"
-              ? "The group is still choosing the exact date and time."
-              : "No exact Activity schedule has been confirmed.",
+              ? "Ekip kesin tarih ve saati birlikte belirliyor."
+              : "Aktivitenin kesin programı henüz belirlenmedi.",
           tone: "pending",
         };
 
@@ -344,12 +344,12 @@ function getSteps({
     "completed"
   ) {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value: occurredAt
-        ? `Completed · ${occurredAt}`
+        ? `Yaşandı · ${occurredAt}`
         : completedRecord
-          ? `Completed · ${completedRecord}`
-          : "Completed",
+          ? `Yaşandı · ${completedRecord}`
+          : "Yaşandı",
       helper:
         completedRecord &&
         completedRecord !==
@@ -365,8 +365,8 @@ function getSteps({
     outcomeStep = {
       label: "Outcome",
       value: cancellationRecord
-        ? `Cancelled · ${cancellationRecord}`
-        : "Cancelled",
+        ? `İptal · ${cancellationRecord}`
+        : "İptal edildi",
       helper:
         confirmedSchedule
           ? "A confirmed plan existed, but the Activity was cancelled."
@@ -379,7 +379,7 @@ function getSteps({
   ) {
     outcomeStep = {
       label: "Outcome",
-      value: "Did not happen",
+      value: "Gerçekleşmedi",
       helper:
         "The target window ended without a completed Activity.",
       tone: "warning",
@@ -393,7 +393,7 @@ function getSteps({
     outcomeStep = {
       label: "Outcome",
       value:
-        "Waiting for the Activity",
+        "Aktivite bekleniyor",
       helper:
         normalizedStatus ===
         "planned"
@@ -408,7 +408,7 @@ function getSteps({
     outcomeStep = {
       label: "Outcome",
       value:
-        "Closed without a result",
+        "Sonuç olmadan kapandı",
       helper:
         "This Intent is no longer accepting matches and has no completed Activity.",
       tone: "warning",
@@ -417,7 +417,7 @@ function getSteps({
     outcomeStep = {
       label: "Outcome",
       value:
-        "Waiting for a match",
+        "Eşleşme bekleniyor",
       helper:
         "This person shared when they are available, but no Activity has happened yet.",
       tone: "pending",
@@ -427,7 +427,7 @@ function getSteps({
   return [
     {
       label:
-        "Target availability",
+        "Niyet",
       value: targetWindow,
       helper:
         "When this person said they were available for the Activity.",
@@ -499,9 +499,9 @@ export default function ActivityLifecycleTimeline({
   status,
   timezone,
   variant = "detail",
-  title = "Activity journey",
+  title = "Niyet Yolculuğu",
   description =
-    "The original availability, the confirmed plan and the final result.",
+    "Niyet, netleşen Aktivite ve gerçek sonuç.",
   hideCompactTitle = false,
 }: ActivityLifecycleTimelineProps) {
   const steps = getSteps({
@@ -528,7 +528,7 @@ export default function ActivityLifecycleTimeline({
       <div className="h-full min-w-0 overflow-hidden rounded-xl border border-gray-100 bg-white/75 px-2.5 py-2 shadow-sm">
         {!hideCompactTitle && (
           <p className="text-[9px] font-black uppercase tracking-[0.1em] text-green-700">
-            Intent Journey
+            Niyet Yolculuğu
           </p>
         )}
 
@@ -561,7 +561,7 @@ export default function ActivityLifecycleTimeline({
       <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-green-700">
-            Timeline
+            Yolculuk
           </p>
         </div>
 

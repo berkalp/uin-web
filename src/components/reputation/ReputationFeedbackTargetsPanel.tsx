@@ -20,6 +20,15 @@ function getInitial(
   );
 }
 
+function getRoleLabel(
+  role: string
+) {
+  if (role === "host") return "Ana Yürüten";
+  if (role === "co_host") return "Birlikte Yürüten";
+  if (role === "participant") return "Katılımcı";
+  return role.replaceAll("_", " ");
+}
+
 export default function ReputationFeedbackTargetsPanel({
   planId,
   targets,
@@ -71,26 +80,26 @@ export default function ReputationFeedbackTargetsPanel({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
-            Activity feedback
+            Aktivite değerlendirmesi
           </p>
 
           <h2 className="mt-2 text-xl font-bold text-purple-950">
             {feedbackComplete
-              ? "Your feedback is complete"
-              : "Reputation follows the context"}
+              ? "Değerlendirmen tamamlandı"
+              : "Değerlendirme aktivite bağlamını takip eder"}
           </h2>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-purple-800">
             {feedbackComplete
-              ? "You have evaluated every eligible person from this Activity. The responses stay attached to this exact Activity context."
-              : "Evaluate only the people you shared this Activity with. Basketball feedback stays with Basketball; Family Picnic feedback stays with Family Picnic."}
+              ? "Bu Aktivitede değerlendirebileceğin herkesi değerlendirdin. Yanıtlar yalnızca bu Aktivitenin bağlamında saklanır."
+              : "Yalnızca bu Aktiviteyi birlikte yaptığın kişileri değerlendir. Basketbol değerlendirmesi basketbolda, aile pikniği değerlendirmesi aile pikniğinde kalır."}
           </p>
         </div>
 
         {pendingTargets.length > 0 && (
           <span className="rounded-full bg-purple-700 px-3 py-1.5 text-xs font-bold text-white">
             {pendingTargets.length}{" "}
-            pending
+            bekliyor
           </span>
         )}
       </div>
@@ -129,7 +138,7 @@ export default function ReputationFeedbackTargetsPanel({
                   </p>
 
                   <p className="mt-0.5 text-xs capitalize text-gray-500">
-                    {target.target_role}
+                    {getRoleLabel(target.target_role)}
                   </p>
                 </div>
 
@@ -144,11 +153,11 @@ export default function ReputationFeedbackTargetsPanel({
                     )}`}
                     className="shrink-0 rounded-xl bg-purple-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-purple-800"
                   >
-                    Give feedback
+                    Değerlendir
                   </Link>
                 ) : target.existing_feedback_id ? (
                   <span className="shrink-0 rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold text-green-800">
-                    Submitted
+                    Gönderildi
                   </span>
                 ) : null}
               </article>
@@ -163,7 +172,7 @@ export default function ReputationFeedbackTargetsPanel({
             href={memoryHref}
             className="rounded-xl border border-purple-200 bg-white px-4 py-2.5 text-sm font-bold text-purple-800 transition hover:bg-purple-100"
           >
-            Continue to Memory ↓
+            Hatıraya Devam Et ↓
           </a>
         </div>
       )}

@@ -36,11 +36,30 @@ function kindForSeedTypeSlug(slug: string): string {
 
 function appendNotice(
   path: string,
-  key: "error" | "planted" | "suggested",
+  key: "error" | "planted" | "suggested" | "favorite",
   value: string
 ): string {
   const separator = path.includes("?") ? "&" : "?";
   return `${path}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
+export async function addFavoriteFromCatalogue(formData: FormData): Promise<void> {
+  const returnTo = getSafeReturnTo(formData);
+  const catalogItemId = getText(formData, "catalog_item_id");
+  const experienced = getText(formData, "experienced") === "true";
+  if (!catalogItemId) redirect(appendNotice(returnTo, "error", "Katalog kaydı bulunamadı."));
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/");
+  const favoriteResult = await supabase.rpc("toggle_my_favorite_v2921", { p_catalog_item_id: catalogItemId, p_favorite: true });
+  if (favoriteResult.error) redirect(appendNotice(returnTo, "error", favoriteResult.error.message));
+  if (experienced) {
+    const planted = await supabase.rpc("plant_seed_from_catalog", { p_catalog_item_id: catalogItemId, p_visibility: "everyone" });
+    if (planted.error || typeof planted.data !== "string") redirect(appendNotice(returnTo, "error", planted.error?.message || "Deneyim oluşturulamadı."));
+    const state = await supabase.rpc("save_my_seed_v17_state", { p_seed_id: planted.data, p_relationship_status: "completed", p_experience_precision: "unknown", p_experience_date: null, p_experience_year: null, p_personal_cover_url: null, p_rating: null });
+    if (state.error) redirect(appendNotice(returnTo, "error", state.error.message));
+  }
+  redirect(appendNotice(returnTo, "favorite", experienced ? "both" : "favorite"));
 }
 
 export async function plantSeedFromCatalogue(
@@ -67,7 +86,7 @@ export async function plantSeedFromCatalogue(
     "plant_seed_from_catalog",
     {
       p_catalog_item_id: catalogItemId,
-      p_visibility: "only_me",
+      p_visibility: "everyone",
       p_note: null,
       p_target_date: null,
       p_custom_title: null,
@@ -173,7 +192,7 @@ export async function suggestAndPlantSeedSubject(
 
   const { data: seedId, error: plantError } = await supabase.rpc("plant_seed_from_catalog", {
     p_catalog_item_id: catalogItemId,
-    p_visibility: "only_me",
+    p_visibility: "everyone",
     p_note: null,
     p_target_date: null,
     p_custom_title: null,

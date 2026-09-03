@@ -11,7 +11,7 @@ import {
   type PublicBadge,
 } from "@/utils/badges";
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 5;
 
 export default function PublicBadgesPanel({
   badges,

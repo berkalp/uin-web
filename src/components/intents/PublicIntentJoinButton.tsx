@@ -131,7 +131,7 @@ export default function PublicIntentJoinButton({
 
       if (!row) {
         throw new Error(
-          "Join request settings could not be loaded."
+          "Katılım isteği ayarları yüklenemedi."
         );
       }
 
@@ -156,7 +156,7 @@ export default function PublicIntentJoinButton({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Join request settings could not be loaded."
+          : "Katılım isteği ayarları yüklenemedi."
       );
     } finally {
       setIsLoadingSettings(false);
@@ -170,7 +170,7 @@ export default function PublicIntentJoinButton({
 
     if (!hasLoadedSettings) {
       setErrorMessage(
-        "Join request settings could not be loaded."
+        "Katılım isteği ayarları yüklenemedi."
       );
       return;
     }
@@ -184,7 +184,7 @@ export default function PublicIntentJoinButton({
       !cleanedMessage
     ) {
       setErrorMessage(
-        "Answer the host's question before sending the request."
+        "İsteği göndermeden önce yürütücünün sorusunu yanıtla."
       );
       return;
     }
@@ -230,7 +230,7 @@ export default function PublicIntentJoinButton({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Join request could not be sent."
+          : "Katılım isteği gönderilemedi."
       );
     } finally {
       setIsWorking(false);
@@ -268,7 +268,7 @@ export default function PublicIntentJoinButton({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Join request could not be withdrawn."
+          : "Katılım isteği geri çekilemedi."
       );
     } finally {
       setIsWorking(false);
@@ -293,7 +293,7 @@ export default function PublicIntentJoinButton({
         }
         className="rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
       >
-        Open Shared Plan
+        Niyet Odasını Aç
       </a>
     );
   }
@@ -301,7 +301,7 @@ export default function PublicIntentJoinButton({
   if (!viewerIsEligible) {
     return (
       <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-        You are not eligible to join this Intent.
+        Bu Niyete katılma koşullarını karşılamıyorsun.
       </span>
     );
   }
@@ -319,14 +319,14 @@ export default function PublicIntentJoinButton({
           href="/intent-invitations"
           className="rounded-xl border border-purple-200 bg-purple-50 px-5 py-3 text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
         >
-          View Invitation
+          Daveti Gör
         </a>
       );
     }
 
     return (
       <span className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700">
-        Invite Only
+        Yalnız Davet
       </span>
     );
   }
@@ -337,7 +337,7 @@ export default function PublicIntentJoinButton({
   ) {
     return (
       <span className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
-        Capacity Full
+        Kontenjan Dolu
       </span>
     );
   }
@@ -349,7 +349,7 @@ export default function PublicIntentJoinButton({
     return (
       <div className="inline-flex max-w-full items-center gap-1">
         <span className="inline-flex h-6 items-center whitespace-nowrap rounded-md border border-amber-200 bg-amber-50 px-2 text-[9px] font-semibold leading-none text-amber-700">
-          Request Pending
+          İstek Bekliyor
         </span>
 
         <button
@@ -358,7 +358,7 @@ export default function PublicIntentJoinButton({
           onClick={withdrawRequest}
           className="inline-flex h-6 items-center whitespace-nowrap rounded-md border border-gray-200 bg-white px-2 text-[9px] font-semibold leading-none text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
         >
-          Withdraw
+          Geri Çek
         </button>
       </div>
     );
@@ -418,15 +418,15 @@ export default function PublicIntentJoinButton({
             className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl"
           >
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-              Request to Join
+              Katılım İsteği
             </p>
 
             <h2 className="mt-2 text-2xl font-bold text-gray-950">
-              Join {activityName}
+              {activityName} için Ben de varım
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-gray-500">
-              The Primary Host or a Co-host will review your request.
+              Ana Yürüten veya Birlikte Yürüten isteğini değerlendirecek.
             </p>
 
             {isLoadingSettings ? (
@@ -466,8 +466,8 @@ export default function PublicIntentJoinButton({
                   placeholder={
                     joinMessageMode ===
                     "required"
-                      ? "Your answer"
-                      : "Optional answer"
+                      ? "Yanıtın"
+                      : "İsteğe bağlı yanıt"
                   }
                   onChange={(event) => {
                     setMessage(
@@ -482,8 +482,8 @@ export default function PublicIntentJoinButton({
                   <span>
                     {joinMessageMode ===
                     "required"
-                      ? "Required"
-                      : "Optional"}
+                      ? "Zorunlu"
+                      : "İsteğe bağlı"}
                   </span>
 
                   <span>
@@ -524,8 +524,8 @@ export default function PublicIntentJoinButton({
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isWorking
-                  ? "Sending..."
-                  : "Send Request"}
+                  ? "Gönderiliyor..."
+                  : "İsteği Gönder"}
               </button>
             </div>
           </form>

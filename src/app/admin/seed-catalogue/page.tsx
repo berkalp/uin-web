@@ -2,22 +2,26 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import SeedCatalogueSubjectFields from "@/components/admin/SeedCatalogueSubjectFields";
+import DeleteCatalogueItemForm from "@/components/admin/DeleteCatalogueItemForm";
 import { createClient } from "@/utils/supabase/server";
 
 import {
   createSeedCatalogueItem,
+  deleteSeedCatalogueItem,
   reviewSeedCatalogueItem,
   updateSeedCatalogueItem,
 } from "./actions";
 
 export const metadata: Metadata = {
-  title: "Seed Library Management | UIN Admin",
+  title: "Kütüphane Yönetimi | UIN Admin",
 };
 
 type AdminSeedCataloguePageProps = {
   searchParams: Promise<{
     status?: string | string[];
     q?: string | string[];
+    kind?: string | string[];
+    page?: string | string[];
     error?: string | string[];
     updated?: string | string[];
   }>;
@@ -114,6 +118,26 @@ function numberValue(value: number | string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function kindLabel(kind: string): string {
+  const labels: Record<string, string> = {
+    movie: "Film",
+    series: "Dizi",
+    artist: "Sanatçı",
+    album: "Albüm",
+    podcast: "Podcast",
+    book: "Kitap",
+    place: "Yer",
+    restaurant: "Mekân",
+    game: "Oyun",
+    course: "Kurs",
+    recipe: "Tarif",
+    skill: "Beceri",
+    challenge: "Meydan okuma",
+    generic: "Diğer",
+  };
+  return labels[kind] || kind;
+}
+
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -127,17 +151,17 @@ function formatDate(value: string): string {
 function statusLabel(status: string): string {
   switch (status) {
     case "pending":
-      return "Needs Review";
+      return "İnceleme gerekiyor";
     case "under_review":
-      return "Reports";
+      return "Bildirimler";
     case "active":
-      return "Active Library";
+      return "Aktif Kütüphane";
     case "rejected":
-      return "Rejected";
+      return "Reddedilenler";
     case "merged":
-      return "Merged History";
+      return "Birleştirme geçmişi";
     default:
-      return "Library";
+      return "Kütüphane";
   }
 }
 
@@ -181,6 +205,10 @@ export default async function AdminSeedCataloguePage({
   const allowedStatuses = ["pending", "active", "under_review", "rejected", "merged", "all"];
   const status = allowedStatuses.includes(requestedStatus) ? requestedStatus : "pending";
   const query = one(params.q);
+  const selectedKind = one(params.kind) || "all";
+  const requestedPage = Number.parseInt(one(params.page) || "1", 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const pageSize = 25;
   const errorMessage = one(params.error);
   const updated = one(params.updated);
 
@@ -189,13 +217,23 @@ export default async function AdminSeedCataloguePage({
     supabase.rpc("get_admin_seed_catalog_items", {
       p_status: status === "all" ? null : status,
       p_query: query || null,
-      p_limit: 150,
+      p_limit: 300,
     }),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_seed_catalog_counts"),
   ]);
 
-  const items = (itemsResponse.data ?? []) as CatalogueItem[];
+  const allItems = (itemsResponse.data ?? []) as CatalogueItem[];
+  const kindCounts = allItems.reduce<Record<string, number>>((result, item) => {
+    result[item.item_kind] = (result[item.item_kind] || 0) + 1;
+    return result;
+  }, {});
+  const filteredItems = selectedKind === "all"
+    ? allItems
+    : allItems.filter((item) => item.item_kind === selectedKind);
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const items = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const seedTypes = (seedTypesResponse.data ?? []) as SeedTypeRow[];
   const counts = (countsResponse.data ?? {}) as CatalogueCounts;
   const pendingCount = numberValue(counts.pending);
@@ -206,14 +244,30 @@ export default async function AdminSeedCataloguePage({
 
   const currentParams = new URLSearchParams({ status });
   if (query) currentParams.set("q", query);
+  if (selectedKind !== "all") currentParams.set("kind", selectedKind);
+  if (currentPage > 1) currentParams.set("page", String(currentPage));
   const returnTo = `/admin/seed-catalogue?${currentParams.toString()}`;
 
   const tabs = [
-    { status: "pending", label: "Needs Review", count: pendingCount, tone: "amber" },
-    { status: "active", label: "Active Library", count: activeCount, tone: "emerald" },
-    { status: "under_review", label: "Reports", count: reportCount, tone: "red" },
-    { status: "rejected", label: "Rejected", count: rejectedCount, tone: "gray" },
+    { status: "pending", label: "İnceleme gerekiyor", count: pendingCount, tone: "amber" },
+    { status: "active", label: "Aktif Kütüphane", count: activeCount, tone: "emerald" },
+    { status: "under_review", label: "Bildirimler", count: reportCount, tone: "red" },
+    { status: "rejected", label: "Reddedilenler", count: rejectedCount, tone: "gray" },
   ];
+  const kindEntries = Object.entries(kindCounts).sort((a, b) =>
+    kindLabel(a[0]).localeCompare(kindLabel(b[0]), "tr")
+  );
+  const catalogueHref = (overrides: Record<string, string | null>) => {
+    const next = new URLSearchParams({ status });
+    if (query) next.set("q", query);
+    if (selectedKind !== "all") next.set("kind", selectedKind);
+    if (currentPage > 1) next.set("page", String(currentPage));
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
+    return `/admin/seed-catalogue?${next.toString()}`;
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
@@ -221,15 +275,15 @@ export default async function AdminSeedCataloguePage({
         <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
-              UIN Admin · Shared Vocabulary
+              UIN Admin · Ortak Kütüphane
             </p>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950">
-              Seed Library Management
+              Kütüphane Yönetimi
             </h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
-              Curate the canonical subjects people can plant. Suggestions stay private until reviewed,
-              duplicate subjects merge into one identity, and type-specific metadata gives books,
-              places, films and other Seeds the context they actually need.
+              Film, dizi, sanatçı, kitap, yer ve diğer ortak konuları tek yerden düzenle.
+              Önerileri incele, tekrarları birleştir ve hatalı kayıtları bağlı kullanıcı
+              kayıtlarıyla birlikte kaldır.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -238,14 +292,14 @@ export default async function AdminSeedCataloguePage({
                 href="/admin/seed-catalogue?status=merged"
                 className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:border-gray-950"
               >
-                Merged history · {mergedCount}
+                Birleştirme geçmişi · {mergedCount}
               </Link>
             )}
             <Link
               href="/admin"
               className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-800 hover:border-gray-950"
             >
-              Admin home
+              Admin ana sayfası
             </Link>
           </div>
         </div>
@@ -256,7 +310,7 @@ export default async function AdminSeedCataloguePage({
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">Curation queue</p>
                 <h2 className="mt-1 text-xl font-black text-amber-950">
-                  {pendingCount + reportCount} Seed Library item{pendingCount + reportCount === 1 ? "" : "s"} need attention
+                  {pendingCount + reportCount} kütüphane kaydı ilgilenmeni bekliyor
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
                   {pendingCount} new suggestion{pendingCount === 1 ? "" : "s"} · {reportCount} reported subject{reportCount === 1 ? "" : "s"}
@@ -295,7 +349,7 @@ export default async function AdminSeedCataloguePage({
 
         <details className="mb-6 overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-sm">
           <summary className="cursor-pointer bg-emerald-50 px-5 py-4 text-base font-black text-emerald-950 sm:px-6">
-            + Add a verified Seed directly to the Library
+            + Doğrulanmış bir konuyu doğrudan Kütüphaneye ekle
           </summary>
           <form action={createSeedCatalogueItem} className="space-y-4 border-t border-emerald-100 p-5 sm:p-6">
             <input type="hidden" name="return_to" value={returnTo} />
@@ -313,19 +367,38 @@ export default async function AdminSeedCataloguePage({
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-gray-500">{statusLabel(status)}</p>
               <h2 className="mt-1 text-xl font-black text-gray-950">
-                {items.length} item{items.length === 1 ? "" : "s"} shown
+                {filteredItems.length} kayıt
               </h2>
             </div>
             <form method="get" className="flex min-w-0 flex-1 gap-2 sm:max-w-xl">
               <input type="hidden" name="status" value={status} />
+              {selectedKind !== "all" && <input type="hidden" name="kind" value={selectedKind} />}
               <input
                 name="q"
                 defaultValue={query}
-                placeholder="Search title, alias or creator"
+                placeholder="Başlık, alternatif ad veya üretici ara"
                 className="min-w-0 flex-1 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100"
               />
-              <button type="submit" className="rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white">Search</button>
+              <button type="submit" className="rounded-2xl bg-gray-950 px-5 py-3 text-sm font-black text-white">Ara</button>
             </form>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2 border-t border-gray-100 pt-5">
+            <Link
+              href={catalogueHref({ kind: null, page: null })}
+              className={`rounded-full border px-4 py-2 text-sm font-black ${selectedKind === "all" ? "border-gray-950 bg-gray-950 text-white" : "border-gray-200 bg-white text-gray-700"}`}
+            >
+              Tümü · {allItems.length}
+            </Link>
+            {kindEntries.map(([kind, count]) => (
+              <Link
+                key={kind}
+                href={catalogueHref({ kind, page: null })}
+                className={`rounded-full border px-4 py-2 text-sm font-black ${selectedKind === kind ? "border-emerald-600 bg-emerald-50 text-emerald-800" : "border-gray-200 bg-white text-gray-700"}`}
+              >
+                {kindLabel(kind)} · {count}
+              </Link>
+            ))}
           </div>
 
           {itemsResponse.error && (
@@ -354,13 +427,13 @@ export default async function AdminSeedCataloguePage({
             return (
               <article key={item.catalog_item_id} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <div className="grid lg:grid-cols-[170px_1fr]">
-                  <div className="min-h-44 bg-gradient-to-br from-emerald-50 to-lime-100">
+                  <div className="h-52 overflow-hidden bg-gradient-to-br from-emerald-50 to-lime-100 lg:h-64">
                     {item.cover_url ? (
-                      <img src={item.cover_url} alt="" className="h-full min-h-44 w-full object-cover" />
+                      <img src={item.cover_url} alt="" className="h-full w-full bg-gray-100 object-contain" />
                     ) : item.seed_type_slug === "visit" && mapEmbedUrl ? (
-                      <iframe title={`${item.canonical_title} map`} src={mapEmbedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-full min-h-44 w-full border-0" />
+                      <iframe title={`${item.canonical_title} map`} src={mapEmbedUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="h-full w-full border-0" />
                     ) : (
-                      <div className="flex h-full min-h-44 items-center justify-center text-5xl">{item.seed_type_icon || "🌱"}</div>
+                      <div className="flex h-full items-center justify-center text-5xl">{item.seed_type_icon || "🌱"}</div>
                     )}
                   </div>
 
@@ -384,7 +457,20 @@ export default async function AdminSeedCataloguePage({
                               .join(" · ") || "Place details not completed yet"}
                           </p>
                         )}
-                        {description && <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-600">{description}</p>}
+                        {description && (
+                          <details className="group mt-3 max-w-3xl">
+                            <summary className="cursor-pointer list-none text-sm text-gray-600 marker:hidden">
+                              <span className="line-clamp-3 leading-6 group-open:hidden">{description}</span>
+                              <span className="mt-1 inline-flex rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-700 group-open:hidden">
+                                Devamını gör
+                              </span>
+                              <span className="hidden leading-6 group-open:block">{description}</span>
+                              <span className="mt-2 hidden rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-black text-gray-700 group-open:inline-flex">
+                                Daha az göster
+                              </span>
+                            </summary>
+                          </details>
+                        )}
                         <p className="mt-3 text-xs text-gray-500">
                           {item.personal_seed_count} linked personal Seed{item.personal_seed_count === 1 ? "" : "s"} · added {formatDate(item.created_at)}
                         </p>
@@ -455,6 +541,20 @@ export default async function AdminSeedCataloguePage({
                             <button type="submit" className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-black text-white hover:bg-emerald-700">Save subject details</button>
                           </div>
                         </form>
+
+                        {item.status === "active" && (
+                          <div className="border-t border-red-100 bg-red-50/60 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                              <div>
+                                <p className="text-sm font-black text-red-900">Yanlış veya hatalı kayıt</p>
+                                <p className="mt-1 text-xs leading-5 text-red-700">
+                                  Kütüphane kaydı ve ona bağlı {item.personal_seed_count} kişisel niyet/deneyim kalıcı olarak silinir. Sosyal niyetlerin kendisi korunur.
+                                </p>
+                              </div>
+                              <DeleteCatalogueItemForm action={deleteSeedCatalogueItem} catalogItemId={item.catalog_item_id} returnTo={returnTo} personalRecordCount={item.personal_seed_count} />
+                            </div>
+                          </div>
+                        )}
                       </details>
                     )}
 
@@ -515,12 +615,15 @@ export default async function AdminSeedCataloguePage({
 
                     {item.status === "rejected" && (
                       <div className="mt-5 border-t border-gray-100 pt-5">
-                        <form action={reviewSeedCatalogueItem}>
-                          <input type="hidden" name="catalog_item_id" value={item.catalog_item_id} />
-                          <input type="hidden" name="review_action" value="approve" />
-                          <input type="hidden" name="return_to" value={returnTo} />
-                          <button type="submit" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 hover:bg-emerald-100">Restore to Library</button>
-                        </form>
+                        <div className="flex flex-wrap gap-3">
+                          <form action={reviewSeedCatalogueItem}>
+                            <input type="hidden" name="catalog_item_id" value={item.catalog_item_id} />
+                            <input type="hidden" name="review_action" value="approve" />
+                            <input type="hidden" name="return_to" value={returnTo} />
+                            <button type="submit" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 hover:bg-emerald-100">Kütüphaneye geri al</button>
+                          </form>
+                          <DeleteCatalogueItemForm action={deleteSeedCatalogueItem} catalogItemId={item.catalog_item_id} returnTo={returnTo} personalRecordCount={item.personal_seed_count} compact />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -536,6 +639,18 @@ export default async function AdminSeedCataloguePage({
             </div>
           )}
         </section>
+
+        {filteredItems.length > pageSize && (
+          <nav className="mt-6 flex items-center justify-center gap-3" aria-label="Kütüphane sayfaları">
+            {currentPage > 1 && (
+              <Link href={catalogueHref({ page: String(currentPage - 1) })} className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-black text-gray-700">Önceki 25</Link>
+            )}
+            <span className="text-sm font-bold text-gray-500">{currentPage} / {totalPages}</span>
+            {currentPage < totalPages && (
+              <Link href={catalogueHref({ page: String(currentPage + 1) })} className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-black text-white">Devamını gör</Link>
+            )}
+          </nav>
+        )}
       </div>
     </main>
   );

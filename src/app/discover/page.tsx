@@ -13,6 +13,7 @@ import DiscoverIntentCard, {
 import DiscoverMapView, {
   type DiscoverMapPoint,
 } from "@/components/discover/DiscoverMapView";
+import DiscoverPersonalIntentCard, { type DiscoverPersonalIntent } from "@/components/discover/DiscoverPersonalIntentCard";
 import {
   parseCommunityOptions,
   parseIntentCommunityRows,
@@ -155,6 +156,12 @@ const MAP_BATCH_LIMIT = 60;
 const MAP_MAX_RESULTS = 240;
 
 type DiscoverView = "cards" | "map" | "split";
+
+type DiscoverKind = "all" | "personal" | "social";
+
+function getDiscoverKind(value: string): DiscoverKind {
+  return value === "personal" || value === "social" ? value : "all";
+}
 
 const LIFECYCLE_OPTIONS = [
   {
@@ -537,6 +544,8 @@ export default async function DiscoverPage({
       "q"
     ).trim();
 
+  const kind = getDiscoverKind(getParam(resolvedSearchParams, "kind"));
+
   const categoryId =
     getParam(
       resolvedSearchParams,
@@ -710,6 +719,7 @@ export default async function DiscoverPage({
     communityResponse,
     followedCommunityResponse,
     searchResponse,
+    personalResponse,
   ] =
     await Promise.all([
       supabase.rpc(
@@ -729,7 +739,15 @@ export default async function DiscoverPage({
       ),
 
       runDiscoverSearch(resultLimit, resultOffset),
+      supabase.rpc("get_discoverable_personal_intents_v29", {
+        p_mode: "growing",
+        p_query: query || null,
+        p_limit: 100,
+        p_offset: 0,
+      }),
     ]);
+
+  const personalResults = ((personalResponse.data ?? []) as DiscoverPersonalIntent[]);
 
   if (
     filterResponse.error
@@ -1558,7 +1576,28 @@ export default async function DiscoverPage({
           </div>
         </header>
 
+        <nav className="mt-5 grid grid-cols-3 gap-2" aria-label="Niyet türü">
+          {([
+            ["all", "✨ Tümü"],
+            ["personal", "♙ Kişisel"],
+            ["social", "♧ Sosyal"],
+          ] as const).map(([value, label]) => {
+            const params = new URLSearchParams();
+            if (value !== "all") params.set("kind", value);
+            if (query) params.set("q", query);
+            return <Link key={value} href={`/discover${params.size ? `?${params}` : ""}`} className={`rounded-2xl border px-4 py-3 text-center text-sm font-bold transition ${kind === value ? "border-slate-950 bg-slate-950 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-green-400"}`}>{label}</Link>;
+          })}
+        </nav>
+
+        <form action="/discover" method="get" className="mt-4 flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
+          {kind !== "all" && <input type="hidden" name="kind" value={kind} />}
+          <span className="grid w-10 shrink-0 place-items-center text-xl text-gray-400" aria-hidden="true">⌕</span>
+          <input name="q" type="search" defaultValue={query} placeholder="Niyet, kişi, aktivite veya konum ara" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-gray-950 outline-none placeholder:text-gray-400" />
+          <button type="submit" className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-green-700">Ara</button>
+        </form>
+
         <DiscoverFiltersForm
+          kind={kind}
           query={query}
           categoryId={categoryId}
           activityId={activityId}
@@ -1603,7 +1642,20 @@ export default async function DiscoverPage({
           </section>
         )}
 
-        {!searchResponse.error &&
+        {kind !== "social" && personalResponse.error && (
+          <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Kişisel Niyet araması yüklenemedi: {personalResponse.error.message}</section>
+        )}
+
+        {kind !== "social" && !personalResponse.error && (
+          <section className="mt-7">
+            <div className="flex items-end justify-between gap-4">
+              <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Kişisel Niyetler</p><h2 className="mt-1 text-2xl font-bold text-gray-950">{personalResults.length} sonuç</h2></div>
+            </div>
+            {personalResults.length ? <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{personalResults.map((item) => <DiscoverPersonalIntentCard key={item.source_seed_id} item={item} />)}</div> : <div className="mt-5 rounded-3xl border border-gray-200 bg-white p-8 text-center text-gray-500">Aramana uyan herkese açık Kişisel Niyet bulunamadı.</div>}
+          </section>
+        )}
+
+        {kind !== "personal" && !searchResponse.error &&
           !intentEligibilityResponse.error &&
           !discoverMapContextError &&
           !mapBatchError && (

@@ -11,6 +11,7 @@ import ProfileFollowButton from "@/components/profile/ProfileFollowButton";
 import ProfilePresencePanel from "@/components/profile/ProfilePresencePanel";
 import ProfileConnectionsFamilyPanel from "@/components/profile/ProfileConnectionsFamilyPanel";
 import ProfileActivityTabs from "@/components/profile/ProfileActivityTabs";
+import PublicFavoritesPanel, { type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
 import ProfileIntentReactions, {
   type ProfileIntentReactionItem,
 } from "@/components/profile/ProfileIntentReactions";
@@ -607,6 +608,23 @@ export default async function PublicProfilePage({
     reaction_context:
       visibleSeedReactionById.get(seed.seed_id) ?? null,
   }));
+
+  const { data: publicPreferencesData, error: publicPreferencesError } =
+    await supabase.rpc("get_public_preferences_v2921", {
+      p_username: profile.username,
+    });
+
+  if (publicPreferencesError) {
+    console.warn("Public favorites are temporarily unavailable:", publicPreferencesError.message);
+  }
+
+  const publicPreferences = (publicPreferencesData ?? {}) as {
+    favorites?: PublicFavoriteItem[];
+    shared_favorite_count?: number | string;
+  };
+  const publicFavorites = Array.isArray(publicPreferences.favorites)
+    ? publicPreferences.favorites
+    : [];
 
   const [savedReactionResult, pawedReactionResult] = await Promise.all([
     page.viewer.is_owner
@@ -1756,6 +1774,50 @@ export default async function PublicProfilePage({
           </div>
         </section>
 
+        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {[
+            ["Aktif Sosyal Niyet", activeIntents.length],
+            ["Aktif Kişisel Niyet", visibleSeeds.filter((seed) => seed.status === "active").length],
+            ["Planlanıyor", formingActivities.length + upcomingActivities.length],
+            ["Sosyal Deneyim", completedActivities.length],
+            ["Kişisel Deneyim", visibleSeeds.filter((seed) => seed.status === "completed").length],
+            ["Yaklaşan", upcomingActivities.length],
+          ].map(([label, value]) => (
+            <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
+              <p className="text-3xl font-black text-gray-950">{value}</p>
+              <p className="mt-1 text-xs font-bold text-gray-500">{label}</p>
+            </div>
+          ))}
+        </section>
+
+        <PublicReputationPanel summary={reputationSummary} />
+
+        <PublicBadgesPanel
+          badges={publicBadges}
+          isOwner={page.viewer.is_owner}
+        />
+
+        <PublicProfessionalCredentialsPanel
+          status={professionalStatus}
+          isOwner={page.viewer.is_owner}
+        />
+
+        <div id="active-intents">
+          <ProfileActivityTabs
+            eyebrow="Sosyal Niyetler"
+            title={`${displayName} · Sosyal Niyetler`}
+            description="Planlanıyor, aktif ve yaşanan sosyal niyetler."
+            hostedCards={hostedActiveCards}
+            participatingCards={participatingActiveCards}
+            currentUserId={viewerUserId}
+            isAuthenticated={page.viewer.is_authenticated}
+            hostingLabel="Yürüttükleri"
+            participatingLabel="Katıldıkları"
+            emptyTitle="Görünür sosyal niyet yok"
+            emptyDescription="Bu bölümde gösterilebilecek güncel bir sosyal niyet bulunmuyor."
+          />
+        </div>
+
         <PublicSeedsPanel
           displayName={displayName}
           seeds={visibleSeeds}
@@ -1763,38 +1825,27 @@ export default async function PublicProfilePage({
           isAuthenticated={page.viewer.is_authenticated}
         />
 
-        <div id="active-intents">
-          <ProfileActivityTabs
-            eyebrow="Active Intents"
-            title={`${displayName} is currently involved in these Intents`}
-            description="Open, Forming and Planned Intent contexts that are still part of this person's current journey."
-            hostedCards={hostedActiveCards}
-            participatingCards={participatingActiveCards}
-            currentUserId={viewerUserId}
-            isAuthenticated={page.viewer.is_authenticated}
-            hostingLabel="Hosting"
-            participatingLabel="Participating"
-            emptyTitle="No visible Active Intent in this view"
-            emptyDescription="There are no current Intent contexts for the selected role."
-          />
-        </div>
-
         <div id="experiences">
           <ProfileActivityTabs
-            eyebrow="Experiences"
-            title={`${displayName}'s completed Activities`}
-            description="Activities that were completed as a host, co-host or participant."
+            eyebrow="Deneyimler"
+            title={`${displayName} · Deneyimler`}
+            description="Yürütücü veya katılımcı olarak yaşanmış etkinlikler."
             hostedCards={hostedExperienceCards}
             participatingCards={participatedExperienceCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
-            hostingLabel="Hosted"
-            participatingLabel="Participated"
-            emptyTitle="No visible Experience in this view"
-            emptyDescription="There are no completed Activities for the selected role."
+            hostingLabel="Yürüttükleri"
+            participatingLabel="Katıldıkları"
+            emptyTitle="Görünür deneyim yok"
+            emptyDescription="Bu bölümde gösterilebilecek tamamlanmış bir deneyim bulunmuyor."
             sortMode="experience"
           />
         </div>
+
+        <PublicFavoritesPanel
+          items={publicFavorites}
+          sharedCount={toCount(publicPreferences.shared_favorite_count ?? 0)}
+        />
 
         {page.viewer.is_owner && (
           <ProfileIntentReactions
@@ -1819,100 +1870,10 @@ export default async function PublicProfilePage({
           />
         )}
 
-        <PublicProfessionalCredentialsPanel
-          status={professionalStatus}
-          isOwner={page.viewer.is_owner}
-        />
-
         <PublicCommunityMembershipsPanel
           memberships={publicCommunityMemberships}
           isOwner={page.viewer.is_owner}
         />
-
-        <PublicBadgesPanel
-          badges={publicBadges}
-          isOwner={page.viewer.is_owner}
-        />
-
-        <PublicReputationPanel
-          summary={
-            reputationSummary
-          }
-        />
-
-        {page.viewer.is_owner &&
-          page.summary.private_archive && (
-          <section className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Private Archive
-            </p>
-
-            <h2 className="mt-2 text-xl font-bold text-gray-950">
-              Hidden from public view
-            </h2>
-
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Closed, expired and cancelled records remain visible only to you.
-            </p>
-
-            <div className="mt-5 grid grid-cols-3 gap-3">
-              {[
-                {
-                  label:
-                    "Closed",
-                  value:
-                    page.summary
-                      .private_archive
-                      .closed,
-                },
-                {
-                  label:
-                    "Expired",
-                  value:
-                    page.summary
-                      .private_archive
-                      .expired,
-                },
-                {
-                  label:
-                    "Cancelled",
-                  value:
-                    page.summary
-                      .private_archive
-                      .cancelled,
-                },
-              ].map(
-                (item) => (
-                  <div
-                    key={
-                      item.label
-                    }
-                    className="rounded-2xl bg-gray-50 p-4"
-                  >
-                    <p className="text-xs text-gray-400">
-                      {
-                        item.label
-                      }
-                    </p>
-
-                    <p className="mt-2 text-2xl font-bold text-gray-950">
-                      {
-                        item.value
-                      }
-                    </p>
-                  </div>
-                )
-              )}
-            </div>
-
-            <Link
-              href="/timeline"
-              className="mt-5 inline-flex text-sm font-semibold text-green-700"
-            >
-              Open Personal Timeline →
-            </Link>
-          </section>
-        )}
 
       </div>
     </main>

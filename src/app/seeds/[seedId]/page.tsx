@@ -11,6 +11,7 @@ type SeedDetailPageProps = {
   params: Promise<{
     seedId: string;
   }>;
+  searchParams: Promise<{ editExperience?: string | string[] }>;
 };
 
 function isValidUuid(value: string) {
@@ -21,8 +22,9 @@ function isValidUuid(value: string) {
 
 export default async function SeedDetailPage({
   params,
+  searchParams,
 }: SeedDetailPageProps) {
-  const { seedId } = await params;
+  const [{ seedId }, query] = await Promise.all([params, searchParams]);
 
   if (!isValidUuid(seedId)) {
     notFound();
@@ -86,6 +88,7 @@ export default async function SeedDetailPage({
           ? reminderResult.data.timezone
           : null
       }
+      editExperience={(Array.isArray(query.editExperience) ? query.editExperience[0] : query.editExperience) === "1"}
     />
   );
 }

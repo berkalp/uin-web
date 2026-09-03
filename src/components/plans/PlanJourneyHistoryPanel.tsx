@@ -125,11 +125,11 @@ function eventToJourneyItem(event: PlanJourneyLifecycleEvent): JourneyItem | nul
     return {
       key: `event:${event.id}`,
       occurredAt: event.createdAt,
-      label: event.roomPhase === "planning" ? "Planlama" : "Aktivite",
+      label: event.roomPhase === "planning" ? "Niyet" : "Aktivite",
       title: `${name} ayrıldı`,
       description:
         event.roomPhase === "planning"
-          ? "Katılımcı Planlama Odasından ayrıldı. Üyelik geçmişi silinmedi."
+          ? "Katılımcı Niyet sürecinden ayrıldı. Üyelik geçmişi silinmedi."
           : "Katılımcı artık Aktiviteye katılmayacak. Katılım geçmişi korunuyor.",
       tone: "amber",
       icon: "↪",
@@ -144,7 +144,7 @@ function eventToJourneyItem(event: PlanJourneyLifecycleEvent): JourneyItem | nul
       label: "Recovery",
       title: `${name} Niyetini yeniden açtı`,
       description:
-        "İptal edilen Plan / Aktivite geçmişte kaldı; kaynak Niyet yeni bir deneme için tekrar açıldı.",
+        "İptal edilen süreç geçmişte kaldı; kaynak Niyet yeni bir deneme için tekrar açıldı.",
       tone: "green",
       icon: "↺",
     };
@@ -169,7 +169,7 @@ function eventToJourneyItem(event: PlanJourneyLifecycleEvent): JourneyItem | nul
   return {
     key: `event:${event.id}`,
     occurredAt: event.createdAt,
-    label: event.roomPhase === "planning" ? "Planlama" : event.roomPhase === "activity" ? "Aktivite" : "Journey",
+    label: event.roomPhase === "planning" ? "Niyet" : event.roomPhase === "activity" ? "Aktivite" : "Yolculuk",
     title: eventLabel.charAt(0).toLocaleUpperCase("tr-TR") + eventLabel.slice(1),
     description: reason || "Bu lifecycle olayı geçmiş kaydına işlendi.",
     tone: "gray",
@@ -194,12 +194,12 @@ export default function PlanJourneyHistoryPanel({
     {
       key: "plan-created",
       occurredAt: planCreatedAt,
-      label: "Intent → Plan",
-      title: "Planlama Odası oluşturuldu",
+      label: "Niyet",
+      title: "Niyet Odası açıldı",
       description:
         sourceIntentCount > 1
-          ? `${sourceIntentCount} uyumlu Niyet bu ortak Planın kaynağını oluşturdu.`
-          : "Kaynak Niyet Planlama Odasına dönüştü.",
+          ? `${sourceIntentCount} uyumlu Niyet aynı ortak Aktivite sürecinde buluştu.`
+          : "Kaynak Niyet planlanmaya başladı.",
       tone: "green",
       icon: "🌱",
     },
@@ -209,9 +209,9 @@ export default function PlanJourneyHistoryPanel({
     items.push({
       key: "activity-confirmed",
       occurredAt: plannedAt,
-      label: "Plan → Activity",
+      label: "Niyet → Aktivite",
       title: "Aktivite kesinleşti",
-      description: "Planlama tamamlandı ve aynı geçmişin Activity Room aşaması açıldı.",
+      description: "Program netleşti; aynı oda, sohbet ve geçmiş Aktivite aşamasında devam etti.",
       tone: "blue",
       icon: "✓",
     });
@@ -226,8 +226,8 @@ export default function PlanJourneyHistoryPanel({
     items.push({
       key: "cancelled",
       occurredAt: cancelledAt,
-      label: status === "cancelled" && plannedAt ? "Activity → Cancelled" : "Plan → Cancelled",
-      title: plannedAt ? "Aktivite iptal edildi" : "Plan iptal edildi",
+      label: status === "cancelled" && plannedAt ? "Aktivite → İptal" : "Niyet → İptal",
+      title: plannedAt ? "Aktivite iptal edildi" : "Planlama iptal edildi",
       description: cancellationReason
         ? `Gerekçe: ${cancellationReason}. Geçmiş silinmedi ve bağlı Niyetler otomatik olarak yeniden açılmadı.`
         : "Geçmiş silinmedi ve bağlı Niyetler otomatik olarak yeniden açılmadı.",
@@ -238,9 +238,9 @@ export default function PlanJourneyHistoryPanel({
     items.push({
       key: "completed",
       occurredAt: completedAt,
-      label: "Activity → Memory",
+      label: "Aktivite → Hatıra",
       title: "Aktivite yaşandı",
-      description: "Aktivite tamamlandı. Değerlendirme, Reputation ve Memory aşaması açıldı.",
+      description: "Aktivite tamamlandı. Değerlendirme ve Hatıra aşaması açıldı.",
       tone: "purple",
       icon: "◆",
     });
@@ -248,9 +248,9 @@ export default function PlanJourneyHistoryPanel({
     items.push({
       key: "expired",
       occurredAt: expiredAt,
-      label: "Expired",
-      title: "Planlama penceresi sona erdi",
-      description: "Plan geçmişte korunuyor; bu deneme yeni bir Activityye dönüşmeden sona erdi.",
+      label: "Süresi doldu",
+      title: "Niyetin planlama süresi sona erdi",
+      description: "Niyet geçmişte korunuyor; bu deneme netleşmiş bir Aktiviteye dönüşmeden sona erdi.",
       tone: "amber",
       icon: "⌛",
     });
@@ -268,7 +268,7 @@ export default function PlanJourneyHistoryPanel({
       ? "Yaşandı"
       : plannedAt
         ? "Aktivite"
-        : "Planlama";
+        : "Planlanıyor";
 
   return (
     <section

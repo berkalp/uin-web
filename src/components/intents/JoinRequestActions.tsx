@@ -81,7 +81,7 @@ export default function JoinRequestActions({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Join request could not be updated."
+          : "Katılım isteği güncellenemedi."
       );
       setIsWorking(false);
     }
@@ -91,7 +91,7 @@ export default function JoinRequestActions({
     <div className="mt-5">
       <label className="block">
         <span className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Decline reason
+          Reddet reason
         </span>
 
         <textarea
@@ -99,7 +99,7 @@ export default function JoinRequestActions({
           disabled={isWorking}
           maxLength={500}
           rows={3}
-          placeholder="Optional"
+          placeholder="İsteğe bağlı"
           onChange={(event) => {
             setReason(
               event.target.value
@@ -119,7 +119,7 @@ export default function JoinRequestActions({
           }
           className="rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-50"
         >
-          Decline
+          Reddet
         </button>
 
         <button
@@ -131,8 +131,8 @@ export default function JoinRequestActions({
           className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:opacity-50"
         >
           {isWorking
-            ? "Updating..."
-            : `Accept ${requesterName}`}
+            ? "Güncelleniyor..."
+            : `Kabul Et ${requesterName}`}
         </button>
       </div>
 

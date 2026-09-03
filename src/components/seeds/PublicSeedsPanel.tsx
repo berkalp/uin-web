@@ -29,10 +29,10 @@ const filters: Array<{
   value: SeedFilter;
   label: string;
 }> = [
-  { value: "all", label: "All" },
-  { value: "growing", label: "Growing" },
-  { value: "completed", label: "Completed" },
-  { value: "intent", label: "Grew into Intent" },
+  { value: "all", label: "Tümü" },
+  { value: "growing", label: "Aktif" },
+  { value: "completed", label: "Yaşanan" },
+  { value: "intent", label: "Sosyal Niyete Dönüşen" },
 ];
 
 function matchesFilter(seed: PublicSeedRecord, filter: SeedFilter) {
@@ -155,14 +155,13 @@ export default function PublicSeedsPanel({
       <div className="flex flex-wrap items-start justify-between gap-5">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Planted Seeds
+            Kişisel Niyetler
           </p>
           <h2 className="mt-2 text-2xl font-black text-gray-950">
-            Seeds {displayName} has planted
+            {displayName} · Kişisel Niyetler
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">
-            Personal ideas, goals and possibilities that can remain personal,
-            be completed, or grow into social Intents.
+            Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel kayıtlar.
           </p>
         </div>
 
@@ -238,7 +237,7 @@ export default function PublicSeedsPanel({
                   : "border-green-200 bg-white text-green-800 hover:bg-green-100"
               }`}
             >
-              {reordering ? "Done ordering" : "Reorder"}
+              {reordering ? "Sıralamayı bitir" : "Sırala"}
             </button>
           )}
 
@@ -247,7 +246,7 @@ export default function PublicSeedsPanel({
               href="/seeds"
               className="rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-800 transition hover:bg-green-100"
             >
-              Manage Seeds
+              Tümünü gör
             </Link>
           )}
         </div>

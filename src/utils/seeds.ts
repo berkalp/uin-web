@@ -151,6 +151,7 @@ export type PublicSeedRecord = {
 
 export type SeedDetailSeed = {
   seed_id: string;
+  catalog_item_id: string | null;
   seed_type_id: string;
   seed_type_name: string;
   seed_type_slug: string;
@@ -217,19 +218,19 @@ export const SEED_VISIBILITY_OPTIONS: Array<{
   description: string;
 }> = [
   {
-    value: "only_me",
-    label: "Only me",
-    description: "Keep this Seed completely personal.",
+    value: "everyone",
+    label: "Herkese açık",
+    description: "Profilinde ve uygun keşif alanlarında herkes görebilir.",
   },
   {
     value: "friends",
-    label: "Friends",
-    description: "Show this Seed to accepted friends on your profile.",
+    label: "Arkadaşlarım",
+    description: "Yalnızca kabul ettiğin arkadaşların görebilir.",
   },
   {
-    value: "everyone",
-    label: "Everyone",
-    description: "Show this Seed on your public profile.",
+    value: "only_me",
+    label: "Sadece ben",
+    description: "Bu kayıt yalnızca sana görünür.",
   },
 ];
 
@@ -261,7 +262,7 @@ export function getSeedVisibilityLabel(
   return (
     SEED_VISIBILITY_OPTIONS.find(
       (option) => option.value === visibility
-    )?.label ?? "Only me"
+    )?.label ?? "Herkese açık"
   );
 }
 
@@ -637,6 +638,7 @@ export function parseSeedDetailData(
   return {
     seed: {
       seed_id: seedId,
+      catalog_item_id: stringOrNull(seedRow.catalog_item_id),
       seed_type_id: stringOrNull(seedRow.seed_type_id) ?? "",
       seed_type_name: stringOrNull(seedRow.seed_type_name) ?? "Seed",
       seed_type_slug: stringOrNull(seedRow.seed_type_slug) ?? "seed",

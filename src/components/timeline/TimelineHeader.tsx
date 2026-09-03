@@ -8,7 +8,6 @@ import type {
 } from "@/components/navigation/AccountContextSwitcher";
 import UserAccountMenu from "@/components/navigation/UserAccountMenu";
 import NotificationBellButton from "@/components/notifications/NotificationBellButton";
-import MessageCenterButton from "@/components/messages/MessageCenterButton";
 
 type TimelineHeaderProps = {
   email: string | null;
@@ -79,6 +78,14 @@ function DiscoverIcon() {
   );
 }
 
+function ExperienceIcon() {
+  return <span aria-hidden="true" className="text-lg">✓</span>;
+}
+
+function FavoriteIcon() {
+  return <span aria-hidden="true" className="text-lg">♡</span>;
+}
+
 function FriendsIcon() {
   return (
     <svg
@@ -120,86 +127,11 @@ function CommunitiesIcon() {
   );
 }
 
-function MatchesIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="6" cy="6" r="2" />
-      <circle cx="18" cy="6" r="2" />
-      <circle cx="12" cy="18" r="2" />
-      <path d="M7.8 7.2 10.7 16" />
-      <path d="m16.2 7.2-2.9 8.8" />
-      <path d="M8 6h8" />
-    </svg>
-  );
-}
-
-function InboxIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 5h16l2 9v5H2v-5l2-9Z" />
-      <path d="M2.5 14h5l1.5 2h6l1.5-2h5" />
-    </svg>
-  );
-}
-
-function IconNavigationButton({
-  href,
-  label,
-  count,
-  children,
-}: {
-  href: string;
-  label: string;
-  count: number;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      title={label}
-      aria-label={
-        count > 0
-          ? `${label}, ${count}`
-          : label
-      }
-      className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-green-400 hover:text-green-700"
-    >
-      {children}
-
-      {count > 0 && (
-        <span className="absolute -right-2 -top-2 flex min-h-6 min-w-6 items-center justify-center rounded-full bg-gray-950 px-1.5 text-[11px] font-bold text-white ring-2 ring-gray-50">
-          {formatBadge(count)}
-        </span>
-      )}
-    </Link>
-  );
-}
 
 export default function TimelineHeader({
   email,
   personal,
   managedProfiles,
-  activeMatchCount,
-  inboxCount,
-  directMessageCount = 0,
   unreadNotificationCount,
   isAdmin,
 }: TimelineHeaderProps) {
@@ -226,37 +158,67 @@ export default function TimelineHeader({
             <span className="text-[10px] transition group-open:rotate-180">▼</span>
           </summary>
 
-          <div className="absolute left-0 top-full mt-2 w-72 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 text-left shadow-2xl">
+          <div className="absolute left-0 top-full mt-2 w-[390px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white p-3 text-left shadow-2xl">
+            <div className="px-3 pb-3 pt-1">
+              <p className="text-lg font-black text-gray-950">Ne eklemek istiyorsun?</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">Yapmak istediğini Niyet, yaptığını Deneyim olarak ekle. Başkalarıyla yapacaksan Sosyal Niyet oluştur.</p>
+            </div>
             <Link
-              href="/seeds/new"
-              className="flex items-start gap-3 rounded-xl px-4 py-3 transition hover:bg-green-50"
+              href="/seeds/new?mode=personal"
+              className="flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-green-200 hover:bg-green-50"
             >
               <span className="text-2xl" aria-hidden="true">🌱</span>
               <span>
-                <span className="block text-sm font-bold text-gray-950">Plant a Seed</span>
-                <span className="mt-1 block text-xs leading-5 text-gray-500">Choose a shared subject or create something personal.</span>
+                <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-green-800">KENDİM İÇİN</span>
+                <span className="mt-1 block text-sm font-black text-gray-950">Kişisel Niyet oluştur</span>
+                <span className="mt-1 block text-xs leading-5 text-gray-500">Okumak, izlemek, öğrenmek, gitmek, denemek veya yapmak istediğin bir şey.</span>
               </span>
             </Link>
 
             <Link
               href="/onboarding"
-              className="mt-1 flex items-start gap-3 rounded-xl px-4 py-3 transition hover:bg-blue-50"
+              className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-violet-200 hover:bg-violet-50"
             >
-              <span className="text-2xl" aria-hidden="true">◎</span>
+              <span className="text-2xl" aria-hidden="true">👥</span>
               <span>
-                <span className="block text-sm font-bold text-gray-950">Create an Intent</span>
-                <span className="mt-1 block text-xs leading-5 text-gray-500">Find people for a shared Activity.</span>
+                <span className="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-violet-800">BİRLİKTE</span>
+                <span className="mt-1 block text-sm font-black text-gray-950">Sosyal Niyet oluştur</span>
+                <span className="mt-1 block text-xs leading-5 text-gray-500">Başkalarıyla gerçekleştirmek istediğin gezi, konser, spor veya buluşma.</span>
               </span>
+            </Link>
+
+            <Link href="/seeds/explore?mode=experience" className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-purple-200 hover:bg-purple-50">
+              <span className="text-2xl" aria-hidden="true">✅</span><span><span className="inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-purple-800">YAPTIM / YAŞADIM</span><span className="mt-1 block text-sm font-black text-gray-950">Deneyim ekle</span><span className="mt-1 block text-xs leading-5 text-gray-500">Daha önce yaptığın, okuduğun, izlediğin, dinlediğin, öğrendiğin veya gittiğin bir şey.</span></span>
+            </Link>
+
+            <Link href="/seeds/explore?mode=favorite" className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-rose-200 hover:bg-rose-50">
+              <span className="text-2xl" aria-hidden="true">♡</span><span><span className="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-rose-700">SEVİYORUM</span><span className="mt-1 block text-sm font-black text-gray-950">Sevdiğin bir şey ekle</span><span className="mt-1 block text-xs leading-5 text-gray-500">Kişi, eser, yer, kulüp, spor, hobi veya aktivite.</span></span>
             </Link>
           </div>
         </details>
 
         <Link
-          href="/seeds"
+          href="/timeline"
           className="flex h-12 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 font-semibold text-green-800 shadow-sm transition hover:border-green-400 hover:bg-green-100"
         >
           <SeedIcon />
-          <span>Seeds</span>
+          <span>Niyetlerim</span>
+        </Link>
+
+        <Link
+          href="/experiences"
+          className="flex h-12 items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 font-semibold text-purple-700 shadow-sm transition hover:border-purple-400 hover:bg-purple-100"
+        >
+          <ExperienceIcon />
+          <span>Deneyimlerim</span>
+        </Link>
+
+        <Link
+          href="/favorites"
+          className="flex h-12 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 font-semibold text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-100"
+        >
+          <FavoriteIcon />
+          <span>Sevdiklerim</span>
         </Link>
 
         <Link
@@ -265,7 +227,7 @@ export default function TimelineHeader({
         >
           <DiscoverIcon />
 
-          <span>Discover</span>
+          <span>Keşfet</span>
         </Link>
 
 
@@ -275,7 +237,7 @@ export default function TimelineHeader({
         >
           <FriendsIcon />
 
-          <span>Friends</span>
+          <span>Arkadaşlar</span>
         </Link>
 
         <Link
@@ -284,35 +246,8 @@ export default function TimelineHeader({
         >
           <CommunitiesIcon />
 
-          <span>Communities</span>
+          <span>Topluluklar</span>
         </Link>
-
-        <Link
-          href="/matches"
-          className="flex h-12 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 font-semibold text-green-700 shadow-sm transition hover:border-green-400 hover:bg-green-100"
-        >
-          <MatchesIcon />
-
-          <span>Matches</span>
-
-          {activeMatchCount > 0 && (
-            <span className="rounded-full bg-green-600 px-2.5 py-1 text-xs font-bold text-white">
-              {formatBadge(activeMatchCount)}
-            </span>
-          )}
-        </Link>
-
-        <MessageCenterButton
-          initialUnreadCount={directMessageCount}
-        />
-
-        <IconNavigationButton
-          href="/inbox"
-          label="Karar Merkezi"
-          count={inboxCount}
-        >
-          <InboxIcon />
-        </IconNavigationButton>
 
         <NotificationBellButton
           initialUnreadCount={unreadNotificationCount}

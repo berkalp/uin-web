@@ -76,8 +76,7 @@ export default async function NewSeedPage({
           <SeedForm
             seedTypes={seedTypes}
             initialSeedTypeId={initialSeedTypeId}
-            forcePrivate
-            notice="Private Seed · only you can see it. You can connect it to the Seed Library or grow it into an Intent later."
+            notice="Standart görünürlük: Herkese açık. İstersen aşağıdan Arkadaşlarım veya Sadece ben olarak değiştirebilirsin. Kitap, film, müzik, sanatçı ve yer için Kütüphane aramasını kullanarak doğrulanmış kaynağa bağlanabilirsin."
           />
         ) : (
           <>

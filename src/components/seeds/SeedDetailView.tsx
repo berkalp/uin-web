@@ -5,6 +5,7 @@ import SeedExperienceEditor from "@/components/seeds/SeedExperienceEditor";
 import SeedJournalComposer from "@/components/seeds/SeedJournalComposer";
 import SeedJournalEntryActions from "@/components/seeds/SeedJournalEntryActions";
 import SeedReactionBar from "@/components/seeds/SeedReactionBar";
+import SeedPublicActions from "@/components/seeds/SeedPublicActions";
 import SeedLiveCountdown from "@/components/seeds/SeedLiveCountdown";
 import SeedReopenButton from "@/components/seeds/SeedReopenButton";
 import {
@@ -24,6 +25,7 @@ type SeedDetailViewProps = {
   isAuthenticated: boolean;
   reminderTargetTime?: string | null;
   reminderTimezone?: string | null;
+  editExperience?: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -225,6 +227,7 @@ export default function SeedDetailView({
   isAuthenticated,
   reminderTargetTime,
   reminderTimezone,
+  editExperience = false,
 }: SeedDetailViewProps) {
   const { seed, links, journal, intents } = detail;
   const completionLabel = getSeedCompletionLabel(seed);
@@ -247,16 +250,16 @@ export default function SeedDetailView({
             href={seed.is_owner ? "/seeds" : seed.owner_username ? `/u/${encodeURIComponent(seed.owner_username)}` : "/discover"}
             className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            ← {seed.is_owner ? "Tohumlarım" : "Profile dön"}
+            ← {seed.is_owner ? (seed.status === "completed" ? "Deneyimlerim" : "Niyetlerim") : "Profile dön"}
           </Link>
 
           {seed.is_owner && (
             <div className="flex flex-wrap gap-1.5">
               <Link
-                href={`/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
+                href={seed.status === "completed" ? `/seeds/${encodeURIComponent(seed.seed_id)}?editExperience=1` : `/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
                 className="inline-flex h-9 items-center rounded-lg border border-gray-200 bg-white px-3 text-xs font-black text-gray-700 hover:border-green-400 hover:text-green-700"
               >
-                ✎ Düzenle
+                ✎ {seed.status === "completed" ? "Deneyimi düzenle" : "Niyeti düzenle"}
               </Link>
               {seed.status === "completed" &&
                 seed.origin !== "retrospective" && (
@@ -293,7 +296,7 @@ export default function SeedDetailView({
               </div>
               <div className="absolute inset-x-0 bottom-0 p-5 text-white">
                 <p className="text-[10px] font-black uppercase tracking-[0.18em] text-green-200">
-                  {seed.origin === "retrospective" ? "Geçmiş deneyim" : "Ekilmiş Tohum"}
+                  {seed.origin === "retrospective" ? "Geçmiş deneyim" : "Kişisel niyet"}
                 </p>
                 <h1 className="mt-2 text-3xl font-black leading-tight">{seed.title}</h1>
                 {seed.subtitle && <p className="mt-1.5 text-sm font-semibold text-white/75">{seed.subtitle}</p>}
@@ -338,7 +341,16 @@ export default function SeedDetailView({
 
               {!isPrivateSeed && (
                 <div className="mt-auto pt-4">
-                  <SeedReactionBar seedId={seed.seed_id} initialContext={reactionContext} isAuthenticated={isAuthenticated} isOwner={seed.is_owner} variant="detail" />
+                  {!seed.is_owner && <SeedReactionBar seedId={seed.seed_id} initialContext={reactionContext} isAuthenticated={isAuthenticated} isOwner={false} variant="detail" />}
+                  {!seed.is_owner && isAuthenticated && (
+                    <SeedPublicActions seedId={seed.seed_id} title={seed.title} catalogItemId={seed.catalog_item_id} />
+                  )}
+                  {seed.is_owner && seed.catalog_item_id && (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <Link href={`/seeds/explore?mode=favorite&catalog=${encodeURIComponent(seed.catalog_item_id)}`} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm font-black text-rose-700">♡ Sevdiklerime ekle</Link>
+                      <Link href={`/seeds/subjects/${encodeURIComponent(seed.catalog_item_id)}`} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-black text-gray-800">Konu sayfasını aç</Link>
+                    </div>
+                  )}
                 </div>
               )}
             </aside>
@@ -350,7 +362,7 @@ export default function SeedDetailView({
             {seed.notes && (
               <section className="rounded-3xl border border-green-100 bg-white p-6 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">
-                  Why this Seed was planted
+                  Deneyim notu
                 </p>
                 <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-600">
                   {seed.notes}
@@ -361,10 +373,10 @@ export default function SeedDetailView({
             {(links.length > 0 || reflection?.attachments.length) && (
               <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
-                  Resources and media
+                  Kaynaklar ve medya
                 </p>
                 <h2 className="mt-2 text-2xl font-black text-gray-950">
-                  What belongs to this Seed
+                  Bu konuyla ilgili bağlantılar
                 </h2>
                 <ResourceLinks items={links} />
                 <LinkedMedia items={links} />
@@ -376,15 +388,13 @@ export default function SeedDetailView({
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.16em] text-purple-700">
-                      {seed.is_owner ? "My Experience" : "Experience"}
+                      {seed.is_owner ? "DENEYİMİN" : "DENEYİM"}
                     </p>
                     <h2 className="mt-2 text-2xl font-black text-purple-950">
-                      {reflection ? "What this Seed left behind" : "Add the experience behind the completion"}
+                      {reflection ? "Deneyim notun" : "Deneyimini tamamla"}
                     </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-purple-950/65">
-                      {seed.is_owner
-                        ? "The Journal is for progress updates. Experience is your completed reflection and can appear on this Subject’s shared Experiences page when its visibility allows it."
-                        : "This is the completed reflection shared from this Seed."}
+                      {seed.is_owner ? "Tarih, puan, görsel ve notunu mobildekiyle aynı biçimde düzenleyebilirsin." : "Bu kullanıcı tarafından paylaşılan deneyim."}
                     </p>
                   </div>
                   {seed.is_owner && (
@@ -394,7 +404,11 @@ export default function SeedDetailView({
                       existingExperience={reflection}
                       defaultVisibility={reflection?.visibility ?? seed.visibility}
                       occurredOn={seed.completed_at}
-                      buttonLabel={reflection ? "Edit my experience" : "+ Add my experience"}
+                      buttonLabel={reflection ? "Deneyimi düzenle" : "+ Deneyim notu ekle"}
+                      autoOpen={editExperience}
+                      completedDatePrecision={seed.completed_date_precision}
+                      completedYear={seed.completed_year}
+                      personalCoverUrl={seed.cover_url}
                       buttonClassName="rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-purple-700"
                     />
                   )}
@@ -449,10 +463,10 @@ export default function SeedDetailView({
                 ) : (
                   <div className="mt-6 rounded-2xl border border-dashed border-purple-300 bg-white/80 p-6">
                     <p className="font-black text-purple-950">
-                      You completed this Seed, but you have not written an Experience yet.
+                      Bu deneyim için henüz not yazmadın.
                     </p>
                     <p className="mt-2 text-sm leading-6 text-purple-950/65">
-                      Add one when you want to record what it meant, what you learned, or what someone considering the same Seed should know.
+                      İstersen ne yaşadığını ve bu konu hakkındaki düşünceni paylaş.
                     </p>
                   </div>
                 )}
@@ -463,10 +477,10 @@ export default function SeedDetailView({
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">
-                    Seed Journal
+                    DENEYİM GÜNLÜĞÜ
                   </p>
                   <h2 className="mt-2 text-2xl font-black text-gray-950">
-                    Notes from the growing process
+                    Günlük notların
                   </h2>
                 </div>
                 <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600">
@@ -538,7 +552,7 @@ export default function SeedDetailView({
                 </div>
               ) : (
                 <div className="mt-6 rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-7 text-center text-sm text-gray-500">
-                  No visible journal updates yet.
+                  Henüz görünür günlük notu yok.
                 </div>
               )}
             </section>
@@ -547,10 +561,10 @@ export default function SeedDetailView({
           <aside className="space-y-5">
             <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">
-                Growth
+                SOSYAL NİYETLER
               </p>
               <h2 className="mt-2 text-xl font-black text-gray-950">
-                Intents grown from this Seed
+                Bu konudan doğan Sosyal Niyetler
               </h2>
 
               {intents.length > 0 ? (
@@ -562,7 +576,7 @@ export default function SeedDetailView({
                       className="block rounded-2xl border border-violet-100 bg-violet-50/60 p-4 transition hover:border-violet-300"
                     >
                       <p className="text-sm font-bold text-violet-950">
-                        {intent.activity_name || "Social Intent"}
+                        {intent.activity_name || "Sosyal Niyet"}
                       </p>
                       <p className="mt-1 text-xs capitalize text-violet-700">
                         {intent.status} · {intent.relationship.replaceAll("_", " ")}
@@ -572,7 +586,7 @@ export default function SeedDetailView({
                 </div>
               ) : (
                 <p className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm leading-6 text-gray-500">
-                  This Seed has not grown into a visible social Intent yet.
+                  Bu konudan henüz görünür bir Sosyal Niyet doğmadı.
                 </p>
               )}
 
@@ -581,19 +595,19 @@ export default function SeedDetailView({
                   href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
                   className="mt-4 flex justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-700"
                 >
-                  Grow into Intent
+                  Sosyal Niyet oluştur
                 </Link>
               )}
             </section>
 
             <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-gray-400">
-                Seed boundary
+                GÖRÜNÜRLÜK
               </p>
               <p className="mt-3 text-sm leading-7 text-gray-600">
                 {isPrivateSeed
-                  ? "This Seed is your private thinking space. It can grow into an Intent or later be connected to a moderated Library subject without becoming public by accident."
-                  : "Library Seeds can be shared by your chosen visibility. Watering is a social signal of support, while joining begins only when a Seed grows into an Intent."}
+                  ? "Bu kayıt yalnızca sana görünür. Görünürlüğünü deneyim düzenleme alanından değiştirebilirsin."
+                  : "Kişisel Niyetler seçtiğin görünürlükle paylaşılır. Öne çıkarmak sosyal bir destek işaretidir; birlikte katılım ise kayıt Sosyal Niyete dönüştüğünde başlar."}
               </p>
             </section>
           </aside>

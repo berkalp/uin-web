@@ -45,7 +45,7 @@ function getErrorMessage(
     return error.message;
   }
 
-  return "The Plan member could not be updated.";
+  return "Plan üyesi güncellenemedi.";
 }
 
 export default function PlanMemberManagementControls({
@@ -195,7 +195,7 @@ export default function PlanMemberManagementControls({
 
     if (!isEligible) {
       throw new Error(
-        "This person does not match the participant eligibility of every linked Intent."
+        "Bu kişi bağlı tüm Niyetlerin katılımcı uygunluğunu karşılamıyor."
       );
     }
   }
@@ -292,7 +292,7 @@ export default function PlanMemberManagementControls({
 
     if (!cleanedReason) {
       setErrorMessage(
-        "A removal reason is required."
+        "Çıkarma nedeni gerekli."
       );
       return;
     }
@@ -339,7 +339,7 @@ export default function PlanMemberManagementControls({
         onClick={openModal}
         className="mt-4 w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:bg-green-50 hover:text-green-700"
       >
-        Manage Member
+        Katılımcıyı Yönet
       </button>
 
       {isOpen && (
@@ -361,23 +361,23 @@ export default function PlanMemberManagementControls({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                  Shared Plan Member
+                  Paylaşılan Plan Üyesi
                 </p>
 
                 <h2
                   id={`plan-member-management-${memberUserId}`}
                   className="mt-2 text-2xl font-bold text-gray-950"
                 >
-                  Manage {memberName}
+                  {memberName} · Yönetim
                 </h2>
 
                 <p className="mt-2 text-sm text-gray-500">
-                  Current role:{" "}
+                  Mevcut rol:{" "}
                   <span className="font-semibold text-gray-800">
                     {memberRole ===
                     "co_host"
-                      ? "Co-host"
-                      : "Participant"}
+                      ? "Birlikte Yürüten"
+                      : "Katılımcı"}
                   </span>
                 </p>
               </div>
@@ -388,7 +388,7 @@ export default function PlanMemberManagementControls({
                 onClick={closeModal}
                 className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
               >
-                Close
+                Kapat
               </button>
             </div>
 
@@ -409,7 +409,7 @@ export default function PlanMemberManagementControls({
                       : "text-gray-500 hover:text-gray-800"
                   }`}
                 >
-                  Role
+                  Rol
                 </button>
               )}
 
@@ -429,7 +429,7 @@ export default function PlanMemberManagementControls({
                       : "text-gray-500 hover:text-purple-700"
                   }`}
                 >
-                  Transfer Host
+                  Ana Yürütücülüğü Devret
                 </button>
               )}
 
@@ -449,7 +449,7 @@ export default function PlanMemberManagementControls({
                       : "text-gray-500 hover:text-red-700"
                   }`}
                 >
-                  Remove
+                  Çıkar
                 </button>
               )}
             </div>
@@ -459,15 +459,13 @@ export default function PlanMemberManagementControls({
               canAssignRole && (
               <section className="mt-6 rounded-2xl border border-gray-200 p-5">
                 <h3 className="font-bold text-gray-950">
-                  Change Plan role
+                  Plan rolünü değiştir
                 </h3>
 
                 <p className="mt-2 text-sm leading-6 text-gray-500">
-                  Co-hosts can manage
-                  planning, participants
-                  and attendance. The
-                  Primary Host keeps final
-                  ownership authority.
+                  Birlikte Yürütenler planlamayı,
+                  katılımcıları ve katılım kayıtlarını yönetebilir.
+                  Son yetki Ana Yürütende kalır.
                 </p>
 
                 <select
@@ -486,11 +484,11 @@ export default function PlanMemberManagementControls({
                   className="mt-5 w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
                 >
                   <option value="co_host">
-                    Co-host
+                    Birlikte Yürüten
                   </option>
 
                   <option value="participant">
-                    Participant
+                    Katılımcı
                   </option>
                 </select>
 
@@ -503,8 +501,8 @@ export default function PlanMemberManagementControls({
                   className="mt-4 w-full rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-50"
                 >
                   {isWorking
-                    ? "Updating..."
-                    : "Update Role"}
+                    ? "Güncelleniyor..."
+                    : "Rolü Güncelle"}
                 </button>
               </section>
             )}
@@ -514,14 +512,12 @@ export default function PlanMemberManagementControls({
               canTransferHost && (
               <section className="mt-6 rounded-2xl border border-purple-200 bg-purple-50 p-5">
                 <h3 className="font-bold text-purple-950">
-                  Transfer Primary Host
+                  Ana Yürütücülüğü Devret
                 </h3>
 
                 <p className="mt-2 text-sm leading-6 text-purple-700">
-                  {memberName} will become
-                  the single Primary Host.
-                  Choose your own role
-                  after the transfer.
+                  {memberName} Ana Yürüten olacak.
+                  Devirden sonra kendi rolünü seç.
                 </p>
 
                 <select
@@ -540,11 +536,11 @@ export default function PlanMemberManagementControls({
                   className="mt-5 w-full rounded-xl border border-purple-200 bg-white px-4 py-3 text-sm font-semibold text-gray-800 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
                 >
                   <option value="co_host">
-                    Become Co-host
+                    Birlikte Yürüten olarak kal
                   </option>
 
                   <option value="participant">
-                    Become Participant
+                    Katılımcı ol
                   </option>
                 </select>
 
@@ -557,8 +553,8 @@ export default function PlanMemberManagementControls({
                   className="mt-4 w-full rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
                 >
                   {isWorking
-                    ? "Transferring..."
-                    : "Confirm Host Transfer"}
+                    ? "Devrediliyor..."
+                    : "Ana Yürütücülüğü Devret"}
                 </button>
               </section>
             )}
@@ -568,7 +564,7 @@ export default function PlanMemberManagementControls({
               canRemove && (
               <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
                 <h3 className="font-bold text-red-950">
-                  Remove from Shared Plan
+                  Paylaşılan Plandan Çıkar
                 </h3>
 
                 <p className="mt-2 text-sm leading-6 text-red-700">
@@ -585,7 +581,7 @@ export default function PlanMemberManagementControls({
                   disabled={isWorking}
                   maxLength={500}
                   rows={5}
-                  placeholder="Removal reason"
+                  placeholder="Çıkarma nedeni"
                   onChange={(event) => {
                     setRemovalReason(
                       event.target.value
@@ -611,8 +607,8 @@ export default function PlanMemberManagementControls({
                   className="mt-4 w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
                 >
                   {isWorking
-                    ? "Removing..."
-                    : "Remove Member"}
+                    ? "Çıkarılıyor..."
+                    : "Katılımcıyı Çıkar"}
                 </button>
               </section>
             )}

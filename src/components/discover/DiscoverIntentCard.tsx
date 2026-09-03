@@ -8,7 +8,6 @@ import CanonicalActivityCardDetails from "@/components/cards/CanonicalActivityCa
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
-import CompactIntentReactionBar from "@/components/reactions/CompactIntentReactionBar";
 import {
   getActivityVisibilityLabel,
   type ActivityVisibility,
@@ -370,7 +369,7 @@ function getOwnerAction({
           intent.plan_id
         )}/planning`,
       label:
-        "Open Planning Room",
+        "Niyet Odasını Aç",
     };
   }
 
@@ -905,13 +904,6 @@ export default function DiscoverIntentCard({
       />
 
       <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
-        <CompactIntentReactionBar
-          intentId={intent.intent_id}
-          initialContext={intent.reaction_context ?? null}
-          isAuthenticated={isAuthenticated}
-          isOwner={isOwner}
-        />
-
         <Link
           href={`/activities/${encodeURIComponent(
             intent.plan_id ?? intent.resource_id ?? intent.intent_id

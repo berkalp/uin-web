@@ -175,8 +175,8 @@ export default function IntentActionButtons({
     <div className={wrapperClass}>
       <p className={headingClass}>
         {status === "planned"
-          ? "Manage Activity"
-          : "Manage Intent"}
+          ? "Aktiviteyi Yönet"
+          : "Niyeti Yönet"}
       </p>
 
       {errorMessage && (
@@ -191,7 +191,7 @@ export default function IntentActionButtons({
             href={`/intents/${intentId}/edit`}
             className={`${actionBase} bg-gray-900 text-white hover:bg-gray-700`}
           >
-            Edit Intent
+            Niyeti Düzenle
           </Link>
         )}
 
@@ -208,8 +208,8 @@ export default function IntentActionButtons({
           >
             {pendingAction ===
             "start_planning"
-              ? "Opening Planning Room..."
-              : "Start Planning"}
+              ? "Niyet Odası açılıyor..."
+              : "Planlamaya Başla"}
           </button>
         )}
 
@@ -230,8 +230,8 @@ export default function IntentActionButtons({
             >
               {pendingAction ===
               "close"
-                ? "Closing..."
-                : "Close Recruitment"}
+                ? "Kapatılıyor..."
+                : "Katılımı Kapat"}
             </button>
           )}
 

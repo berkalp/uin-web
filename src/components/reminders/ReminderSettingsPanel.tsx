@@ -203,6 +203,160 @@ export default function ReminderSettingsPanel({
     );
   }
 
+  if (compact) {
+    const visibleOffsets = settings.offsets.slice(0, 4);
+    const hiddenOffsetCount = Math.max(0, settings.offsets.length - visibleOffsets.length);
+
+    return (
+      <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-black text-gray-950">Hatırlatıcılar</h2>
+            <p className="mt-1 text-sm leading-6 text-gray-500">
+              {hasTarget
+                ? targetLabel || "Aktivite zamanı için kişisel bildirimlerin."
+                : "Aktivite zamanı netleştiğinde hatırlatıcılar devreye girer."}
+            </p>
+          </div>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-green-50 text-green-700">
+            ♧
+          </span>
+        </div>
+
+        <div className={`mt-4 space-y-2 ${!hasTarget ? "pointer-events-none opacity-45" : ""}`}>
+          {visibleOffsets.map((offset) => (
+            <label
+              key={offset}
+              className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-3.5 py-3"
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-50 text-sm text-green-700">
+                  ♧
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-black text-gray-900">Aktiviteden {labelForOffset(offset)}</span>
+                  <span className="mt-0.5 block text-xs font-semibold text-gray-400">Kişisel bildirim</span>
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked
+                onChange={() => toggleOffset(offset)}
+                className="h-5 w-5 accent-green-600"
+              />
+            </label>
+          ))}
+
+          {visibleOffsets.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-4 text-sm font-semibold text-gray-500">
+              Henüz başlangıçtan önce bir hatırlatıcı seçilmedi.
+            </div>
+          )}
+
+          {hiddenOffsetCount > 0 && (
+            <p className="px-1 text-xs font-bold text-gray-400">+{hiddenOffsetCount} hatırlatıcı daha</p>
+          )}
+
+          <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-3.5 py-3">
+            <span className="text-sm font-black text-gray-900">Aktivite başladığında</span>
+            <input
+              type="checkbox"
+              checked={settings.notify_at_start}
+              onChange={(event) =>
+                setSettings({ ...settings, notify_at_start: event.target.checked, inherited: false })
+              }
+              className="h-5 w-5 accent-green-600"
+            />
+          </label>
+
+          {resourceType === "plan" && (
+            <label className="flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-gray-100 bg-gray-50 px-3.5 py-3">
+              <span className="text-sm font-black text-gray-900">Aktivite süresi dolduğunda</span>
+              <input
+                type="checkbox"
+                checked={settings.notify_at_end}
+                onChange={(event) =>
+                  setSettings({ ...settings, notify_at_end: event.target.checked, inherited: false })
+                }
+                className="h-5 w-5 accent-green-600"
+              />
+            </label>
+          )}
+        </div>
+
+        <details className="group mt-3">
+          <summary className="cursor-pointer list-none rounded-xl px-2 py-2 text-sm font-black text-green-700 hover:bg-green-50">
+            + Hatırlatıcı ekle / düzenle
+          </summary>
+          <div className={`${!hasTarget ? "pointer-events-none opacity-45" : ""} mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3`}>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((offset) => {
+                const selected = settings.offsets.includes(offset);
+                return (
+                  <button
+                    key={offset}
+                    type="button"
+                    onClick={() => toggleOffset(offset)}
+                    className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
+                      selected
+                        ? "border-green-600 bg-green-600 text-white"
+                        : "border-gray-200 bg-white text-gray-600 hover:border-green-300"
+                    }`}
+                  >
+                    {selected ? "✓ " : ""}{labelForOffset(offset)}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-3 flex items-center gap-2">
+              <input
+                type="number"
+                min="1"
+                max="43200"
+                value={customAmount}
+                onChange={(event) => setCustomAmount(event.target.value)}
+                className="w-16 rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-bold outline-none focus:border-green-400"
+              />
+              <select
+                value={customUnit}
+                onChange={(event) => setCustomUnit(event.target.value as typeof customUnit)}
+                className="min-w-0 flex-1 rounded-xl border border-gray-200 bg-white px-2.5 py-2 text-xs font-semibold outline-none focus:border-green-400"
+              >
+                <option value="minutes">dakika</option>
+                <option value="hours">saat</option>
+                <option value="days">gün</option>
+              </select>
+              <button
+                type="button"
+                onClick={addCustom}
+                className="rounded-xl border border-green-200 bg-white px-3 py-2 text-xs font-black text-green-700 hover:bg-green-50"
+              >
+                Ekle
+              </button>
+            </div>
+          </div>
+        </details>
+
+        <div className="mt-4 flex items-center justify-between gap-3 border-t border-gray-100 pt-4">
+          <p className={`min-w-0 text-xs font-bold ${
+            message?.includes("kaydedildi") ? "text-green-700" : message ? "text-red-700" : "text-gray-400"
+          }`}>
+            {message || "Yalnızca sana ait."}
+          </p>
+          <button
+            type="button"
+            onClick={save}
+            disabled={!hasTarget || isSaving}
+            className="shrink-0 rounded-xl bg-gray-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {isSaving ? "Kaydediliyor…" : "Kaydet"}
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className={`${compact ? "rounded-2xl p-4" : "rounded-3xl p-5"} border border-amber-200 bg-amber-50/50`}>
       <div className="flex flex-wrap items-start justify-between gap-3">

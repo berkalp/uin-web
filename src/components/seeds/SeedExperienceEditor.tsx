@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
 import { saveSeedJournalEntry } from "@/services/seedService";
+import { supabase } from "@/utils/supabase/client";
 import {
   SEED_VISIBILITY_OPTIONS,
   type SeedJournalAttachment,
@@ -20,6 +21,10 @@ type SeedExperienceEditorProps = {
   occurredOn?: string | null;
   buttonClassName?: string;
   buttonLabel?: string;
+  autoOpen?: boolean;
+  completedDatePrecision?: "exact" | "year" | "unknown" | null;
+  completedYear?: number | null;
+  personalCoverUrl?: string | null;
 };
 
 function today() {
@@ -34,15 +39,24 @@ export default function SeedExperienceEditor({
   occurredOn = null,
   buttonClassName = "rounded-xl bg-purple-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-purple-700",
   buttonLabel,
+  autoOpen = false,
+  completedDatePrecision = null,
+  completedYear = null,
+  personalCoverUrl = null,
 }: SeedExperienceEditorProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(autoOpen);
+  const [datePrecision, setDatePrecision] = useState<"exact" | "year" | "unknown">(completedDatePrecision ?? "unknown");
+  const [experienceDate, setExperienceDate] = useState(occurredOn?.slice(0, 10) ?? "");
+  const [experienceYear, setExperienceYear] = useState(completedYear ? String(completedYear) : "");
+  const [coverUrl, setCoverUrl] = useState(personalCoverUrl ?? "");
+  const [rating, setRating] = useState<number | null>(null);
   const [body, setBody] = useState(existingExperience?.body ?? "");
   const [keyTakeaway, setKeyTakeaway] = useState(
     existingExperience?.key_takeaway ?? ""
   );
   const [visibility, setVisibility] = useState<SeedVisibility>(
-    existingExperience?.visibility ?? defaultVisibility
+    existingExperience?.visibility ?? "everyone"
   );
   const [attachments, setAttachments] = useState<SeedJournalAttachment[]>(
     existingExperience?.attachments ?? []
@@ -59,17 +73,29 @@ export default function SeedExperienceEditor({
     setMessage(null);
 
     try {
-      await saveSeedJournalEntry({
-        seedId,
-        entryId: existingExperience?.id ?? null,
-        entryKind: "reflection",
-        body,
-        keyTakeaway,
-        visibility,
-        occurredOn:
-          existingExperience?.occurred_on || occurredOn?.slice(0, 10) || today(),
-        attachments,
+      const { error: stateError } = await supabase.rpc("save_my_seed_v17_state", {
+        p_seed_id: seedId,
+        p_relationship_status: "completed",
+        p_experience_precision: datePrecision,
+        p_experience_date: datePrecision === "exact" ? experienceDate || null : null,
+        p_experience_year: datePrecision === "year" && experienceYear ? Number(experienceYear) : null,
+        p_personal_cover_url: coverUrl.trim() || null,
+        p_rating: rating,
       });
+      if (stateError) throw stateError;
+      const hasExperienceNote = body.trim().length > 0 || keyTakeaway.trim().length > 0 || attachments.some((item) => item.url.trim().length > 0);
+      if (hasExperienceNote || existingExperience) {
+        await saveSeedJournalEntry({
+          seedId,
+          entryId: existingExperience?.id ?? null,
+          entryKind: "reflection",
+          body,
+          keyTakeaway,
+          visibility,
+          occurredOn: datePrecision === "exact" ? experienceDate || today() : today(),
+          attachments,
+        });
+      }
       setOpen(false);
       router.refresh();
     } catch (error) {
@@ -82,10 +108,7 @@ export default function SeedExperienceEditor({
     }
   }
 
-  const hasContent =
-    body.trim().length > 0 ||
-    keyTakeaway.trim().length > 0 ||
-    attachments.some((item) => item.url.trim().length > 0);
+  const hasContent = datePrecision !== "exact" || Boolean(experienceDate);
 
   return (
     <>
@@ -102,23 +125,38 @@ export default function SeedExperienceEditor({
           <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[30px] bg-white shadow-2xl">
             <div className="border-b border-gray-200 p-6 md:p-8">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-700">
-                My Experience
+                DENEYİMİNİ DÜZENLE
               </p>
               <h2 className="mt-2 text-2xl font-black text-gray-950">
-                What did “{seedTitle}” leave with you?
+                “{seedTitle}” deneyimin
               </h2>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                This is different from your Seed Journal. Journal entries record the process; this is the completed experience you want to keep and, if you choose, share on the Seed Library subject page.
+                Mobildeki gibi ne zaman yaptığını, puanını, görselini ve deneyim notunu güncelle.
               </p>
             </div>
 
             <div className="space-y-6 p-6 md:p-8">
+              <div>
+                <p className="text-sm font-black text-gray-950">Ne zaman tamamladın?</p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {([['exact','Tam tarih'],['year','Sadece yıl'],['unknown','Hatırlamıyorum']] as const).map(([value,label]) => <button key={value} type="button" onClick={() => setDatePrecision(value)} className={`rounded-2xl border p-4 text-sm font-black ${datePrecision === value ? 'border-purple-500 bg-purple-50 text-purple-800' : 'border-gray-200 text-gray-700'}`}>{label}</button>)}
+                </div>
+                {datePrecision === "exact" && <input type="date" value={experienceDate} onChange={(event) => setExperienceDate(event.target.value)} className="mt-3 w-full rounded-2xl border border-gray-200 px-4 py-3" />}
+                {datePrecision === "year" && <input type="number" min="1900" max="2100" value={experienceYear} onChange={(event) => setExperienceYear(event.target.value)} placeholder="Yıl" className="mt-3 w-full rounded-2xl border border-gray-200 px-4 py-3" />}
+              </div>
+
+              <div>
+                <p className="text-sm font-black text-gray-950">Puanın</p>
+                <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-10">{Array.from({length:10},(_,index)=>index+1).map(value=><button key={value} type="button" onClick={()=>setRating(value)} className={`h-11 rounded-xl border text-sm font-black ${rating===value?'border-amber-500 bg-amber-50 text-amber-700':'border-gray-200 text-gray-600'}`}>{value}</button>)}</div>
+              </div>
+
+              <label className="block"><span className="text-sm font-black text-gray-950">Deneyim görseli</span><input type="url" value={coverUrl} onChange={(event)=>setCoverUrl(event.target.value)} placeholder="https://..." className="mt-3 w-full rounded-2xl border border-gray-200 px-4 py-3" /></label>
               <label className="block">
                 <span className="text-sm font-black text-gray-950">
-                  My experience
+                  Deneyim notun
                 </span>
                 <span className="mt-1 block text-sm leading-6 text-gray-500">
-                  Write what happened, what changed, what surprised you, or what you would tell someone considering the same Seed.
+                  Ne yaşadığını ve bu konuyla ilgili düşünceni paylaş.
                 </span>
                 <textarea
                   value={body}
@@ -135,7 +173,7 @@ export default function SeedExperienceEditor({
 
               <label className="block">
                 <span className="text-sm font-black text-gray-950">
-                  What stayed with me?
+                  Sende ne kaldı?
                 </span>
                 <span className="mt-1 block text-sm leading-6 text-gray-500">
                   Optional. A short takeaway that can be highlighted on the Experience card.
@@ -157,10 +195,10 @@ export default function SeedExperienceEditor({
 
               <div>
                 <p className="text-sm font-black text-gray-950">
-                  Who can see this Experience?
+                  Bu deneyimi kim görebilir?
                 </p>
                 <p className="mt-1 text-sm leading-6 text-gray-500">
-                  Everyone makes it eligible to appear in the shared Subject’s Experiences section. Friends shows it only to friends. Only me keeps it in your private archive.
+                  Herkes, arkadaşların veya yalnızca sen.
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   {SEED_VISIBILITY_OPTIONS.map((option) => (
@@ -192,14 +230,14 @@ export default function SeedExperienceEditor({
 
               {message && (
                 <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
-                  {message}
+                  {message === "Add a note, takeaway or linked item before saving." ? "Deneyim notu eklemeden de tarih, puan ve görselini güncelleyebilirsin." : message}
                 </p>
               )}
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 p-5 md:px-8">
               <p className="max-w-lg text-xs leading-5 text-gray-500">
-                Saving an Experience does not create a new Seed. It stays attached to this completed Seed and can surface in the shared Library according to visibility.
+                Bu işlem mevcut deneyimini günceller; yeni bir kayıt oluşturmaz.
               </p>
               <div className="flex gap-3">
                 <button
@@ -208,7 +246,7 @@ export default function SeedExperienceEditor({
                   disabled={isSaving}
                   className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
                 >
-                  Cancel
+                  Vazgeç
                 </button>
                 <button
                   type="button"
@@ -216,7 +254,7 @@ export default function SeedExperienceEditor({
                   disabled={isSaving || !hasContent}
                   className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSaving ? "Saving…" : existingExperience ? "Save changes" : "Save experience"}
+                  {isSaving ? "Kaydediliyor…" : "Deneyimi güncelle"}
                 </button>
               </div>
             </div>

@@ -25,10 +25,10 @@ const FILTERS: Array<{
   value: SeedFilter;
   label: string;
 }> = [
-  { value: "all", label: "All" },
-  { value: "growing", label: "Growing" },
-  { value: "completed", label: "Completed" },
-  { value: "intent", label: "Grew into Intent" },
+  { value: "all", label: "Tümü" },
+  { value: "growing", label: "Aktif" },
+  { value: "completed", label: "Yaşanan" },
+  { value: "intent", label: "Sosyal Niyete Dönüşen" },
 ];
 
 function matchesFilter(seed: SeedRecord, filter: SeedFilter) {
@@ -194,11 +194,11 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Personal layer
+            KİŞİSEL NİYETLER
           </p>
-          <h2 className="mt-2 text-2xl font-black text-gray-950">My Seeds</h2>
+          <h2 className="mt-2 text-2xl font-black text-gray-950">Kişisel Niyetlerim</h2>
           <p className="mt-1 text-sm text-gray-500">
-            Personal possibilities that can keep growing, be completed, or grow into an Intent.
+            Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel niyetlerin.
           </p>
         </div>
 
@@ -280,7 +280,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
             href="/seeds"
             className="rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-800 transition hover:bg-green-100"
           >
-            Manage Seeds
+            Tümünü gör
           </Link>
         </div>
       </div>

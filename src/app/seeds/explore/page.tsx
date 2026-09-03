@@ -23,6 +23,8 @@ type SeedExplorePageProps = {
     suggested?: string | string[];
     from_seed?: string | string[];
     reported?: string | string[];
+    mode?: string | string[];
+    favorite?: string | string[];
   }>;
 };
 
@@ -54,6 +56,9 @@ export default async function SeedExplorePage({
   const suggestedNotice = one(params.suggested);
   const sourceSeedId = one(params.from_seed);
   const reportedNotice = one(params.reported);
+  const requestedMode = one(params.mode);
+  const mode = requestedMode === "experience" || requestedMode === "favorite" ? requestedMode : "intent";
+  const favoriteNotice = one(params.favorite);
 
   const supabase = await createClient();
 
@@ -76,6 +81,7 @@ export default async function SeedExplorePage({
   if (query) currentParams.set("q", query);
   if (selectedTypeId) currentParams.set("type", selectedTypeId);
   if (sourceSeedId) currentParams.set("from_seed", sourceSeedId);
+  if (mode !== "intent") currentParams.set("mode", mode);
   const returnTo = `/seeds/explore${
     currentParams.size > 0 ? `?${currentParams.toString()}` : ""
   }`;
@@ -87,10 +93,10 @@ export default async function SeedExplorePage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.2em] text-emerald-700">
-                UIN · Seeds
+                {mode === "favorite" ? "SEVİYORUM" : mode === "experience" ? "YAPTIM / YAŞADIM" : "KİŞİSEL NİYET"}
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-tight text-gray-950 sm:text-4xl">
-                Seed Library
+                {mode === "favorite" ? "Sevdiğin bir şey ekle" : mode === "experience" ? "Deneyim ekle" : "Kişisel Niyet oluştur"}
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
                 Search UIN’s moderated shared subjects. If something is missing, suggest it and start privately while it is reviewed. Free-form thoughts belong in Private Seeds.
@@ -119,6 +125,7 @@ export default async function SeedExplorePage({
 
           <form method="get" className="mt-7 grid gap-3 sm:grid-cols-[1fr_220px_auto]">
             {sourceSeedId && <input type="hidden" name="from_seed" value={sourceSeedId} />}
+            {mode !== "intent" && <input type="hidden" name="mode" value={mode} />}
             <label className="sr-only" htmlFor="seed-search-query">
               Search Seed subjects
             </label>
@@ -181,6 +188,12 @@ export default async function SeedExplorePage({
             </p>
           )}
 
+          {favoriteNotice && (
+            <p className="mt-4 rounded-2xl bg-rose-50 p-4 text-sm font-semibold text-rose-800">
+              {favoriteNotice === "both" ? "Hem Sevdiklerine hem Deneyimlerine eklendi." : "Sevdiklerine eklendi."}
+            </p>
+          )}
+
           {sourceSeedId && (
             <p className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm font-semibold text-indigo-800">
               Connecting a Private Seed. Choose an existing subject below or suggest a new Library subject. Your notes and history will be preserved.
@@ -220,6 +233,7 @@ export default async function SeedExplorePage({
                   subject={subject}
                   returnTo={returnTo}
                   sourceSeedId={sourceSeedId || null}
+                  mode={mode}
                 />
               ))}
             </div>

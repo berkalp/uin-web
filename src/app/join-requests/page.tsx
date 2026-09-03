@@ -91,7 +91,7 @@ function formatDate(value: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     timeZone: "Europe/Istanbul",
     day: "numeric",
     month: "short",
@@ -103,7 +103,7 @@ function getRequestPersonName(request: JoinRequestRow) {
   return (
     request.other_user_full_name ||
     request.other_user_username ||
-    "UIN member"
+    "UIN kullanıcısı"
   );
 }
 
@@ -125,14 +125,26 @@ function getHistoryStatus(request: DecoratedRequest) {
   return request.request_status;
 }
 
+function getHistoryStatusLabel(status: string) {
+  if (status === "accepted") return "Kabul edildi";
+  if (status === "declined") return "Reddedildi";
+  if (status === "withdrawn") return "Geri çekildi";
+  if (status === "planned") return "Netleşti";
+  if (status === "completed") return "Tamamlandı";
+  if (status === "cancelled") return "İptal edildi";
+  if (status === "expired") return "Süresi doldu";
+  if (status === "forming") return "Planlanıyor";
+  return "Bekliyor";
+}
+
 function getPlanHref(request: DecoratedRequest) {
   if (!request.plan_id) return null;
 
   if (request.planStatus === "forming") {
-    return `/plans/${encodeURIComponent(request.plan_id)}/planning?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Join Requests")}`;
+    return `/plans/${encodeURIComponent(request.plan_id)}/planning?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Katılım İstekleri")}`;
   }
 
-  return `/plans/${encodeURIComponent(request.plan_id)}/activity?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Join Requests")}`;
+  return `/plans/${encodeURIComponent(request.plan_id)}/activity?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Katılım İstekleri")}`;
 }
 
 function TitleBlock({ request }: { request: DecoratedRequest }) {
@@ -145,7 +157,7 @@ function TitleBlock({ request }: { request: DecoratedRequest }) {
       </h3>
       {changed && (
         <p className="mt-1 text-xs font-semibold text-gray-400">
-          Original Activity · {request.canonicalTitle}
+          Orijinal Aktivite · {request.canonicalTitle}
         </p>
       )}
     </div>
@@ -197,7 +209,7 @@ function PersonIdentity({
     <Link
       href={profileHref}
       className="rounded-xl transition hover:bg-gray-50"
-      title={`View ${name}'s profile`}
+      title={`${name} profilini gör`}
     >
       {identity}
     </Link>
@@ -288,7 +300,7 @@ export default async function JoinRequestsPage({
     const presentation = request.plan_id
       ? presentationByPlanId.get(request.plan_id) ?? null
       : null;
-    const canonicalTitle = request.activity_name || "UIN Activity";
+    const canonicalTitle = request.activity_name || "UIN Aktivitesi";
     const customTitle = presentation?.custom_title?.trim() || null;
 
     return {
@@ -337,31 +349,31 @@ export default async function JoinRequestsPage({
             href="/intent-invitations"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700"
           >
-            Direct Invitations
+            Doğrudan Davetler
           </Link>
         </div>
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-            Participation
+            Katılım
           </p>
           <h1 className="mt-3 text-3xl font-bold text-gray-950 md:text-4xl">
-            Join Requests
+            Katılım İstekleri
           </h1>
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Active requests stay action-focused. Accepted, declined, withdrawn,
-            planned, completed, cancelled and expired records move to history.
+            Aktif istekler eylem odaklı kalır. Kabul edilen, reddedilen, geri çekilen,
+            planlanan, tamamlanan, iptal edilen ve süresi dolan kayıtlar geçmişe taşınır.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-              {pendingReceived.length} waiting for you
+              {pendingReceived.length} senden yanıt bekliyor
             </span>
             <span className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-              {pendingSent.length} waiting for a host
+              {pendingSent.length} yürütenden yanıt bekliyor
             </span>
             <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {history.length} in history
+              {history.length} geçmişte
             </span>
           </div>
         </header>
@@ -376,15 +388,15 @@ export default async function JoinRequestsPage({
           <>
             <section className="mt-8">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                Needs your response
+                Yanıtın gerekiyor
               </p>
               <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Requests to your Intents
+                Niyetlerine Gelen İstekler
               </h2>
 
               {pendingReceived.length === 0 ? (
                 <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-sm text-gray-500">
-                  No join request currently needs your response.
+                  Şu anda yanıtını bekleyen katılım isteği yok.
                 </div>
               ) : (
                 <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -398,7 +410,7 @@ export default async function JoinRequestsPage({
                       >
                         <TitleBlock request={request} />
                         <div className="mt-4">
-                          <PersonIdentity request={request} prefix="Request from" />
+                          <PersonIdentity request={request} prefix="İstek gönderen" />
                         </div>
 
                         <div className="mt-5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-600">
@@ -411,7 +423,7 @@ export default async function JoinRequestsPage({
                             {request.request_prompt && (
                               <>
                                 <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                                  Question asked
+                                  Sorulan soru
                                 </p>
                                 <p className="mt-2 text-sm font-semibold leading-6 text-green-950">
                                   {request.request_prompt}
@@ -421,7 +433,7 @@ export default async function JoinRequestsPage({
                             {request.request_message && (
                               <>
                                 <p className={`${request.request_prompt ? "mt-4" : ""} text-xs font-semibold uppercase tracking-wide text-green-700`}>
-                                  Answer
+                                  Yanıt
                                 </p>
                                 <p className="mt-2 text-sm leading-6 text-green-950">
                                   {request.request_message}
@@ -444,15 +456,15 @@ export default async function JoinRequestsPage({
 
             <section className="mt-10">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Your pending requests
+                Gönderdiğin bekleyen istekler
               </p>
               <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Waiting for a host
+                Yürütenden yanıt bekleniyor
               </h2>
 
               {pendingSent.length === 0 ? (
                 <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-sm text-gray-500">
-                  You have no pending participation requests.
+                  Bekleyen katılım isteğin yok.
                 </div>
               ) : (
                 <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -469,31 +481,31 @@ export default async function JoinRequestsPage({
                         <div className="flex items-start justify-between gap-4">
                           <TitleBlock request={request} />
                           <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                            Pending
+                            Bekliyor
                           </span>
                         </div>
 
                         <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-4">
-                          <PersonIdentity request={request} prefix="Hosted by" />
+                          <PersonIdentity request={request} prefix="Yürüten" />
                         </div>
 
                         <p className="mt-4 text-xs text-gray-400">
-                          Requested {formatDate(request.request_created_at)}
+                          İstek tarihi · {formatDate(request.request_created_at)}
                         </p>
 
                         <div className="mt-5 flex flex-wrap gap-2">
                           <Link
-                            href={`/activities/${encodeURIComponent(request.intent_id)}?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Join Requests")}`}
+                            href={`/activities/${encodeURIComponent(request.intent_id)}?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Katılım İstekleri")}`}
                             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
                           >
-                            View Intent
+                            Niyeti Gör
                           </Link>
                           {profileHref && (
                             <Link
                               href={profileHref}
                               className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
                             >
-                              View Host Profile
+                              Yürüten Profilini Gör
                             </Link>
                           )}
                           <WithdrawJoinRequestButton requestId={request.request_id} />
@@ -509,24 +521,24 @@ export default async function JoinRequestsPage({
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Request history
+                    İstek geçmişi
                   </p>
                   <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                    No longer waiting for action
+                    Artık işlem beklemeyenler
                   </h2>
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-semibold text-gray-400">
                     {showAllHistory
-                      ? `${history.length} records`
-                      : `Latest ${Math.min(history.length, 10)} shown`}
+                      ? `${history.length} kayıt`
+                      : `Son ${Math.min(history.length, 10)} kayıt gösteriliyor`}
                   </span>
                   {history.length > 10 && (
                     <Link
                       href={showAllHistory ? "/join-requests" : "/join-requests?history=all"}
                       className="text-xs font-semibold text-green-700"
                     >
-                      {showAllHistory ? "Show recent only" : "View all history"}
+                      {showAllHistory ? "Yalnız son kayıtları göster" : "Tüm geçmişi gör"}
                     </Link>
                   )}
                 </div>
@@ -534,7 +546,7 @@ export default async function JoinRequestsPage({
 
               {history.length === 0 ? (
                 <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-sm text-gray-500">
-                  Request history will appear here after requests are resolved.
+                  İstekler sonuçlandıkça geçmiş burada görünecek.
                 </div>
               ) : (
                 <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -542,7 +554,7 @@ export default async function JoinRequestsPage({
                     const lifecycleStatus = getHistoryStatus(request);
                     const planHref = getPlanHref(request);
                     const directionLabel =
-                      request.direction === "received" ? "Requested by" : "Hosted by";
+                      request.direction === "received" ? "İstek gönderen" : "Yürüten";
 
                     return (
                       <article
@@ -565,7 +577,7 @@ export default async function JoinRequestsPage({
                           <span
                             className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold capitalize ${getStatusClasses(lifecycleStatus)}`}
                           >
-                            {lifecycleStatus.replaceAll("_", " ")}
+                            {getHistoryStatusLabel(lifecycleStatus)}
                           </span>
                         </div>
 
@@ -581,10 +593,10 @@ export default async function JoinRequestsPage({
 
                         <div className="mt-4 flex flex-wrap items-center gap-2">
                           <Link
-                            href={`/activities/${encodeURIComponent(request.intent_id)}?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Join Requests")}`}
+                            href={`/activities/${encodeURIComponent(request.intent_id)}?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Katılım İstekleri")}`}
                             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700"
                           >
-                            View original Intent
+                            Niyeti Gör
                           </Link>
                           {planHref && (
                             <Link
@@ -592,10 +604,10 @@ export default async function JoinRequestsPage({
                               className="rounded-xl bg-gray-950 px-4 py-2.5 text-xs font-semibold text-white"
                             >
                               {request.planStatus === "forming"
-                                ? "Open Shared Plan"
+                                ? "Niyet Odasını Aç"
                                 : request.planStatus === "planned"
-                                  ? "Open Activity Room"
-                                  : "Open Activity record"}
+                                  ? "Aktivite Odasını Aç"
+                                  : "Aktivite Kaydını Aç"}
                             </Link>
                           )}
                         </div>

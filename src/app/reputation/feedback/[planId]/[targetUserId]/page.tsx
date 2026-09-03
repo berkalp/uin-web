@@ -80,8 +80,8 @@ export default async function ReputationFeedbackDetailPage({
     returnHref.startsWith(
       "/plans/"
     )
-      ? "← Back to Activity Room"
-      : "← Back to feedback";
+      ? "← Aktivite Odasına Dön"
+      : "← Değerlendirmeye Dön";
 
   if (
     !isUuid(planId) ||
@@ -133,11 +133,11 @@ export default async function ReputationFeedbackDetailPage({
 
           <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-8">
             <h1 className="text-2xl font-bold text-amber-950">
-              Feedback is unavailable
+              Değerlendirme kullanılamıyor
             </h1>
 
             <p className="mt-3 text-sm leading-7 text-amber-800">
-              The feedback window may have closed, the Activity may not be completed, or this person is not eligible for peer reputation.
+              Değerlendirme süresi kapanmış olabilir, Aktivite tamamlanmamış olabilir veya bu kişi karşılıklı değerlendirmeye uygun olmayabilir.
             </p>
           </section>
         </div>

@@ -175,12 +175,17 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
     sourceIntentHref = null,
   } = props;
 
-  const exact = Boolean(activityLocationName || activityAddressText || (latitude !== null && longitude !== null));
+  const hasExactCoordinates = latitude !== null && longitude !== null;
+  const hasExactAddress = Boolean(activityAddressText?.trim());
+  const exact = hasExactCoordinates || hasExactAddress;
   const locationLabel = exact
     ? [activityLocationName, activityAddressText].filter(Boolean).join(", ")
-    : [district, city, countryName].filter(Boolean).join(", ");
-  const query = exact && latitude !== null && longitude !== null ? `${latitude},${longitude}` : locationLabel;
-  const mapEmbedUrl = query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${exact ? 15 : 11}&output=embed` : null;
+    : [district, city, countryName].filter(Boolean).join(", ") || activityLocationName || "";
+  const query = hasExactCoordinates ? `${latitude},${longitude}` : locationLabel;
+  // Kart haritası yön bulma ekranı değil, bağlam önizlemesi.
+  // Kesin konumda bile sokak seviyesine gömülme; şehir/ilçe bilgisinde daha geniş kal.
+  const mapZoom = exact ? 12 : 10;
+  const mapEmbedUrl = query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${mapZoom}&output=embed` : null;
   const primaryCommunity = communities.find((community) => community.isPrimary) ?? communities[0] ?? null;
   const meetingLabel = meetingLocationSameAsActivity
     ? "Aktivite konumuyla aynı"

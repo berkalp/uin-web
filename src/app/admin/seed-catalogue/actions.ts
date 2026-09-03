@@ -112,6 +112,28 @@ export async function reviewSeedCatalogueItem(
   redirect(withNotice(returnTo, "updated", action));
 }
 
+export async function deleteSeedCatalogueItem(
+  formData: FormData
+): Promise<void> {
+  const returnTo = safeReturnTo(formData);
+  const catalogItemId = text(formData, "catalog_item_id");
+
+  if (!catalogItemId) {
+    redirect(withNotice(returnTo, "error", "Silinecek kütüphane kaydı bulunamadı."));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("admin_delete_seed_catalog_item", {
+    p_catalog_item_id: catalogItemId,
+  });
+
+  if (error) {
+    redirect(withNotice(returnTo, "error", error.message));
+  }
+
+  redirect(withNotice(returnTo, "updated", "silindi"));
+}
+
 export async function updateSeedCatalogueItem(
   formData: FormData
 ): Promise<void> {

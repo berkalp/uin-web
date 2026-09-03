@@ -33,7 +33,7 @@ export default function SeedReactionBar({
       emptySeedReactionContext(seedId, {
         reaction_disabled_reason: isAuthenticated
           ? null
-          : "Sign in to Save or Water this Seed.",
+          : "Kaydetmek veya öne çıkarmak için giriş yap.",
       })
   );
   const [message, setMessage] = useState<string | null>(null);
@@ -83,8 +83,8 @@ export default function SeedReactionBar({
               ? "Saved privately."
               : "Removed from Saved Seeds."
             : nextActive
-              ? "You watered this Seed."
-              : "Water removed."
+            ? "Bu Kişisel Niyeti öne çıkardın."
+            : "Öne çıkarma kaldırıldı."
         );
       } catch (error) {
         setMessage(
@@ -156,6 +156,7 @@ export default function SeedReactionBar({
       >
         {!isOwner ? (
           <>
+            {variant !== "detail" && (
             <button
               type="button"
               onClick={() => toggle("save")}
@@ -182,13 +183,14 @@ export default function SeedReactionBar({
                 </span>
               )}
             </button>
+            )}
 
             <button
               type="button"
               onClick={() => toggle("water")}
               disabled={isPending || !canReact}
               aria-pressed={context.viewer_watered}
-              title="Water this Seed to support its growth"
+              title="Bu Kişisel Niyeti öne çıkar"
               className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${
                 context.viewer_watered
                   ? "border-cyan-300 bg-cyan-100 text-cyan-900 shadow-sm"
@@ -196,9 +198,9 @@ export default function SeedReactionBar({
               }`}
             >
               <span aria-hidden="true" className="text-base">
-                {pendingType === "water" && isPending ? "…" : "💧"}
+                {pendingType === "water" && isPending ? "…" : context.viewer_watered ? "✨" : "✧"}
               </span>
-              <span>{context.viewer_watered ? "Watered" : "Water"}</span>
+              <span>{context.viewer_watered ? "Öne çıkarıldı" : "Öne çıkar"}</span>
               {context.water_count > 0 && (
                 <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold">
                   {context.water_count}
@@ -224,7 +226,7 @@ export default function SeedReactionBar({
           {extraFriendCount > 0
             ? ` and ${extraFriendCount} friend${extraFriendCount === 1 ? "" : "s"}`
             : ""}{" "}
-          watered this Seed.
+          bu Kişisel Niyeti öne çıkardı.
         </p>
       )}
 

@@ -50,7 +50,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "The schedule draft could not be updated.";
+  return "Program taslağı güncellenemedi.";
 }
 
 function createScheduleKey(
@@ -120,7 +120,7 @@ export default function SharedPlanScheduleForm({
     (meetingLocationSameAsActivity ? activityLocationName : meetingPoint) ||
     activityLocationName ||
     meetingPoint ||
-    "To be confirmed";
+    "Kesinleşmedi";
 
   const isScheduleValid =
     Boolean(startValue) &&
@@ -177,8 +177,8 @@ export default function SharedPlanScheduleForm({
       setSavedScheduleKey(currentScheduleKey);
       setSuccessMessage(
         actorRole === "co_host"
-          ? "The Co-host schedule draft has been saved."
-          : "The schedule draft has been saved."
+          ? "Birlikte Yürüten program taslağını kaydetti."
+          : "Program taslağı kaydedildi."
       );
       router.refresh();
     } catch (error) {
@@ -192,7 +192,7 @@ export default function SharedPlanScheduleForm({
     setConfirmError("");
 
     if (!hasSavedSchedule) {
-      setErrorMessage("Save the current schedule draft before confirming the Plan.");
+      setErrorMessage("Aktiviteyi netleştirmeden önce mevcut program taslağını kaydet.");
       return;
     }
 
@@ -217,7 +217,7 @@ export default function SharedPlanScheduleForm({
       setConfirmError(
         error instanceof Error
           ? error.message
-          : "The schedule could not be confirmed."
+          : "Aktivite netleştirilemedi."
       );
     } finally {
       setIsConfirming(false);
@@ -245,13 +245,13 @@ export default function SharedPlanScheduleForm({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                    Confirm Plan
+                    AKTİVİTEYİ NETLEŞTİR
                   </p>
                   <h2
                     id="confirm-schedule-title"
                     className="mt-1 text-2xl font-bold text-gray-950"
                   >
-                    Confirm the Schedule
+                    Programı netleştir
                   </h2>
                 </div>
                 <button
@@ -260,16 +260,16 @@ export default function SharedPlanScheduleForm({
                   onClick={() => setIsConfirmOpen(false)}
                   className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Close
+                  Kapat
                 </button>
               </div>
 
               <div className="mt-5 rounded-2xl bg-green-50 p-4 text-sm leading-6 text-green-950">
                 <p>
-                  Confirming the schedule archives the Planning Room and opens the Activity Room.
+                  Programı netleştirdiğinde Niyet aynı odada Aktivite aşamasına geçer. Sohbet, ekip ve geçmiş korunur.
                 </p>
                 <p className="mt-3 font-semibold">
-                  The date, time, and meeting point cannot be changed after confirmation.
+                  Tarih, saat ve buluşma noktası bu aşamada kesinleşir.
                 </p>
               </div>
 
@@ -285,17 +285,17 @@ export default function SharedPlanScheduleForm({
                 />
                 <span>
                   <span className="block font-semibold text-gray-950">
-                    Continue accepting participants
+                    Yeni katılımcı kabul etmeye devam et
                   </span>
                   <span className="mt-1 block text-sm leading-6 text-gray-500">
-                    New users will see the confirmed schedule before requesting to join.
+                    Yeni kişiler katılım isteği göndermeden önce netleşen programı görür.
                   </span>
                 </span>
               </label>
 
               {recruitmentStatus === "full" && (
                 <p className="mt-3 text-sm font-semibold text-amber-700">
-                  Participant capacity is already full.
+                  Katılımcı kapasitesi zaten dolu.
                 </p>
               )}
 
@@ -312,7 +312,7 @@ export default function SharedPlanScheduleForm({
                   onClick={() => setIsConfirmOpen(false)}
                   className="rounded-xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                 >
-                  Cancel
+                  Vazgeç
                 </button>
                 <button
                   type="button"
@@ -320,7 +320,7 @@ export default function SharedPlanScheduleForm({
                   onClick={confirmSchedule}
                   className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isConfirming ? "Confirming..." : "Confirm Schedule"}
+                  {isConfirming ? "Netleştiriliyor..." : "Aktiviteyi netleştir"}
                 </button>
               </div>
             </section>
@@ -338,24 +338,24 @@ export default function SharedPlanScheduleForm({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
-              Schedule draft
+              Program taslağı
             </p>
             <h2 className="mt-1 text-xl font-bold text-gray-950">
-              When the Activity happens
+              Aktivite ne zaman?
             </h2>
             <p className="mt-2 text-xs leading-5 text-gray-500">
-              Must stay inside {windowStart} → {windowEnd}. Locations are managed separately above.
+              {windowStart} → {windowEnd} aralığında olmalı. Konumlar yukarıdaki bölümden yönetilir.
             </p>
           </div>
           <span className="rounded-full bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
-            {hasSavedSchedule ? "Saved draft" : "Draft"}
+            {hasSavedSchedule ? "Taslak kaydedildi" : "Taslak"}
           </span>
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Starts
+              Başlangıç
             </span>
             <input
               type="datetime-local"
@@ -378,7 +378,7 @@ export default function SharedPlanScheduleForm({
 
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Ends
+              Bitiş
             </span>
             <input
               type="datetime-local"
@@ -395,7 +395,7 @@ export default function SharedPlanScheduleForm({
 
           <label className="block sm:col-span-2">
             <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Timezone
+              Saat dilimi
             </span>
             <select
               value={timezoneValue}
@@ -416,7 +416,7 @@ export default function SharedPlanScheduleForm({
 
         <details className="mt-3 rounded-xl border border-amber-100 bg-amber-50/50">
           <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-gray-700">
-            Schedule notes
+            Program notu
             <span className="float-right text-gray-400">⌄</span>
           </summary>
           <div className="border-t border-amber-100 p-4">
@@ -429,7 +429,7 @@ export default function SharedPlanScheduleForm({
                 setNotesValue(event.target.value);
                 clearMessages();
               }}
-              placeholder="Optional details for the team"
+              placeholder="Ekip için isteğe bağlı ayrıntılar"
               className="w-full resize-y rounded-xl border border-amber-200 bg-white px-4 py-3 text-sm leading-6 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
             />
           </div>
@@ -457,7 +457,7 @@ export default function SharedPlanScheduleForm({
             onClick={saveSchedule}
             className="rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {isSaving ? "Saving..." : "Save draft"}
+            {isSaving ? "Kaydediliyor..." : "Taslağı kaydet"}
           </button>
 
           {actorRole === "host" && (
@@ -467,19 +467,19 @@ export default function SharedPlanScheduleForm({
               onClick={openConfirmDialog}
               title={
                 hasSavedSchedule
-                  ? "Confirm the saved schedule"
-                  : "Save the current schedule draft first"
+                  ? "Kaydedilen programı netleştir"
+                  : "Önce mevcut program taslağını kaydet"
               }
               className="rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Confirm
+              Aktiviteyi netleştir
             </button>
           )}
         </div>
 
         {actorRole === "host" && !hasSavedSchedule && (
           <p className="mt-2 text-center text-[11px] text-gray-500">
-            Save the current draft to enable confirmation.
+            Aktiviteyi netleştirmek için önce mevcut taslağı kaydet.
           </p>
         )}
       </section>

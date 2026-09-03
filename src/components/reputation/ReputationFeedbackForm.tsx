@@ -33,6 +33,23 @@ function getInitial(
   );
 }
 
+function getRoleLabel(
+  role: string
+) {
+  if (role === "host") return "Ana Yürüten";
+  if (role === "co_host") return "Birlikte Yürüten";
+  if (role === "participant") return "Katılımcı";
+  return role.replaceAll("_", " ");
+}
+
+function getScopeLabel(
+  scope: string
+) {
+  if (scope === "general") return "Genel";
+  if (scope === "activity") return "Aktivite";
+  return scope.replaceAll("_", " ");
+}
+
 export default function ReputationFeedbackForm({
   form,
   returnHref,
@@ -79,7 +96,7 @@ export default function ReputationFeedbackForm({
       missingRequired
     ) {
       setError(
-        "Answer the required questions and the Would you join again question."
+        "Zorunlu soruları ve yeniden birlikte katılma sorusunu yanıtla."
       );
       return;
     }
@@ -139,11 +156,11 @@ export default function ReputationFeedbackForm({
     return (
       <section className="rounded-3xl border border-green-200 bg-green-50 p-6">
         <h1 className="text-2xl font-bold text-green-950">
-          Feedback already submitted
+          Değerlendirme zaten gönderildi
         </h1>
 
         <p className="mt-3 text-sm leading-7 text-green-800">
-          Your answers are preserved with the question version that was active when you submitted them.
+          Yanıtların, gönderdiğin sırada aktif olan soru sürümüyle birlikte saklanıyor.
         </p>
       </section>
     );
@@ -171,7 +188,7 @@ export default function ReputationFeedbackForm({
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
-              {form.target.role} feedback
+              {getRoleLabel(form.target.role)} değerlendirmesi
             </p>
 
             <h1 className="mt-1 text-2xl font-bold text-gray-950">
@@ -185,7 +202,7 @@ export default function ReputationFeedbackForm({
         </div>
 
         <div className="mt-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-7 text-blue-900">
-          Answer for this exact Activity context. Skill level is not reputation: a beginner can be respectful, safe and reliable; an expert can behave badly.
+          Yalnızca bu Aktivite bağlamını değerlendir. Beceri seviyesi itibar değildir: yeni başlayan biri saygılı, güvenli ve güvenilir olabilir; uzman biri kötü davranabilir.
         </div>
       </section>
 
@@ -207,12 +224,12 @@ export default function ReputationFeedbackForm({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-purple-700">
-                      {question.scope_type}
+                      {getScopeLabel(question.scope_type)}
                     </span>
 
                     {question.is_required && (
                       <span className="text-xs font-semibold text-red-600">
-                        Required
+                        Zorunlu
                       </span>
                     )}
                   </div>
@@ -247,8 +264,8 @@ export default function ReputationFeedbackForm({
                             }`}
                           >
                             {answer
-                              ? "Yes"
-                              : "No"}
+                              ? "Evet"
+                              : "Hayır"}
                           </button>
                         )
                       )}
@@ -284,12 +301,12 @@ export default function ReputationFeedbackForm({
                         <span>
                           {question.options
                             ?.low_label ||
-                            "Low"}
+                            "Düşük"}
                         </span>
                         <span className="text-right">
                           {question.options
                             ?.high_label ||
-                            "High"}
+                            "Yüksek"}
                         </span>
                       </div>
                     </div>
@@ -303,11 +320,11 @@ export default function ReputationFeedbackForm({
 
       <section className="rounded-3xl border border-green-200 bg-green-50 p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-          Final signal
+          Son değerlendirme
         </p>
 
         <h2 className="mt-2 text-xl font-bold text-green-950">
-          Would you join {targetName} again in this context?
+          Bu bağlamda {targetName} ile yeniden bir Aktiviteye katılır mıydın?
         </h2>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
@@ -330,8 +347,8 @@ export default function ReputationFeedbackForm({
                 }`}
               >
                 {answer
-                  ? "Yes, I would"
-                  : "No"}
+                  ? "Evet, katılırdım"
+                  : "Hayır"}
               </button>
             )
           )}
@@ -346,7 +363,7 @@ export default function ReputationFeedbackForm({
 
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
         <p className="max-w-2xl text-xs leading-6 text-gray-500">
-          Raw answers are not published. Aggregates appear only with enough evidence. Reciprocal feedback is revealed together; otherwise it becomes eligible after the feedback window closes.
+          Ham yanıtlar yayımlanmaz. Toplu sonuçlar yalnızca yeterli veri olduğunda görünür. Karşılıklı değerlendirmeler birlikte açıklanır; aksi durumda değerlendirme süresi kapandıktan sonra görünür olabilir.
         </p>
 
         <button
@@ -356,8 +373,8 @@ export default function ReputationFeedbackForm({
           className="rounded-xl bg-purple-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-purple-800 disabled:opacity-50"
         >
           {busy
-            ? "Submitting…"
-            : "Submit feedback"}
+            ? "Gönderiliyor…"
+            : "Değerlendirmeyi Gönder"}
         </button>
       </div>
     </div>

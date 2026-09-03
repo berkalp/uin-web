@@ -85,14 +85,14 @@ function recoveryText(reason: string) {
   }
 
   if (reason === "already_linked_elsewhere") {
-    return "Bu Niyet zaten başka bir aktif Plan / Aktiviteye bağlı.";
+    return "Bu Niyet zaten başka bir aktif Aktivite sürecine bağlı.";
   }
 
   if (reason === "already_reopened") {
     return "Niyetin yeniden açık.";
   }
 
-  return "İptal edilen Plan geçmişte kalır; yalnız kendi Niyetini yeniden açarsın.";
+  return "İptal edilen süreç geçmişte kalır; yalnız kendi Niyetini yeniden açarsın.";
 }
 
 export default function PlanLifecycleActions({
@@ -116,8 +116,8 @@ export default function PlanLifecycleActions({
   const activeLifecycle = planStatus === "forming" || planStatus === "planned";
   const canCancel = activeLifecycle && (actorRole === "host" || actorRole === "co_host");
   const canLeave = activeLifecycle && isActiveMember && actorRole !== "host";
-  const cancelLabel = roomPhase === "planning" ? "Planı İptal Et" : "Aktiviteyi İptal Et";
-  const leaveLabel = roomPhase === "planning" ? "Planlamadan Ayrıl" : "Katılamayacağım";
+  const cancelLabel = roomPhase === "planning" ? "Planlamayı İptal Et" : "Aktiviteyi İptal Et";
+  const leaveLabel = roomPhase === "planning" ? "Katılımdan Ayrıl" : "Katılamayacağım";
 
   const sortedRecoveryOptions = useMemo(
     () => [...recoveryOptions].sort((a, b) => (a.relationship === "host_source" ? -1 : b.relationship === "host_source" ? 1 : 0)),
@@ -249,7 +249,7 @@ export default function PlanLifecycleActions({
   return (
     <section className="mt-5 border-t border-gray-100 pt-5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-        Lifecycle
+        Yaşam Döngüsü
       </p>
 
       {activeLifecycle && (
@@ -296,7 +296,7 @@ export default function PlanLifecycleActions({
             İptal edildi · geçmiş korunuyor
           </p>
           <p className="mt-2 text-xs leading-5 text-red-800">
-            Bu Plan / Aktivite yeniden açılmaz. Kaynak Niyet sana aitse onu ayrı olarak tekrar açık hale getirebilirsin.
+            İptal edilen süreç yeniden açılmaz. Kaynak Niyet sana aitse onu tekrar açık hale getirebilirsin.
           </p>
 
           {sortedRecoveryOptions.length === 0 ? (
@@ -317,7 +317,7 @@ export default function PlanLifecycleActions({
                       </p>
                     </div>
                     <span className="shrink-0 rounded-full bg-gray-100 px-2 py-1 text-[9px] font-bold uppercase text-gray-600">
-                      {option.relationship === "host_source" ? "Host source" : "Participant source"}
+                      {option.relationship === "host_source" ? "Ana Yürüten kaynağı" : "Katılımcı kaynağı"}
                     </span>
                   </div>
 
@@ -429,7 +429,7 @@ export default function PlanLifecycleActions({
             maxLength={1000}
             rows={3}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="İstersen host / co-host için kısa bir açıklama ekle..."
+            placeholder="İstersen Ana Yürüten / Birlikte Yürüten için kısa bir açıklama ekle..."
             className="mt-2 w-full resize-y rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none focus:border-amber-400"
           />
           <p className="mt-2 text-[11px] leading-5 text-gray-500">

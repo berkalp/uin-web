@@ -15,7 +15,7 @@ type PublicProfessionalCredentialsPanelProps = {
   isOwner?: boolean;
 };
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 5;
 
 function formatDate(value: string | null) {
   if (!value) {

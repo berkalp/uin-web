@@ -61,6 +61,7 @@ import PublicProfessionalCredentialsPanel from "../../components/professionals/P
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
 import PublicBadgesPanel from "../../components/badges/PublicBadgesPanel";
 import PublicReputationPanel from "../../components/reputation/PublicReputationPanel";
+import PublicFavoritesPanel, { type PublicFavoriteItem } from "../../components/profile/PublicFavoritesPanel";
 import type {
   ProfileConnectionSummary,
   RawFamilyData,
@@ -538,10 +539,10 @@ const OPEN_MOMENT_FILTERS: Array<{
   key: OpenMomentFilter;
   label: string;
 }> = [
-  { key: "all", label: "All" },
-  { key: "now", label: "Now" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "future", label: "Future" },
+  { key: "all", label: "Tümü" },
+  { key: "now", label: "Aktif" },
+  { key: "upcoming", label: "Planlanıyor" },
+  { key: "future", label: "Gelecek" },
 ];
 
 const INTENT_SELECT_QUERY = `
@@ -1203,9 +1204,10 @@ function getTimelineTabLabel(
 function getIntentSectionTitle(
   view: TimelineView
 ) {
-  return `${getTimelineTabLabel(
-    view
-  )} Intents`;
+  if (view === "open") return "Sosyal Niyetlerim";
+  if (view === "full") return "Katılımı Dolan Sosyal Niyetlerim";
+  if (view === "closed") return "Kapanan Sosyal Niyetlerim";
+  return `${getTimelineTabLabel(view)} Sosyal Niyetler`;
 }
 
 function getFormingActivitySectionTitle(
@@ -2444,6 +2446,7 @@ export default async function TimelinePage({
     profileSavedReactionResult,
     profilePawedReactionResult,
     profileDisplayOrderResult,
+    profilePreferencesResult,
   ] = await Promise.all([
     supabase.rpc("get_visible_profile_family", {
       p_profile_user_id: currentUserId,
@@ -2483,6 +2486,9 @@ export default async function TimelinePage({
     supabase.rpc("get_visible_profile_display_order", {
       p_profile_user_id: currentUserId,
     }),
+    personalProfile.username
+      ? supabase.rpc("get_public_preferences_v2921", { p_username: personalProfile.username })
+      : Promise.resolve({ data: null, error: null }),
   ]);
 
   if (profileFamilyResult.error) {
@@ -2514,6 +2520,9 @@ export default async function TimelinePage({
   }
   if (profileDisplayOrderResult.error) {
     console.warn("Timeline profile display-order query failed:", profileDisplayOrderResult.error.message);
+  }
+  if (profilePreferencesResult.error) {
+    console.warn("Timeline favorites query failed:", profilePreferencesResult.error.message);
   }
 
   const profileDisplayOrderRows =
@@ -2591,6 +2600,13 @@ export default async function TimelinePage({
   );
   const profileCommunityMemberships =
     (profileCommunityMembershipResult.data ?? []) as PublicCommunityMembership[];
+  const profilePreferences = (profilePreferencesResult.data ?? {}) as {
+    favorites?: PublicFavoriteItem[];
+    shared_favorite_count?: number | string;
+  };
+  const profileFavorites = Array.isArray(profilePreferences.favorites)
+    ? profilePreferences.favorites
+    : [];
 
   const profileSavedReactionRows =
     (profileSavedReactionResult.data ?? []) as TimelineProfileIntentReactionRow[];
@@ -3950,12 +3966,12 @@ const {
     const roomName =
       plan.status ===
       "forming"
-        ? "Planning Room"
-        : "Activity Room";
+        ? "Niyet Odası"
+        : "Aktivite Odası";
 
     const roomButtonLabel =
       plan.status === "forming"
-        ? "Planlama Odası"
+        ? "Niyet Odası"
         : "Aktivite Odası";
 
     const timelineReturnHref = buildTimelineHref();
@@ -4080,7 +4096,7 @@ const {
 
     const laterAttemptLabel = laterAttempt
       ? laterAttempt.status === "forming"
-        ? "New Planning Room in progress"
+        ? "Niyet planlanıyor"
         : laterAttempt.status === "planned"
           ? "New Activity planned"
           : laterAttempt.status === "completed"
@@ -4641,6 +4657,21 @@ const {
           family={profileFamily}
         />
 
+        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {[
+            ["Aktif Sosyal Niyet", viewCounts.open + viewCounts.full],
+            ["Aktif Kişisel Niyet", timelineSeeds.filter((seed) => seed.status === "active").length],
+            ["Planlanıyor", viewCounts.forming + viewCounts.planned],
+            ["Sosyal Deneyim", viewCounts.completed],
+            ["Kişisel Deneyim", timelineSeeds.filter((seed) => seed.status === "completed").length],
+            ["Yaklaşan", comingUpEntries.length],
+          ].map(([label, value]) => <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm"><p className="text-3xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs font-bold text-gray-500">{label}</p></div>)}
+        </section>
+
+        <PublicReputationPanel summary={profileReputation} />
+        <PublicBadgesPanel badges={profileBadges} isOwner />
+        <PublicProfessionalCredentialsPanel status={profileProfessional} isOwner />
+
         <IntentResolutionPanel items={intentResolutionItems} />
 
         {selectedView === "open" && (
@@ -4677,7 +4708,7 @@ const {
               <section>
                 <div className="mb-5">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-                    Intent Stage
+                    SOSYAL NİYETLER
                   </p>
 
                   <h2 className="mt-2 text-2xl font-bold text-gray-900">
@@ -4887,7 +4918,7 @@ const {
           )}
         </section>
 
-        {selectedView === "open" && recentCompletedItems.length > 0 && (
+        {false && selectedView === "open" && recentCompletedItems.length > 0 && (
           <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
@@ -4926,31 +4957,22 @@ const {
 
         {selectedView === "open" && (
           <>
-            <TimelineInterestsPanel
-              pawedItems={profilePawedReactionItems}
-              savedItems={profileSavedReactionItems}
-            />
-
-            <PublicProfessionalCredentialsPanel
-              status={profileProfessional}
-              isOwner
-            />
-
             <PublicCommunityMembershipsPanel
               memberships={profileCommunityMemberships}
               isOwner
             />
 
-            <PublicBadgesPanel
-              badges={profileBadges}
-              isOwner
-            />
+            {false && <PublicFavoritesPanel
+              items={profileFavorites}
+              sharedCount={Number(profilePreferences.shared_favorite_count) || 0}
+            />}
 
-            <PublicReputationPanel
-              summary={profileReputation}
-            />
+            {false && <TimelineInterestsPanel
+              pawedItems={profilePawedReactionItems}
+              savedItems={profileSavedReactionItems}
+            />}
 
-            <section className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <section className="hidden mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                 Private Archive
               </p>
@@ -4998,7 +5020,7 @@ const {
               </div>
             </section>
 
-            {recentExpiredCancelledItems.length > 0 && (
+            {false && recentExpiredCancelledItems.length > 0 && (
               <section className="mt-10 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
                 <div className="flex flex-wrap items-end justify-between gap-4">
                   <div>

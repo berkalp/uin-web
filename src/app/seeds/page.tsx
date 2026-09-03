@@ -1,17 +1,20 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import SavedSeedsPanel from "@/components/seeds/SavedSeedsPanel";
+import PublicFavoritesPanel, { type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
 import SeedDashboard from "@/components/seeds/SeedDashboard";
 import {
   parseSeedLinks,
   parseSeedReactionContexts,
-  type PublicSeedRecord,
   type SeedRecord,
 } from "@/utils/seeds";
 import { createClient } from "@/utils/supabase/server";
 
-export default async function SeedsPage() {
+export default async function SeedsPage({ searchParams }: { searchParams: Promise<{ alan?: string | string[] }> }) {
+  const requestedArea = (await searchParams).alan;
+  const areaValue = Array.isArray(requestedArea) ? requestedArea[0] : requestedArea;
+  const activeArea = areaValue === "deneyimler" || areaValue === "sevdiklerim" ? areaValue : "niyetler";
+  if (activeArea === "niyetler") redirect("/timeline");
   const supabase = await createClient();
   const {
     data: { user },
@@ -21,25 +24,15 @@ export default async function SeedsPage() {
     redirect("/");
   }
 
-  const [mySeedsResult, savedSeedsResult] = await Promise.all([
+  const [mySeedsResult, profileResult] = await Promise.all([
     supabase.rpc("get_my_seeds_v2", {
       p_status: null,
     }),
-    supabase.rpc("get_my_saved_seeds", {
-      p_limit: 30,
-      p_offset: 0,
-    }),
+    supabase.from("profiles").select("username").eq("id", user.id).maybeSingle(),
   ]);
 
   if (mySeedsResult.error) {
     console.error("My Seeds query failed:", mySeedsResult.error);
-  }
-
-  if (savedSeedsResult.error) {
-    console.warn(
-      "Saved Seeds are temporarily unavailable:",
-      savedSeedsResult.error.message
-    );
   }
 
   const baseSeeds = ((mySeedsResult.data ?? []) as SeedRecord[]).map(
@@ -49,9 +42,12 @@ export default async function SeedsPage() {
     })
   );
 
-  const baseSavedSeeds = (
-    savedSeedsResult.data ?? []
-  ) as PublicSeedRecord[];
+  const username = typeof profileResult.data?.username === "string" ? profileResult.data.username : null;
+  const favoritesResult = username
+    ? await supabase.rpc("get_public_preferences_v2921", { p_username: username })
+    : { data: null, error: null };
+  const preferences = (favoritesResult.data ?? {}) as { favorites?: PublicFavoriteItem[] };
+  const favorites = Array.isArray(preferences.favorites) ? preferences.favorites : [];
 
   const reminderResult =
     baseSeeds.length > 0
@@ -88,7 +84,6 @@ export default async function SeedsPage() {
   const reactionSeedIds = [
     ...new Set([
       ...baseSeeds.map((seed) => seed.seed_id),
-      ...baseSavedSeeds.map((seed) => seed.seed_id),
     ]),
   ];
 
@@ -123,84 +118,19 @@ export default async function SeedsPage() {
     };
   });
 
-  const savedSeeds = baseSavedSeeds.map((seed) => ({
-    ...seed,
-    reaction_context: reactionBySeedId.get(seed.seed_id) ?? null,
-  }));
-
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1500px]">
-        <header className="overflow-hidden rounded-[32px] border border-gray-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.25fr)_420px]">
-            <div className="p-6 md:p-9">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-green-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-green-800">
-                  Your Seed layer
-                </span>
-                <span className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-semibold text-gray-600">
-                  Before an Intent
-                </span>
-              </div>
-
-              <h1 className="mt-5 text-4xl font-black text-gray-950 md:text-5xl">
-                My Seeds
-              </h1>
-
-              <p className="mt-4 max-w-3xl text-base leading-8 text-gray-600">
-                Keep private thoughts separate from moderated Library Seeds, then let one or several Seeds grow into social Intents when they are ready.
-              </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/seeds/new?mode=private"
-                  className="inline-flex h-9 items-center rounded-lg bg-green-600 px-3 text-xs font-black text-white transition hover:bg-green-700"
-                >
-                  🔒 Create Private Seed
-                </Link>
-
-                <Link
-                  href="/seeds/explore"
-                  className="inline-flex h-9 items-center rounded-lg border border-green-200 bg-green-50 px-3 text-xs font-black text-green-800 transition hover:border-green-400 hover:bg-green-100"
-                >
-                  🌱 Seed Library
-                </Link>
-
-                <Link
-                  href="/timeline"
-                  aria-label="UIN Timeline"
-                  className="inline-flex h-11 items-center rounded-xl border border-gray-200 bg-white px-3 transition hover:border-green-400"
-                >
-                  <img src="/uin-logo.png" alt="uin? logo" className="h-8 w-auto" />
-                </Link>
-              </div>
-            </div>
-
-            <div className="relative min-h-64 overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-600 p-8 text-white">
-              <div
-                className="absolute -right-10 -top-14 text-[180px] opacity-15"
-                aria-hidden="true"
-              >
-                🌱
-              </div>
-              <div className="relative">
-                <p className="text-xs font-bold uppercase tracking-[0.2em] text-green-200">
-                  UIN lifecycle
-                </p>
-                <div className="mt-6 space-y-3 text-lg font-black">
-                  <p>Seed</p>
-                  <p className="pl-5 text-white/45">↓</p>
-                  <p>Intent</p>
-                  <p className="pl-5 text-white/45">↓</p>
-                  <p>Plan</p>
-                  <p className="pl-5 text-white/45">↓</p>
-                  <p>Activity</p>
-                  <p className="pl-5 text-white/45">↓</p>
-                  <p>Memory</p>
-                </div>
-              </div>
-            </div>
-          </div>
+        <header className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-9">
+          <p className={`text-xs font-black uppercase tracking-[0.18em] ${activeArea === "deneyimler" ? "text-purple-700" : "text-rose-600"}`}>
+            {activeArea === "deneyimler" ? "YAŞADIKLARIN" : "SEVDİKLERİN"}
+          </p>
+          <h1 className="mt-2 text-4xl font-black text-gray-950">
+            {activeArea === "deneyimler" ? "Deneyimlerim" : "Sevdiklerim"}
+          </h1>
+          <p className="mt-3 text-sm text-gray-500">
+            {activeArea === "deneyimler" ? "Tamamladığın kişisel ve sosyal deneyimler." : "Sevdiğin kişi, eser, yer, konu ve aktiviteler; kategorilerine göre."}
+          </p>
         </header>
 
         {mySeedsResult.error && (
@@ -209,14 +139,21 @@ export default async function SeedsPage() {
           </section>
         )}
 
-        {!mySeedsResult.error && (
-          <SeedDashboard seeds={seeds} isAuthenticated={Boolean(user)} />
+        {activeArea === "deneyimler" && <nav className="mt-6 grid gap-3 rounded-[28px] border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-3">
+          <span className="rounded-2xl bg-gray-950 px-5 py-4 text-center font-black text-white">Tümü</span>
+          <span className="rounded-2xl bg-gray-50 px-5 py-4 text-center font-black text-gray-700">Kişisel · {seeds.filter((seed) => seed.status === "completed").length}</span>
+          <Link href="/timeline?view=completed" className="rounded-2xl bg-gray-50 px-5 py-4 text-center font-black text-gray-700 hover:bg-gray-100">Sosyal deneyimler</Link>
+        </nav>}
+
+        {!mySeedsResult.error && activeArea !== "sevdiklerim" && (
+          <SeedDashboard seeds={seeds} isAuthenticated={Boolean(user)} mode={activeArea === "deneyimler" ? "experiences" : "intentions"} />
         )}
 
-        <SavedSeedsPanel
-          seeds={savedSeeds}
-          isAuthenticated={Boolean(user)}
-        />
+        {activeArea === "sevdiklerim" && (
+          favorites.length > 0
+            ? <PublicFavoritesPanel items={favorites} />
+            : <section className="mt-6 rounded-[32px] border border-dashed border-gray-300 bg-white p-10 text-center"><h2 className="text-2xl font-black">Henüz Sevdiklerin yok</h2><p className="mt-2 text-sm text-gray-500">Beğendiğin film, kitap, sanatçı ve yerler burada görünecek.</p></section>
+        )}
       </div>
     </main>
   );

@@ -94,7 +94,7 @@ export default function SeedForm({
     seed?.links?.length ? seed.links : []
   );
   const [visibility, setVisibility] = useState<SeedVisibility>(
-    isPrivateSeed || isPendingLibrarySeed ? "only_me" : seed?.visibility ?? "only_me"
+    seed?.visibility ?? "everyone"
   );
   const [targetDate, setTargetDate] = useState(seed?.target_date ?? "");
   const [isSaving, setIsSaving] = useState(false);
@@ -182,7 +182,7 @@ export default function SeedForm({
         notes,
         coverUrl: effectiveCoverUrl,
         links,
-        visibility: isPrivateSeed || isPendingLibrarySeed ? "only_me" : visibility,
+        visibility,
         targetDate,
       });
 
@@ -250,9 +250,7 @@ export default function SeedForm({
               Capture the possibility before it disappears
             </h1>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
-              {isPrivateSeed
-                ? "This is your private thinking space. It never appears in the Seed Library, search or your public profile unless you deliberately connect it to a Library subject later."
-                : "This Seed is linked to a shared Library subject. Your notes, links, target date and chosen visibility remain personal."}
+              Yeni kayıtlar standart olarak herkese açıktır. İstersen görünürlüğü arkadaşlarınla veya yalnızca kendinle sınırlandırabilirsin.
             </p>
           </div>
 
@@ -269,7 +267,7 @@ export default function SeedForm({
               href="/seeds"
               className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-700 transition hover:border-green-400 hover:text-green-700"
             >
-              ← Tohumlarım
+              ← Kişisel Alanım
             </Link>
           </div>
         </div>
@@ -282,7 +280,7 @@ export default function SeedForm({
 
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Seed Type
+            Tür
           </p>
 
           {isEditing ? (
@@ -637,22 +635,7 @@ export default function SeedForm({
         </section>
 
         <div className="mt-8">
-          {isPrivateSeed ? (
-            <div className="rounded-2xl border border-gray-300 bg-gray-50 p-5">
-              <p className="text-sm font-black text-gray-950">🔒 Private to you</p>
-              <p className="mt-2 text-sm leading-6 text-gray-600">
-                Private Seeds never appear in search, the Seed Library or your profile. You can write freely here and connect this Seed to a moderated Library subject later.
-              </p>
-              {isEditing && seed && (
-                <Link
-                  href={`/seeds/explore?from_seed=${encodeURIComponent(seed.seed_id)}&q=${encodeURIComponent(seed.title)}`}
-                  className="mt-4 inline-flex rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-black text-emerald-800 transition hover:border-emerald-500"
-                >
-                  Connect to Seed Library →
-                </Link>
-              )}
-            </div>
-          ) : isPendingLibrarySeed ? (
+          {isPendingLibrarySeed ? (
             <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
               <p className="text-sm font-black text-amber-900">
                 {catalogueIdentity?.catalogue_status === "under_review" ? "Library subject under review" : "Library review pending"}
@@ -666,7 +649,7 @@ export default function SeedForm({
           ) : (
             <>
               <p className="text-sm font-semibold text-gray-800">
-                Who can see this Library Seed on your profile?
+                Görünürlük
               </p>
               <div className="mt-3 grid gap-3 md:grid-cols-3">
                 {SEED_VISIBILITY_OPTIONS.map((option) => (
@@ -712,14 +695,14 @@ export default function SeedForm({
               ? "Saving..."
               : isEditing
                 ? "Save personal details"
-                : "Plant Seed"}
+                : "Kişisel niyet ekle"}
           </button>
 
           <Link
             href="/seeds"
             className="rounded-xl border border-gray-200 bg-white px-6 py-3.5 text-sm font-semibold text-gray-700 transition hover:border-gray-400"
           >
-            Cancel
+            Vazgeç
           </Link>
 
         </div>

@@ -137,10 +137,10 @@ export default function RoomConversationList({
             Oda sohbetleri
           </p>
           <h2 className="mt-2 text-2xl font-bold text-gray-950">
-            Planlama & Aktivite Odaları
+            Niyet & Aktivite Odaları
           </h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            Her Plan için tek konuşma bulunur. Yeni mesajlar Bildirimleri doldurmak yerine kendi Odasında gruplanır.
+            Her Niyet, planlama ve Aktivite boyunca tek konuşma olarak devam eder. Mesajlar kendi Odasında gruplanır.
           </p>
         </div>
 
@@ -152,9 +152,9 @@ export default function RoomConversationList({
       <div className="mt-4 space-y-3">
         {conversations.length === 0 && (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
-            <p className="font-bold text-gray-900">No Oda sohbetleri yet</p>
+            <p className="font-bold text-gray-900">Henüz oda sohbeti yok</p>
             <p className="mt-2 text-sm text-gray-500">
-              Planning and Activity Oda sohbetleri will appear here after the first message.
+              Niyet ve Aktivite Odası sohbetleri ilk mesajdan sonra burada görünür.
             </p>
           </div>
         )}
@@ -162,7 +162,7 @@ export default function RoomConversationList({
         {visibleConversations.map(({ summary, plan }) => {
           const phase = currentRoomPhase(plan);
           const unread = toNumber(summary.unread_count);
-          const roomLabel = phase === "planning" ? "Planlama Odası" : "Aktivite Odası";
+          const roomLabel = phase === "planning" ? "Niyet Odası" : "Aktivite Odası";
 
           return (
             <Link
@@ -177,7 +177,7 @@ export default function RoomConversationList({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="truncate font-bold text-gray-950">
-                    {plan.title || "UIN Activity"}
+                    {plan.title || "UIN Aktivitesi"}
                   </h3>
                   <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600">
                     {roomLabel}
@@ -205,7 +205,7 @@ export default function RoomConversationList({
 
         {conversations.length > PAGE_SIZE && (
           <nav
-            aria-label="Room conversation pages"
+            aria-label="Oda sohbeti sayfaları"
             className="flex flex-wrap items-center justify-between gap-3 pt-2"
           >
             <p className="text-xs font-semibold text-gray-400">

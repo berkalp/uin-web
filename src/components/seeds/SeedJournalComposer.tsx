@@ -29,7 +29,7 @@ export default function SeedJournalComposer({
   const [body, setBody] = useState("");
   const [occurredOn, setOccurredOn] = useState(today());
   const [visibility, setVisibility] =
-    useState<SeedVisibility>(defaultVisibility);
+    useState<SeedVisibility>("everyone");
   const [attachments, setAttachments] = useState<
     SeedJournalAttachment[]
   >([]);

@@ -60,7 +60,7 @@ export default function SeedCompletionDialog({
     initialKeyTakeaway ?? ""
   );
   const [visibility, setVisibility] =
-    useState<SeedVisibility>(defaultVisibility);
+    useState<SeedVisibility>("everyone");
   const [attachments, setAttachments] = useState<
     SeedJournalAttachment[]
   >(initialAttachments);

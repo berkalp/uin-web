@@ -1489,7 +1489,7 @@ export default function IntentForm({
               />
 
               <p className="mt-2 text-xs leading-5 text-gray-400">
-                Choose all of Türkiye, an entire city, or a specific district. The exact meeting point is set later in the Planning Room.
+                Türkiye geneli, bir şehir veya belirli bir ilçe seç. Kesin buluşma noktası daha sonra Niyet Odasında belirlenir.
               </p>
             </div>
 

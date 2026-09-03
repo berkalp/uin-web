@@ -192,11 +192,11 @@ export default function ProfileActivityTabs({
       value: ActiveLifecycleFilter;
       label: string;
     }> = [
-      { value: "all", label: "All states" },
-      { value: "open", label: "Open" },
-      { value: "forming", label: "Forming" },
-      { value: "planned", label: "Planned" },
-      { value: "future", label: "Future" },
+      { value: "all", label: "Tümü" },
+      { value: "open", label: "Aktif" },
+      { value: "forming", label: "Planlanıyor" },
+      { value: "planned", label: "Planlandı" },
+      { value: "future", label: "Gelecek" },
     ];
 
     return choices.map((choice) => ({
@@ -247,7 +247,7 @@ export default function ProfileActivityTabs({
   }> = [
     {
       value: "all",
-      label: "All",
+      label: "Tümü",
       count: allCards.length,
     },
     {

@@ -133,7 +133,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
               </p>
               <h1 className="mt-3 text-4xl font-bold text-gray-950">Mesajlar</h1>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-                Planlama Odaları, Aktivite Odaları ve doğrudan UIN konuşmaları burada yer alır. Karar Merkezi kararlar için, Bildirimler ise güncellemeler için ayrıdır.
+                Niyet Odaları, Aktivite Odaları ve doğrudan UIN konuşmaları burada yer alır. Karar Merkezi kararlar için, Bildirimler ise güncellemeler için ayrıdır.
               </p>
             </div>
 

@@ -103,6 +103,10 @@ export default async function EditSeedPage({
     notFound();
   }
 
+  if (seed.status === "completed") {
+    redirect(`/seeds/${encodeURIComponent(seed.seed_id)}?editExperience=1`);
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1450px]">

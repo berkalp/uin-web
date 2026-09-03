@@ -37,7 +37,7 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "The Intent invitation could not be sent.";
+  return "Niyet daveti gönderilemedi.";
 }
 
 function getInitial(value: string) {
@@ -50,11 +50,11 @@ function isUnavailableInvitationStatus(status: string | null) {
 
 function getInvitationStatusLabel(status: string | null) {
   if (status === "pending") {
-    return "Invitation pending";
+    return "Davet bekliyor";
   }
 
   if (status === "accepted") {
-    return "Already participating";
+    return "Zaten katılıyor";
   }
 
   return null;
@@ -193,12 +193,12 @@ export default function IntentInvitePeopleButton({
     event.preventDefault();
 
     if (!selectedFriend) {
-      setErrorMessage("Select one of your accepted friends.");
+      setErrorMessage("Kabul edilmiş arkadaşlarından birini seç.");
       return;
     }
 
     if (isUnavailableInvitationStatus(selectedFriend.invitation_status)) {
-      setErrorMessage("This friend already has an active invitation or participation.");
+      setErrorMessage("Bu arkadaşın zaten aktif bir daveti veya katılımı var.");
       return;
     }
 
@@ -222,7 +222,7 @@ export default function IntentInvitePeopleButton({
 
       const displayName =
         selectedFriend.full_name ||
-        (selectedFriend.username ? `@${selectedFriend.username}` : "your friend");
+        (selectedFriend.username ? `@${selectedFriend.username}` : "arkadaşın");
 
       setFriends((currentFriends) =>
         currentFriends.map((friend) =>
@@ -266,7 +266,7 @@ export default function IntentInvitePeopleButton({
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-purple-700">
-                    Intent Invitation
+                    Niyet Daveti
                   </p>
 
                   <h2
@@ -300,7 +300,7 @@ export default function IntentInvitePeopleButton({
 
                 <p className="mt-2 text-sm leading-6 text-purple-700">
                   The invited friend joins as a Participant after accepting. A
-                  Shared Plan is created automatically when needed.
+                  Gerektiğinde Niyet Odası otomatik açılır; ayrı bir Plan oluşturduğunu düşünmen gerekmez.
                 </p>
               </div>
 
@@ -327,7 +327,7 @@ export default function IntentInvitePeopleButton({
                     type="search"
                     value={searchQuery}
                     disabled={isSending || isLoadingFriends}
-                    placeholder="Search by name or username"
+                    placeholder="İsim veya kullanıcı adıyla ara"
                     onChange={(event) => {
                       setSearchQuery(event.target.value);
                       setErrorMessage("");
@@ -345,8 +345,8 @@ export default function IntentInvitePeopleButton({
                       <div className="px-4 py-8 text-center">
                         <p className="text-sm font-semibold text-gray-700">
                           {friends.length === 0
-                            ? "No eligible friends are available."
-                            : "No friends match this search."}
+                            ? "Davet edilebilecek uygun arkadaş yok."
+                            : "Bu aramayla eşleşen arkadaş yok."}
                         </p>
 
                         {friends.length === 0 && (
@@ -359,7 +359,7 @@ export default function IntentInvitePeopleButton({
                     ) : (
                       filteredFriends.map((friend) => {
                         const name =
-                          friend.full_name || friend.username || "UIN member";
+                          friend.full_name || friend.username || "UIN kullanıcısı";
                         const location = [friend.city, friend.country]
                           .filter(Boolean)
                           .join(", ");
@@ -407,13 +407,13 @@ export default function IntentInvitePeopleButton({
 
                                 {isSelected && !isUnavailable && (
                                   <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-                                    Selected
+                                    Seçildi
                                   </span>
                                 )}
                               </div>
 
                               <p className="mt-0.5 truncate text-xs text-gray-500">
-                                {friend.username ? `@${friend.username}` : "No username"}
+                                {friend.username ? `@${friend.username}` : "Kullanıcı adı yok"}
                                 {location ? ` · ${location}` : ""}
                               </p>
 
@@ -440,7 +440,7 @@ export default function IntentInvitePeopleButton({
                     disabled={isSending}
                     maxLength={500}
                     rows={4}
-                    placeholder="Optional"
+                    placeholder="İsteğe bağlı"
                     onChange={(event) => {
                       setMessage(event.target.value);
                       setErrorMessage("");
@@ -489,7 +489,7 @@ export default function IntentInvitePeopleButton({
                   }
                   className="w-full rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSending ? "Sending Invitation..." : "Send Invitation"}
+                  {isSending ? "Davet gönderiliyor..." : "Daveti Gönder"}
                 </button>
               </form>
             </div>
@@ -512,7 +512,7 @@ export default function IntentInvitePeopleButton({
             : "rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-purple-700"
         }
       >
-        Invite Friends
+        Arkadaşlarını Davet Et
       </button>
 
       {modal}

@@ -126,14 +126,14 @@ function getRoleLabel(
   role: MemberRole
 ) {
   if (role === "host") {
-    return "Primary Host";
+    return "Ana Yürüten";
   }
 
   if (role === "co_host") {
-    return "Co-host";
+    return "Birlikte Yürüten";
   }
 
-  return "Participant";
+  return "Katılımcı";
 }
 
 function getRoleClasses(
@@ -154,14 +154,14 @@ function getAttendanceLabel(
   status: AttendanceStatus
 ) {
   if (status === "attended") {
-    return "Attended";
+    return "Katıldı";
   }
 
   if (status === "no_show") {
-    return "Did not attend";
+    return "Katılmadı";
   }
 
-  return "Not recorded";
+  return "Kaydedilmedi";
 }
 
 function getAttendanceClasses(
@@ -182,22 +182,22 @@ function getInvitationStatusLabel(
   status: InvitationStatus
 ) {
   if (status === "accepted") {
-    return "Joined";
+    return "Katıldı";
   }
 
   if (status === "declined") {
-    return "Declined";
+    return "Reddetti";
   }
 
   if (status === "revoked") {
-    return "Revoked";
+    return "Geri çekildi";
   }
 
   if (status === "expired") {
-    return "Expired";
+    return "Süresi doldu";
   }
 
-  return "Pending";
+  return "Bekliyor";
 }
 
 function getInvitationStatusClasses(
@@ -238,11 +238,11 @@ function formatDateTime(
       date.getTime()
     )
   ) {
-    return "Not available";
+    return "Mevcut değil";
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       day: "numeric",
       month: "short",
@@ -444,7 +444,7 @@ export default function PlanPeoplePanel({
       setRevokeError(
         error instanceof Error
           ? error.message
-          : "The invitation could not be revoked."
+          : "Davet geri çekilemedi."
       );
     } finally {
       setRevokingInvitationId(
@@ -459,17 +459,16 @@ export default function PlanPeoplePanel({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-              People
+              Kişiler
             </p>
 
             <h2 className="mt-2 text-xl font-bold text-gray-950">
-              Team & Invitations
+              Ekip & Davetler
             </h2>
 
             <p className="mt-2 text-sm leading-6 text-gray-500">
-              Active members and direct
-              invitations for this Shared
-              Plan.
+              Aktif ekip üyelerini ve bu Plan için
+              gönderilen doğrudan davetleri gör.
             </p>
           </div>
 
@@ -502,7 +501,7 @@ export default function PlanPeoplePanel({
                 : "text-gray-500 hover:text-gray-800"
             }`}
           >
-            Members
+            Ekip
             <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-xs">
               {members.length}
             </span>
@@ -522,7 +521,7 @@ export default function PlanPeoplePanel({
                 : "text-gray-500 hover:text-gray-800"
             }`}
           >
-            Invited
+            Davetler
             <span
               className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
                 pendingInvitationCount >
@@ -547,7 +546,7 @@ export default function PlanPeoplePanel({
               const displayName =
                 member.fullName ||
                 member.username ||
-                "UIN member";
+                "UIN kullanıcısı";
 
               return (
                 <article
@@ -688,7 +687,7 @@ export default function PlanPeoplePanel({
               <div className="space-y-2">
                 {departures.map((departure) => {
                   const displayName =
-                    departure.fullName || departure.username || "UIN member";
+                    departure.fullName || departure.username || "UIN kullanıcısı";
 
                   return (
                     <article
@@ -871,8 +870,8 @@ export default function PlanPeoplePanel({
                       >
                         {revokingInvitationId ===
                         invitation.invitationId
-                          ? "Revoking..."
-                          : "Revoke Invitation"}
+                          ? "Geri çekiliyor..."
+                          : "Daveti Geri Çek"}
                       </button>
                     )}
                   </article>
