@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
-  type IntentLifecycleStatus,
+  type IntentLifecycleDurum,
 } from "@/components/discover/DiscoverIntentCard";
 import ProfilePagination from "@/components/profile/ProfilePagination";
 
@@ -124,7 +124,7 @@ function sortProfileCards(
 }
 
 function lifecycleMatches(
-  lifecycle: IntentLifecycleStatus,
+  lifecycle: IntentLifecycleDurum,
   filter: ActiveLifecycleFilter
 ) {
   return filter === "all" || lifecycle === filter;
@@ -317,7 +317,7 @@ export default function ProfileActivityTabs({
       {sortMode === "active" && roleCards.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-gray-400">
-            Status
+            Durum
           </span>
           {lifecycleFilters.map((item) => {
             const active = lifecycleFilter === item.value;
@@ -359,7 +359,7 @@ export default function ProfileActivityTabs({
             page={safePage}
             pageCount={pageCount}
             onPageChange={setPage}
-            label={`${eyebrow} pages`}
+            label={`${eyebrow} sayfaları`}
           />
         </>
       ) : (

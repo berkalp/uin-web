@@ -1776,17 +1776,21 @@ export default async function PublicProfilePage({
 
         <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {[
-            ["Aktif Sosyal Niyet", activeIntents.length],
-            ["Aktif Kişisel Niyet", visibleSeeds.filter((seed) => seed.status === "active").length],
-            ["Planlanıyor", formingActivities.length + upcomingActivities.length],
-            ["Sosyal Deneyim", completedActivities.length],
-            ["Kişisel Deneyim", visibleSeeds.filter((seed) => seed.status === "completed").length],
-            ["Yaklaşan", upcomingActivities.length],
-          ].map(([label, value]) => (
-            <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-              <p className="text-3xl font-black text-gray-950">{value}</p>
-              <p className="mt-1 text-xs font-bold text-gray-500">{label}</p>
-            </div>
+            { label: "Aktif Sosyal Niyet", value: activeIntents.length, href: "#active-intents" },
+            { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#personal-intents" },
+            { label: "Planlanıyor", value: formingActivities.length + upcomingActivities.length, href: "#active-intents" },
+            { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
+            { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-intents" },
+            { label: "Yaklaşan", value: upcomingActivities.length, href: "#active-intents" },
+          ].map((item) => (
+            <a
+              key={item.label}
+              href={item.href}
+              className="group rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-green-300 hover:shadow-md"
+            >
+              <p className="text-3xl font-black text-gray-950 transition group-hover:text-green-800">{item.value}</p>
+              <p className="mt-1 text-xs font-bold text-gray-500">{item.label}</p>
+            </a>
           ))}
         </section>
 
@@ -1818,14 +1822,16 @@ export default async function PublicProfilePage({
           />
         </div>
 
-        <PublicSeedsPanel
-          displayName={displayName}
-          seeds={visibleSeeds}
-          isOwner={page.viewer.is_owner}
-          isAuthenticated={page.viewer.is_authenticated}
-        />
+        <div id="personal-intents" className="scroll-mt-8">
+          <PublicSeedsPanel
+            displayName={displayName}
+            seeds={visibleSeeds}
+            isOwner={page.viewer.is_owner}
+            isAuthenticated={page.viewer.is_authenticated}
+          />
+        </div>
 
-        <div id="experiences">
+        <div id="social-experiences" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Deneyimler"
             title={`${displayName} · Deneyimler`}
@@ -1842,31 +1848,33 @@ export default async function PublicProfilePage({
           />
         </div>
 
-        <PublicFavoritesPanel
-          items={publicFavorites}
-          sharedCount={toCount(publicPreferences.shared_favorite_count ?? 0)}
-        />
+        <div id="favorites" className="scroll-mt-8">
+          <PublicFavoritesPanel
+            items={publicFavorites}
+            sharedCount={toCount(publicPreferences.shared_favorite_count ?? 0)}
+          />
+        </div>
 
         {page.viewer.is_owner && (
           <ProfileIntentReactions
-            eyebrow="Saved Intents"
-            title="Your private Intent shortlist"
-            description="Only you can see the Intents you saved for later. Saving never grants access if an Intent's visibility changes."
+            eyebrow="Kaydettiklerin"
+            title="Sonra bakmak için kaydettiğin niyetler"
+            description="Bu listeyi yalnızca sen görürsün. Bir niyeti kaydetmek, görünürlüğü sonradan değişirse erişim hakkı vermez."
             items={savedReactionItems}
-            emptyTitle="No Saved Intents yet"
-            emptyDescription="Use the heart button in Discover or an Intent page to keep something here privately."
+            emptyTitle="Henüz kaydettiğin bir niyet yok"
+            emptyDescription="Daha sonra dönmek istediğin niyetleri kaydettiğinde burada görünür."
             privateSection
           />
         )}
 
         {(page.viewer.is_owner || pawedReactionItems.length > 0) && (
           <ProfileIntentReactions
-            eyebrow="Pawed Intents"
-            title={`${displayName}'s recommendations`}
-            description="Intents recommended with a Paw. Visibility follows this profile's Paw setting and the Intent's own privacy boundary."
+            eyebrow="Destek Verilen Niyetler"
+            title={`${displayName} · destek verdiği niyetler`}
+            description="Bu bölüm, kullanıcının destek tepkisi verdiği ve görünürlüğü buna izin veren niyetleri gösterir."
             items={pawedReactionItems}
-            emptyTitle="No visible Pawed Intents yet"
-            emptyDescription="Paw an Intent to recommend it without sending a join request."
+            emptyTitle="Henüz görünür bir destek yok"
+            emptyDescription="Bir niyete destek vermek, katılım isteği göndermeden onu öne çıkarmanın bir yoludur."
           />
         )}
 

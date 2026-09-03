@@ -324,7 +324,7 @@ export default function PublicSeedsPanel({
                           : "bg-green-100 text-green-800"
                       }`}
                     >
-                      {seed.status === "completed" ? "Done" : "Growing"}
+                      {seed.status === "completed" ? "Deneyim" : "Niyet"}
                     </span>
                   </div>
 
@@ -350,7 +350,7 @@ export default function PublicSeedsPanel({
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-bold">
                     {grownIntentCount > 0 && (
                       <span className="rounded-full bg-violet-50 px-2 py-1 text-violet-700">
-                        ↗ {grownIntentCount} Intent
+                        ↗ {grownIntentCount} Niyet
                       </span>
                     )}
                     {journalCount > 0 && (
@@ -373,7 +373,7 @@ export default function PublicSeedsPanel({
                       href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
                       className="mt-2 flex w-full justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-800 transition hover:border-green-300 hover:bg-green-50"
                     >
-                      View
+                      Gör
                     </Link>
                   </div>
                 </div>
@@ -383,11 +383,11 @@ export default function PublicSeedsPanel({
         </div>
       ) : orderedSeeds.length > 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-green-200 bg-white/70 p-7 text-center text-sm text-gray-500">
-          No Seeds match this filter.
+          Bu filtreye uyan kayıt yok.
         </div>
       ) : (
         <div className="mt-6 rounded-2xl border border-dashed border-green-200 bg-white/70 p-7 text-center text-sm text-gray-500">
-          Seeds shared with friends or everyone will appear here, including completed Seeds and their reflections.
+          Arkadaşlarla veya herkesle paylaşılan kişisel niyetler ve deneyimler burada görünür.
         </div>
       )}
     </section>
