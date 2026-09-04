@@ -169,10 +169,10 @@ export default function SeedDashboard({
             type="button"
             title="Aktif kişisel niyetler"
             onClick={() => setFilter("active")}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-black transition ${
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-black transition ${
               filter === "active"
-                ? "border-green-600 bg-green-600 text-white"
-                : "border-green-200 bg-green-50 text-green-800 hover:border-green-400"
+                ? "text-green-700"
+                : "text-green-700 hover:bg-green-50"
             }`}
           >
             <span aria-hidden="true">🌱</span>
@@ -183,10 +183,10 @@ export default function SeedDashboard({
             type="button"
             title="Sosyal Niyete dönüşen kişisel niyetler"
             onClick={() => setFilter("converted")}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-black transition ${
+            className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-black transition ${
               filter === "converted"
-                ? "border-blue-600 bg-blue-600 text-white"
-                : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400"
+                ? "text-blue-700"
+                : "text-blue-700 hover:bg-blue-50"
             }`}
           >
             <span aria-hidden="true">✅</span>

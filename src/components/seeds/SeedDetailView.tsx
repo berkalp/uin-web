@@ -446,11 +446,48 @@ export default function SeedDetailView({
                   {!seed.is_owner && isAuthenticated && (
                     <SeedPublicActions seedId={seed.seed_id} title={seed.title} catalogItemId={seed.catalog_item_id} />
                   )}
-                  {seed.is_owner && seed.catalog_item_id && (
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      <Link href={`/seeds/explore?mode=favorite&catalog=${encodeURIComponent(seed.catalog_item_id)}`} className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm font-black text-rose-700">♡ Sevdiklerime ekle</Link>
-                      <Link href={`/seeds/subjects/${encodeURIComponent(seed.catalog_item_id)}`} className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-center text-sm font-black text-gray-800">Konu sayfasını aç</Link>
-                    </div>
+                  {seed.is_owner && (
+                    <section className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <h3 className="text-sm font-black text-gray-950">
+                        Bu konu sende nasıl yer alsın?
+                      </h3>
+
+                      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                        <Link
+                          href={`/seeds/explore?mode=experience&q=${encodeURIComponent(seed.title)}`}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-green-400"
+                        >
+                          ✓ Deneyim ekle
+                        </Link>
+
+                        {seed.catalog_item_id ? (
+                          <Link
+                            href={`/seeds/explore?mode=favorite&catalog=${encodeURIComponent(seed.catalog_item_id)}`}
+                            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-rose-300"
+                          >
+                            ♡ Sevdiklerime ekle
+                          </Link>
+                        ) : (
+                          <span className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-400">
+                            Katalog dışı kayıt
+                          </span>
+                        )}
+
+                        <Link
+                          href={`/seeds/explore?mode=intent&q=${encodeURIComponent(seed.title)}`}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-green-400"
+                        >
+                          🌿 Kişisel niyet
+                        </Link>
+
+                        <Link
+                          href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
+                          className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-violet-400"
+                        >
+                          ♧ Sosyal niyet
+                        </Link>
+                      </div>
+                    </section>
                   )}
                 </div>
               )}

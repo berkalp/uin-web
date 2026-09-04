@@ -1118,10 +1118,10 @@ export default function IntentForm({
       <div className="w-full max-w-3xl px-8">
         <div className="mb-6">
           <Link
-            href={sourceSeed ? "/seeds" : "/timeline"}
+            href={sourceSeed ? `/seeds/${encodeURIComponent(sourceSeed.seed_id)}` : "/timeline"}
             className="inline-flex items-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            ← {sourceSeed ? "Back to Seeds" : "Back to Timeline"}
+            ← {sourceSeed ? "Deneyime Dön" : "Timeline'a Dön"}
           </Link>
         </div>
 
@@ -1131,13 +1131,17 @@ export default function IntentForm({
               <span className="text-3xl" aria-hidden="true">{sourceSeed.seed_type_icon}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">Intent DNA</p>
-                <h2 className="mt-2 text-xl font-black text-gray-950">Growing from {selectedSourceSeedIds.length} Seed{selectedSourceSeedIds.length === 1 ? "" : "s"}</h2>
+                <h2 className="mt-2 text-xl font-black text-gray-950">
+                  Bu deneyimden Sosyal Niyet oluştur
+                </h2>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  One Intent can grow from several Seeds. The links stay in history, while Private Seed text remains hidden from everyone except you.
+                  Sosyal Niyet bu deneyime bağlı oluşturulur. Kaynak deneyim geçmişte korunur.
                 </p>
 
-                <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                  {sourceSeedCandidates.map((candidate) => {
+                <div className="mt-4 grid gap-2">
+                  {sourceSeedCandidates
+                    .filter((candidate) => candidate.is_primary)
+                    .map((candidate) => {
                     const selected = selectedSourceSeedIds.includes(candidate.seed_id);
                     return (
                       <label key={candidate.seed_id} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-3 transition ${selected ? "border-green-500 bg-white" : "border-green-100 bg-white/60 hover:border-green-300"}`}>
