@@ -1589,6 +1589,34 @@ export default async function PublicProfilePage({
       (card) => card.profile_role === "participant"
     );
 
+  const hasActiveSocial = [...hostedActiveCards, ...participatingActiveCards].some(
+    (card) => card.lifecycle_status === "open"
+  );
+
+  const hasActivePersonal = visibleSeeds.some(
+    (seed) => seed.status === "active"
+  );
+
+  const hasPlanning = [...hostedActiveCards, ...participatingActiveCards].some(
+    (card) => card.lifecycle_status === "forming"
+  );
+
+  const hasSocialExperiences =
+    hostedExperienceCards.length > 0 || participatedExperienceCards.length > 0;
+
+  const hasPersonalExperiences = visibleSeeds.some(
+    (seed) => seed.status === "completed"
+  );
+
+  const hasUpcoming = [...hostedActiveCards, ...participatingActiveCards].some(
+    (card) =>
+      card.lifecycle_status === "planned" ||
+      card.lifecycle_status === "future"
+  );
+
+  const hasFavorites =
+    toCount(publicPreferences.shared_favorite_count ?? 0) > 0;
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto max-w-[1600px]">
@@ -1806,6 +1834,7 @@ export default async function PublicProfilePage({
           isOwner={page.viewer.is_owner}
         />
 
+        {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Aktif Sosyal"
@@ -1822,7 +1851,9 @@ export default async function PublicProfilePage({
             lifecycleMode="active"
           />
         </div>
+        )}
 
+        {hasActivePersonal && (
         <div id="active-personal" className="scroll-mt-8">
           <PublicSeedsPanel
             displayName={displayName}
@@ -1835,7 +1866,9 @@ export default async function PublicProfilePage({
             description="Henüz deneyime dönüşmemiş aktif kişisel niyetler."
           />
         </div>
+        )}
 
+        {hasPlanning && (
         <div id="planning" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Planlanıyor"
@@ -1852,7 +1885,9 @@ export default async function PublicProfilePage({
             lifecycleMode="forming"
           />
         </div>
+        )}
 
+        {hasSocialExperiences && (
         <div id="social-experiences" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Sosyal Deneyimler"
@@ -1869,7 +1904,9 @@ export default async function PublicProfilePage({
             sortMode="experience"
           />
         </div>
+        )}
 
+        {hasPersonalExperiences && (
         <div id="personal-experiences" className="scroll-mt-8">
           <PublicSeedsPanel
             displayName={displayName}
@@ -1882,7 +1919,9 @@ export default async function PublicProfilePage({
             description="Tamamlanmış kişisel niyetler ve yaşanmış deneyimler."
           />
         </div>
+        )}
 
+        {hasUpcoming && (
         <div id="upcoming" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Yaklaşan"
@@ -1899,13 +1938,16 @@ export default async function PublicProfilePage({
             lifecycleMode="upcoming"
           />
         </div>
+        )}
 
+        {hasFavorites && (
         <div id="favorites" className="scroll-mt-8">
           <PublicFavoritesPanel
             items={publicFavorites}
             sharedCount={toCount(publicPreferences.shared_favorite_count ?? 0)}
           />
         </div>
+        )}
 
         {page.viewer.is_owner && (
           <ProfileIntentReactions
