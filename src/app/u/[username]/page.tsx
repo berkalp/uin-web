@@ -62,7 +62,7 @@ import type {
 } from "@/utils/reputation";
 import {
   getProfileGenderLabel,
-  normalizeKatılımcıEligibility,
+  normalizeParticipantEligibility,
   normalizeProfileGender,
 } from "@/utils/participationEligibility";
 import {
@@ -896,7 +896,7 @@ export default async function PublicProfilePage({
         row.intent_id,
         {
           participantEligibility:
-            normalizeKatılımcıEligibility(
+            normalizeParticipantEligibility(
               row.participant_eligibility
             ),
           viewerIsEligible:
