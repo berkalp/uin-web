@@ -1,13 +1,13 @@
 import {
-  formatReputationDimension,
-  getReputationLevelClasses,
-  getReputationLevelLabel,
-  type PublicReputationSummary,
-  type ReputationContextSummary,
+  formatİtibarDimension,
+  getİtibarLevelClasses,
+  getİtibarLevelLabel,
+  type PublicİtibarSummary,
+  type İtibarContextSummary,
 } from "@/utils/reputation";
 
-type PublicReputationPanelProps = {
-  summary: PublicReputationSummary;
+type PublicİtibarPanelProps = {
+  summary: PublicİtibarSummary;
 };
 
 function Metric({
@@ -30,15 +30,21 @@ function Metric({
   );
 }
 
+function formatConfidenceLevel(value: string) {
+  if (value === "high") return "Yüksek";
+  if (value === "medium") return "Orta";
+  if (value === "low") return "Düşük";
+  return value;
+}
 function ContextCard({
   context,
 }: {
-  context: ReputationContextSummary;
+  context: İtibarContextSummary;
 }) {
   const title =
     context.activity_name ||
     context.category_name ||
-    "UIN context";
+    "UIN bağlamı";
 
   const dimensions =
     Object.entries(
@@ -63,8 +69,8 @@ function ContextCard({
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-400">
             {context.context_type ===
             "activity"
-              ? "Activity reputation"
-              : "Category reputation"}
+              ? "Aktivite itibarı"
+              : "Kategori itibarı"}
           </p>
 
           <h3 className="mt-2 text-lg font-bold text-gray-950">
@@ -73,23 +79,18 @@ function ContextCard({
         </div>
 
         <span
-          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${getReputationLevelClasses(
+          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${getİtibarLevelClasses(
             context.reputation_level
           )}`}
         >
-          {getReputationLevelLabel(
+          {getİtibarLevelLabel(
             context.reputation_level
           )}
         </span>
       </div>
 
       <p className="mt-3 text-sm text-gray-500">
-        Based on {context.activity_count}{" "}
-        completed Activit
-        {context.activity_count === 1
-          ? "y"
-          : "ies"}
-        .
+        {context.activity_count} tamamlanmış aktiviteye dayanır.
       </p>
 
       {dimensions.length > 0 && (
@@ -100,7 +101,7 @@ function ContextCard({
                 key={dimension}
                 className="rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800"
               >
-                {formatReputationDimension(
+                {formatİtibarDimension(
                   dimension
                 )}{" "}
                 · {Math.round(score.score)}%
@@ -113,27 +114,23 @@ function ContextCard({
   );
 }
 
-export default function PublicReputationPanel({
+export default function PublicİtibarPanel({
   summary,
-}: PublicReputationPanelProps) {
+}: PublicİtibarPanelProps) {
   if (summary.is_managed_minor) {
     return (
-      <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="mt-0 bg-transparent p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-purple-700">
-          Participation history
+          Katılım geçmişi
         </p>
 
         <h2 className="mt-2 text-xl font-bold text-gray-950">
-          Guardian-managed Activity history
+          Veli yönetimli aktivite geçmişi
         </h2>
 
         <p className="mt-3 text-sm leading-7 text-gray-600">
-          Participated in {summary.participation_count}{" "}
-          guardian-managed Activit
-          {summary.participation_count === 1
-            ? "y"
-            : "ies"}
-          . Numerical peer reputation is not shown for managed minor profiles.
+          {summary.participation_count} veli yönetimli aktiviteye katıldı.
+          Yönetilen çocuk profillerinde sayısal kullanıcı itibarı gösterilmez.
         </p>
       </section>
     );
@@ -144,17 +141,17 @@ export default function PublicReputationPanel({
 
   if (!global) {
     return (
-      <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="mt-0 bg-transparent p-5">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-          Reputation
+          İtibar
         </p>
 
         <h2 className="mt-2 text-xl font-bold text-gray-950">
-          New to shared Activities
+          Paylaşılan aktivitelere yeni
         </h2>
 
         <p className="mt-3 text-sm leading-7 text-gray-600">
-          There is not enough completed Activity history to show a reputation summary yet.
+          Henüz itibar özeti göstermek için yeterli tamamlanmış aktivite geçmişi yok.
         </p>
       </section>
     );
@@ -179,28 +176,28 @@ export default function PublicReputationPanel({
       .slice(0, 4);
 
   return (
-    <section className="mt-6 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+    <section className="mt-0 bg-transparent p-5 md:p-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-            Reputation
+            İtibar
           </p>
 
           <h2 className="mt-2 text-2xl font-bold text-gray-950">
-            Reliability by context
+            Bağlama göre güvenilirlik
           </h2>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
-            Reputation reflects verified shared Activity behaviour. It does not include followers, popularity or skill level.
+            İtibar reflects verified shared Activity behaviour. It does not include followers, popularity or skill level.
           </p>
         </div>
 
         <span
-          className={`w-fit rounded-full border px-4 py-2 text-sm font-bold ${getReputationLevelClasses(
+          className={`w-fit rounded-full border px-4 py-2 text-sm font-bold ${getİtibarLevelClasses(
             global.reputation_level
           )}`}
         >
-          {getReputationLevelLabel(
+          {getİtibarLevelLabel(
             global.reputation_level
           )}
         </span>
@@ -208,14 +205,14 @@ export default function PublicReputationPanel({
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metric
-          label="Completed together"
+          label="Birlikte tamamlanan"
           value={String(
             global.activity_count
           )}
         />
 
         <Metric
-          label="Attendance reliability"
+          label="Katılım güvenilirliği"
           value={
             global.attendance_observation_count >=
             3
@@ -223,29 +220,24 @@ export default function PublicReputationPanel({
                   global.attendance_rate ??
                     0
                 )}%`
-              : "Not enough data"
+              : "Yeterli veri yok"
           }
         />
 
         <Metric
-          label="Would join again"
+          label="Tekrar katılır"
           value={
             global.feedback_count >= 3 &&
             global.would_join_again_count !== null
               ? `${global.would_join_again_count} of ${global.feedback_count}`
-              : "Not enough data"
+              : "Yeterli veri yok"
           }
         />
 
         <Metric
-          label="Confidence"
+          label="Veri güveni"
           value={
-            global.confidence_level
-              .charAt(0)
-              .toUpperCase() +
-            global.confidence_level.slice(
-              1
-            )
+            formatConfidenceLevel(global.confidence_level)
           }
         />
       </div>
@@ -253,7 +245,7 @@ export default function PublicReputationPanel({
       {activityContexts.length > 0 && (
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-            By Activity
+            Aktiviteye göre
           </p>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -272,7 +264,7 @@ export default function PublicReputationPanel({
       {categoryContexts.length > 0 && (
         <div className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-            By Category
+            Kategoriye göre
           </p>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">

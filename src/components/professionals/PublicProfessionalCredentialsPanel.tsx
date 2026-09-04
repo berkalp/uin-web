@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-import ProfilePagination from "@/components/profile/ProfilePagination";
 import VerificationMark from "@/components/professionals/VerificationMark";
 import { setMyProfileDisplayOrder } from "@/services/profileDisplayOrderService";
 import type {
@@ -15,7 +14,7 @@ type PublicProfessionalCredentialsPanelProps = {
   isOwner?: boolean;
 };
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 6;
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -28,7 +27,7 @@ function formatDate(value: string | null) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -40,26 +39,24 @@ export default function PublicProfessionalCredentialsPanel({
   isOwner = false,
 }: PublicProfessionalCredentialsPanelProps) {
   const [credentials, setCredentials] = useState(status.credentials);
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [reordering, setReordering] = useState(false);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setCredentials(status.credentials);
+    setVisibleCount(PAGE_SIZE);
   }, [status.credentials]);
 
-  const pageCount = Math.max(1, Math.ceil(credentials.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const visibleCredentials = credentials.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE
-  );
+  const visibleCredentials = reordering
+    ? credentials
+    : credentials.slice(0, visibleCount);
 
-  useEffect(() => {
-    if (page > pageCount - 1) {
-      setPage(Math.max(0, pageCount - 1));
-    }
-  }, [page, pageCount]);
+  const hasMoreCredentials =
+    !reordering && visibleCount < credentials.length;
+
+  const hasExpandedCredentials =
+    !reordering && credentials.length > PAGE_SIZE;
 
   async function moveCredential(
     credential: PublicProfessionalCredential,
@@ -76,18 +73,18 @@ export default function PublicProfessionalCredentialsPanel({
     const next = [...credentials];
     [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
     setCredentials(next);
-    setOrderMessage("Saving order…");
+    setOrderMessage("Sıralama kaydediliyor…");
 
     try {
       await setMyProfileDisplayOrder(
         "credential",
         next.map((item) => item.id)
       );
-      setOrderMessage("Order saved");
+      setOrderMessage("Sıralama kaydedildi");
     } catch (error) {
       setCredentials(previous);
       setOrderMessage(
-        error instanceof Error ? error.message : "Order could not be saved."
+        error instanceof Error ? error.message : "Sıralama kaydedilemedi."
       );
     }
   }
@@ -97,19 +94,19 @@ export default function PublicProfessionalCredentialsPanel({
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-blue-100 bg-white p-5 shadow-sm md:p-6">
+    <section className="mt-0 bg-transparent p-5 md:p-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-            Verified credentials
+            Doğrulanmış bilgiler
           </p>
 
           <h2 className="mt-1.5 text-xl font-bold text-gray-950">
-            Professional qualifications
+            Profesyonel yeterlilikler
           </h2>
 
           <p className="mt-1.5 max-w-3xl text-sm leading-6 text-gray-500">
-            These qualifications were reviewed for a specific Activity or category. They are separate from reputation, which reflects real shared-Activity experience.
+            Bu yeterlilikler belirli bir aktivite veya kategori için doğrulanmıştır. Gerçek ortak deneyimlerden oluşan itibardan ayrı değerlendirilir.
           </p>
         </div>
 
@@ -117,7 +114,7 @@ export default function PublicProfessionalCredentialsPanel({
           {status.identity_verified && (
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800">
               <VerificationMark compact />
-              Identity verified
+              Kimlik doğrulandı
             </div>
           )}
 
@@ -134,7 +131,7 @@ export default function PublicProfessionalCredentialsPanel({
                   : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
               }`}
             >
-              {reordering ? "Done ordering" : "Reorder"}
+              {reordering ? "Sıralamayı bitir" : "Sırala"}
             </button>
           )}
         </div>
@@ -142,7 +139,7 @@ export default function PublicProfessionalCredentialsPanel({
 
       {reordering && (
         <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-xs text-gray-600">
-          Use the arrows on each credential to set its profile order.
+          Profilde gösterilecek sırayı kartlardaki oklarla değiştirebilirsin.
           {orderMessage && (
             <span className="ml-2 font-bold text-blue-800">{orderMessage}</span>
           )}
@@ -169,7 +166,7 @@ export default function PublicProfessionalCredentialsPanel({
                     <div className="absolute right-2 top-2 flex gap-1 rounded-lg bg-white/90 p-0.5 shadow-sm">
                       <button
                         type="button"
-                        aria-label={`Move ${credential.professional_title || credential.role_name} earlier`}
+                        aria-label={`${credential.professional_title || credential.role_name} önceye taşı`}
                         disabled={globalIndex <= 0}
                         onClick={() => void moveCredential(credential, -1)}
                         className="grid h-6 w-6 place-items-center rounded-md text-[10px] font-black hover:bg-gray-100 disabled:opacity-25"
@@ -178,7 +175,7 @@ export default function PublicProfessionalCredentialsPanel({
                       </button>
                       <button
                         type="button"
-                        aria-label={`Move ${credential.professional_title || credential.role_name} later`}
+                        aria-label={`${credential.professional_title || credential.role_name} sonraya taşı`}
                         disabled={globalIndex >= credentials.length - 1}
                         onClick={() => void moveCredential(credential, 1)}
                         className="grid h-6 w-6 place-items-center rounded-md text-[10px] font-black hover:bg-gray-100 disabled:opacity-25"
@@ -222,9 +219,9 @@ export default function PublicProfessionalCredentialsPanel({
                   </p>
 
                   <div className="mt-3 border-t border-blue-100 pt-2 text-[10px] leading-4 text-gray-500">
-                    <p className="truncate">Issuer: {credential.issuer}</p>
+                    <p className="truncate">Veren kurum: {credential.issuer}</p>
                     {expiryLabel && (
-                      <p className="mt-0.5 truncate">Valid until {expiryLabel}</p>
+                      <p className="mt-0.5 truncate">Geçerlilik {expiryLabel}</p>
                     )}
                   </div>
                 </article>
@@ -232,12 +229,25 @@ export default function PublicProfessionalCredentialsPanel({
             })}
           </div>
 
-          <ProfilePagination
-            page={safePage}
-            pageCount={pageCount}
-            onPageChange={setPage}
-            label="Credential pages"
-          />
+
+        {hasExpandedCredentials && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((current) =>
+                  hasMoreCredentials
+                    ? Math.min(current + PAGE_SIZE, credentials.length)
+                    : PAGE_SIZE
+                )
+              }
+              className="rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-green-300 hover:bg-green-50 hover:text-green-800"
+            >
+              {hasMoreCredentials ? "Devamını gör" : "Daha az göster"}
+            </button>
+          </div>
+        )}
+
         </>
       )}
     </section>
