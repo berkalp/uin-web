@@ -328,11 +328,9 @@ export default function SeedReactionBar({
             : ""
         }
       >
-        {variant !== "toolbar" && (
-          <p className="mb-2 text-sm font-black text-gray-950">
-            🌿 {copy.want}
-          </p>
-        )}
+        <p className="mb-2 text-sm font-black text-gray-950">
+          🌿 {copy.want}
+        </p>
 
         {audience}
 
