@@ -62,6 +62,17 @@ export default async function SeedDetailPage({
     notFound();
   }
 
+
+  if (reactionResult.error) {
+    console.warn(
+      "Seed reaction context is temporarily unavailable:",
+      reactionResult.error.message
+    );
+  }
+
+  const reactionContext =
+    parseSeedReactionContexts(reactionResult.data)[0] ?? null;
+
   let subjectSnapshot: {
     item_kind: string;
     canonical_title: string;
