@@ -17,7 +17,7 @@ type ReminderClock = {
   timezone: string;
 };
 
-type SeedFilter = "all" | "growing" | "completed" | "intent";
+type SeedFilter = "all" | "growing" | "intent";
 
 const PAGE_SIZE = 6;
 
@@ -27,20 +27,44 @@ const FILTERS: Array<{
 }> = [
   { value: "all", label: "Tümü" },
   { value: "growing", label: "Aktif" },
-  { value: "completed", label: "Yaşanan" },
   { value: "intent", label: "Sosyal Niyete Dönüşen" },
 ];
 
-function matchesFilter(seed: SeedRecord, filter: SeedFilter) {
-  if (filter === "growing") return seed.status === "active" && !isSeedPastDue(seed);
-  if (filter === "completed") return seed.status === "completed";
-  if (filter === "intent") return toSeedCount(seed.grown_intent_count) > 0;
-  return seed.status !== "archived" && !isSeedPastDue(seed);
+function isConverted(seed: SeedRecord) {
+  return toSeedCount(seed.grown_intent_count) > 0;
 }
 
-export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProps) {
+function isActivePersonalIntent(seed: SeedRecord) {
+  return seed.status === "active" && !isSeedPastDue(seed);
+}
+
+function belongsToPersonalIntentArea(seed: SeedRecord) {
+  if (seed.status === "archived") return false;
+
+  // Deneyim tamamlanmış olsa bile gerçekten bir Sosyal Niyete
+  // dönüşmüş kaynak kişisel niyet görünmeye devam edebilir.
+  return isActivePersonalIntent(seed) || isConverted(seed);
+}
+
+function matchesFilter(seed: SeedRecord, filter: SeedFilter) {
+  if (!belongsToPersonalIntentArea(seed)) return false;
+
+  if (filter === "growing") {
+    return isActivePersonalIntent(seed);
+  }
+
+  if (filter === "intent") {
+    return isConverted(seed);
+  }
+
+  return true;
+}
+
+export default function TimelineGrowingSeeds({
+  seeds,
+}: TimelineGrowingSeedsProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [orderedSeeds, setOrderedSeeds] = useState(seeds);
   const [reordering, setReordering] = useState(false);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
@@ -54,50 +78,42 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
     setOrderedSeeds(seeds);
   }, [seeds]);
 
-  const counts = useMemo(
-    () => ({
-      all: orderedSeeds.filter((seed) => seed.status !== "archived" && !isSeedPastDue(seed)).length,
-      growing: orderedSeeds.filter((seed) => seed.status === "active" && !isSeedPastDue(seed)).length,
-      completed: orderedSeeds.filter((seed) => seed.status === "completed").length,
-      intent: orderedSeeds.filter(
-        (seed) => seed.status !== "archived" && toSeedCount(seed.grown_intent_count) > 0
-      ).length,
-    }),
+  const personalIntentSeeds = useMemo(
+    () => orderedSeeds.filter(belongsToPersonalIntentArea),
     [orderedSeeds]
   );
 
-  const filteredSeeds = useMemo(
-    () => orderedSeeds.filter((seed) => matchesFilter(seed, filter)),
-    [filter, orderedSeeds]
+  const counts = useMemo(
+    () => ({
+      all: personalIntentSeeds.length,
+      growing: personalIntentSeeds.filter(isActivePersonalIntent).length,
+      intent: personalIntentSeeds.filter(isConverted).length,
+    }),
+    [personalIntentSeeds]
   );
 
-  const pageCount = Math.max(1, Math.ceil(filteredSeeds.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
+  const filteredSeeds = useMemo(
+    () => personalIntentSeeds.filter((seed) => matchesFilter(seed, filter)),
+    [filter, personalIntentSeeds]
+  );
+
   const visibleSeeds = useMemo(
-    () =>
-      filteredSeeds.slice(
-        safePage * PAGE_SIZE,
-        safePage * PAGE_SIZE + PAGE_SIZE
-      ),
-    [filteredSeeds, safePage]
+    () => filteredSeeds.slice(0, visibleCount),
+    [filteredSeeds, visibleCount]
   );
 
   useEffect(() => {
-    setPage(0);
+    setVisibleCount(PAGE_SIZE);
   }, [filter]);
 
   useEffect(() => {
-    if (page > pageCount - 1) {
-      setPage(Math.max(0, pageCount - 1));
-    }
-  }, [page, pageCount]);
-
-  useEffect(() => {
     if (seeds.length === 0) return;
+
     let cancelled = false;
 
     void (async () => {
       const ids = seeds.map((seed) => seed.seed_id);
+
       const [settingsResult, defaultsResult] = await Promise.all([
         supabase
           .from("user_resource_reminder_settings")
@@ -113,6 +129,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
         seed_target_time?: string | null;
         timezone?: string | null;
       } | null;
+
       setFallbackClock({
         targetTime:
           typeof defaults?.seed_target_time === "string"
@@ -125,8 +142,10 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
       });
 
       const next: Record<string, ReminderClock> = {};
+
       for (const row of settingsResult.data ?? []) {
         if (typeof row.resource_id !== "string") continue;
+
         next[row.resource_id] = {
           targetTime:
             typeof row.seed_target_time === "string"
@@ -138,6 +157,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
               : "Europe/Istanbul",
         };
       }
+
       setClocks(next);
     })();
 
@@ -147,12 +167,18 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
   }, [seeds]);
 
   async function moveSeed(seedId: string, direction: -1 | 1) {
-    const visibleIndex = filteredSeeds.findIndex((seed) => seed.seed_id === seedId);
+    const visibleIndex = filteredSeeds.findIndex(
+      (seed) => seed.seed_id === seedId
+    );
+
     const targetVisible = filteredSeeds[visibleIndex + direction];
 
     if (visibleIndex < 0 || !targetVisible) return;
 
-    const currentIndex = orderedSeeds.findIndex((seed) => seed.seed_id === seedId);
+    const currentIndex = orderedSeeds.findIndex(
+      (seed) => seed.seed_id === seedId
+    );
+
     const targetIndex = orderedSeeds.findIndex(
       (seed) => seed.seed_id === targetVisible.seed_id
     );
@@ -161,13 +187,14 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
 
     const previous = orderedSeeds;
     const next = [...orderedSeeds];
+
     [next[currentIndex], next[targetIndex]] = [
       next[targetIndex],
       next[currentIndex],
     ];
 
     setOrderedSeeds(next);
-    setOrderMessage("Saving order…");
+    setOrderMessage("Sıralama kaydediliyor…");
 
     try {
       await setMyProfileDisplayOrder(
@@ -176,16 +203,20 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
           .filter((seed) => seed.status !== "archived")
           .map((seed) => seed.seed_id)
       );
-      setOrderMessage("Order saved");
+
+      setOrderMessage("Sıralama kaydedildi");
     } catch (error) {
       setOrderedSeeds(previous);
+
       setOrderMessage(
-        error instanceof Error ? error.message : "Order could not be saved."
+        error instanceof Error
+          ? error.message
+          : "Sıralama kaydedilemedi."
       );
     }
   }
 
-  if (orderedSeeds.filter((seed) => seed.status !== "archived").length === 0) {
+  if (personalIntentSeeds.length === 0) {
     return null;
   }
 
@@ -196,9 +227,13 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
             KİŞİSEL NİYETLER
           </p>
-          <h2 className="mt-2 text-2xl font-black text-gray-950">Kişisel Niyetlerim</h2>
+
+          <h2 className="mt-2 text-2xl font-black text-gray-950">
+            Kişisel Niyetlerim
+          </h2>
+
           <p className="mt-1 text-sm text-gray-500">
-            Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel niyetlerin.
+            Aktif veya Sosyal Niyete dönüşmüş kişisel niyetlerin.
           </p>
         </div>
 
@@ -216,6 +251,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
                 }`}
               >
                 {item.label}
+
                 <span
                   className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
                     filter === item.value
@@ -228,36 +264,6 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
               </button>
             ))}
           </div>
-
-          {filteredSeeds.length > PAGE_SIZE && (
-            <div className="flex items-center rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-              <button
-                type="button"
-                aria-label="Previous Seeds"
-                disabled={safePage === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
-                className="rounded-xl px-3 py-2 text-sm font-black text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                ←
-              </button>
-              <span className="min-w-20 px-2 text-center text-[11px] font-bold text-gray-500">
-                {safePage * PAGE_SIZE + 1}–
-                {Math.min((safePage + 1) * PAGE_SIZE, filteredSeeds.length)} of{" "}
-                {filteredSeeds.length}
-              </span>
-              <button
-                type="button"
-                aria-label="Next Seeds"
-                disabled={safePage >= pageCount - 1}
-                onClick={() =>
-                  setPage((value) => Math.min(pageCount - 1, value + 1))
-                }
-                className="rounded-xl px-3 py-2 text-sm font-black text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                →
-              </button>
-            </div>
-          )}
 
           {orderedSeeds.length > 1 && (
             <button
@@ -272,7 +278,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
                   : "border-green-200 bg-white text-green-800 hover:bg-green-100"
               }`}
             >
-              {reordering ? "Done ordering" : "Reorder"}
+              {reordering ? "Sıralamayı bitir" : "Sırala"}
             </button>
           )}
 
@@ -287,9 +293,14 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
 
       {reordering && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-green-200 bg-white/80 px-4 py-3 text-xs text-gray-600">
-          <span>Use the arrows above each visible Seed card.</span>
+          <span>
+            Kartların üzerindeki oklarla sıralamayı değiştirebilirsin.
+          </span>
+
           {orderMessage && (
-            <span className="font-bold text-green-800">{orderMessage}</span>
+            <span className="font-bold text-green-800">
+              {orderMessage}
+            </span>
           )}
         </div>
       )}
@@ -297,6 +308,7 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
       <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {visibleSeeds.map((seed) => {
           const clock = clocks[seed.seed_id] ?? fallbackClock;
+
           const filterIndex = filteredSeeds.findIndex(
             (item) => item.seed_id === seed.seed_id
           );
@@ -307,16 +319,17 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
                 <div className="mb-2 flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    aria-label={`Move ${seed.title} earlier`}
+                    aria-label={`${seed.title} daha önce`}
                     disabled={filterIndex <= 0}
                     onClick={() => void moveSeed(seed.seed_id, -1)}
                     className="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 bg-white text-xs font-black text-gray-800 transition hover:bg-gray-100 disabled:opacity-25"
                   >
                     ←
                   </button>
+
                   <button
                     type="button"
-                    aria-label={`Move ${seed.title} later`}
+                    aria-label={`${seed.title} daha sonra`}
                     disabled={filterIndex >= filteredSeeds.length - 1}
                     onClick={() => void moveSeed(seed.seed_id, 1)}
                     className="grid h-8 w-8 place-items-center rounded-lg border border-gray-200 bg-white text-xs font-black text-gray-800 transition hover:bg-gray-100 disabled:opacity-25"
@@ -337,6 +350,25 @@ export default function TimelineGrowingSeeds({ seeds }: TimelineGrowingSeedsProp
           );
         })}
       </div>
+
+      {visibleSeeds.length < filteredSeeds.length && (
+        <div className="mt-5 flex justify-center">
+          <button
+            type="button"
+            onClick={() =>
+              setVisibleCount((value) =>
+                Math.min(value + PAGE_SIZE, filteredSeeds.length)
+              )
+            }
+            className="rounded-xl border border-green-200 bg-white px-6 py-3 text-sm font-black text-green-800 transition hover:bg-green-100"
+          >
+            Devamını gör
+            <span className="ml-2 text-xs text-green-600">
+              +{Math.min(PAGE_SIZE, filteredSeeds.length - visibleSeeds.length)}
+            </span>
+          </button>
+        </div>
+      )}
     </section>
   );
 }

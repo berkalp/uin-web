@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import PublicFavoritesPanel, { type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
 import SeedDashboard from "@/components/seeds/SeedDashboard";
+import TimelineHeader from "@/components/timeline/TimelineHeader";
 import {
   parseSeedLinks,
   parseSeedReactionContexts,
@@ -28,7 +29,7 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
     supabase.rpc("get_my_seeds_v2", {
       p_status: null,
     }),
-    supabase.from("profiles").select("username").eq("id", user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name, username, avatar_url").eq("id", user.id).maybeSingle(),
   ]);
 
   if (mySeedsResult.error) {
@@ -42,7 +43,15 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
     })
   );
 
-  const username = typeof profileResult.data?.username === "string" ? profileResult.data.username : null;
+  const username =
+    typeof profileResult.data?.username === "string"
+      ? profileResult.data.username
+      : null;
+
+  const adminRoleResult = await supabase.rpc("get_admin_role");
+  const isAdmin =
+    typeof adminRoleResult.data === "string" &&
+    adminRoleResult.data.length > 0;
   const favoritesResult = username
     ? await supabase.rpc("get_public_preferences_v2921", { p_username: username })
     : { data: null, error: null };
@@ -120,8 +129,28 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
-      <div className="mx-auto max-w-[1500px]">
-        <header className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-9">
+      <div className="mx-auto max-w-[1680px]">
+        <TimelineHeader
+          email={user.email ?? null}
+          personal={{
+            fullName:
+              typeof profileResult.data?.full_name === "string"
+                ? profileResult.data.full_name
+                : null,
+            username,
+            avatarUrl:
+              typeof profileResult.data?.avatar_url === "string"
+                ? profileResult.data.avatar_url
+                : null,
+          }}
+          managedProfiles={[]}
+          activeMatchCount={0}
+          inboxCount={0}
+          directMessageCount={0}
+          unreadNotificationCount={0}
+          isAdmin={isAdmin}
+        />
+        <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className={`text-xs font-black uppercase tracking-[0.18em] ${activeArea === "deneyimler" ? "text-purple-700" : "text-rose-600"}`}>
             {activeArea === "deneyimler" ? "DENEYİMLER" : activeArea === "sevdiklerim" ? "SEVDİKLERİN" : "KİŞİSEL NİYETLER"}
           </p>
@@ -135,7 +164,7 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
 
         {mySeedsResult.error && (
           <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            Seeds could not be loaded. Run migration 033 and refresh this page.
+            Kişisel niyetlerin şu anda yüklenemiyor. Lütfen sayfayı yenile.
           </section>
         )}
 

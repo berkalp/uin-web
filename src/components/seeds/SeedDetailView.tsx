@@ -19,8 +19,48 @@ import {
   type SeedReactionContext,
 } from "@/utils/seeds";
 
+type SeedSubjectSnapshot = {
+  item_kind: string;
+  canonical_title: string;
+  creator_name: string | null;
+  release_year: number | null;
+  metadata: Record<string, unknown>;
+};
+
+function subjectText(
+  metadata: Record<string, unknown>,
+  ...keys: string[]
+) {
+  for (const key of keys) {
+    const value = metadata[key];
+
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+
+    if (typeof value === "number") {
+      return String(value);
+    }
+
+    if (Array.isArray(value)) {
+      const items = value
+        .filter(
+          (item): item is string =>
+            typeof item === "string" && Boolean(item.trim())
+        )
+        .map((item) => item.trim());
+
+      if (items.length > 0) {
+        return items.join(", ");
+      }
+    }
+  }
+
+  return "";
+}
 type SeedDetailViewProps = {
   detail: SeedDetailData;
+  subjectSnapshot: SeedSubjectSnapshot | null;
   reactionContext: SeedReactionContext | null;
   isAuthenticated: boolean;
   reminderTargetTime?: string | null;
@@ -223,6 +263,7 @@ function ResourceLinks({ items }: { items: SeedLink[] }) {
 
 export default function SeedDetailView({
   detail,
+  subjectSnapshot,
   reactionContext,
   isAuthenticated,
   reminderTargetTime,
@@ -241,6 +282,61 @@ export default function SeedDetailView({
   const pastDue = isSeedPastDue(seed);
   const statusLabel = getSeedStatusLabel(seed.status, pastDue);
   const isPrivateSeed = seed.seed_scope === "private";
+
+  const subjectMetadata = subjectSnapshot?.metadata ?? {};
+
+  const subjectDescription = subjectText(
+    subjectMetadata,
+    "description",
+    "summary",
+    "wikipedia_summary"
+  );
+
+  const subjectGenres = subjectText(
+    subjectMetadata,
+    "genres",
+    "genre"
+  );
+
+  const subjectDirectors = subjectText(
+    subjectMetadata,
+    "directors",
+    "director"
+  ) || subjectSnapshot?.creator_name || "";
+
+  const subjectCreators = subjectText(
+    subjectMetadata,
+    "creators",
+    "creator"
+  );
+
+  const subjectRuntime = subjectText(
+    subjectMetadata,
+    "runtime_minutes",
+    "episode_runtime_minutes"
+  );
+
+  const subjectRelease = subjectText(
+    subjectMetadata,
+    "release_date",
+    "release_year"
+  ) || (
+    subjectSnapshot?.release_year
+      ? String(subjectSnapshot.release_year)
+      : ""
+  );
+
+  const wikipediaUrl = subjectText(
+    subjectMetadata,
+    "wikipedia_url",
+    "summary_source_url"
+  );
+
+  const referenceUrl = subjectText(
+    subjectMetadata,
+    "reference_url",
+    "source_url"
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-5 md:px-6 md:py-7">
@@ -333,7 +429,7 @@ export default function SeedDetailView({
                   )}
                   <span className="text-[10px] font-semibold text-amber-800">
                     {pastDue
-                      ? "Hedef tarihini güncellersen Tohum yeniden Active olur."
+                      ? "Hedef tarihini güncellersen kişisel niyet yeniden aktif olur."
                       : "Hatırlatıcıları Düzenle ekranından yönetebilirsin."}
                   </span>
                 </div>
@@ -364,6 +460,84 @@ export default function SeedDetailView({
             </aside>
           </div>
         </section>
+
+        {subjectSnapshot && (
+          <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+              KONU BİLGİLERİ
+            </p>
+
+            {subjectDescription && (
+              <>
+                <h2 className="mt-3 text-xl font-black text-gray-950">
+                  Hakkında
+                </h2>
+
+                <p className="mt-3 max-w-4xl text-sm leading-7 text-gray-600">
+                  {subjectDescription}
+                </p>
+              </>
+            )}
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {[
+                ["Tür", subjectSnapshot.item_kind],
+                ["Yayın", subjectRelease],
+                ["Türler", subjectGenres],
+                ["Yönetmen", subjectDirectors],
+                ["Yaratıcı", subjectCreators],
+                [
+                  "Süre",
+                  subjectRuntime
+                    ? `${subjectRuntime} dk`
+                    : "",
+                ],
+              ]
+                .filter(([, value]) => Boolean(value))
+                .map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl bg-gray-50 p-4"
+                  >
+                    <p className="text-[10px] font-black uppercase tracking-wide text-gray-400">
+                      {label}
+                    </p>
+
+                    <p className="mt-1 text-sm font-bold text-gray-950">
+                      {value}
+                    </p>
+                  </div>
+                ))}
+            </div>
+
+            {(wikipediaUrl || referenceUrl) && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {wikipediaUrl && (
+                  <a
+                    href={wikipediaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-black text-gray-800 transition hover:border-gray-400"
+                  >
+                    Wikipedia ↗
+                  </a>
+                )}
+
+                {referenceUrl &&
+                  referenceUrl !== wikipediaUrl && (
+                    <a
+                      href={referenceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-black text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Kaynakta aç ↗
+                    </a>
+                  )}
+              </div>
+            )}
+          </section>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
           <div className="min-w-0 space-y-6">

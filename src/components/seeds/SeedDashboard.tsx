@@ -7,7 +7,8 @@ import SeedCard from "@/components/seeds/SeedCard";
 import {
   getLocalDateKey,
   getSeedDashboardStatus,
-  type SeedDashboardStatus,
+  isSeedPastDue,
+  toSeedCount,
   type SeedRecord,
 } from "@/utils/seeds";
 
@@ -22,149 +23,280 @@ type SeedDashboardProps = {
   mode?: "intentions" | "experiences";
 };
 
-const tabs: Array<{
-  value: SeedDashboardStatus;
-  label: string;
-}> = [
-  { value: "active", label: "Aktif" },
-  { value: "past_due", label: "Süresi geçti" },
-  { value: "completed", label: "Deneyimler" },
-  { value: "archived", label: "Kapananlar" },
-];
+type IntentFilter = "all" | "active" | "converted";
 
 const PAGE_SIZE = 6;
+
+function isConverted(seed: SeedRecord) {
+  return toSeedCount(seed.grown_intent_count) > 0;
+}
+
+function isActiveIntent(seed: SeedRecord) {
+  return seed.status === "active" && !isSeedPastDue(seed);
+}
+
+function belongsToIntentions(seed: SeedRecord) {
+  if (seed.status === "archived") return false;
+
+  return isActiveIntent(seed) || isConverted(seed);
+}
 
 export default function SeedDashboard({
   seeds,
   isAuthenticated,
   mode = "intentions",
 }: SeedDashboardProps) {
-  const [activeTab, setActiveTab] = useState<SeedDashboardStatus>(mode === "experiences" ? "completed" : "active");
+  const [filter, setFilter] = useState<IntentFilter>("all");
   const [scope, setScope] = useState<"all" | "library" | "private">("all");
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const today = useMemo(() => getLocalDateKey(), []);
 
-  const counts = useMemo(
-    () => ({
-      active: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "active").length,
-      past_due: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "past_due").length,
-      completed: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "completed").length,
-      archived: seeds.filter((seed) => getSeedDashboardStatus(seed, today) === "archived").length,
-    }),
+  const completedSeeds = useMemo(
+    () =>
+      seeds.filter(
+        (seed) =>
+          getSeedDashboardStatus(seed, today) === "completed"
+      ),
     [seeds, today]
   );
 
-  const visibleSeeds = useMemo(
-    () => seeds.filter((seed) => getSeedDashboardStatus(seed, today) === activeTab && (scope === "all" || seed.seed_scope === scope)),
-    [activeTab, scope, seeds, today]
+  const intentionSeeds = useMemo(
+    () => seeds.filter(belongsToIntentions),
+    [seeds]
   );
 
-  const pageCount = Math.max(1, Math.ceil(visibleSeeds.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageSeeds = useMemo(
-    () => visibleSeeds.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
-    [safePage, visibleSeeds]
+  const counts = useMemo(
+    () => ({
+      all: intentionSeeds.length,
+      active: intentionSeeds.filter(isActiveIntent).length,
+      converted: intentionSeeds.filter(isConverted).length,
+    }),
+    [intentionSeeds]
   );
+
+  const scopedIntentions = useMemo(
+    () =>
+      intentionSeeds.filter(
+        (seed) =>
+          scope === "all" ||
+          seed.seed_scope === scope
+      ),
+    [intentionSeeds, scope]
+  );
+
+  const filteredIntentions = useMemo(() => {
+    if (filter === "active") {
+      return scopedIntentions.filter(isActiveIntent);
+    }
+
+    if (filter === "converted") {
+      return scopedIntentions.filter(isConverted);
+    }
+
+    return scopedIntentions;
+  }, [filter, scopedIntentions]);
+
+  const visibleSeeds =
+    mode === "experiences"
+      ? completedSeeds.slice(0, visibleCount)
+      : filteredIntentions.slice(0, visibleCount);
+
+  const totalVisiblePool =
+    mode === "experiences"
+      ? completedSeeds
+      : filteredIntentions;
 
   useEffect(() => {
-    setPage(0);
-  }, [activeTab, scope]);
+    setVisibleCount(PAGE_SIZE);
+  }, [filter, scope, mode]);
+
+  if (mode === "experiences") {
+    return (
+      <>
+        {completedSeeds.length > 0 ? (
+          <>
+            <section className="mt-6 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+              {visibleSeeds.map((seed) => (
+                <SeedCard
+                  key={seed.seed_id}
+                  seed={seed}
+                  isAuthenticated={isAuthenticated}
+                  reminderTargetTime={seed.reminder_target_time}
+                  reminderTimezone={seed.reminder_timezone}
+                />
+              ))}
+            </section>
+
+            {visibleSeeds.length < completedSeeds.length && (
+              <div className="mt-6 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setVisibleCount((value) =>
+                      Math.min(
+                        value + PAGE_SIZE,
+                        completedSeeds.length
+                      )
+                    )
+                  }
+                  className="rounded-xl border border-purple-200 bg-white px-6 py-3 text-sm font-black text-purple-700 hover:bg-purple-50"
+                >
+                  Devamını gör
+                  <span className="ml-2 text-xs">
+                    +{Math.min(PAGE_SIZE, completedSeeds.length - visibleSeeds.length)}
+                  </span>
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          <section className="mt-6 rounded-[32px] border border-dashed border-gray-300 bg-white p-10 text-center">
+            <h2 className="text-2xl font-black text-gray-950">
+              Henüz kişisel deneyimin yok
+            </h2>
+          </section>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
-      <section className="mt-6 rounded-[28px] border border-gray-200 bg-white p-4 shadow-sm">
-        <div className={`grid gap-2 ${mode === "experiences" ? "grid-cols-1" : "grid-cols-2 md:grid-cols-3"}`}>
-          {tabs.filter((tab) => mode === "experiences" ? tab.value === "completed" : tab.value !== "completed").map((tab) => {
-            const selected = activeTab === tab.value;
-
-            return (
+      <section className="mt-6 rounded-[24px] border border-gray-200 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {[
+              {
+                value: "all" as const,
+                label: "Tümü",
+                count: counts.all,
+              },
+              {
+                value: "active" as const,
+                label: "Aktif",
+                count: counts.active,
+              },
+              {
+                value: "converted" as const,
+                label: "Sosyal Niyete Dönüşen",
+                count: counts.converted,
+              },
+            ].map((item) => (
               <button
-                key={tab.value}
+                key={item.value}
                 type="button"
-                onClick={() => setActiveTab(tab.value)}
-                className={`rounded-2xl px-4 py-4 text-left transition ${
-                  selected
-                    ? "bg-gray-950 text-white shadow-sm"
-                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                onClick={() => setFilter(item.value)}
+                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition ${
+                  filter === item.value
+                    ? "bg-gray-950 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                <span className="block text-[10px] font-bold uppercase tracking-[0.14em] opacity-70">
-                  {tab.label}
-                </span>
-                <span className="mt-2 block text-2xl font-black">
-                  {counts[tab.value]}
+                {item.label}
+
+                <span
+                  className={`rounded-full px-2 py-0.5 text-[10px] ${
+                    filter === item.value
+                      ? "bg-white/15"
+                      : "bg-white text-gray-500"
+                  }`}
+                >
+                  {item.count}
                 </span>
               </button>
-            );
-          })}
+            ))}
+          </div>
+
+          <Link
+            href="/seeds/new?mode=personal"
+            className="inline-flex items-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
+          >
+            + Kişisel niyet oluştur
+          </Link>
         </div>
       </section>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-2">
-          {[
-            { value: "all", label: "Tümü" },
-            { value: "library", label: "Kütüphaneden" },
-            { value: "private", label: "🔒 Kendi eklediklerim" },
-          ].map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setScope(item.value as "all" | "library" | "private")}
-              className={`rounded-full px-4 py-2 text-xs font-black transition ${scope === item.value ? "bg-emerald-700 text-white" : "border border-gray-200 bg-white text-gray-700 hover:border-emerald-400"}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        {pageCount > 1 && (
-          <div className="flex items-center gap-1">
-            {safePage > 0 && <button type="button" aria-label="Önceki kişisel niyetler" onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">←</button>}
-            <span className="px-1 text-[9px] font-bold text-gray-400">{safePage + 1}/{pageCount}</span>
-            {safePage < pageCount - 1 && <button type="button" aria-label="Sonraki kişisel niyetleri gör" onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">→</button>}
-          </div>
-        )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[
+          { value: "all", label: "Tümü" },
+          { value: "library", label: "Kütüphaneden" },
+          { value: "private", label: "Kendi eklediklerim" },
+        ].map((item) => (
+          <button
+            key={item.value}
+            type="button"
+            onClick={() =>
+              setScope(
+                item.value as "all" | "library" | "private"
+              )
+            }
+            className={`rounded-full px-4 py-2 text-xs font-black transition ${
+              scope === item.value
+                ? "bg-emerald-700 text-white"
+                : "border border-gray-200 bg-white text-gray-700 hover:border-emerald-400"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
-      {visibleSeeds.length > 0 ? (
-        <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
-          {pageSeeds.map((seed) => (
-            <SeedCard
-              key={seed.seed_id}
-              seed={seed}
-              isAuthenticated={isAuthenticated}
-              reminderTargetTime={seed.reminder_target_time}
-              reminderTimezone={seed.reminder_timezone}
-            />
-          ))}
-        </section>
+      {filteredIntentions.length > 0 ? (
+        <>
+          <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            {visibleSeeds.map((seed) => (
+              <SeedCard
+                key={seed.seed_id}
+                seed={seed}
+                isAuthenticated={isAuthenticated}
+                reminderTargetTime={seed.reminder_target_time}
+                reminderTimezone={seed.reminder_timezone}
+              />
+            ))}
+          </section>
+
+          {visibleSeeds.length < totalVisiblePool.length && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() =>
+                  setVisibleCount((value) =>
+                    Math.min(
+                      value + PAGE_SIZE,
+                      totalVisiblePool.length
+                    )
+                  )
+                }
+                className="rounded-xl border border-emerald-200 bg-white px-6 py-3 text-sm font-black text-emerald-800 transition hover:bg-emerald-50"
+              >
+                Devamını gör
+                <span className="ml-2 text-xs">
+                  +{Math.min(
+                    PAGE_SIZE,
+                    totalVisiblePool.length - visibleSeeds.length
+                  )}
+                </span>
+              </button>
+            </div>
+          )}
+        </>
       ) : (
         <section className="mt-6 rounded-[32px] border border-dashed border-gray-300 bg-white p-10 text-center">
-          <div className="text-5xl" aria-hidden="true">
+          <div className="text-4xl" aria-hidden="true">
             🌱
           </div>
-          <h2 className="mt-5 text-2xl font-black text-gray-950">
-            {activeTab === "past_due"
-              ? "Süresi geçen kişisel niyet yok"
-              : activeTab === "archived"
-                ? "Kapanan kişisel niyet yok"
-                : `No ${activeTab} Seeds`}
+
+          <h2 className="mt-4 text-2xl font-black text-gray-950">
+            Burada henüz kişisel niyet yok
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-gray-500">
-            {activeTab === "past_due"
-              ? "Hedef tarihi geçen ama tamamlanmamış Tohumlar burada kalır. Tarihini bugüne veya geleceğe taşıdığında otomatik olarak yeniden Active olur."
-              : activeTab === "archived"
-                ? "Vazgeçtiğin, iptal ettiğin veya artık peşinden gitmediğin Tohumlar burada tutulur."
-                : "Kişisel niyetlerin burada görünür. İstersen daha sonra bunları sosyal bir niyete dönüştürebilirsin."}
-          </p>
-          {activeTab === "active" && (
-            <Link
-              href="/seeds/new"
-              className="mt-6 inline-flex rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-green-700"
-            >
-              İlk kişisel niyetini oluştur
-            </Link>
-          )}
+
+          <Link
+            href="/seeds/new?mode=personal"
+            className="mt-6 inline-flex rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-green-700"
+          >
+            + Kişisel niyet oluştur
+          </Link>
         </section>
       )}
     </>
