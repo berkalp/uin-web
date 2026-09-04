@@ -163,58 +163,53 @@ export default function SeedDashboard({
 
   return (
     <>
-      <section className="mt-6 rounded-[24px] border border-gray-200 bg-white p-3 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              {
-                value: "all" as const,
-                label: "Tümü",
-                count: counts.all,
-              },
-              {
-                value: "active" as const,
-                label: "Aktif",
-                count: counts.active,
-              },
-              {
-                value: "converted" as const,
-                label: "Sosyal Niyete Dönüşen",
-                count: counts.converted,
-              },
-            ].map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setFilter(item.value)}
-                className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black transition ${
-                  filter === item.value
-                    ? "bg-gray-950 text-white"
-                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {item.label}
-
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] ${
-                    filter === item.value
-                      ? "bg-white/15"
-                      : "bg-white text-gray-500"
-                  }`}
-                >
-                  {item.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <Link
-            href="/seeds/new?mode=personal"
-            className="inline-flex items-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
+      <section className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            title="Aktif kişisel niyetler"
+            onClick={() => setFilter("active")}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-black transition ${
+              filter === "active"
+                ? "border-green-600 bg-green-600 text-white"
+                : "border-green-200 bg-green-50 text-green-800 hover:border-green-400"
+            }`}
           >
-            + Kişisel niyet oluştur
-          </Link>
+            <span aria-hidden="true">🌱</span>
+            <span>{counts.active}</span>
+          </button>
+
+          <button
+            type="button"
+            title="Sosyal Niyete dönüşen kişisel niyetler"
+            onClick={() => setFilter("converted")}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-black transition ${
+              filter === "converted"
+                ? "border-blue-600 bg-blue-600 text-white"
+                : "border-blue-200 bg-blue-50 text-blue-800 hover:border-blue-400"
+            }`}
+          >
+            <span aria-hidden="true">✅</span>
+            <span>{counts.converted}</span>
+          </button>
+
+          {(filter === "active" || filter === "converted") && (
+            <button
+              type="button"
+              onClick={() => setFilter("all")}
+              className="rounded-full border border-gray-200 bg-white px-3 py-2 text-xs font-black text-gray-600 transition hover:bg-gray-50"
+            >
+              Tümü {counts.all}
+            </button>
+          )}
         </div>
+
+        <Link
+          href="/seeds/new?mode=personal"
+          className="inline-flex items-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
+        >
+          + Kişisel niyet oluştur
+        </Link>
       </section>
 
       <div className="mt-4 flex flex-wrap gap-2">

@@ -70,27 +70,81 @@ export default async function SeedDetailPage({
     metadata: Record<string, unknown>;
   } | null = null;
 
-  if (detail.seed.catalog_item_id) {
+  const contextResult = await supabase.rpc(
+    detail.seed.is_owner
+      ? "get_my_seed_v17_context"
+      : "get_visible_seed_v17_context",
+    {
+      p_seed_id: seedId,
+    }
+  );
+
+  if (
+    !contextResult.error &&
+    contextResult.data &&
+    typeof contextResult.data === "object"
+  ) {
+    const root = contextResult.data as Record<string, unknown>;
+
+    const rawCatalog =
+      root.catalog &&
+      typeof root.catalog === "object" &&
+      !Array.isArray(root.catalog)
+        ? (root.catalog as Record<string, unknown>)
+        : null;
+
+    if (rawCatalog) {
+      subjectSnapshot = {
+        item_kind:
+          typeof rawCatalog.item_kind === "string"
+            ? rawCatalog.item_kind
+            : "generic",
+
+        canonical_title:
+          typeof rawCatalog.title === "string"
+            ? rawCatalog.title
+            : detail.seed.title,
+
+        creator_name:
+          typeof rawCatalog.creator_name === "string"
+            ? rawCatalog.creator_name
+            : null,
+
+        release_year:
+          typeof rawCatalog.release_year === "number"
+            ? rawCatalog.release_year
+            : null,
+
+        metadata:
+          rawCatalog.metadata &&
+          typeof rawCatalog.metadata === "object" &&
+          !Array.isArray(rawCatalog.metadata)
+            ? (rawCatalog.metadata as Record<string, unknown>)
+            : {},
+      };
+    }
+  }
+
+  // Eski kayıtlar için katalog ID üzerinden fallback.
+  if (!subjectSnapshot && detail.seed.catalog_item_id) {
     const { data: catalogDetail, error: catalogError } =
       await supabase.rpc("get_seed_catalog_detail", {
         p_catalog_item_id: detail.seed.catalog_item_id,
       });
 
-    if (catalogError) {
-      console.warn(
-        "Personal intent catalogue detail is temporarily unavailable:",
-        catalogError.message
-      );
-    } else if (
+    if (
+      !catalogError &&
       catalogDetail &&
-      typeof catalogDetail === "object" &&
-      "subject" in catalogDetail
+      typeof catalogDetail === "object"
     ) {
-      const rawSubject = (
-        catalogDetail as {
-          subject?: Record<string, unknown>;
-        }
-      ).subject;
+      const root = catalogDetail as Record<string, unknown>;
+
+      const rawSubject =
+        root.subject &&
+        typeof root.subject === "object" &&
+        !Array.isArray(root.subject)
+          ? (root.subject as Record<string, unknown>)
+          : null;
 
       if (rawSubject) {
         subjectSnapshot = {
@@ -98,18 +152,22 @@ export default async function SeedDetailPage({
             typeof rawSubject.item_kind === "string"
               ? rawSubject.item_kind
               : "generic",
+
           canonical_title:
             typeof rawSubject.canonical_title === "string"
               ? rawSubject.canonical_title
               : detail.seed.title,
+
           creator_name:
             typeof rawSubject.creator_name === "string"
               ? rawSubject.creator_name
               : null,
+
           release_year:
             typeof rawSubject.release_year === "number"
               ? rawSubject.release_year
               : null,
+
           metadata:
             rawSubject.metadata &&
             typeof rawSubject.metadata === "object" &&
@@ -120,18 +178,6 @@ export default async function SeedDetailPage({
       }
     }
   }
-
-  if (reactionResult.error) {
-    console.warn(
-      "Seed reaction context is temporarily unavailable:",
-      reactionResult.error.message
-    );
-  }
-
-  const reactionContext = parseSeedReactionContexts(
-    reactionResult.data
-  )[0] ?? null;
-
   return (
     <SeedDetailView
       detail={detail}
