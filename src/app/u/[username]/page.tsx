@@ -348,7 +348,7 @@ function sortByProfileDisplayOrder<Item>(
 }
 
 function formatMonthYear(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     month: "short",
     year: "numeric",
   }).format(new Date(value));
@@ -1660,7 +1660,7 @@ export default async function PublicProfilePage({
                 />
 
                 <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-black/65 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">
-                  Featured video
+                  Öne çıkan video
                 </span>
               </div>
             )}
@@ -1668,7 +1668,7 @@ export default async function PublicProfilePage({
 
           <div className="relative px-5 pb-8 md:px-8">
             <div className="-mt-16 rounded-3xl border border-gray-200 bg-white p-6 shadow-lg md:p-8">
-              <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
                 <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-center">
                   {profile.avatar_url ? (
                     <img
@@ -1692,23 +1692,36 @@ export default async function PublicProfilePage({
                         <VerificationMark />
                       )}
                     </div>
-                    <p className="mt-2 text-gray-500">@{profile.username}</p>
+                <p className="mt-1.5 text-sm font-medium text-gray-500">
+                  @{profile.username}
+                </p>
 
-                    {publicGender && (
-                      <span className="mt-3 inline-flex rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
-                        {getProfileGenderLabel(
-                          publicGender
-                        )}
-                      </span>
-                    )}
+                {profile.bio && (
+                  <p className="mt-4 max-w-2xl whitespace-pre-wrap text-sm leading-6 text-gray-600">
+                    {profile.bio}
+                  </p>
+                )}
 
-                    <p className="mt-3 text-sm text-gray-400">
-                      Katıldı {formatMonthYear(profile.created_at)}
-                    </p>
+                <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-semibold text-gray-500">
+                  {publicGender && (
+                    <span>{getProfileGenderLabel(publicGender)}</span>
+                  )}
+
+                  {location && (
+                    <span className="inline-flex items-center gap-1">
+                      <span aria-hidden="true">📍</span>
+                      {location}
+                    </span>
+                  )}
+
+                  <span className="text-gray-400">
+                    UIN'e katıldı · {formatMonthYear(profile.created_at)}
+                  </span>
+                </div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2.5 md:max-w-md md:justify-end">
                   {page.viewer.is_owner ? (
                     <>
                       <Link
@@ -1721,7 +1734,7 @@ export default async function PublicProfilePage({
                         href="/join-requests"
                         className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
                       >
-                        Join Requests
+                        Katılım İstekleri
                       </Link>
                       <Link
                         href="/friends"
@@ -1760,7 +1773,7 @@ export default async function PublicProfilePage({
                 </div>
               </div>
 
-              <div className="mt-6 grid grid-cols-1 gap-6 border-t border-gray-100 pt-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.9fr)_minmax(280px,0.72fr)]">
+              <div className="mt-7 grid grid-cols-1 gap-5 border-t border-gray-100 pt-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
                 <div className="min-w-0">
                   <ProfilePresencePanel
                     links={presence.links}
@@ -1782,27 +1795,12 @@ export default async function PublicProfilePage({
                   family={publicFamily}
                 />
 
-                <aside className="rounded-2xl bg-gray-50 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                    Hakkında
-                  </p>
-
-                  <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-600">
-                    {profile.bio || "Henüz profil açıklaması yok."}
-                  </p>
-
-                  {location && (
-                    <p className="mt-5 border-t border-gray-200 pt-4 text-sm font-semibold text-gray-600">
-                      📍 {location}
-                    </p>
-                  )}
-                </aside>
               </div>
             </div>
           </div>
         </section>
 
-      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         {[
           { label: "Aktif Sosyal Niyet", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
           { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
@@ -1813,10 +1811,10 @@ export default async function PublicProfilePage({
         ].map((item) => {
           const content = (
             <>
-              <p className={`text-3xl font-black ${item.value > 0 ? "text-gray-950 transition group-hover:text-green-800" : "text-gray-300"}`}>
+              <p className={`text-2xl font-bold ${item.value > 0 ? "text-gray-900 transition group-hover:text-green-800" : "text-gray-300"}`}>
                 {item.value}
               </p>
-              <p className={`mt-1 text-xs font-bold ${item.value > 0 ? "text-gray-500" : "text-gray-300"}`}>
+              <p className={`mt-1 text-[11px] font-semibold leading-4 ${item.value > 0 ? "text-gray-500" : "text-gray-300"}`}>
                 {item.label}
               </p>
             </>
@@ -1826,7 +1824,7 @@ export default async function PublicProfilePage({
             <a
               key={item.label}
               href={item.href}
-              className="group rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-green-300 hover:shadow-md"
+              className="group rounded-2xl border border-gray-200 bg-white px-3 py-4 text-center transition hover:border-green-300 hover:bg-green-50/40"
             >
               {content}
             </a>
@@ -1834,7 +1832,7 @@ export default async function PublicProfilePage({
             <div
               key={item.label}
               aria-disabled="true"
-              className="cursor-default rounded-3xl border border-gray-100 bg-white/70 p-5 text-center shadow-sm"
+              className="cursor-default rounded-2xl border border-gray-100 bg-gray-50/60 px-3 py-4 text-center"
             >
               {content}
             </div>
