@@ -21,15 +21,6 @@ type SeedFilter = "all" | "growing" | "intent";
 
 const PAGE_SIZE = 6;
 
-const FILTERS: Array<{
-  value: SeedFilter;
-  label: string;
-}> = [
-  { value: "all", label: "Tümü" },
-  { value: "growing", label: "Aktif" },
-  { value: "intent", label: "Sosyal Niyete Dönüşen" },
-];
-
 function isConverted(seed: SeedRecord) {
   return toSeedCount(seed.grown_intent_count) > 0;
 }
@@ -238,33 +229,43 @@ export default function TimelineGrowingSeeds({
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <div className="flex flex-wrap rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-            {FILTERS.map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                onClick={() => setFilter(item.value)}
-                className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
-                  filter === item.value
-                    ? "bg-gray-950 text-white"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
-              >
-                {item.label}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              title="Aktif kişisel niyetler"
+              onClick={() =>
+                setFilter((current) =>
+                  current === "growing" ? "all" : "growing"
+                )
+              }
+              className={`inline-flex items-center gap-1 text-sm font-black transition ${
+                filter === "growing"
+                  ? "text-green-900"
+                  : "text-green-700 hover:text-green-900"
+              }`}
+            >
+              <span aria-hidden="true">🌱</span>
+              <span>{counts.growing}</span>
+            </button>
 
-                <span
-                  className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
-                    filter === item.value
-                      ? "bg-white/15 text-white"
-                      : "bg-gray-100 text-gray-500"
-                  }`}
-                >
-                  {counts[item.value]}
-                </span>
-              </button>
-            ))}
+            <button
+              type="button"
+              title="Sosyal Niyete dönüşen kişisel niyetler"
+              onClick={() =>
+                setFilter((current) =>
+                  current === "intent" ? "all" : "intent"
+                )
+              }
+              className={`inline-flex items-center gap-1 text-sm font-black transition ${
+                filter === "intent"
+                  ? "text-blue-900"
+                  : "text-blue-700 hover:text-blue-900"
+              }`}
+            >
+              <span aria-hidden="true">✅</span>
+              <span>{counts.intent}</span>
+            </button>
           </div>
-
           {orderedSeeds.length > 1 && (
             <button
               type="button"
