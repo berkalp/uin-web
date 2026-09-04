@@ -57,10 +57,7 @@ import type {
   type IntentReactionContext,
 } from "../../utils/intentReactions";
 import TimelineInterestsPanel from "../../components/timeline/TimelineInterestsPanel";
-import PublicProfessionalCredentialsPanel from "../../components/professionals/PublicProfessionalCredentialsPanel";
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
-import PublicBadgesPanel from "../../components/badges/PublicBadgesPanel";
-import PublicReputationPanel from "../../components/reputation/PublicReputationPanel";
 import PublicFavoritesPanel, { type PublicFavoriteItem } from "../../components/profile/PublicFavoritesPanel";
 import type {
   ProfileConnectionSummary,
@@ -70,10 +67,8 @@ import type {
   ProfileEmbed,
   ProfileLink,
 } from "../../utils/profilePresence";
-import type { PublicBadge } from "../../utils/badges";
 import type { PublicCommunityMembership } from "../../utils/communityMemberships";
 import type { PublicProfessionalStatus } from "../../utils/professionals";
-import type { PublicReputationSummary } from "../../utils/reputation";
 
 type IntentStatus =
   | "active"
@@ -2439,9 +2434,7 @@ export default async function TimelinePage({
     profileFamilyResult,
     profileConnectionResult,
     profilePresenceResult,
-    profileReputationResult,
     profileProfessionalResult,
-    profileBadgeResult,
     profileCommunityMembershipResult,
     profileSavedReactionResult,
     profilePawedReactionResult,
@@ -2457,17 +2450,11 @@ export default async function TimelinePage({
     supabase.rpc("get_public_profile_presence", {
       p_profile_user_id: currentUserId,
     }),
-    supabase.rpc("get_public_reputation_summary", {
-      p_user_id: currentUserId,
-    }),
     personalProfile.username
       ? supabase.rpc("get_public_profile_professional_status", {
           p_username: personalProfile.username,
         })
       : Promise.resolve({ data: null, error: null }),
-    supabase.rpc("get_public_profile_badges", {
-      p_user_id: currentUserId,
-    }),
     supabase.rpc("get_public_profile_community_memberships", {
       p_user_id: currentUserId,
     }),
@@ -2500,14 +2487,8 @@ export default async function TimelinePage({
   if (profilePresenceResult.error) {
     console.warn("Timeline profile presence query failed:", profilePresenceResult.error.message);
   }
-  if (profileReputationResult.error) {
-    console.warn("Timeline profile reputation query failed:", profileReputationResult.error.message);
-  }
   if (profileProfessionalResult.error) {
     console.warn("Timeline professional status query failed:", profileProfessionalResult.error.message);
-  }
-  if (profileBadgeResult.error) {
-    console.warn("Timeline badge query failed:", profileBadgeResult.error.message);
   }
   if (profileCommunityMembershipResult.error) {
     console.warn("Timeline Community membership query failed:", profileCommunityMembershipResult.error.message);
@@ -2570,15 +2551,6 @@ export default async function TimelinePage({
       links: ProfileLink[];
       embeds: ProfileEmbed[];
     };
-  const profileReputation =
-    (profileReputationResult.data ?? {
-      is_managed_minor: false,
-      participation_count: 0,
-      global: null,
-      role_summaries: [],
-      contexts: [],
-    }) as PublicReputationSummary;
-
   const rawProfileProfessional =
     (profileProfessionalResult.data ?? {
       identity_verified: false,
@@ -2593,11 +2565,6 @@ export default async function TimelinePage({
     ),
   };
 
-  const profileBadges = sortProfileItems(
-    (profileBadgeResult.data ?? []) as PublicBadge[],
-    (badge) => badge.id,
-    profileOrderMap.badge
-  );
   const profileCommunityMemberships =
     (profileCommunityMembershipResult.data ?? []) as PublicCommunityMembership[];
   const profilePreferences = (profilePreferencesResult.data ?? {}) as {
@@ -4668,9 +4635,6 @@ const {
           ].map(([label, value]) => <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm"><p className="text-3xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs font-bold text-gray-500">{label}</p></div>)}
         </section>
 
-        <PublicReputationPanel summary={profileReputation} />
-        <PublicBadgesPanel badges={profileBadges} isOwner />
-        <PublicProfessionalCredentialsPanel status={profileProfessional} isOwner />
 
         <IntentResolutionPanel items={intentResolutionItems} />
 
