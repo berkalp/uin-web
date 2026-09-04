@@ -188,7 +188,7 @@ export default function PublicReputationPanel({
           </h2>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
-            İtibar reflects verified shared Activity behaviour. It does not include followers, popularity or skill level.
+            İtibar, doğrulanmış ortak aktivite davranışlarından oluşur. Takipçi sayısını, popülerliği veya beceri seviyesini içermez.
           </p>
         </div>
 
@@ -229,7 +229,7 @@ export default function PublicReputationPanel({
           value={
             global.feedback_count >= 3 &&
             global.would_join_again_count !== null
-              ? `${global.would_join_again_count} of ${global.feedback_count}`
+              ? `${global.would_join_again_count} / ${global.feedback_count}`
               : "Yeterli veri yok"
           }
         />

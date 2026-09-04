@@ -76,11 +76,11 @@ export default function PublicBadgesPanel({
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-            Badges
+            Rozetler
           </p>
 
           <h2 className="mt-1.5 text-xl font-bold text-gray-950">
-            Recognitions
+            UIN Rozetleri
           </h2>
 
           <p className="mt-1.5 max-w-3xl text-sm leading-6 text-gray-500">
