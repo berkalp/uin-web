@@ -1842,17 +1842,6 @@ export default async function PublicProfilePage({
         })}
       </section>
 
-        <PublicReputationPanel summary={reputationSummary} />
-
-        <PublicBadgesPanel
-          badges={publicBadges}
-          isOwner={page.viewer.is_owner}
-        />
-
-        <PublicProfessionalCredentialsPanel
-          status={professionalStatus}
-          isOwner={page.viewer.is_owner}
-        />
 
         {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">
@@ -1968,6 +1957,86 @@ export default async function PublicProfilePage({
           />
         </div>
         )}
+
+      {(reputationSummary.global ||
+        reputationSummary.is_managed_minor ||
+        publicBadges.length > 0 ||
+        professionalStatus.identity_verified ||
+        professionalStatus.credentials.length > 0) && (
+        <section className="mt-10 border-t border-gray-200 pt-8">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
+              Güven & Profil
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">
+              Doğrulamalar ve itibar
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-gray-500">
+              Paylaşılan deneyimlerden oluşan itibar, UIN rozetleri ve doğrulanmış profesyonel bilgiler.
+            </p>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {(reputationSummary.global || reputationSummary.is_managed_minor) && (
+              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                  <div>
+                    <p className="text-sm font-bold text-gray-950">İtibar</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Birlikte tamamlanan deneyimlerden oluşan güven geçmişi
+                    </p>
+                  </div>
+                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
+                </summary>
+                <div className="border-t border-gray-100 px-1 pb-1">
+                  <PublicReputationPanel summary={reputationSummary} />
+                </div>
+              </details>
+            )}
+
+            {publicBadges.length > 0 && (
+              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                  <div>
+                    <p className="text-sm font-bold text-gray-950">Rozetler</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {publicBadges.length} doğrulanmış UIN rozeti
+                    </p>
+                  </div>
+                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
+                </summary>
+                <div className="border-t border-gray-100 px-1 pb-1">
+                  <PublicBadgesPanel
+                    badges={publicBadges}
+                    isOwner={page.viewer.is_owner}
+                  />
+                </div>
+              </details>
+            )}
+
+            {(professionalStatus.identity_verified ||
+              professionalStatus.credentials.length > 0) && (
+              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                  <div>
+                    <p className="text-sm font-bold text-gray-950">Doğrulanmış Bilgiler</p>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Kimlik ve profesyonel yeterlilikler
+                    </p>
+                  </div>
+                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
+                </summary>
+                <div className="border-t border-gray-100 px-1 pb-1">
+                  <PublicProfessionalCredentialsPanel
+                    status={professionalStatus}
+                    isOwner={page.viewer.is_owner}
+                  />
+                </div>
+              </details>
+            )}
+          </div>
+        </section>
+      )}
 
         {page.viewer.is_owner && (
           <ProfileIntentReactions
