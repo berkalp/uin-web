@@ -169,40 +169,40 @@ export default function PublicSeedsPanel({
   }
 
   return (
-    <section className="mt-10 rounded-[32px] border border-green-100 bg-gradient-to-br from-green-50 via-white to-lime-50 p-6 shadow-sm md:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-5">
+    <section className="mt-8 scroll-mt-8">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
             {eyebrow}
           </p>
-          <h2 className="mt-2 text-2xl font-black text-gray-950">
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">
             {title ?? `${displayName} · ${eyebrow}`}
           </h2>
-          <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">
+          <p className="mt-2 text-sm leading-6 text-gray-500">
             {description}
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
           {mode === "all" && orderedSeeds.length > 0 && (
-            <div className="flex flex-wrap rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
+            <div className="inline-flex max-w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
               {filters.map((item) => (
                 <button
                   key={item.value}
                   type="button"
                   onClick={() => setFilter(item.value)}
-                  className={`rounded-xl px-3 py-2 text-xs font-bold transition ${
+                  className={`flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                     filter === item.value
                       ? "bg-gray-950 text-white"
-                      : "text-gray-600 hover:bg-gray-100"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-950"
                   }`}
                 >
                   {item.label}
                   <span
-                    className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                    className={`rounded-full px-2 py-0.5 text-[11px] ${
                       filter === item.value
                         ? "bg-white/15 text-white"
-                        : "bg-gray-100 text-gray-500"
+                        : "bg-gray-100 text-gray-600"
                     }`}
                   >
                     {counts[item.value]}
@@ -383,7 +383,7 @@ export default function PublicSeedsPanel({
                     : PAGE_SIZE
                 )
               }
-              className="rounded-2xl border border-green-200 bg-white px-5 py-2.5 text-sm font-bold text-green-800 shadow-sm transition hover:bg-green-100"
+              className="rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-green-300 hover:bg-green-50 hover:text-green-800"
             >
               {hasMoreSeeds ? "Devamını gör" : "Daha az göster"}
             </button>
