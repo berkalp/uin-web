@@ -1,13 +1,13 @@
 import {
-  formatİtibarDimension,
-  getİtibarLevelClasses,
-  getİtibarLevelLabel,
-  type PublicİtibarSummary,
-  type İtibarContextSummary,
+  formatReputationDimension,
+  getReputationLevelClasses,
+  getReputationLevelLabel,
+  type PublicReputationSummary,
+  type ReputationContextSummary,
 } from "@/utils/reputation";
 
-type PublicİtibarPanelProps = {
-  summary: PublicİtibarSummary;
+type PublicReputationPanelProps = {
+  summary: PublicReputationSummary;
 };
 
 function Metric({
@@ -39,7 +39,7 @@ function formatConfidenceLevel(value: string) {
 function ContextCard({
   context,
 }: {
-  context: İtibarContextSummary;
+  context: ReputationContextSummary;
 }) {
   const title =
     context.activity_name ||
@@ -79,11 +79,11 @@ function ContextCard({
         </div>
 
         <span
-          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${getİtibarLevelClasses(
+          className={`rounded-full border px-3 py-1.5 text-xs font-bold ${getReputationLevelClasses(
             context.reputation_level
           )}`}
         >
-          {getİtibarLevelLabel(
+          {getReputationLevelLabel(
             context.reputation_level
           )}
         </span>
@@ -101,7 +101,7 @@ function ContextCard({
                 key={dimension}
                 className="rounded-full bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800"
               >
-                {formatİtibarDimension(
+                {formatReputationDimension(
                   dimension
                 )}{" "}
                 · {Math.round(score.score)}%
@@ -114,9 +114,9 @@ function ContextCard({
   );
 }
 
-export default function PublicİtibarPanel({
+export default function PublicReputationPanel({
   summary,
-}: PublicİtibarPanelProps) {
+}: PublicReputationPanelProps) {
   if (summary.is_managed_minor) {
     return (
       <section className="mt-0 bg-transparent p-5">
@@ -193,11 +193,11 @@ export default function PublicİtibarPanel({
         </div>
 
         <span
-          className={`w-fit rounded-full border px-4 py-2 text-sm font-bold ${getİtibarLevelClasses(
+          className={`w-fit rounded-full border px-4 py-2 text-sm font-bold ${getReputationLevelClasses(
             global.reputation_level
           )}`}
         >
-          {getİtibarLevelLabel(
+          {getReputationLevelLabel(
             global.reputation_level
           )}
         </span>
