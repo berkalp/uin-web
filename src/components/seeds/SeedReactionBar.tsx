@@ -240,48 +240,60 @@ export default function SeedReactionBar({
     setWorking(false);
   }
 
-  const audience = (
-    <div
-      className={`grid grid-cols-2 gap-2 ${
-        variant === "toolbar" ? "min-w-[150px]" : ""
-      }`}
-    >
-      <button
-        type="button"
-        onClick={() => void openPeople("intent")}
-        className={`rounded-xl bg-gray-50 text-left transition hover:bg-green-50 ${
-          variant === "toolbar"
-            ? "px-2 py-1.5"
-            : "px-3 py-2.5"
-        }`}
-      >
-        <span className="block truncate text-[9px] font-semibold text-gray-500">
-          {copy.intent}
-        </span>
-        <span className="mt-0.5 block text-sm font-black text-gray-950">
-          {intentCount}
-        </span>
-      </button>
+  const audience =
+    variant === "toolbar" ? (
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => void openPeople("intent")}
+          title={copy.intent}
+          aria-label={`${copy.intent}: ${intentCount}`}
+          className="inline-flex h-8 min-w-10 items-center justify-center gap-1 rounded-xl bg-green-50 px-2 text-[11px] font-black text-green-800 transition hover:bg-green-100"
+        >
+          <span aria-hidden="true">🌱</span>
+          <span>{intentCount}</span>
+        </button>
 
-      <button
-        type="button"
-        onClick={() => void openPeople("experience")}
-        className={`rounded-xl bg-gray-50 text-left transition hover:bg-purple-50 ${
-          variant === "toolbar"
-            ? "px-2 py-1.5"
-            : "px-3 py-2.5"
-        }`}
-      >
-        <span className="block truncate text-[9px] font-semibold text-gray-500">
-          {copy.experience}
-        </span>
-        <span className="mt-0.5 block text-sm font-black text-gray-950">
-          {experienceCount}
-        </span>
-      </button>
-    </div>
-  );
+        <button
+          type="button"
+          onClick={() => void openPeople("experience")}
+          title={copy.experience}
+          aria-label={`${copy.experience}: ${experienceCount}`}
+          className="inline-flex h-8 min-w-10 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-2 text-[11px] font-black text-emerald-800 transition hover:bg-emerald-100"
+        >
+          <span aria-hidden="true">✓</span>
+          <span>{experienceCount}</span>
+        </button>
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => void openPeople("intent")}
+          className="rounded-xl bg-gray-50 px-3 py-2.5 text-left transition hover:bg-green-50"
+        >
+          <span className="block truncate text-[9px] font-semibold text-gray-500">
+            {copy.intent}
+          </span>
+          <span className="mt-0.5 block text-sm font-black text-gray-950">
+            {intentCount}
+          </span>
+        </button>
 
+        <button
+          type="button"
+          onClick={() => void openPeople("experience")}
+          className="rounded-xl bg-gray-50 px-3 py-2.5 text-left transition hover:bg-purple-50"
+        >
+          <span className="block truncate text-[9px] font-semibold text-gray-500">
+            {copy.experience}
+          </span>
+          <span className="mt-0.5 block text-sm font-black text-gray-950">
+            {experienceCount}
+          </span>
+        </button>
+      </div>
+    );
   if (variant === "toolbar") {
     return (
       <>
