@@ -41,118 +41,82 @@ export default function CompactIntentReactionBar({
       ? (initialContext as ReactionRow)
       : null
   );
-  const [busy, setBusy] = useState<"save" | "paw" | null>(null);
-  const [peopleType, setPeopleType] = useState<"save" | "paw" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
 
-  const saveCount = asNumber(context?.save_count);
-  const pawCount = asNumber(context?.paw_count);
-  const viewerSaved = context?.viewer_saved === true;
-  const viewerPawed = context?.viewer_pawed === true;
+  const highlightCount = asNumber(context?.paw_count);
+  const highlighted = context?.viewer_pawed === true;
 
   const disabled =
     !isAuthenticated ||
-    busy !== null ||
+    busy ||
     (!isOwner && context?.viewer_can_react === false);
 
-  async function toggle(type: "save" | "paw") {
+  async function toggleHighlight() {
     if (disabled || isOwner) return;
 
-    const active = type === "save" ? viewerSaved : viewerPawed;
-
     try {
-      setBusy(type);
+      setBusy(true);
+
       const { data, error } = await supabase.rpc("set_my_intent_reaction", {
         p_intent_id: intentId,
-        p_reaction_type: type,
-        p_active: !active,
+        p_reaction_type: "paw",
+        p_active: !highlighted,
       });
 
       if (error) {
-        console.error("Intent reaction update failed:", error);
+        console.error("Intent highlight update failed:", error);
         return;
       }
 
       const row = ((data ?? [])[0] ?? null) as ReactionRow | null;
       if (row) setContext(row);
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
-  function handlePress(type: "save" | "paw") {
+  function handlePress() {
     if (isOwner) {
-      if (isAuthenticated) setPeopleType(type);
+      if (isAuthenticated) setPeopleOpen(true);
       return;
     }
-    void toggle(type);
+
+    void toggleHighlight();
   }
 
-  const disabledReason =
-    context?.reaction_disabled_reason ||
-    (!isAuthenticated ? "Kaydetmek veya Pati bırakmak için giriş yap." : undefined);
+  const title = isOwner
+    ? "Öne çıkaranları gör"
+    : context?.reaction_disabled_reason ||
+      (highlighted ? "Öne çıkarmayı kaldır" : "Öne çıkar");
 
   return (
     <>
-      <div className="flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => handlePress("save")}
-          disabled={disabled}
-          title={
-            isOwner
-              ? "Kaydedenleri gör"
-              : disabledReason || (viewerSaved ? "Kaydı kaldır" : "Kaydet")
-          }
-          aria-label={
-            isOwner
-              ? `Kaydedenler · ${saveCount}`
-              : `${viewerSaved ? "Kaydı kaldır" : "Kaydet"} · ${saveCount}`
-          }
-          className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
-            viewerSaved && !isOwner
-              ? "border-rose-200 bg-rose-50 text-rose-700"
-              : isOwner && saveCount > 0
-                ? "border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                : "border-gray-200 bg-white text-gray-600 hover:border-rose-200 hover:text-rose-700"
-          } disabled:cursor-not-allowed disabled:opacity-55`}
-        >
-          <span aria-hidden="true">{isOwner || viewerSaved ? "♥" : "♡"}</span>
-          <span>{saveCount}</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handlePress("paw")}
-          disabled={disabled}
-          title={
-            isOwner
-              ? "Patileyenleri gör"
-              : disabledReason || (viewerPawed ? "Patiyi kaldır" : "Patile")
-          }
-          aria-label={
-            isOwner
-              ? `Patileyenler · ${pawCount}`
-              : `${viewerPawed ? "Patiyi kaldır" : "Patile"} · ${pawCount}`
-          }
-          className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
-            viewerPawed && !isOwner
-              ? "border-amber-300 bg-amber-50 text-amber-800"
-              : isOwner && pawCount > 0
-                ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                : "border-gray-200 bg-white text-gray-600 hover:border-amber-300 hover:text-amber-800"
-          } disabled:cursor-not-allowed disabled:opacity-55`}
-        >
-          <span aria-hidden="true">🐾</span>
-          <span>{pawCount}</span>
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={handlePress}
+        disabled={disabled}
+        title={title}
+        aria-label={`${isOwner ? "Öne çıkaranlar" : "Öne çıkar"} · ${highlightCount}`}
+        aria-pressed={!isOwner ? highlighted : undefined}
+        className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
+          highlighted && !isOwner
+            ? "border-violet-200 bg-violet-50 text-violet-700"
+            : isOwner && highlightCount > 0
+              ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
+              : "border-gray-200 bg-white text-gray-600 hover:border-violet-200 hover:text-violet-700"
+        } disabled:cursor-not-allowed disabled:opacity-55`}
+      >
+        <span aria-hidden="true">✨</span>
+        <span>{highlightCount}</span>
+      </button>
 
       <IntentReactionPeopleModal
-        open={peopleType !== null}
+        open={peopleOpen}
         intentId={intentId}
-        reactionType={peopleType ?? "save"}
-        count={peopleType === "paw" ? pawCount : saveCount}
-        onClose={() => setPeopleType(null)}
+        reactionType="paw"
+        count={highlightCount}
+        onClose={() => setPeopleOpen(false)}
       />
     </>
   );
