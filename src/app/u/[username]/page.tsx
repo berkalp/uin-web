@@ -1772,7 +1772,7 @@ export default async function PublicProfilePage({
                       (embed) => embed.provider !== "spotify"
                     ) && (
                       <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-5 text-sm text-gray-400">
-                        No public links or featured soundtrack yet.
+                        Henüz herkese açık bağlantı veya öne çıkan müzik yok.
                       </div>
                     )}
                 </div>
@@ -1784,11 +1784,11 @@ export default async function PublicProfilePage({
 
                 <aside className="rounded-2xl bg-gray-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-                    About
+                    Hakkında
                   </p>
 
                   <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-600">
-                    {profile.bio || "No profile description yet."}
+                    {profile.bio || "Henüz profil açıklaması yok."}
                   </p>
 
                   {location && (
@@ -1802,25 +1802,45 @@ export default async function PublicProfilePage({
           </div>
         </section>
 
-        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {[
-            { label: "Aktif Sosyal Niyet", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
-            { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
-            { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
-            { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
-            { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-experiences" },
-            { label: "Yaklaşan", value: upcomingActivities.length + activeCards.filter((card) => card.lifecycle_status === "future").length, href: "#upcoming" },
-          ].map((item) => (
+      <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {[
+          { label: "Aktif Sosyal Niyet", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
+          { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
+          { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
+          { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
+          { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-experiences" },
+          { label: "Yaklaşan", value: upcomingActivities.length + activeCards.filter((card) => card.lifecycle_status === "future").length, href: "#upcoming" },
+        ].map((item) => {
+          const content = (
+            <>
+              <p className={`text-3xl font-black ${item.value > 0 ? "text-gray-950 transition group-hover:text-green-800" : "text-gray-300"}`}>
+                {item.value}
+              </p>
+              <p className={`mt-1 text-xs font-bold ${item.value > 0 ? "text-gray-500" : "text-gray-300"}`}>
+                {item.label}
+              </p>
+            </>
+          );
+
+          return item.value > 0 ? (
             <a
               key={item.label}
               href={item.href}
               className="group rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-green-300 hover:shadow-md"
             >
-              <p className="text-3xl font-black text-gray-950 transition group-hover:text-green-800">{item.value}</p>
-              <p className="mt-1 text-xs font-bold text-gray-500">{item.label}</p>
+              {content}
             </a>
-          ))}
-        </section>
+          ) : (
+            <div
+              key={item.label}
+              aria-disabled="true"
+              className="cursor-default rounded-3xl border border-gray-100 bg-white/70 p-5 text-center shadow-sm"
+            >
+              {content}
+            </div>
+          );
+        })}
+      </section>
 
         <PublicReputationPanel summary={reputationSummary} />
 
