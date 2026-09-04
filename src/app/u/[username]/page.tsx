@@ -62,7 +62,7 @@ import type {
 } from "@/utils/reputation";
 import {
   getProfileGenderLabel,
-  normalizeParticipantEligibility,
+  normalizeKatılımcıEligibility,
   normalizeProfileGender,
 } from "@/utils/participationEligibility";
 import {
@@ -369,9 +369,9 @@ function getIntentType(startDate: string, endDate: string) {
   const end = new Date(`${endDate}T00:00:00Z`).getTime();
   const days = Math.max(Math.ceil((end - start) / 86_400_000), 0);
 
-  if (days <= 30) return "Short-term Intent";
-  if (days <= 365) return "Strategic Intent";
-  return "Telos Intent";
+  if (days <= 30) return "Kısa Vadeli Niyet";
+  if (days <= 365) return "Stratejik Niyet";
+  return "Telos Niyeti";
 }
 
 function getCatalogueKey(categoryName: string, activityName: string) {
@@ -896,7 +896,7 @@ export default async function PublicProfilePage({
         row.intent_id,
         {
           participantEligibility:
-            normalizeParticipantEligibility(
+            normalizeKatılımcıEligibility(
               row.participant_eligibility
             ),
           viewerIsEligible:
@@ -1245,19 +1245,19 @@ export default async function PublicProfilePage({
   ) {
     if (relationship === "host") {
       return page.viewer.is_owner
-        ? "Hosted by you"
-        : `Hosted by ${displayName}`;
+        ? "Sen yürütüyorsun"
+        : `${displayName} yürütüyor`;
     }
 
     if (relationship === "co_host") {
       return page.viewer.is_owner
-        ? "Co-hosted by you"
-        : "Co-host";
+        ? "Birlikte yürütüyorsun"
+        : "Birlikte Yürüten";
     }
 
     return page.viewer.is_owner
-      ? "You're participating"
-      : "Participant";
+      ? "Katılıyorsun"
+      : "Katılımcı";
   }
 
   const activeCards: DiscoverIntentRow[] = activeIntents.map((intent) => {
@@ -1448,7 +1448,7 @@ export default async function PublicProfilePage({
         activity.relationship === "host"
           ? "Hosted Activity"
           : activity.relationship === "co_host"
-            ? "Co-hosted Activity"
+            ? "Birlikte Yürütened Activity"
             : "Participated Activity",
       intent_status: lifecycle === "completed" ? "completed" : "planned",
       recruitment_status: metadata?.recruitment_status ?? "closed",
@@ -1703,7 +1703,7 @@ export default async function PublicProfilePage({
                     )}
 
                     <p className="mt-3 text-sm text-gray-400">
-                      Joined {formatMonthYear(profile.created_at)}
+                      Katıldı {formatMonthYear(profile.created_at)}
                     </p>
                   </div>
                 </div>
@@ -1715,7 +1715,7 @@ export default async function PublicProfilePage({
                         href="/settings/profile"
                         className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
                       >
-                        Edit Profile
+                        Profili Düzenle
                       </Link>
                       <Link
                         href="/join-requests"
