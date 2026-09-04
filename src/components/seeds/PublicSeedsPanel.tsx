@@ -71,7 +71,7 @@ export default function PublicSeedsPanel({
   description = "Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel kayıtlar.",
 }: PublicSeedsPanelProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [orderedSeeds, setOrderedSeeds] = useState(seeds);
   const [reordering, setReordering] = useState(false);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
@@ -105,22 +105,19 @@ export default function PublicSeedsPanel({
   }, [filter, mode, orderedSeeds]);
 
 
-  const pageCount = Math.max(1, Math.ceil(filteredSeeds.length / PAGE_SIZE));
-  const safePage = Math.min(page, pageCount - 1);
-  const visibleSeeds = filteredSeeds.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE
-  );
+  const visibleSeeds = reordering
+    ? filteredSeeds
+    : filteredSeeds.slice(0, visibleCount);
+
+  const hasMoreSeeds =
+    !reordering && visibleCount < filteredSeeds.length;
+
+  const hasExpandedSeeds =
+    !reordering && filteredSeeds.length > PAGE_SIZE;
 
   useEffect(() => {
-    setPage(0);
-  }, [filter]);
-
-  useEffect(() => {
-    if (page > pageCount - 1) {
-      setPage(Math.max(0, pageCount - 1));
-    }
-  }, [page, pageCount]);
+    setVisibleCount(PAGE_SIZE);
+  }, [filter, mode]);
 
   async function moveSeed(seedId: string, direction: -1 | 1) {
     const visibleIndex = filteredSeeds.findIndex(
@@ -215,35 +212,6 @@ export default function PublicSeedsPanel({
             </div>
           )}
 
-          {filteredSeeds.length > PAGE_SIZE && (
-            <div className="flex items-center rounded-2xl border border-gray-200 bg-white p-1 shadow-sm">
-              <button
-                type="button"
-                aria-label="Önceki kayıtlar"
-                disabled={safePage === 0}
-                onClick={() => setPage((value) => Math.max(0, value - 1))}
-                className="rounded-xl px-3 py-2 text-sm font-black text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                ←
-              </button>
-              <span className="min-w-20 px-2 text-center text-[11px] font-bold text-gray-500">
-                {safePage * PAGE_SIZE + 1}–
-                {Math.min((safePage + 1) * PAGE_SIZE, filteredSeeds.length)} /{" "}
-                {filteredSeeds.length}
-              </span>
-              <button
-                type="button"
-                aria-label="Sonraki kayıtlar"
-                disabled={safePage >= pageCount - 1}
-                onClick={() =>
-                  setPage((value) => Math.min(pageCount - 1, value + 1))
-                }
-                className="rounded-xl px-3 py-2 text-sm font-black text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-30"
-              >
-                →
-              </button>
-            </div>
-          )}
 
           {isOwner && mode === "all" && orderedSeeds.length > 1 && (
             <button
@@ -285,6 +253,7 @@ export default function PublicSeedsPanel({
       )}
 
       {visibleSeeds.length > 0 ? (
+      <>
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-6">
           {visibleSeeds.map((seed) => {
             const grownIntentCount = toSeedCount(seed.grown_intent_count);
@@ -402,6 +371,25 @@ export default function PublicSeedsPanel({
             );
           })}
         </div>
+
+        {hasExpandedSeeds && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((current) =>
+                  hasMoreSeeds
+                    ? Math.min(current + PAGE_SIZE, filteredSeeds.length)
+                    : PAGE_SIZE
+                )
+              }
+              className="rounded-2xl border border-green-200 bg-white px-5 py-2.5 text-sm font-bold text-green-800 shadow-sm transition hover:bg-green-100"
+            >
+              {hasMoreSeeds ? "Devamını gör" : "Daha az göster"}
+            </button>
+          </div>
+        )}
+      </>
       ) : orderedSeeds.length > 0 ? (
         <div className="mt-6 rounded-2xl border border-dashed border-green-200 bg-white/70 p-7 text-center text-sm text-gray-500">
           Bu filtreye uyan kayıt yok.

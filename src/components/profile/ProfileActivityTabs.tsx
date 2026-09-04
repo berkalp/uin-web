@@ -6,7 +6,6 @@ import DiscoverIntentCard, {
   type DiscoverIntentRow,
   type IntentLifecycleStatus,
 } from "@/components/discover/DiscoverIntentCard";
-import ProfilePagination from "@/components/profile/ProfilePagination";
 
 type ProfileActivityTab =
   | "all"
@@ -156,7 +155,7 @@ export default function ProfileActivityTabs({
     useState<ProfileActivityTab>("all");
   const [lifecycleFilter, setLifecycleFilter] =
     useState<ActiveLifecycleFilter>("all");
-  const [page, setPage] = useState(0);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const sortedHostedCards = useMemo(
     () => sortProfileCards(deduplicateCards(hostedCards), sortMode),
@@ -244,25 +243,13 @@ export default function ProfileActivityTabs({
     );
   }, [lifecycleFilter, lifecycleMode, roleCards, sortMode]);
 
-  const pageCount = Math.max(
-    1,
-    Math.ceil(filteredCards.length / PAGE_SIZE)
-  );
-  const safePage = Math.min(page, pageCount - 1);
-  const visibleCards = filteredCards.slice(
-    safePage * PAGE_SIZE,
-    safePage * PAGE_SIZE + PAGE_SIZE
-  );
+  const visibleCards = filteredCards.slice(0, visibleCount);
+  const hasMoreCards = visibleCount < filteredCards.length;
+  const hasExpandedCards = filteredCards.length > PAGE_SIZE;
 
   useEffect(() => {
-    setPage(0);
+    setVisibleCount(PAGE_SIZE);
   }, [activeTab, lifecycleFilter, lifecycleMode]);
-
-  useEffect(() => {
-    if (page > pageCount - 1) {
-      setPage(Math.max(0, pageCount - 1));
-    }
-  }, [page, pageCount]);
 
   const tabs: Array<{
     value: ProfileActivityTab;
@@ -379,12 +366,23 @@ export default function ProfileActivityTabs({
             ))}
           </div>
 
-          <ProfilePagination
-            page={safePage}
-            pageCount={pageCount}
-            onPageChange={setPage}
-            label={`${eyebrow} sayfalarÄ±`}
-          />
+        {hasExpandedCards && (
+          <div className="mt-6 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((current) =>
+                  hasMoreCards
+                    ? Math.min(current + PAGE_SIZE, filteredCards.length)
+                    : PAGE_SIZE
+                )
+              }
+              className="rounded-2xl border border-gray-200 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 shadow-sm transition hover:border-green-300 hover:bg-green-50 hover:text-green-800"
+            >
+              {hasMoreCards ? "Devamını gör" : "Daha az göster"}
+            </button>
+          </div>
+        )}
         </>
       ) : (
         <div className="mt-5 rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm">
