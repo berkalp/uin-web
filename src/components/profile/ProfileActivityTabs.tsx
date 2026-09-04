@@ -200,9 +200,9 @@ export default function ProfileActivityTabs({
       value: ActiveLifecycleFilter;
       label: string;
     }> = [
-      { value: "all", label: "TÃ¼mÃ¼" },
+      { value: "all", label: "Tümü" },
       { value: "open", label: "Aktif" },
-      { value: "forming", label: "PlanlanÄ±yor" },
+      { value: "forming", label: "Planlanıyor" },
       { value: "planned", label: "PlanlandÄ±" },
       { value: "future", label: "Gelecek" },
     ];
@@ -256,7 +256,7 @@ export default function ProfileActivityTabs({
 
   useEffect(() => {
     setPage(0);
-  }, [activeTab, lifecycleFilter]);
+  }, [activeTab, lifecycleFilter, lifecycleMode]);
 
   useEffect(() => {
     if (page > pageCount - 1) {
@@ -271,7 +271,7 @@ export default function ProfileActivityTabs({
   }> = [
     {
       value: "all",
-      label: "TÃ¼mÃ¼",
+      label: "Tümü",
       count: allCards.length,
     },
     {

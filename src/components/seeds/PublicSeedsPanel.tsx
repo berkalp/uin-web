@@ -182,7 +182,7 @@ export default function PublicSeedsPanel({
             {title ?? `${displayName} · ${eyebrow}`}
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-gray-600">
-            Aktif, yaşanmış veya sosyal bir niyete dönüşmüş kişisel kayıtlar.
+            {description}
           </p>
         </div>
 
@@ -245,7 +245,7 @@ export default function PublicSeedsPanel({
             </div>
           )}
 
-          {isOwner && orderedSeeds.length > 1 && (
+          {isOwner && mode === "all" && orderedSeeds.length > 1 && (
             <button
               type="button"
               onClick={() => {
