@@ -1,12 +1,27 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 
-import { setMySeedReaction } from "@/services/seedService";
-import {
-  emptySeedReactionContext,
-  type SeedReactionContext,
-} from "@/utils/seeds";
+import { supabase } from "@/utils/supabase/client";
+import type { SeedReactionContext } from "@/utils/seeds";
+
+type PersonRow = {
+  user_id?: string;
+  full_name?: string | null;
+  username?: string | null;
+  avatar_url?: string | null;
+  seed_id?: string;
+  rating?: number | null;
+};
+
+type DiscoveryRow = {
+  intent_people_count?: number | string | null;
+  experience_people_count?: number | string | null;
+  like_count?: number | string | null;
+  viewer_liked?: boolean | null;
+  viewer_can_like?: boolean | null;
+};
 
 type SeedReactionBarProps = {
   seedId: string;
@@ -14,235 +29,448 @@ type SeedReactionBarProps = {
   isAuthenticated: boolean;
   isOwner: boolean;
   variant?: "card" | "detail" | "compact" | "toolbar";
+  seedTypeName?: string | null;
+  seedTypeSlug?: string | null;
 };
 
-function firstFriendName(context: SeedReactionContext) {
-  const first = context.friend_water_preview[0];
-  return first?.full_name || first?.username || null;
+function numberValue(value: unknown) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function copyForSeed(name?: string | null, slug?: string | null) {
+  const value = `${slug ?? ""} ${name ?? ""}`.toLocaleLowerCase("tr-TR");
+
+  if (value.includes("watch") || value.includes("izle")) {
+    return {
+      want: "İzlemek istiyorum",
+      intent: "İzlemek isteyenler",
+      experience: "İzleyenler",
+    };
+  }
+
+  if (value.includes("read") || value.includes("oku")) {
+    return {
+      want: "Okumak istiyorum",
+      intent: "Okumak isteyenler",
+      experience: "Okuyanlar",
+    };
+  }
+
+  if (value.includes("listen") || value.includes("dinle")) {
+    return {
+      want: "Dinlemek istiyorum",
+      intent: "Dinlemek isteyenler",
+      experience: "Dinleyenler",
+    };
+  }
+
+  if (
+    value.includes("visit") ||
+    value.includes("ziyaret") ||
+    value.includes("git")
+  ) {
+    return {
+      want: "Gitmek istiyorum",
+      intent: "Gitmek isteyenler",
+      experience: "Gidenler",
+    };
+  }
+
+  if (value.includes("play") || value.includes("oyna")) {
+    return {
+      want: "Oynamak istiyorum",
+      intent: "Oynamak isteyenler",
+      experience: "Oynayanlar",
+    };
+  }
+
+  if (value.includes("learn") || value.includes("öğren")) {
+    return {
+      want: "Öğrenmek istiyorum",
+      intent: "Öğrenmek isteyenler",
+      experience: "Öğrenenler",
+    };
+  }
+
+  if (value.includes("practice") || value.includes("pratik")) {
+    return {
+      want: "Pratik yapmak istiyorum",
+      intent: "Pratik yapmak isteyenler",
+      experience: "Pratik yapanlar",
+    };
+  }
+
+  if (value.includes("try") || value.includes("dene")) {
+    return {
+      want: "Denemek istiyorum",
+      intent: "Denemek isteyenler",
+      experience: "Deneyenler",
+    };
+  }
+
+  return {
+    want: "Yapmak istiyorum",
+    intent: "Yapmak isteyenler",
+    experience: "Yapanlar",
+  };
 }
 
 export default function SeedReactionBar({
   seedId,
-  initialContext,
   isAuthenticated,
   isOwner,
   variant = "card",
+  seedTypeName,
+  seedTypeSlug,
 }: SeedReactionBarProps) {
-  const [context, setContext] = useState<SeedReactionContext>(
-    initialContext ??
-      emptySeedReactionContext(seedId, {
-        reaction_disabled_reason: isAuthenticated
-          ? null
-          : "Kaydetmek veya öne çıkarmak için giriş yap.",
-      })
+  const copy = useMemo(
+    () => copyForSeed(seedTypeName, seedTypeSlug),
+    [seedTypeName, seedTypeSlug]
   );
-  const [message, setMessage] = useState<string | null>(null);
-  const [pendingType, setPendingType] = useState<"save" | "water" | null>(
+
+  const [intentCount, setIntentCount] = useState(0);
+  const [experienceCount, setExperienceCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+  const [liked, setLiked] = useState(false);
+  const [canLike, setCanLike] = useState(false);
+  const [working, setWorking] = useState(false);
+
+  const [peopleOpen, setPeopleOpen] = useState<"intent" | "experience" | null>(
     null
   );
-  const [isPending, startTransition] = useTransition();
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [people, setPeople] = useState<PersonRow[]>([]);
 
-  const canReact =
-    isAuthenticated &&
-    !isOwner &&
-    (context.viewer_can_react ||
-      context.viewer_saved ||
-      context.viewer_watered);
+  useEffect(() => {
+    let alive = true;
 
-  function toggle(reactionType: "save" | "water") {
-    if (!canReact || isPending) {
-      setMessage(
-        context.reaction_disabled_reason ||
-          (isAuthenticated
-            ? "This Seed is not accepting reactions."
-            : "Sign in to Save or Water this Seed.")
-      );
+    void supabase
+      .rpc("get_discoverable_seed_detail_v29", {
+        p_source_seed_id: seedId,
+      })
+      .then(({ data, error }) => {
+        if (!alive || error) return;
+
+        const raw = Array.isArray(data) ? data[0] : data;
+        if (!raw || typeof raw !== "object") return;
+
+        const row = raw as DiscoveryRow;
+
+        setIntentCount(numberValue(row.intent_people_count));
+        setExperienceCount(numberValue(row.experience_people_count));
+        setLikeCount(numberValue(row.like_count));
+        setLiked(row.viewer_liked === true);
+        setCanLike(row.viewer_can_like === true);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [seedId]);
+
+  async function openPeople(group: "intent" | "experience") {
+    setPeopleOpen(group);
+    setPeopleLoading(true);
+    setPeople([]);
+
+    const { data, error } = await supabase.rpc(
+      "get_personal_subject_people_v30",
+      {
+        p_source_seed_id: seedId,
+        p_group: group,
+        p_limit: 100,
+      }
+    );
+
+    if (!error && Array.isArray(data)) {
+      setPeople(data as PersonRow[]);
+
+      const uniqueCount = new Set(
+        data
+          .map((row) =>
+            row && typeof row === "object"
+              ? String((row as PersonRow).user_id ?? "")
+              : ""
+          )
+          .filter(Boolean)
+      ).size;
+
+      if (group === "intent") setIntentCount(uniqueCount);
+      else setExperienceCount(uniqueCount);
+    }
+
+    setPeopleLoading(false);
+  }
+
+  async function toggleHighlight() {
+    if (
+      working ||
+      isOwner ||
+      !isAuthenticated ||
+      !canLike
+    ) {
       return;
     }
 
-    const nextActive =
-      reactionType === "save"
-        ? !context.viewer_saved
-        : !context.viewer_watered;
+    setWorking(true);
 
-    setMessage(null);
-    setPendingType(reactionType);
-
-    startTransition(async () => {
-      try {
-        const updated = await setMySeedReaction({
-          seedId,
-          reactionType,
-          active: nextActive,
-        });
-
-        setContext(updated);
-        setMessage(
-          reactionType === "save"
-            ? nextActive
-              ? "Saved privately."
-              : "Removed from Saved Seeds."
-            : nextActive
-            ? "Bu Kişisel Niyeti öne çıkardın."
-            : "Öne çıkarma kaldırıldı."
-        );
-      } catch (error) {
-        setMessage(
-          error instanceof Error
-            ? error.message
-            : "The Seed reaction could not be saved."
-        );
-      } finally {
-        setPendingType(null);
+    const { data, error } = await supabase.rpc(
+      "set_my_personal_intent_like_v28",
+      {
+        p_seed_id: seedId,
+        p_active: !liked,
       }
-    });
-  }
-
-  const friendName = firstFriendName(context);
-  const extraFriendCount = Math.max(context.friend_water_count - 1, 0);
-  const isDetail = variant === "detail";
-  const isCompact = variant === "compact";
-  const isToolbar = variant === "toolbar";
-
-  if (isToolbar) {
-    const heart = (
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill={context.viewer_saved ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-        <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z" />
-      </svg>
-    );
-    const droplet = (
-      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill={context.viewer_watered ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-        <path d="M12 2.8S5.5 9.6 5.5 14.5a6.5 6.5 0 0 0 13 0C18.5 9.6 12 2.8 12 2.8Z" />
-      </svg>
     );
 
-    if (isOwner) {
-      return (
-        <div className="flex items-center gap-1">
-          <span title="Kaydedilme sayısı" className="inline-flex h-6 min-w-7 items-center justify-center gap-1 rounded-lg border border-rose-100 bg-white px-1.5 text-[9px] font-semibold text-rose-600">
-            {heart}<span>{context.save_count}</span>
-          </span>
-          <span title="Sulama sayısı" className="inline-flex h-6 min-w-7 items-center justify-center gap-1 rounded-lg border border-cyan-100 bg-white px-1.5 text-[9px] font-semibold text-cyan-700">
-            {droplet}<span>{context.water_count}</span>
-          </span>
-        </div>
-      );
+    if (!error) {
+      const raw = Array.isArray(data) ? data[0] : data;
+
+      if (raw && typeof raw === "object") {
+        const row = raw as {
+          like_count?: number | string | null;
+          viewer_liked?: boolean | null;
+        };
+
+        setLikeCount(numberValue(row.like_count));
+        setLiked(row.viewer_liked === true);
+      }
     }
 
+    setWorking(false);
+  }
+
+  const audience = (
+    <div
+      className={`grid grid-cols-2 gap-2 ${
+        variant === "toolbar" ? "min-w-[150px]" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => void openPeople("intent")}
+        className={`rounded-xl bg-gray-50 text-left transition hover:bg-green-50 ${
+          variant === "toolbar"
+            ? "px-2 py-1.5"
+            : "px-3 py-2.5"
+        }`}
+      >
+        <span className="block truncate text-[9px] font-semibold text-gray-500">
+          {copy.intent}
+        </span>
+        <span className="mt-0.5 block text-sm font-black text-gray-950">
+          {intentCount}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void openPeople("experience")}
+        className={`rounded-xl bg-gray-50 text-left transition hover:bg-purple-50 ${
+          variant === "toolbar"
+            ? "px-2 py-1.5"
+            : "px-3 py-2.5"
+        }`}
+      >
+        <span className="block truncate text-[9px] font-semibold text-gray-500">
+          {copy.experience}
+        </span>
+        <span className="mt-0.5 block text-sm font-black text-gray-950">
+          {experienceCount}
+        </span>
+      </button>
+    </div>
+  );
+
+  if (variant === "toolbar") {
     return (
-      <div className="flex items-center gap-1">
-        <button type="button" onClick={() => toggle("save")} disabled={isPending || !canReact} aria-pressed={context.viewer_saved} title="Kaydet" className={`inline-flex h-6 min-w-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[9px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${context.viewer_saved ? "border-rose-200 bg-rose-50 text-rose-700" : "border-gray-200 bg-white text-gray-600 hover:border-rose-200 hover:text-rose-700"}`}>
-          {pendingType === "save" && isPending ? <span>…</span> : heart}<span>{context.save_count}</span>
-        </button>
-        <button type="button" onClick={() => toggle("water")} disabled={isPending || !canReact} aria-pressed={context.viewer_watered} title="Sula" className={`inline-flex h-6 min-w-7 items-center justify-center gap-1 rounded-lg border px-1.5 text-[9px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-45 ${context.viewer_watered ? "border-cyan-300 bg-cyan-50 text-cyan-800" : "border-gray-200 bg-white text-gray-600 hover:border-cyan-200 hover:text-cyan-700"}`}>
-          {pendingType === "water" && isPending ? <span>…</span> : droplet}<span>{context.water_count}</span>
-        </button>
-      </div>
+      <>
+        <div className="flex min-w-0 flex-1 items-center gap-1">
+          {audience}
+
+          <button
+            type="button"
+            onClick={() => void toggleHighlight()}
+            disabled={working || isOwner || !canLike}
+            title="Öne çıkar"
+            className={`inline-flex h-8 min-w-10 items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-black transition ${
+              liked
+                ? "bg-violet-50 text-violet-700"
+                : "bg-gray-50 text-gray-500"
+            } disabled:cursor-default`}
+          >
+            ✨ {likeCount}
+          </button>
+        </div>
+
+        {peopleOpen && (
+          <PeopleModal
+            title={
+              peopleOpen === "intent"
+                ? copy.intent
+                : copy.experience
+            }
+            loading={peopleLoading}
+            people={people}
+            onClose={() => setPeopleOpen(null)}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <div
-      className={
-        isDetail
-          ? "rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4"
-          : ""
-      }
-    >
+    <>
       <div
-        className={`flex flex-wrap items-center gap-2 ${
-          isCompact ? "text-xs" : "text-sm"
-        }`}
+        className={
+          variant === "detail"
+            ? "rounded-3xl border border-gray-200 bg-white p-5"
+            : ""
+        }
       >
-        {!isOwner ? (
-          <>
-            {variant !== "detail" && (
-            <button
-              type="button"
-              onClick={() => toggle("save")}
-              disabled={isPending || !canReact}
-              aria-pressed={context.viewer_saved}
-              title="Save this Seed privately for later"
-              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${
-                context.viewer_saved
-                  ? "border-rose-200 bg-rose-50 text-rose-700"
-                  : "border-gray-200 bg-white text-gray-700 hover:border-rose-200 hover:text-rose-700"
-              }`}
-            >
-              <span aria-hidden="true" className="text-base">
-                {pendingType === "save" && isPending
-                  ? "…"
-                  : context.viewer_saved
-                    ? "♥"
-                    : "♡"}
-              </span>
-              <span>{context.viewer_saved ? "Saved" : "Save"}</span>
-              {context.save_count > 0 && (
-                <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold">
-                  {context.save_count}
-                </span>
-              )}
-            </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => toggle("water")}
-              disabled={isPending || !canReact}
-              aria-pressed={context.viewer_watered}
-              title="Bu Kişisel Niyeti öne çıkar"
-              className={`inline-flex min-h-9 items-center justify-center gap-1.5 rounded-xl border px-3 font-semibold transition disabled:cursor-not-allowed disabled:opacity-55 ${
-                context.viewer_watered
-                  ? "border-cyan-300 bg-cyan-100 text-cyan-900 shadow-sm"
-                  : "border-cyan-200 bg-white text-cyan-800 hover:bg-cyan-50"
-              }`}
-            >
-              <span aria-hidden="true" className="text-base">
-                {pendingType === "water" && isPending ? "…" : context.viewer_watered ? "✨" : "✧"}
-              </span>
-              <span>{context.viewer_watered ? "Öne çıkarıldı" : "Öne çıkar"}</span>
-              {context.water_count > 0 && (
-                <span className="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] font-bold">
-                  {context.water_count}
-                </span>
-              )}
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 font-semibold text-rose-700">
-              ♥ {context.save_count} save{context.save_count === 1 ? "" : "s"}
-            </span>
-            <span className="rounded-xl border border-cyan-100 bg-cyan-50 px-3 py-2 font-semibold text-cyan-800">
-              💧 {context.water_count}
-            </span>
-          </>
+        {variant !== "toolbar" && (
+          <p className="mb-2 text-sm font-black text-gray-950">
+            🌿 {copy.want}
+          </p>
         )}
+
+        {audience}
+
+        <button
+          type="button"
+          onClick={() => void toggleHighlight()}
+          disabled={working || isOwner || !canLike}
+          className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-black transition ${
+            liked
+              ? "border border-violet-200 bg-violet-50 text-violet-700"
+              : "border border-gray-200 bg-white text-gray-600 hover:border-violet-200 hover:text-violet-700"
+          } disabled:cursor-default`}
+        >
+          <span>{liked ? "✨" : "✧"}</span>
+          <span>{liked ? "Öne çıkarıldı" : "Öne çıkar"}</span>
+          <span className="rounded-full bg-black/5 px-2 py-0.5">
+            {likeCount}
+          </span>
+        </button>
       </div>
 
-      {friendName && context.friend_water_count > 0 && (
-        <p className="mt-2 text-xs font-semibold text-cyan-800">
-          {friendName}
-          {extraFriendCount > 0
-            ? ` and ${extraFriendCount} friend${extraFriendCount === 1 ? "" : "s"}`
-            : ""}{" "}
-          bu Kişisel Niyeti öne çıkardı.
-        </p>
+      {peopleOpen && (
+        <PeopleModal
+          title={
+            peopleOpen === "intent"
+              ? copy.intent
+              : copy.experience
+          }
+          loading={peopleLoading}
+          people={people}
+          onClose={() => setPeopleOpen(null)}
+        />
       )}
+    </>
+  );
+}
 
-      {message && (
-        <p
-          className={`mt-2 text-xs font-semibold ${
-            message.toLowerCase().includes("sign in") ||
-            message.toLowerCase().includes("could not") ||
-            message.toLowerCase().includes("not accepting")
-              ? "text-red-600"
-              : "text-gray-500"
-          }`}
-        >
-          {message}
-        </p>
-      )}
+function PeopleModal({
+  title,
+  loading,
+  people,
+  onClose,
+}: {
+  title: string;
+  loading: boolean;
+  people: PersonRow[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/45 p-4 sm:items-center">
+      <button
+        type="button"
+        aria-label="Kapat"
+        onClick={onClose}
+        className="absolute inset-0"
+      />
+
+      <section className="relative z-10 max-h-[75vh] w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+        <header className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+          <div>
+            <h3 className="font-black text-gray-950">{title}</h3>
+            <p className="mt-1 text-xs text-gray-500">
+              Herkese açık kayıtlar
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-9 w-9 place-items-center rounded-xl bg-gray-100 font-black text-gray-700"
+          >
+            ×
+          </button>
+        </header>
+
+        <div className="max-h-[60vh] overflow-y-auto px-5">
+          {loading ? (
+            <p className="py-10 text-center text-sm font-semibold text-gray-400">
+              Yükleniyor…
+            </p>
+          ) : people.length === 0 ? (
+            <p className="py-10 text-center text-sm font-semibold text-gray-400">
+              Henüz görünür kullanıcı yok.
+            </p>
+          ) : (
+            people.map((person, index) => {
+              const name =
+                person.full_name ||
+                person.username ||
+                "UIN üyesi";
+
+              return (
+                <Link
+                  key={`${person.user_id ?? index}-${person.seed_id ?? index}`}
+                  href={
+                    person.username
+                      ? `/u/${encodeURIComponent(person.username)}`
+                      : "#"
+                  }
+                  onClick={onClose}
+                  className="flex items-center gap-3 border-b border-gray-100 py-3 last:border-0"
+                >
+                  {person.avatar_url ? (
+                    <img
+                      src={person.avatar_url}
+                      alt=""
+                      className="h-11 w-11 rounded-xl object-cover"
+                    />
+                  ) : (
+                    <span className="grid h-11 w-11 place-items-center rounded-xl bg-gray-100">
+                      👤
+                    </span>
+                  )}
+
+                  <span className="min-w-0 flex-1">
+                    <b className="block truncate text-sm text-gray-950">
+                      {name}
+                    </b>
+                    {person.username && (
+                      <small className="block truncate text-xs text-gray-400">
+                        @{person.username}
+                      </small>
+                    )}
+                  </span>
+
+                  {person.rating ? (
+                    <span className="text-xs font-black text-amber-700">
+                      ★ {person.rating}/10
+                    </span>
+                  ) : null}
+
+                  <span className="text-gray-400">›</span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </section>
     </div>
   );
 }

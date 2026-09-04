@@ -119,9 +119,9 @@ export default function SeedDashboard({
         </div>
         {pageCount > 1 && (
           <div className="flex items-center gap-1">
-            {safePage > 0 && <button type="button" aria-label="Önceki Tohumlar" onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">←</button>}
+            {safePage > 0 && <button type="button" aria-label="Önceki kişisel niyetler" onClick={() => setPage((value) => Math.max(0, value - 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">←</button>}
             <span className="px-1 text-[9px] font-bold text-gray-400">{safePage + 1}/{pageCount}</span>
-            {safePage < pageCount - 1 && <button type="button" aria-label="Sonraki Tohumları Gör" onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">→</button>}
+            {safePage < pageCount - 1 && <button type="button" aria-label="Sonraki kişisel niyetleri gör" onClick={() => setPage((value) => Math.min(pageCount - 1, value + 1))} className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-200 bg-white text-sm font-black text-emerald-800 hover:bg-emerald-50">→</button>}
           </div>
         )}
       </div>
@@ -145,9 +145,9 @@ export default function SeedDashboard({
           </div>
           <h2 className="mt-5 text-2xl font-black text-gray-950">
             {activeTab === "past_due"
-              ? "Süresi geçen Tohum yok"
+              ? "Süresi geçen kişisel niyet yok"
               : activeTab === "archived"
-                ? "Kapanan Tohum yok"
+                ? "Kapanan kişisel niyet yok"
                 : `No ${activeTab} Seeds`}
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-gray-500">
@@ -155,14 +155,14 @@ export default function SeedDashboard({
               ? "Hedef tarihi geçen ama tamamlanmamış Tohumlar burada kalır. Tarihini bugüne veya geleceğe taşıdığında otomatik olarak yeniden Active olur."
               : activeTab === "archived"
                 ? "Vazgeçtiğin, iptal ettiğin veya artık peşinden gitmediğin Tohumlar burada tutulur."
-                : "Seeds are personal possibilities. They do not need a date, location or participant list until you decide to turn them into something social."}
+                : "Kişisel niyetlerin burada görünür. İstersen daha sonra bunları sosyal bir niyete dönüştürebilirsin."}
           </p>
           {activeTab === "active" && (
             <Link
               href="/seeds/new"
               className="mt-6 inline-flex rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-green-700"
             >
-              Plant your first Seed
+              İlk kişisel niyetini oluştur
             </Link>
           )}
         </section>

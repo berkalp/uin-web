@@ -198,7 +198,7 @@ export default function SeedCard({
         <div className="mt-auto flex h-9 items-center gap-1 border-t border-gray-100 pt-1.5">
           <Link
             href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-            aria-label="Tohumu görüntüle"
+            aria-label="Kişisel niyeti görüntüle"
             title="Görüntüle"
             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
           >
@@ -206,7 +206,7 @@ export default function SeedCard({
           </Link>
           <Link
             href={`/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
-            aria-label="Tohumu düzenle"
+            aria-label="Kişisel niyeti düzenle"
             title="Düzenle"
             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
           >
@@ -218,6 +218,8 @@ export default function SeedCard({
               initialContext={seed.reaction_context}
               isAuthenticated={isAuthenticated}
               isOwner
+              seedTypeName={seed.seed_type_name}
+              seedTypeSlug={seed.seed_type_slug}
               variant="toolbar"
             />
           )}

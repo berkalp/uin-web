@@ -356,6 +356,8 @@ export default function PublicSeedsPanel({
                       initialContext={seed.reaction_context}
                       isAuthenticated={isAuthenticated}
                       isOwner={isOwner}
+                      seedTypeName={seed.seed_type_name}
+                      seedTypeSlug={seed.seed_type_slug}
                       variant="compact"
                     />
 

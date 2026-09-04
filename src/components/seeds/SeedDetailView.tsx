@@ -39,7 +39,7 @@ function formatDate(value: string | null) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     timeZone: value.length === 10 ? "UTC" : undefined,
     day: "numeric",
     month: "long",
@@ -232,7 +232,7 @@ export default function SeedDetailView({
   const { seed, links, journal, intents } = detail;
   const completionLabel = getSeedCompletionLabel(seed);
   const ownerName =
-    seed.owner_full_name || seed.owner_username || "UIN member";
+    seed.owner_full_name || seed.owner_username || "UIN üyesi";
   const reflection =
     journal.find((entry) => entry.entry_kind === "reflection") ?? null;
   const updates = journal.filter((entry) => entry.entry_kind === "update");
@@ -341,7 +341,15 @@ export default function SeedDetailView({
 
               {!isPrivateSeed && (
                 <div className="mt-auto pt-4">
-                  {!seed.is_owner && <SeedReactionBar seedId={seed.seed_id} initialContext={reactionContext} isAuthenticated={isAuthenticated} isOwner={false} variant="detail" />}
+                  <SeedReactionBar
+                    seedId={seed.seed_id}
+                    initialContext={reactionContext}
+                    isAuthenticated={isAuthenticated}
+                    isOwner={seed.is_owner}
+                    seedTypeName={seed.seed_type_name}
+                    seedTypeSlug={seed.seed_type_slug}
+                    variant="detail"
+                  />
                   {!seed.is_owner && isAuthenticated && (
                     <SeedPublicActions seedId={seed.seed_id} title={seed.title} catalogItemId={seed.catalog_item_id} />
                   )}

@@ -14,7 +14,7 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
   const requestedArea = (await searchParams).alan;
   const areaValue = Array.isArray(requestedArea) ? requestedArea[0] : requestedArea;
   const activeArea = areaValue === "deneyimler" || areaValue === "sevdiklerim" ? areaValue : "niyetler";
-  if (activeArea === "niyetler") redirect("/timeline");
+
   const supabase = await createClient();
   const {
     data: { user },
@@ -123,13 +123,13 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
       <div className="mx-auto max-w-[1500px]">
         <header className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-9">
           <p className={`text-xs font-black uppercase tracking-[0.18em] ${activeArea === "deneyimler" ? "text-purple-700" : "text-rose-600"}`}>
-            {activeArea === "deneyimler" ? "YAŞADIKLARIN" : "SEVDİKLERİN"}
+            {activeArea === "deneyimler" ? "DENEYİMLER" : activeArea === "sevdiklerim" ? "SEVDİKLERİN" : "KİŞİSEL NİYETLER"}
           </p>
           <h1 className="mt-2 text-4xl font-black text-gray-950">
-            {activeArea === "deneyimler" ? "Deneyimlerim" : "Sevdiklerim"}
+            {activeArea === "deneyimler" ? "Deneyimlerim" : activeArea === "sevdiklerim" ? "Sevdiklerim" : "Kişisel Niyetlerim"}
           </h1>
           <p className="mt-3 text-sm text-gray-500">
-            {activeArea === "deneyimler" ? "Tamamladığın kişisel ve sosyal deneyimler." : "Sevdiğin kişi, eser, yer, konu ve aktiviteler; kategorilerine göre."}
+            {activeArea === "deneyimler" ? "Tamamladığın kişisel ve sosyal deneyimler." : activeArea === "sevdiklerim" ? "Sevdiğin kişi, eser, yer, konu ve aktiviteler; kategorilerine göre." : "Yapmak, görmek, okumak, izlemek, öğrenmek veya deneyimlemek istediğin kişisel niyetlerin."}
           </p>
         </header>
 
