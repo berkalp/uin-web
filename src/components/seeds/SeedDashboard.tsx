@@ -25,7 +25,8 @@ type SeedDashboardProps = {
 
 type IntentFilter = "all" | "active" | "converted";
 
-const PAGE_SIZE = 6;
+const EXPERIENCE_PAGE_SIZE = 6;
+const INTENTION_PAGE_SIZE = 12;
 
 function isConverted(seed: SeedRecord) {
   return toSeedCount(seed.grown_intent_count) > 0;
@@ -48,7 +49,8 @@ export default function SeedDashboard({
 }: SeedDashboardProps) {
   const [filter, setFilter] = useState<IntentFilter>("all");
   const [scope, setScope] = useState<"all" | "library" | "private">("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState(EXPERIENCE_PAGE_SIZE);
+  const [page, setPage] = useState(1);
 
   const today = useMemo(() => getLocalDateKey(), []);
 
@@ -97,19 +99,39 @@ export default function SeedDashboard({
     return scopedIntentions;
   }, [filter, scopedIntentions]);
 
-  const visibleSeeds =
-    mode === "experiences"
-      ? completedSeeds.slice(0, visibleCount)
-      : filteredIntentions.slice(0, visibleCount);
-
   const totalVisiblePool =
     mode === "experiences"
       ? completedSeeds
       : filteredIntentions;
 
+  const intentionPageCount = Math.max(
+    1,
+    Math.ceil(filteredIntentions.length / INTENTION_PAGE_SIZE)
+  );
+
+  const safePage = Math.min(page, intentionPageCount);
+
+  const visibleSeeds =
+    mode === "experiences"
+      ? completedSeeds.slice(0, visibleCount)
+      : filteredIntentions.slice(
+          (safePage - 1) * INTENTION_PAGE_SIZE,
+          safePage * INTENTION_PAGE_SIZE
+        );
+
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
+    setVisibleCount(EXPERIENCE_PAGE_SIZE);
+  }, [mode]);
+
+  useEffect(() => {
+    setPage(1);
   }, [filter, scope, mode]);
+
+  useEffect(() => {
+    if (page > intentionPageCount) {
+      setPage(intentionPageCount);
+    }
+  }, [page, intentionPageCount]);
 
   if (mode === "experiences") {
     return (
@@ -135,7 +157,7 @@ export default function SeedDashboard({
                   onClick={() =>
                     setVisibleCount((value) =>
                       Math.min(
-                        value + PAGE_SIZE,
+                        value + EXPERIENCE_PAGE_SIZE,
                         completedSeeds.length
                       )
                     )
@@ -144,7 +166,7 @@ export default function SeedDashboard({
                 >
                   Devamını gör
                   <span className="ml-2 text-xs">
-                    +{Math.min(PAGE_SIZE, completedSeeds.length - visibleSeeds.length)}
+                    +{Math.min(EXPERIENCE_PAGE_SIZE, completedSeeds.length - visibleSeeds.length)}
                   </span>
                 </button>
               </div>
@@ -250,31 +272,56 @@ export default function SeedDashboard({
               />
             ))}
           </section>
+        {intentionPageCount > 1 && (
+          <nav
+            className="mt-6 flex flex-wrap items-center justify-center gap-2"
+            aria-label="Kişisel Niyetler sayfaları"
+          >
+            <button
+              type="button"
+              aria-label="Önceki sayfa"
+              disabled={safePage === 1}
+              onClick={() =>
+                setPage((value) => Math.max(1, value - 1))
+              }
+              className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-100 disabled:text-gray-300"
+            >
+              ←
+            </button>
 
-          {visibleSeeds.length < totalVisiblePool.length && (
-            <div className="mt-6 flex justify-center">
+            {Array.from(
+              { length: intentionPageCount },
+              (_, index) => index + 1
+            ).map((pageNumber) => (
               <button
+                key={pageNumber}
                 type="button"
-                onClick={() =>
-                  setVisibleCount((value) =>
-                    Math.min(
-                      value + PAGE_SIZE,
-                      totalVisiblePool.length
-                    )
-                  )
-                }
-                className="rounded-xl border border-emerald-200 bg-white px-6 py-3 text-sm font-black text-emerald-800 transition hover:bg-emerald-50"
+                onClick={() => setPage(pageNumber)}
+                className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                  pageNumber === safePage
+                    ? "bg-gray-950 text-white"
+                    : "border border-gray-200 bg-white text-gray-700 hover:border-emerald-300 hover:text-emerald-700"
+                }`}
               >
-                Devamını gör
-                <span className="ml-2 text-xs">
-                  +{Math.min(
-                    PAGE_SIZE,
-                    totalVisiblePool.length - visibleSeeds.length
-                  )}
-                </span>
+                {pageNumber}
               </button>
-            </div>
-          )}
+            ))}
+
+            <button
+              type="button"
+              aria-label="Sonraki sayfa"
+              disabled={safePage === intentionPageCount}
+              onClick={() =>
+                setPage((value) =>
+                  Math.min(intentionPageCount, value + 1)
+                )
+              }
+              className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-100 disabled:text-gray-300"
+            >
+              →
+            </button>
+          </nav>
+        )}
         </>
       ) : (
         <section className="mt-6 rounded-[32px] border border-dashed border-gray-300 bg-white p-10 text-center">
