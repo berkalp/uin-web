@@ -215,11 +215,7 @@ export default function TimelineGrowingSeeds({
     <section className="mt-8 rounded-[28px] border border-green-100 bg-gradient-to-br from-green-50 via-white to-lime-50 p-4 shadow-sm md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            KİŞİSEL NİYETLER
-          </p>
-
-          <h2 className="mt-2 text-2xl font-black text-gray-950">
+                  <h2 className="text-2xl font-black text-gray-950">
             Kişisel Niyetlerim
           </h2>
 

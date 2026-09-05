@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import TimelineHeader from "../../components/timeline/TimelineHeader";
 import TimelineProfileOverview from "../../components/timeline/TimelineProfileOverview";
 import TimelineGrowingSeeds from "../../components/timeline/TimelineGrowingSeeds";
+import SeedCard from "../../components/seeds/SeedCard";
 import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPresentation";
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
 import TimelineExpiredPresentation from "../../components/timeline/TimelineExpiredPresentation";
@@ -413,12 +414,14 @@ type TimelineEntry =
   | PlanTimelineEntry;
 
 type OpenMomentFilter = "all" | "now" | "upcoming" | "future";
+type UpcomingIntentFilter = "all" | "social" | "personal";
 
 type TimelinePageProps = {
   searchParams: Promise<{
     view?: string;
     page?: string;
     moment?: string;
+    upcoming?: string;
   }>;
 };
 
@@ -2009,6 +2012,12 @@ export default async function TimelinePage({
       ? resolvedSearchParams.moment
       : "all";
 
+  const selectedUpcomingType: UpcomingIntentFilter =
+    resolvedSearchParams.upcoming === "social" ||
+    resolvedSearchParams.upcoming === "personal"
+      ? resolvedSearchParams.upcoming
+      : "all";
+
   const supabase =
     await createClient();
 
@@ -3406,20 +3415,70 @@ const {
   );
 
 
-  const comingUpEntries = planEntries
-    .filter((entry) => {
-      if (entry.plan.status === "forming") {
-        return !isExpiredPlan(entry.plan);
+  const upcomingSocialEntries = timelineEntries
+    .filter(
+      (entry): entry is IntentTimelineEntry =>
+        entry.kind === "intent" &&
+        (getEntryView(entry) === "open" ||
+          getEntryView(entry) === "full") &&
+        entry.intent.start_date > today
+    )
+    .sort(
+      (first, second) =>
+        new Date(first.intent.start_date).getTime() -
+        new Date(second.intent.start_date).getTime()
+    );
+
+  const upcomingPersonalSeeds = timelineSeeds
+    .filter(
+      (seed) =>
+        seed.status === "active" &&
+        Boolean(seed.target_date) &&
+        String(seed.target_date) > today
+    )
+    .sort(
+      (first, second) =>
+        new Date(String(first.target_date)).getTime() -
+        new Date(String(second.target_date)).getTime()
+    );
+
+  const upcomingCounts = {
+    social: upcomingSocialEntries.length,
+    personal: upcomingPersonalSeeds.length,
+  };
+
+  const upcomingTotalCount =
+    upcomingCounts.social + upcomingCounts.personal;
+
+  const upcomingEntries = [
+    ...upcomingSocialEntries.map((entry) => ({
+      kind: "social" as const,
+      date: entry.intent.start_date,
+      entry,
+    })),
+    ...upcomingPersonalSeeds.map((seed) => ({
+      kind: "personal" as const,
+      date: String(seed.target_date),
+      seed,
+    })),
+  ]
+    .filter((item) => {
+      if (selectedUpcomingType === "social") {
+        return item.kind === "social";
       }
 
-      return getEntryView(entry) === "planned";
+      if (selectedUpcomingType === "personal") {
+        return item.kind === "personal";
+      }
+
+      return true;
     })
     .sort(
       (first, second) =>
-        new Date(getTimelineEntrySortDate(first)).getTime() -
-        new Date(getTimelineEntrySortDate(second)).getTime()
+        new Date(first.date).getTime() -
+        new Date(second.date).getTime()
     )
-    .slice(0, 4);
+    .slice(0, 6);
 
   const recentTimelineHistory = timelineEntries
     .filter((entry) => {
@@ -4389,19 +4448,28 @@ const {
     view = selectedView,
     page = 1,
     moment = selectedMoment,
+    upcoming = selectedUpcomingType,
   }: {
     view?: TimelineView;
     page?: number;
     moment?: OpenMomentFilter;
+    upcoming?: UpcomingIntentFilter;
   } = {}) {
     const params = new URLSearchParams();
     params.set("view", view);
+
     if (view === "open" && moment !== "all") {
       params.set("moment", moment);
     }
+
+    if (view === "open" && upcoming !== "all") {
+      params.set("upcoming", upcoming);
+    }
+
     if (page > 1) {
       params.set("page", String(page));
     }
+
     return `/timeline?${params.toString()}`;
   }
 
@@ -4412,7 +4480,7 @@ const {
     const location = getFirst(plan.locations);
     const presentation = privatePresentationByPlanId.get(plan.id) ?? null;
 
-    // Keep compact Coming Up cards on exactly the same presentation chain as
+    // Keep compact timeline cards on exactly the same presentation chain as
     // the full Planned card. Otherwise a sport/community Activity can show a
     // generic catalogue cover here while the Planned view shows its real cover.
     const hostSourceIntentId =
@@ -4624,14 +4692,13 @@ const {
           family={profileFamily}
         />
 
-        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
           {[
             ["Aktif Sosyal Niyet", viewCounts.open + viewCounts.full],
             ["Aktif Kişisel Niyet", timelineSeeds.filter((seed) => seed.status === "active").length],
-            ["Planlanıyor", viewCounts.forming + viewCounts.planned],
             ["Sosyal Deneyim", viewCounts.completed],
             ["Kişisel Deneyim", timelineSeeds.filter((seed) => seed.status === "completed").length],
-            ["Yaklaşan", comingUpEntries.length],
+            ["Yaklaşan", upcomingTotalCount],
           ].map(([label, value]) => <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm"><p className="text-3xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs font-bold text-gray-500">{label}</p></div>)}
         </section>
 
@@ -4640,24 +4707,78 @@ const {
 
         {selectedView === "open" && (
           <>
-            {comingUpEntries.length > 0 && (
+            {upcomingTotalCount > 0 && (
               <section className="mt-8 rounded-[28px] border border-blue-100 bg-white p-5 shadow-sm md:p-6">
-                <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-                      Coming up
-                    </p>
-                    <h2 className="mt-2 text-2xl font-black text-gray-950">
-                      Activities already becoming real
+                    <h2 className="text-2xl font-black text-gray-950">
+                      Yaklaşanlar
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
-                      Your nearest forming and planned Activities, ordered by what happens next.
+                      Yaklaşan tarihli Kişisel ve Sosyal Niyetlerin.
                     </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "all" as const, label: "Tümü", count: upcomingTotalCount },
+                      { key: "social" as const, label: "Sosyal", count: upcomingCounts.social },
+                      { key: "personal" as const, label: "Kişisel", count: upcomingCounts.personal },
+                    ].map((item) => {
+                      const active = selectedUpcomingType === item.key;
+
+                      return (
+                        <Link
+                          key={item.key}
+                          href={buildTimelineHref({
+                            view: "open",
+                            page: 1,
+                            upcoming: item.key,
+                          })}
+                          className={`rounded-full px-3.5 py-2 text-xs font-black transition ${
+                            active
+                              ? "bg-gray-950 text-white"
+                              : "border border-gray-200 bg-white text-gray-600 hover:border-blue-300 hover:text-blue-700"
+                          }`}
+                        >
+                          {item.label}
+                          <span
+                            className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                              active
+                                ? "bg-white/15 text-white"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
+                            {item.count}
+                          </span>
+                        </Link>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  {comingUpEntries.map(renderTimelineEntry)}
+                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                  {upcomingEntries.map((item) =>
+                    item.kind === "social" ? (
+                      <div
+                        key={`social-${item.entry.intent.id}`}
+                        className="min-w-0"
+                      >
+                        {renderTimelineEntry(item.entry)}
+                      </div>
+                    ) : (
+                      <div
+                        key={`personal-${item.seed.seed_id}`}
+                        className="min-w-0"
+                      >
+                        <SeedCard
+                          seed={item.seed}
+                          isAuthenticated
+                          variant="timeline"
+                        />
+                      </div>
+                    )
+                  )}
                 </div>
               </section>
             )}
@@ -4671,11 +4792,7 @@ const {
             <div className="space-y-12">
               <section>
                 <div className="mb-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-                    SOSYAL NİYETLER
-                  </p>
-
-                  <h2 className="mt-2 text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900">
                     {getIntentSectionTitle(
                       selectedView
                     )}
@@ -4762,7 +4879,7 @@ const {
                   Activity Stage
                 </p>
 
-                <h2 className="mt-2 text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900">
                   {getActivitySectionTitle(
                     selectedView
                   )}
