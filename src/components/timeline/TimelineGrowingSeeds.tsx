@@ -406,10 +406,6 @@ export default function TimelineGrowingSeeds({
           </button>
         </nav>
       )}
-            </span>
-          </button>
-        </div>
-      )}
     </section>
   );
 }
