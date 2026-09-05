@@ -531,7 +531,7 @@ const INTENT_LIFECYCLE_VIEWS =
     "closed",
   ]);
 
-const TIMELINE_PAGE_SIZE = 6;
+const TIMELINE_PAGE_SIZE = 8;
 const OPEN_UPCOMING_WINDOW_DAYS = 30;
 
 const OPEN_MOMENT_FILTERS: Array<{

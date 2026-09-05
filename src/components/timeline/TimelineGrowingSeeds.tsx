@@ -18,7 +18,7 @@ type ReminderClock = {
 
 type SeedFilter = "all" | "growing" | "intent";
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 12;
 
 function isConverted(seed: SeedRecord) {
   return toSeedCount(seed.grown_intent_count) > 0;
