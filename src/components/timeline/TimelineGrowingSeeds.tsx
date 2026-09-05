@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useEffect, useMemo, useState } from "react";
 
@@ -278,6 +279,13 @@ export default function TimelineGrowingSeeds({
               <span>{counts.intent}</span>
             </button>
           </div>
+          <Link
+            href="/seeds"
+            className="rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-800 transition hover:bg-green-100"
+          >
+            Tümü
+          </Link>
+
           {orderedSeeds.length > 1 && (
             <button
               type="button"
@@ -294,6 +302,13 @@ export default function TimelineGrowingSeeds({
               {reordering ? "Sıralamayı bitir" : "Sırala"}
             </button>
           )}
+
+          <Link
+            href="/seeds/new?mode=personal"
+            className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
+          >
+            + Kişisel niyet oluştur
+          </Link>
         </div>
       </div>
 

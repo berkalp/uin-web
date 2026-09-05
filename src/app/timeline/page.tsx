@@ -4885,6 +4885,8 @@ const {
             <div className="space-y-12">
               <section>
                 <div className="mb-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
                   <h2 className="text-2xl font-bold text-gray-900">
                     {getIntentSectionTitle(
                       selectedView
@@ -4896,6 +4898,17 @@ const {
                       selectedView
                     )}
                   </p>
+                  </div>
+
+                  {selectedView === "open" && (
+                    <Link
+                      href="/onboarding"
+                      className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
+                    >
+                      + Sosyal niyet oluştur
+                    </Link>
+                  )}
+                </div>
 
                   {selectedView === "open" && (
                     <div className="mt-4 flex flex-wrap gap-2">
