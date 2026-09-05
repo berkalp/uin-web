@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import SeedCard from "@/components/seeds/SeedCard";
@@ -55,7 +54,7 @@ export default function TimelineGrowingSeeds({
   seeds,
 }: TimelineGrowingSeedsProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [page, setPage] = useState(1);
   const [orderedSeeds, setOrderedSeeds] = useState(seeds);
   const [reordering, setReordering] = useState(false);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
@@ -88,14 +87,31 @@ export default function TimelineGrowingSeeds({
     [filter, personalIntentSeeds]
   );
 
+  const pageCount = Math.max(
+    1,
+    Math.ceil(filteredSeeds.length / PAGE_SIZE)
+  );
+
+  const safePage = Math.min(page, pageCount);
+
   const visibleSeeds = useMemo(
-    () => filteredSeeds.slice(0, visibleCount),
-    [filteredSeeds, visibleCount]
+    () =>
+      filteredSeeds.slice(
+        (safePage - 1) * PAGE_SIZE,
+        safePage * PAGE_SIZE
+      ),
+    [filteredSeeds, safePage]
   );
 
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
+    setPage(1);
   }, [filter]);
+
+  useEffect(() => {
+    if (page > pageCount) {
+      setPage(pageCount);
+    }
+  }, [page, pageCount]);
 
   useEffect(() => {
     if (seeds.length === 0) return;
@@ -278,13 +294,6 @@ export default function TimelineGrowingSeeds({
               {reordering ? "Sıralamayı bitir" : "Sırala"}
             </button>
           )}
-
-          <Link
-            href="/seeds"
-            className="rounded-xl border border-green-200 bg-white px-4 py-2.5 text-sm font-semibold text-green-800 transition hover:bg-green-100"
-          >
-            Tümünü gör
-          </Link>
         </div>
       </div>
 
@@ -347,21 +356,56 @@ export default function TimelineGrowingSeeds({
           );
         })}
       </div>
-
-      {visibleSeeds.length < filteredSeeds.length && (
-        <div className="mt-5 flex justify-center">
+      {pageCount > 1 && (
+        <nav
+          className="mt-6 flex flex-wrap items-center justify-center gap-2"
+          aria-label="Kişisel Niyetler sayfaları"
+        >
           <button
             type="button"
+            aria-label="Önceki sayfa"
+            disabled={safePage === 1}
             onClick={() =>
-              setVisibleCount((value) =>
-                Math.min(value + PAGE_SIZE, filteredSeeds.length)
+              setPage((value) => Math.max(1, value - 1))
+            }
+            className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:border-green-300 hover:text-green-700 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-100 disabled:text-gray-300"
+          >
+            ←
+          </button>
+
+          {Array.from(
+            { length: pageCount },
+            (_, index) => index + 1
+          ).map((pageNumber) => (
+            <button
+              key={pageNumber}
+              type="button"
+              onClick={() => setPage(pageNumber)}
+              className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                pageNumber === safePage
+                  ? "bg-gray-950 text-white"
+                  : "border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+              }`}
+            >
+              {pageNumber}
+            </button>
+          ))}
+
+          <button
+            type="button"
+            aria-label="Sonraki sayfa"
+            disabled={safePage === pageCount}
+            onClick={() =>
+              setPage((value) =>
+                Math.min(pageCount, value + 1)
               )
             }
-            className="rounded-xl border border-green-200 bg-white px-6 py-3 text-sm font-black text-green-800 transition hover:bg-green-100"
+            className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-sm font-bold text-gray-700 transition hover:border-green-300 hover:text-green-700 disabled:cursor-not-allowed disabled:border-gray-100 disabled:bg-gray-100 disabled:text-gray-300"
           >
-            Devamını gör
-            <span className="ml-2 text-xs text-green-600">
-              +{Math.min(PAGE_SIZE, filteredSeeds.length - visibleSeeds.length)}
+            →
+          </button>
+        </nav>
+      )}
             </span>
           </button>
         </div>

@@ -422,6 +422,7 @@ type TimelinePageProps = {
     page?: string;
     moment?: string;
     upcoming?: string;
+    upcomingPage?: string;
   }>;
 };
 
@@ -530,7 +531,7 @@ const INTENT_LIFECYCLE_VIEWS =
     "closed",
   ]);
 
-const TIMELINE_PAGE_SIZE = 8;
+const TIMELINE_PAGE_SIZE = 6;
 const OPEN_UPCOMING_WINDOW_DAYS = 30;
 
 const OPEN_MOMENT_FILTERS: Array<{
@@ -2017,6 +2018,10 @@ export default async function TimelinePage({
     resolvedSearchParams.upcoming === "personal"
       ? resolvedSearchParams.upcoming
       : "all";
+  const requestedUpcomingPage = Math.max(
+    1,
+    Number.parseInt(resolvedSearchParams.upcomingPage ?? "1", 10) || 1
+  );
 
   const supabase =
     await createClient();
@@ -3450,7 +3455,7 @@ const {
   const upcomingTotalCount =
     upcomingCounts.social + upcomingCounts.personal;
 
-  const upcomingEntries = [
+  const filteredUpcomingEntries = [
     ...upcomingSocialEntries.map((entry) => ({
       kind: "social" as const,
       date: entry.intent.start_date,
@@ -3477,8 +3482,22 @@ const {
       (first, second) =>
         new Date(first.date).getTime() -
         new Date(second.date).getTime()
-    )
-    .slice(0, 6);
+    );
+
+  const upcomingPageCount = Math.max(
+    1,
+    Math.ceil(filteredUpcomingEntries.length / 6)
+  );
+
+  const safeUpcomingPage = Math.min(
+    requestedUpcomingPage,
+    upcomingPageCount
+  );
+
+  const upcomingEntries = filteredUpcomingEntries.slice(
+    (safeUpcomingPage - 1) * 6,
+    safeUpcomingPage * 6
+  );
 
   const recentTimelineHistory = timelineEntries
     .filter((entry) => {
@@ -4449,11 +4468,13 @@ const {
     page = 1,
     moment = selectedMoment,
     upcoming = selectedUpcomingType,
+    upcomingPage,
   }: {
     view?: TimelineView;
     page?: number;
     moment?: OpenMomentFilter;
     upcoming?: UpcomingIntentFilter;
+    upcomingPage?: number;
   } = {}) {
     const params = new URLSearchParams();
     params.set("view", view);
@@ -4464,6 +4485,14 @@ const {
 
     if (view === "open" && upcoming !== "all") {
       params.set("upcoming", upcoming);
+    }
+
+    if (
+      view === "open" &&
+      typeof upcomingPage === "number" &&
+      upcomingPage > 1
+    ) {
+      params.set("upcomingPage", String(upcomingPage));
     }
 
     if (page > 1) {
@@ -4734,6 +4763,7 @@ const {
                             view: "open",
                             page: 1,
                             upcoming: item.key,
+                            upcomingPage: 1,
                           })}
                           className={`rounded-full px-3.5 py-2 text-xs font-black transition ${
                             active
@@ -4780,6 +4810,69 @@ const {
                     )
                   )}
                 </div>
+
+                {upcomingPageCount > 1 && (
+                  <nav
+                    className="mt-6 flex flex-wrap items-center justify-center gap-2"
+                    aria-label="Yaklaşanlar sayfaları"
+                  >
+                    <Link
+                      href={buildTimelineHref({
+                        view: "open",
+                        upcoming: selectedUpcomingType,
+                        upcomingPage: Math.max(1, safeUpcomingPage - 1),
+                      })}
+                      aria-disabled={safeUpcomingPage === 1}
+                      className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                        safeUpcomingPage === 1
+                          ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700"
+                      }`}
+                    >
+                      ←
+                    </Link>
+
+                    {Array.from(
+                      { length: upcomingPageCount },
+                      (_, index) => index + 1
+                    ).map((pageNumber) => (
+                      <Link
+                        key={pageNumber}
+                        href={buildTimelineHref({
+                          view: "open",
+                          upcoming: selectedUpcomingType,
+                          upcomingPage: pageNumber,
+                        })}
+                        className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                          pageNumber === safeUpcomingPage
+                            ? "bg-gray-950 text-white"
+                            : "border border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700"
+                        }`}
+                      >
+                        {pageNumber}
+                      </Link>
+                    ))}
+
+                    <Link
+                      href={buildTimelineHref({
+                        view: "open",
+                        upcoming: selectedUpcomingType,
+                        upcomingPage: Math.min(
+                          upcomingPageCount,
+                          safeUpcomingPage + 1
+                        ),
+                      })}
+                      aria-disabled={safeUpcomingPage === upcomingPageCount}
+                      className={`rounded-xl border px-3.5 py-2 text-sm font-bold transition ${
+                        safeUpcomingPage === upcomingPageCount
+                          ? "pointer-events-none border-gray-100 bg-gray-100 text-gray-300"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:text-blue-700"
+                      }`}
+                    >
+                      →
+                    </Link>
+                  </nav>
+                )}
               </section>
             )}
 
