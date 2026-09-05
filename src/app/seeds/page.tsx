@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import PublicFavoritesPanel, { type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
+import ExperienceDashboard, { type SocialExperienceItem } from "@/components/seeds/ExperienceDashboard";
 import SeedDashboard from "@/components/seeds/SeedDashboard";
 import TimelineHeader from "@/components/timeline/TimelineHeader";
 import {
@@ -127,6 +127,338 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
     };
   });
 
+
+  let socialExperiences: SocialExperienceItem[] = [];
+
+  if (activeArea === "deneyimler") {
+    type ExperienceCategoryRow = {
+      name: string | null;
+      default_cover_url: string | null;
+    };
+
+    type ExperienceActivityRow = {
+      name: string | null;
+      default_cover_url: string | null;
+      activity_categories:
+        | ExperienceCategoryRow
+        | ExperienceCategoryRow[]
+        | null;
+    };
+
+    type ExperienceLocationRow = {
+      country_name: string | null;
+      city: string | null;
+      district: string | null;
+    };
+
+    type CompletedIntentRow = {
+      id: string;
+      end_date: string | null;
+      expired_at: string | null;
+      created_at: string;
+      locations:
+        | ExperienceLocationRow
+        | ExperienceLocationRow[]
+        | null;
+      activities:
+        | ExperienceActivityRow
+        | ExperienceActivityRow[]
+        | null;
+    };
+
+    type ExperiencePlanMemberRow = {
+      user_id: string;
+      role: string | null;
+      status: string | null;
+    };
+
+    type ExperiencePlanIntentRow = {
+      intent_id: string;
+      status: string | null;
+    };
+
+    type ExperiencePlanRow = {
+      id: string;
+      host_user_id: string;
+      title: string | null;
+      cover_url: string | null;
+      activity_location_name: string | null;
+      activity_address_text: string | null;
+      scheduled_end: string | null;
+      window_end: string | null;
+      completed_at: string | null;
+      expired_at: string | null;
+      status: string | null;
+      created_at: string;
+      locations:
+        | ExperienceLocationRow
+        | ExperienceLocationRow[]
+        | null;
+      activities:
+        | ExperienceActivityRow
+        | ExperienceActivityRow[]
+        | null;
+      plan_members: ExperiencePlanMemberRow[] | null;
+      plan_intents: ExperiencePlanIntentRow[] | null;
+    };
+
+    const firstExperienceRelation = <T,>(
+      value: T | T[] | null | undefined
+    ): T | null => {
+      if (!value) return null;
+      return Array.isArray(value)
+        ? value[0] ?? null
+        : value;
+    };
+
+    const [completedIntentResult, experiencePlanResult] =
+      await Promise.all([
+        supabase
+          .from("intents")
+          .select(`
+            id,
+            end_date,
+            expired_at,
+            created_at,
+            locations (
+              country_name,
+              city,
+              district
+            ),
+            activities (
+              name,
+              default_cover_url,
+              activity_categories (
+                name,
+                default_cover_url
+              )
+            )
+          `)
+          .eq("user_id", user.id)
+          .eq("status", "completed")
+          .order("created_at", { ascending: false }),
+
+        supabase
+          .from("plans")
+          .select(`
+            id,
+            host_user_id,
+            title,
+            cover_url,
+            activity_location_name,
+            activity_address_text,
+            scheduled_end,
+            window_end,
+            completed_at,
+            expired_at,
+            status,
+            created_at,
+            locations (
+              country_name,
+              city,
+              district
+            ),
+            activities (
+              name,
+              default_cover_url,
+              activity_categories (
+                name,
+                default_cover_url
+              )
+            ),
+            plan_members (
+              user_id,
+              role,
+              status
+            ),
+            plan_intents (
+              intent_id,
+              status
+            )
+          `)
+          .order("created_at", { ascending: false }),
+      ]);
+
+    if (completedIntentResult.error) {
+      console.error(
+        "Completed social intents could not be loaded:",
+        completedIntentResult.error
+      );
+    }
+
+    if (experiencePlanResult.error) {
+      console.error(
+        "Social experience plans could not be loaded:",
+        experiencePlanResult.error
+      );
+    }
+
+    const allExperiencePlans =
+      (experiencePlanResult.data ?? []) as unknown as ExperiencePlanRow[];
+
+    const linkedIntentIds = new Set<string>();
+
+    allExperiencePlans.forEach((plan) => {
+      (plan.plan_intents ?? [])
+        .filter((link) => link.status === "active")
+        .forEach((link) => {
+          linkedIntentIds.add(link.intent_id);
+        });
+    });
+
+    const completedPlanExperiences =
+      allExperiencePlans
+        .filter((plan) => {
+          if (plan.expired_at) {
+            return false;
+          }
+
+          if (plan.status !== "completed") {
+            return false;
+          }
+
+          if (!plan.completed_at) {
+            return false;
+          }
+
+          if (plan.host_user_id === user.id) {
+            return true;
+          }
+
+          return (plan.plan_members ?? []).some(
+            (member) =>
+              member.user_id === user.id &&
+              member.status === "active"
+          );
+        })
+        .map((plan) => {
+          const activity =
+            firstExperienceRelation(plan.activities);
+
+          const category =
+            firstExperienceRelation(
+              activity?.activity_categories
+            );
+
+          const location =
+            firstExperienceRelation(plan.locations);
+
+          const membership =
+            (plan.plan_members ?? []).find(
+              (member) =>
+                member.user_id === user.id &&
+                member.status === "active"
+            ) ?? null;
+
+          const roleLabel =
+            plan.host_user_id === user.id
+              ? "Yürüten"
+              : membership?.role === "co_host"
+                ? "Birlikte yürüten"
+                : "Katılımcı";
+
+          const locationLabel =
+            [
+              plan.activity_location_name,
+              plan.activity_address_text,
+            ]
+              .filter(Boolean)
+              .join(", ") ||
+            [
+              location?.district,
+              location?.city,
+              location?.country_name,
+            ]
+              .filter(Boolean)
+              .join(", ") ||
+            null;
+
+          return {
+            id: `plan-${plan.id}`,
+            title:
+              activity?.name ||
+              plan.title ||
+              "Sosyal deneyim",
+            categoryName:
+              category?.name || "Sosyal",
+            coverUrl:
+              plan.cover_url ||
+              activity?.default_cover_url ||
+              category?.default_cover_url ||
+              null,
+            locationLabel,
+            sortAt:
+              plan.completed_at ||
+              plan.scheduled_end ||
+              plan.window_end ||
+              plan.created_at,
+            roleLabel,
+            href: `/activities/${encodeURIComponent(
+              plan.id
+            )}`,
+          } satisfies SocialExperienceItem;
+        });
+
+    const completedStandaloneIntents =
+      (
+        (completedIntentResult.data ?? []) as unknown as CompletedIntentRow[]
+      )
+        .filter(
+          (intent) =>
+            !intent.expired_at &&
+            !linkedIntentIds.has(intent.id)
+        )
+        .map((intent) => {
+          const activity =
+            firstExperienceRelation(intent.activities);
+
+          const category =
+            firstExperienceRelation(
+              activity?.activity_categories
+            );
+
+          const location =
+            firstExperienceRelation(intent.locations);
+
+          return {
+            id: `intent-${intent.id}`,
+            title:
+              activity?.name ||
+              "Sosyal deneyim",
+            categoryName:
+              category?.name || "Sosyal",
+            coverUrl:
+              activity?.default_cover_url ||
+              category?.default_cover_url ||
+              null,
+            locationLabel:
+              [
+                location?.district,
+                location?.city,
+                location?.country_name,
+              ]
+                .filter(Boolean)
+                .join(", ") ||
+              null,
+            sortAt:
+              intent.end_date ||
+              intent.created_at,
+            roleLabel: "Yürüten",
+            href: `/activities/${encodeURIComponent(
+              intent.id
+            )}`,
+          } satisfies SocialExperienceItem;
+        });
+
+    socialExperiences = [
+      ...completedPlanExperiences,
+      ...completedStandaloneIntents,
+    ].sort(
+      (first, second) =>
+        new Date(second.sortAt).getTime() -
+        new Date(first.sortAt).getTime()
+    );
+  }
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1680px]">
@@ -168,16 +500,21 @@ export default async function SeedsPage({ searchParams }: { searchParams: Promis
           </section>
         )}
 
-        {activeArea === "deneyimler" && <nav className="mt-6 grid gap-3 rounded-[28px] border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-3">
-          <span className="rounded-2xl bg-gray-950 px-5 py-4 text-center font-black text-white">Tümü</span>
-          <span className="rounded-2xl bg-gray-50 px-5 py-4 text-center font-black text-gray-700">Kişisel · {seeds.filter((seed) => seed.status === "completed").length}</span>
-          <Link href="/timeline?view=completed" className="rounded-2xl bg-gray-50 px-5 py-4 text-center font-black text-gray-700 hover:bg-gray-100">Sosyal deneyimler</Link>
-        </nav>}
-
-        {!mySeedsResult.error && activeArea !== "sevdiklerim" && (
-          <SeedDashboard seeds={seeds} isAuthenticated={Boolean(user)} mode={activeArea === "deneyimler" ? "experiences" : "intentions"} />
+        {!mySeedsResult.error && activeArea === "deneyimler" && (
+          <ExperienceDashboard
+            seeds={seeds}
+            socialExperiences={socialExperiences}
+            isAuthenticated={Boolean(user)}
+          />
         )}
 
+        {!mySeedsResult.error && activeArea === "niyetler" && (
+          <SeedDashboard
+            seeds={seeds}
+            isAuthenticated={Boolean(user)}
+            mode="intentions"
+          />
+        )}
         {activeArea === "sevdiklerim" && (
           favorites.length > 0
             ? <PublicFavoritesPanel items={favorites} />
