@@ -1,6 +1,7 @@
-﻿import { redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
 import FavoritesManager, { type FavoriteItem } from "@/components/preferences/FavoritesManager";
+import TimelineHeader from "@/components/timeline/TimelineHeader";
 import { createClient } from "@/utils/supabase/server";
 
 type RawFavorite = Record<string, unknown>;
@@ -11,14 +12,19 @@ function text(value: unknown): string {
 
 function normalizeFavorite(raw: unknown): FavoriteItem | null {
   if (!raw || typeof raw !== "object") return null;
+
   const row = raw as RawFavorite;
   const id = text(row.id) || text(row.catalog_item_id);
   const title = text(row.title);
+
   if (!id || !title) return null;
 
   return {
     catalogItemId: id,
-    sourceType: text(row.source_type) === "subject" ? "subject" : "catalog",
+    sourceType:
+      text(row.source_type) === "subject"
+        ? "subject"
+        : "catalog",
     title,
     creatorName: text(row.creator_name) || null,
     coverUrl: text(row.cover_url) || null,
@@ -30,29 +36,92 @@ function normalizeFavorite(raw: unknown): FavoriteItem | null {
 
 export default async function FavoritesPage() {
   const supabase = await createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/");
-
-  let preferencesResult = await supabase.rpc("get_my_preferences_v2922");
-  if (preferencesResult.error) {
-    preferencesResult = await supabase.rpc("get_my_preferences_v2921");
+  if (!user) {
+    redirect("/");
   }
 
-  const payload = (preferencesResult.data ?? {}) as { favorites?: unknown[] };
-  const favorites = (Array.isArray(payload.favorites) ? payload.favorites : [])
+  const [profileResult, adminRoleResult] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, username, avatar_url")
+      .eq("id", user.id)
+      .maybeSingle(),
+
+    supabase.rpc("get_admin_role"),
+  ]);
+
+  let preferencesResult =
+    await supabase.rpc("get_my_preferences_v2922");
+
+  if (preferencesResult.error) {
+    preferencesResult =
+      await supabase.rpc("get_my_preferences_v2921");
+  }
+
+  const payload =
+    (preferencesResult.data ?? {}) as {
+      favorites?: unknown[];
+    };
+
+  const favorites = (
+    Array.isArray(payload.favorites)
+      ? payload.favorites
+      : []
+  )
     .map(normalizeFavorite)
-    .filter((item): item is FavoriteItem => Boolean(item));
+    .filter(
+      (item): item is FavoriteItem =>
+        Boolean(item)
+    );
+
+  const username =
+    typeof profileResult.data?.username === "string"
+      ? profileResult.data.username
+      : null;
+
+  const isAdmin =
+    typeof adminRoleResult.data === "string" &&
+    adminRoleResult.data.length > 0;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
-      <div className="mx-auto max-w-5xl">
-        <header className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-9">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-600">SEVDİKLERİN</p>
-          <h1 className="mt-2 text-4xl font-black text-gray-950">Sevdiklerim</h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-gray-500">
+      <div className="mx-auto max-w-[1680px]">
+        <TimelineHeader
+          email={user.email ?? null}
+          personal={{
+            fullName:
+              typeof profileResult.data?.full_name === "string"
+                ? profileResult.data.full_name
+                : null,
+            username,
+            avatarUrl:
+              typeof profileResult.data?.avatar_url === "string"
+                ? profileResult.data.avatar_url
+                : null,
+          }}
+          managedProfiles={[]}
+          activeMatchCount={0}
+          inboxCount={0}
+          directMessageCount={0}
+          unreadNotificationCount={0}
+          isAdmin={isAdmin}
+        />
+
+        <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-rose-600">
+            SEVDİKLERİN
+          </p>
+
+          <h1 className="mt-2 text-4xl font-black text-gray-950">
+            Sevdiklerim
+          </h1>
+
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-500">
             Sevdiğin kişi, eser, yer, kulüp, spor, hobi ve aktiviteler. Bunlar deneyimlerin veya yapmak istediklerin değil; kalıcı olarak sevdiğin şeyler.
           </p>
         </header>
@@ -68,4 +137,3 @@ export default async function FavoritesPage() {
     </main>
   );
 }
-
