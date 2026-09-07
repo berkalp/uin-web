@@ -5184,23 +5184,16 @@ const {
         {selectedView === "open" && (
           <>
             {featuredIntentItems.length > 0 && (
-              <section className="mb-12">
-                <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
-                      BAŞKALARININ NİYETLERİ
-                    </p>
+              <section className="mt-12 mb-12 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+                <div className="mb-5">
+                  <h2 className="text-2xl font-black text-gray-950">
+                    Öne Çıkardıklarım
+                  </h2>
 
-                    <h2 className="mt-2 text-2xl font-black text-gray-950">
-                      Öne Çıkardıklarım
-                    </h2>
-                  </div>
-
-                  <span className="text-sm font-black text-gray-500">
-                    {featuredIntentItems.length}
-                  </span>
+                  <p className="mt-1 text-sm font-semibold text-gray-500">
+                    {featuredIntentItems.length} Sosyal
+                  </p>
                 </div>
-
                 <TimelinePagedRow
                   pageSize={4}
                   ariaLabel="Öne Çıkardıklarım sayfaları"
@@ -5209,6 +5202,12 @@ const {
                     <TimelineFeaturedIntentCard
                       key={item.reactionId}
                       item={item}
+                      currentUserId={currentUserId}
+                      initialContext={
+                        timelineReactionContextByIntentId.get(
+                          item.intentId
+                        ) ?? null
+                      }
                     />
                   ))}
                 </TimelinePagedRow>

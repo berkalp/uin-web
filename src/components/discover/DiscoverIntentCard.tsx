@@ -6,6 +6,7 @@ import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import CanonicalActivityCardBody from "@/components/cards/CanonicalActivityCardBody";
 import CanonicalActivityCardDetails from "@/components/cards/CanonicalActivityCardDetails";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
+import CompactIntentReactionBar from "@/components/reactions/CompactIntentReactionBar";
 import UserDiscoveryControlsMenu from "@/components/privacy/UserDiscoveryControlsMenu";
 import ParticipantEligibilityBadge from "@/components/intents/ParticipantEligibilityBadge";
 import {
@@ -957,9 +958,17 @@ export default function DiscoverIntentCard({
           </span>
         )}
 
-        <label
+        <div className="ml-auto shrink-0">
+        <CompactIntentReactionBar
+          intentId={intent.intent_id}
+          initialContext={intent.reaction_context ?? null}
+          isAuthenticated={isAuthenticated}
+          isOwner={isOwner}
+        />
+      </div>
+      <label
           htmlFor={detailToggleId}
-          className="ml-auto flex h-6 w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-1.5 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
+          className="flex h-6 w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-1.5 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
         >
           Detaylar
         </label>

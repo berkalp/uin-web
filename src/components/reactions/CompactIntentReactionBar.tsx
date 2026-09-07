@@ -41,75 +41,95 @@ export default function CompactIntentReactionBar({
       ? (initialContext as ReactionRow)
       : null
   );
+
   const [busy, setBusy] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
 
   const highlightCount = asNumber(context?.paw_count);
   const highlighted = context?.viewer_pawed === true;
 
-  const disabled =
+  const toggleDisabled =
     !isAuthenticated ||
     busy ||
-    (!isOwner && context?.viewer_can_react === false);
+    isOwner ||
+    (!highlighted &&
+      context?.viewer_can_react === false);
 
   async function toggleHighlight() {
-    if (disabled || isOwner) return;
+    if (toggleDisabled) return;
 
     try {
       setBusy(true);
 
-      const { data, error } = await supabase.rpc("set_my_intent_reaction", {
-        p_intent_id: intentId,
-        p_reaction_type: "paw",
-        p_active: !highlighted,
-      });
+      const { data, error } = await supabase.rpc(
+        "set_my_intent_reaction",
+        {
+          p_intent_id: intentId,
+          p_reaction_type: "paw",
+          p_active: !highlighted,
+        }
+      );
 
       if (error) {
-        console.error("Intent highlight update failed:", error);
+        console.error(
+          "Intent highlight update failed:",
+          error
+        );
         return;
       }
 
-      const row = ((data ?? [])[0] ?? null) as ReactionRow | null;
-      if (row) setContext(row);
+      const row =
+        ((data ?? [])[0] ?? null) as ReactionRow | null;
+
+      if (row) {
+        setContext(row);
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  function handlePress() {
-    if (isOwner) {
-      if (isAuthenticated) setPeopleOpen(true);
-      return;
-    }
-
-    void toggleHighlight();
-  }
-
-  const title = isOwner
-    ? "Öne çıkaranları gör"
-    : context?.reaction_disabled_reason ||
-      (highlighted ? "Öne çıkarmayı kaldır" : "Öne çıkar");
-
   return (
     <>
-      <button
-        type="button"
-        onClick={handlePress}
-        disabled={disabled}
-        title={title}
-        aria-label={`${isOwner ? "Öne çıkaranlar" : "Öne çıkar"} · ${highlightCount}`}
-        aria-pressed={!isOwner ? highlighted : undefined}
-        className={`inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border px-1.5 text-[10px] font-semibold transition ${
-          highlighted && !isOwner
-            ? "border-violet-200 bg-violet-50 text-violet-700"
-            : isOwner && highlightCount > 0
-              ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
-              : "border-gray-200 bg-white text-gray-600 hover:border-violet-200 hover:text-violet-700"
-        } disabled:cursor-not-allowed disabled:opacity-55`}
-      >
-        <span aria-hidden="true">✨</span>
-        <span>{highlightCount}</span>
-      </button>
+      <div className="inline-flex h-6 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => setPeopleOpen(true)}
+          disabled={!isAuthenticated}
+          title="Öne çıkaranları gör"
+          aria-label={`Öne çıkaranlar · ${highlightCount}`}
+          className="inline-flex h-6 min-w-[38px] items-center justify-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-1.5 text-[10px] font-black text-violet-700 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          <span aria-hidden="true">✨</span>
+          <span>{highlightCount}</span>
+        </button>
+
+        {!isOwner && (
+          <button
+            type="button"
+            onClick={() => void toggleHighlight()}
+            disabled={toggleDisabled}
+            title={
+              highlighted
+                ? "Öne çıkarmayı iptal et"
+                : context?.reaction_disabled_reason ||
+                  "Öne çıkar"
+            }
+            aria-pressed={highlighted}
+            className={`inline-flex h-6 items-center justify-center rounded-full border px-2 text-[9px] font-black transition ${
+              highlighted
+                ? "border-violet-200 bg-violet-100 text-violet-800 hover:bg-violet-200"
+                : "border-gray-200 bg-white text-gray-600 hover:border-violet-200 hover:text-violet-700"
+            } disabled:cursor-not-allowed disabled:opacity-45`}
+          >
+            {busy
+              ? "…"
+              : highlighted
+                ? "İptal et"
+                : "Öne çıkar"}
+          </button>
+        )}
+      </div>
 
       <IntentReactionPeopleModal
         open={peopleOpen}
