@@ -48,7 +48,7 @@ export default function IntentReactionPeopleModal({
     setLoading(true);
 
     void (async () => {
-      const { data, error } = await supabase.rpc("get_my_intent_reactors", {
+      const { data, error } = await supabase.rpc("get_visible_intent_reactors", {
         p_intent_id: intentId,
         p_reaction_type: reactionType,
       });

@@ -4658,6 +4658,89 @@ const {
     )
     ;
 
+  function resolveExpiredArchiveEntry(
+    item: ExpiredActivityHistoryRow
+  ): TimelineEntry | null {
+    if (item.item_type === "intent") {
+      const intent =
+        ownedIntentById.get(item.item_id) ??
+        (
+          item.source_intent_id
+            ? ownedIntentById.get(item.source_intent_id) ?? null
+            : null
+        );
+
+      return intent
+        ? {
+            kind: "intent",
+            intent,
+          }
+        : null;
+    }
+
+    const planId =
+      item.plan_id ??
+      item.item_id;
+
+    const plan =
+      planById.get(planId) ??
+      null;
+
+    if (!plan) {
+      return null;
+    }
+
+    const relationship: PlanTimelineEntry["relationship"] =
+      item.user_role === "participant"
+        ? "participant"
+        : "host";
+
+    return {
+      kind: "plan",
+      plan,
+      relationship,
+    };
+  }
+
+  function renderArchivedHistoryItem(
+    historyItem: (typeof allExpiredCancelledItems)[number]
+  ) {
+    if (historyItem.kind === "timeline") {
+      return renderTimelineEntry(
+        historyItem.entry
+      );
+    }
+
+    const resolvedEntry =
+      resolveExpiredArchiveEntry(
+        historyItem.item
+      );
+
+    if (resolvedEntry) {
+      return renderTimelineEntry(
+        resolvedEntry
+      );
+    }
+
+    return (
+      <div
+        key={historyItem.key}
+        className="min-w-0"
+      >
+        <ExpiredActivityCard
+          item={historyItem.item}
+          ownedIntentById={ownedIntentById}
+          planById={planById}
+          sportCoverContextByIntentId={
+            sportCoverContextByIntentId
+          }
+          privatePresentationByPlanId={
+            privatePresentationByPlanId
+          }
+        />
+      </div>
+    );
+  }
   function renderTimelinePagination() {
     if (selectedView === "expired" || pageCount <= 1) {
       return null;
@@ -5184,7 +5267,7 @@ const {
         {selectedView === "open" && (
           <>
             {featuredIntentItems.length > 0 && (
-              <section className="mt-12 mb-12 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+              <section className="mt-12 mb-12">
                 <div className="mb-5">
                   <h2 className="text-2xl font-black text-gray-950">
                     Öne Çıkardıklarım
@@ -5230,41 +5313,10 @@ const {
                   pageSize={4}
                   ariaLabel="Süresi dolanlar ve iptal edilenler sayfaları"
                 >
-                  {allExpiredCancelledItems.map(
-                    (historyItem) =>
-                      historyItem.kind === "timeline" ? (
-                        <div
-                          key={historyItem.key}
-                          className="min-w-0"
-                        >
-                          {renderTimelineEntry(
-                            historyItem.entry
-                          )}
-                        </div>
-                      ) : (
-                        <div
-                          key={historyItem.key}
-                          className="min-w-0"
-                        >
-                          <ExpiredActivityCard
-                            item={historyItem.item}
-                            ownedIntentById={
-                              ownedIntentById
-                            }
-                            planById={
-                              planById
-                            }
-                            sportCoverContextByIntentId={
-                              sportCoverContextByIntentId
-                            }
-                            privatePresentationByPlanId={
-                              privatePresentationByPlanId
-                            }
-                          />
-                        </div>
-                      )
-                  )}
-                </TimelinePagedRow>
+                {allExpiredCancelledItems.map(
+                  renderArchivedHistoryItem
+                )}
+              </TimelinePagedRow>
               </section>
             )}
             <PublicCommunityMembershipsPanel
