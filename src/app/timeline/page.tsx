@@ -58,6 +58,8 @@ import type {
   type IntentReactionContext,
 } from "../../utils/intentReactions";
 import TimelineInterestsPanel from "../../components/timeline/TimelineInterestsPanel";
+import TimelinePagedRow from "../../components/timeline/TimelinePagedRow";
+import TimelineFeaturedIntentCard from "../../components/timeline/TimelineFeaturedIntentCard";
 import PublicCommunityMembershipsPanel from "../../components/communities/PublicCommunityMembershipsPanel";
 import PublicFavoritesPanel, { type PublicFavoriteItem } from "../../components/profile/PublicFavoritesPanel";
 import type {
@@ -3112,6 +3114,18 @@ const {
     profileSavedReactionRows.map(toProfileReactionItem);
   const profilePawedReactionItems =
     profilePawedReactionRows.map(toProfileReactionItem);
+  const featuredIntentItems =
+    profilePawedReactionItems
+      .filter(
+        (item) =>
+          item.ownerUserId !== currentUserId
+      )
+      .sort(
+        (first, second) =>
+          new Date(second.reactedAt).getTime() -
+          new Date(first.reactedAt).getTime()
+      );
+
 
   const requests =
     (
@@ -4619,6 +4633,31 @@ const {
     )
     .slice(0, 4);
 
+  const allExpiredCancelledItems = [
+    ...recentTimelineHistory
+      .filter((entry) => getEntryView(entry) === "cancelled")
+      .map((entry) => ({
+        kind: "timeline" as const,
+        key: `timeline-${entry.kind}-${
+          entry.kind === "plan" ? entry.plan.id : entry.intent.id
+        }`,
+        sortDate: getTimelineHistorySortDate(entry),
+        entry,
+      })),
+    ...expiredActivities.map((item) => ({
+      kind: "expired" as const,
+      key: `expired-${item.item_type}-${item.item_id}`,
+      sortDate: item.expired_at,
+      item,
+    })),
+  ]
+    .sort(
+      (first, second) =>
+        new Date(second.sortDate).getTime() -
+        new Date(first.sortDate).getTime()
+    )
+    ;
+
   function renderTimelinePagination() {
     if (selectedView === "expired" || pageCount <= 1) {
       return null;
@@ -5144,6 +5183,91 @@ const {
 
         {selectedView === "open" && (
           <>
+            {featuredIntentItems.length > 0 && (
+              <section className="mb-12">
+                <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+                      BAŞKALARININ NİYETLERİ
+                    </p>
+
+                    <h2 className="mt-2 text-2xl font-black text-gray-950">
+                      Öne Çıkardıklarım
+                    </h2>
+                  </div>
+
+                  <span className="text-sm font-black text-gray-500">
+                    {featuredIntentItems.length}
+                  </span>
+                </div>
+
+                <TimelinePagedRow
+                  pageSize={4}
+                  ariaLabel="Öne Çıkardıklarım sayfaları"
+                >
+                  {featuredIntentItems.map((item) => (
+                    <TimelineFeaturedIntentCard
+                      key={item.reactionId}
+                      item={item}
+                    />
+                  ))}
+                </TimelinePagedRow>
+              </section>
+            )}
+
+            {allExpiredCancelledItems.length > 0 && (
+              <section className="mb-12">
+                <div className="mb-5">
+                  <h2 className="text-2xl font-black text-gray-950">
+                    Süresi dolanlar ve iptal edilenler
+                  </h2>
+
+                  <p className="mt-1 text-sm font-semibold text-gray-500">
+                    {allExpiredCancelledItems.length} Sosyal
+                  </p>
+                </div>
+
+                <TimelinePagedRow
+                  pageSize={4}
+                  ariaLabel="Süresi dolanlar ve iptal edilenler sayfaları"
+                >
+                  {allExpiredCancelledItems.map(
+                    (historyItem) =>
+                      historyItem.kind === "timeline" ? (
+                        <div
+                          key={historyItem.key}
+                          className="min-w-0"
+                        >
+                          {renderTimelineEntry(
+                            historyItem.entry
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          key={historyItem.key}
+                          className="min-w-0"
+                        >
+                          <ExpiredActivityCard
+                            item={historyItem.item}
+                            ownedIntentById={
+                              ownedIntentById
+                            }
+                            planById={
+                              planById
+                            }
+                            sportCoverContextByIntentId={
+                              sportCoverContextByIntentId
+                            }
+                            privatePresentationByPlanId={
+                              privatePresentationByPlanId
+                            }
+                          />
+                        </div>
+                      )
+                  )}
+                </TimelinePagedRow>
+              </section>
+            )}
             <PublicCommunityMembershipsPanel
               memberships={profileCommunityMemberships}
               isOwner
