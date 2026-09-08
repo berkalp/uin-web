@@ -3504,6 +3504,7 @@ const {
       key: `personal-${seed.seed_id}`,
       seed,
       sortDate: seed.target_date || seed.created_at,
+      targetDate: seed.target_date,
       createdDate: seed.created_at,
     })),
 
@@ -3512,6 +3513,7 @@ const {
       key: `social-${entry.intent.id}`,
       entry,
       sortDate: getTimelineEntrySortDate(entry),
+      targetDate: entry.intent.start_date,
       createdDate: entry.intent.created_at,
     })),
 
@@ -3523,6 +3525,10 @@ const {
           : `planned-${entry.intent.id}`,
       entry,
       sortDate: getTimelineEntrySortDate(entry),
+      targetDate:
+        entry.kind === "plan"
+          ? entry.plan.scheduled_start ?? entry.plan.window_start
+          : entry.intent.start_date,
       createdDate:
         entry.kind === "plan"
           ? entry.plan.created_at
@@ -3534,29 +3540,74 @@ const {
       new Date(second.sortDate).getTime()
   );
 
-  const mineNow = new Date();
+  const mineToday = new Date();
+  mineToday.setHours(0, 0, 0, 0);
 
-  const mineWeekAgo = new Date(mineNow);
-  mineWeekAgo.setDate(mineWeekAgo.getDate() - 7);
+  const mine30Days = new Date(mineToday);
+  mine30Days.setDate(mine30Days.getDate() + 30);
 
-  const mineMonthAgo = new Date(mineNow);
-  mineMonthAgo.setDate(mineMonthAgo.getDate() - 30);
+  const mine7Days = new Date(mineToday);
+  mine7Days.setDate(mine7Days.getDate() + 7);
+
+  function isTargetWithin(
+    value: string | null,
+    limit: Date
+  ) {
+    if (!value) return false;
+
+    const target = new Date(value);
+
+    if (Number.isNaN(target.getTime())) {
+      return false;
+    }
+
+    target.setHours(0, 0, 0, 0);
+
+    return (
+      target >= mineToday &&
+      target <= limit
+    );
+  }
 
   const filteredMyIntentItems =
     selectedMine === "personal"
-      ? allMyIntentItems.filter((item) => item.kind === "personal")
+      ? allMyIntentItems.filter(
+          (item) => item.kind === "personal"
+        )
       : selectedMine === "social"
-        ? allMyIntentItems.filter((item) => item.kind === "social")
+        ? allMyIntentItems.filter(
+            (item) => item.kind === "social"
+          )
         : selectedMine === "planned"
-          ? allMyIntentItems.filter((item) => item.kind === "planned")
-          : selectedMine === "week"
-            ? allMyIntentItems.filter(
-                (item) => new Date(item.createdDate) >= mineWeekAgo
-              )
-            : selectedMine === "month"
-              ? allMyIntentItems.filter(
-                  (item) => new Date(item.createdDate) >= mineMonthAgo
+          ? allMyIntentItems.filter(
+              (item) => item.kind === "planned"
+            )
+          : selectedMine === "month"
+            ? allMyIntentItems
+                .filter((item) =>
+                  isTargetWithin(
+                    item.targetDate,
+                    mine30Days
+                  )
                 )
+                .sort(
+                  (a, b) =>
+                    new Date(a.targetDate!).getTime() -
+                    new Date(b.targetDate!).getTime()
+                )
+            : selectedMine === "week"
+              ? allMyIntentItems
+                  .filter((item) =>
+                    isTargetWithin(
+                      item.targetDate,
+                      mine7Days
+                    )
+                  )
+                  .sort(
+                    (a, b) =>
+                      new Date(a.targetDate!).getTime() -
+                      new Date(b.targetDate!).getTime()
+                  )
               : allMyIntentItems;
 
   const myIntentPageCount = Math.max(
@@ -5015,8 +5066,8 @@ const {
                   ["personal", "Kişisel"],
                   ["social", "Sosyal"],
                   ["planned", "Planlandı"],
-                  ["week", "Son 7 gün"],
-                  ["month", "Son 30 gün"],
+                  ["month", "30 gün kaldı"],
+                  ["week", "7 gün kaldı"],
                 ] as const).map(([key, label]) => {
                   const active = selectedMine === key;
 

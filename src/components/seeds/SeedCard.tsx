@@ -111,114 +111,13 @@ export default function SeedCard({
   isAuthenticated,
   reminderTargetTime,
   reminderTimezone,
-  variant = "seeds",
 }: SeedCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const grownIntentCount = toSeedCount(seed.grown_intent_count);
   const journalCount = toSeedCount(seed.journal_count);
   const isPrivateSeed = seed.seed_scope === "private";
-  const isTimeline = variant === "timeline";
   const pastDue = isSeedPastDue(seed);
   const statusLabel = getSeedStatusLabel(seed.status, pastDue);
-
-  if (isTimeline) {
-    return (
-      <article className="flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
-        <Link
-          href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="relative h-[128px] shrink-0 overflow-hidden bg-slate-950">
-            {seed.cover_url ? (
-              <img src={seed.cover_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full place-items-center text-6xl">
-                {seed.seed_type_icon || "🌱"}
-              </div>
-            )}
-
-            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/40" />
-
-            <div className="absolute left-3 top-3 flex gap-2">
-              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[9px] font-black text-emerald-800">
-                ♙ KİŞİSEL NİYET
-              </span>
-              <span className="rounded-full bg-emerald-50/95 px-2.5 py-1 text-[9px] font-bold text-emerald-800">
-                {isPrivateSeed ? "◉ Yalnızca Sen" : "◉ Herkese Açık"}
-              </span>
-            </div>
-
-            <div className="absolute inset-x-4 bottom-4">
-              <p className="text-[10px] font-black uppercase tracking-[.14em] text-green-300">
-                {seed.seed_type_icon || "🌱"} {seed.seed_type_name || "Kişisel Niyet"}
-              </p>
-              <h2 className="mt-1 line-clamp-2 text-xl font-black leading-tight text-white">
-                {seed.title}
-              </h2>
-            </div>
-          </div>
-
-          <div className="flex min-h-0 flex-1 flex-col space-y-2 border-b border-gray-100 px-4 py-3">
-            <p className="text-sm font-black text-gray-950">
-              🌿 Yapmak istiyor
-            </p>
-
-            {seed.target_date && (
-              <p className="text-xs font-semibold text-gray-500">
-                ⚑ {formatDate(seed.target_date)}
-              </p>
-            )}
-
-            {seed.subtitle && (
-              <p className="line-clamp-2 text-xs text-gray-500">
-                {seed.subtitle}
-              </p>
-            )}
-
-            <div className="mt-auto flex gap-4 text-[11px] font-bold text-gray-500">
-              <span>⚑ Sosyal niyet {grownIntentCount}</span>
-              <span>✎ Günlük {journalCount}</span>
-            </div>
-          </div>
-        </Link>
-
-        <div className="flex h-[58px] shrink-0 items-center gap-2 px-3 py-2">
-          <Link
-            href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-            title="Görüntüle"
-            aria-label="Kişisel niyeti görüntüle"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
-          >
-            <EyeIcon />
-          </Link>
-
-          <Link
-            href={`/seeds/${encodeURIComponent(seed.seed_id)}/edit`}
-            title="Düzenle"
-            aria-label="Kişisel niyeti düzenle"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
-          >
-            <PencilIcon />
-          </Link>
-
-          {!isPrivateSeed && (
-            <div className="ml-auto">
-              <SeedReactionBar
-                seedId={seed.seed_id}
-                initialContext={seed.reaction_context}
-                isAuthenticated={isAuthenticated}
-                isOwner
-                seedTypeName={seed.seed_type_name}
-                seedTypeSlug={seed.seed_type_slug}
-                variant="toolbar"
-              />
-            </div>
-          )}
-        </div>
-      </article>
-    );
-  }
-
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
