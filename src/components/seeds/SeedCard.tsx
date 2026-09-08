@@ -111,19 +111,21 @@ export default function SeedCard({
   isAuthenticated,
   reminderTargetTime,
   reminderTimezone,
+  variant = "seeds",
 }: SeedCardProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const grownIntentCount = toSeedCount(seed.grown_intent_count);
   const journalCount = toSeedCount(seed.journal_count);
   const isPrivateSeed = seed.seed_scope === "private";
+  const isTimeline = variant === "timeline";
   const pastDue = isSeedPastDue(seed);
   const statusLabel = getSeedStatusLabel(seed.status, pastDue);
 
   return (
-    <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+    <article className={`flex min-w-0 flex-col overflow-hidden rounded-[16px] border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${isTimeline ? "h-[400px]" : "h-full"}`}>
       <Link
         href={`/seeds/${encodeURIComponent(seed.seed_id)}`}
-        className="relative block aspect-[1/1] w-full shrink-0 overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700"
+        className={`relative block w-full shrink-0 overflow-hidden bg-gradient-to-br from-green-950 via-emerald-800 to-lime-700 ${isTimeline ? "h-[190px]" : "aspect-[1/1]"}`}
       >
         {seed.cover_url && <img src={seed.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/8 to-black/25" />
