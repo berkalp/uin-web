@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { supabase } from "@/utils/supabase/client";
 import type { SeedReactionContext } from "@/utils/seeds";
@@ -391,7 +392,11 @@ function PeopleModal({
   people: PersonRow[];
   onClose: () => void;
 }) {
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/45 p-4 sm:items-center">
       <button
         type="button"
@@ -481,6 +486,7 @@ function PeopleModal({
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }
