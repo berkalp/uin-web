@@ -3120,12 +3120,40 @@ const {
         (item) =>
           item.ownerUserId !== currentUserId
       )
+      .filter((item) => {
+        const lifecycleStatus =
+          (item.lifecycleStatus ?? "").toLowerCase();
+
+        if (
+          lifecycleStatus === "expired" ||
+          lifecycleStatus === "cancelled"
+        ) {
+          return false;
+        }
+
+        if (lifecycleStatus === "completed") {
+          return true;
+        }
+
+        const effectiveEndDate =
+          item.scheduledEnd ??
+          item.endDate ??
+          null;
+
+        if (
+          effectiveEndDate &&
+          effectiveEndDate < today
+        ) {
+          return false;
+        }
+
+        return true;
+      })
       .sort(
         (first, second) =>
           new Date(second.reactedAt).getTime() -
           new Date(first.reactedAt).getTime()
       );
-
 
   const requests =
     (

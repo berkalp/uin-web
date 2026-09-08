@@ -17,6 +17,11 @@ function contextualTarget(pathname: string) {
 export default function GlobalAdminEditBar({ role }: { role: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(true);
+
+  if (role !== "owner" && role !== "admin") {
+    return null;
+  }
+
   if (pathname.startsWith("/admin")) return null;
   const target = contextualTarget(pathname);
 
