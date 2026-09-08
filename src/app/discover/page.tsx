@@ -1010,6 +1010,47 @@ export default async function DiscoverPage({
     reaction_context:
       reactionContextByIntentId.get(intent.intent_id) ?? null,
   }));
+  const mixedDiscoverItems: Array<
+    | {
+        kind: "personal";
+        key: string;
+        item: DiscoverPersonalIntent;
+      }
+    | {
+        kind: "social";
+        key: string;
+        item: (typeof results)[number];
+      }
+  > = [];
+
+  const mixedDiscoverLength = Math.max(
+    personalResults.length,
+    results.length
+  );
+
+  for (let index = 0; index < mixedDiscoverLength; index += 1) {
+    if (
+      kind !== "social" &&
+      personalResults[index]
+    ) {
+      mixedDiscoverItems.push({
+        kind: "personal",
+        key: `personal-${personalResults[index].source_seed_id}`,
+        item: personalResults[index],
+      });
+    }
+
+    if (
+      kind !== "personal" &&
+      results[index]
+    ) {
+      mixedDiscoverItems.push({
+        kind: "social",
+        key: `social-${results[index].intent_id}`,
+        item: results[index],
+      });
+    }
+  }
 
   const {
     data: intentCardNoteData,
@@ -1646,19 +1687,12 @@ export default async function DiscoverPage({
           <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Kişisel Niyet araması yüklenemedi: {personalResponse.error.message}</section>
         )}
 
-        {kind !== "social" && !personalResponse.error && (
-          <section className="mt-7">
-            <div className="flex items-end justify-between gap-4">
-              <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">Kişisel Niyetler</p><h2 className="mt-1 text-2xl font-bold text-gray-950">{personalResults.length} sonuç</h2></div>
-            </div>
-            {personalResults.length ? <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{personalResults.map((item) => <DiscoverPersonalIntentCard key={item.source_seed_id} item={item} />)}</div> : <div className="mt-5 rounded-3xl border border-gray-200 bg-white p-8 text-center text-gray-500">Aramana uyan herkese açık Kişisel Niyet bulunamadı.</div>}
-          </section>
-        )}
-
-        {kind !== "personal" && !searchResponse.error &&
-          !intentEligibilityResponse.error &&
-          !discoverMapContextError &&
-          !mapBatchError && (
+        {(kind === "social" || !personalResponse.error) &&
+          (kind === "personal" ||
+            (!searchResponse.error &&
+              !intentEligibilityResponse.error &&
+              !discoverMapContextError &&
+              !mapBatchError)) && (
           <>
             <section className="mt-7 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
@@ -1673,19 +1707,15 @@ export default async function DiscoverPage({
                 </p>
 
                 <h2 className="mt-1 text-2xl font-bold text-gray-950">
-                  {eligibility ===
-                  "all"
-                    ? totalCount
-                    : visibleResultCount}{" "}
-                  Intent
-                  {(eligibility ===
-                    "all"
-                    ? totalCount
-                    : visibleResultCount) ===
-                  1
-                    ? ""
-                    : "s"}
+                  Niyetleri Keşfet
                 </h2>
+
+                <p className="mt-1 text-sm font-semibold text-gray-500">
+                  {view === "cards"
+                    ? mixedDiscoverItems.length
+                    : results.length}{" "}
+                  niyet
+                </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
                   {selectedSport && (() => {
@@ -1852,11 +1882,21 @@ export default async function DiscoverPage({
               </div>
             </section>
 
-            {results.length > 0 ? (
+            {(view === "cards" ? mixedDiscoverItems.length : results.length) > 0 ? (
               view === "cards" ? (
               <section className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-                {results.map(
-                  (intent) => {
+                {mixedDiscoverItems.map(
+                  (entry) => {
+                    if (entry.kind === "personal") {
+                      return (
+                        <DiscoverPersonalIntentCard
+                          key={entry.key}
+                          item={entry.item}
+                        />
+                      );
+                    }
+
+                    const intent = entry.item;
                     const intentCommunities =
                       intentCommunitiesByIntentId.get(
                         intent.intent_id
