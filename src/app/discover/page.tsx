@@ -747,7 +747,20 @@ export default async function DiscoverPage({
       }),
     ]);
 
-  const personalResults = ((personalResponse.data ?? []) as DiscoverPersonalIntent[]);
+  const personalResults = (
+    (personalResponse.data ?? []) as Array<
+      DiscoverPersonalIntent & {
+        status?: string | null;
+        completed_at?: string | null;
+        done?: boolean | null;
+      }
+    >
+  ).filter(
+    (item) =>
+      item.status !== "completed" &&
+      !item.completed_at &&
+      item.done !== true
+  );
 
   if (
     filterResponse.error
@@ -1005,11 +1018,18 @@ export default async function DiscoverPage({
     ])
   );
 
-  const results = eligibleResults.map((intent) => ({
-    ...intent,
-    reaction_context:
-      reactionContextByIntentId.get(intent.intent_id) ?? null,
-  }));
+  const results = eligibleResults
+    .filter(
+      (intent) =>
+        intent.intent_status !== "completed" &&
+        intent.lifecycle_status !== "completed" &&
+        !intent.completed_at
+    )
+    .map((intent) => ({
+      ...intent,
+      reaction_context:
+        reactionContextByIntentId.get(intent.intent_id) ?? null,
+    }));
   const mixedDiscoverItems: Array<
     | {
         kind: "personal";

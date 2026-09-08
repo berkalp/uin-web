@@ -46,7 +46,6 @@ import {
 } from "../../utils/planPresentationVisibility";
 import {
   isSeedPastDue,
-  toSeedCount,
   type SeedRecord,
 } from "../../utils/seeds";
 import { withReturnContext } from "../../utils/returnNavigation";
@@ -3482,18 +3481,11 @@ const {
     (entry): entry is IntentTimelineEntry => entry.kind === "intent"
   );
 
-  const personalIntentSeeds = timelineSeeds.filter((seed) => {
-    if (seed.status === "archived") return false;
-
-    const active =
+  const personalIntentSeeds = timelineSeeds.filter(
+    (seed) =>
       seed.status === "active" &&
-      !isSeedPastDue(seed, today);
-
-    const converted =
-      toSeedCount(seed.grown_intent_count) > 0;
-
-    return active || converted;
-  });
+      !isSeedPastDue(seed, today)
+  );
 
   const socialIntentEntries = timelineEntries.filter(
     (entry): entry is IntentTimelineEntry =>
