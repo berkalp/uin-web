@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 
 import TimelineHeader from "../../components/timeline/TimelineHeader";
 import TimelineProfileOverview from "../../components/timeline/TimelineProfileOverview";
-import TimelineGrowingSeeds from "../../components/timeline/TimelineGrowingSeeds";
 import SeedCard from "../../components/seeds/SeedCard";
 import TimelinePlanPresentation from "../../components/timeline/TimelinePlanPresentation";
 import TimelineIntentPresentation from "../../components/timeline/TimelineIntentPresentation";
@@ -45,7 +44,11 @@ import {
   type VisiblePlanPresentation,
   type VisiblePlanPresentationRow,
 } from "../../utils/planPresentationVisibility";
-import type { SeedRecord } from "../../utils/seeds";
+import {
+  isSeedPastDue,
+  toSeedCount,
+  type SeedRecord,
+} from "../../utils/seeds";
 import { withReturnContext } from "../../utils/returnNavigation";
 import {
   dedupeActivityPeople,
@@ -425,6 +428,7 @@ type TimelinePageProps = {
     moment?: string;
     upcoming?: string;
     upcomingPage?: string;
+    mine?: string;
   }>;
 };
 
@@ -2025,6 +2029,23 @@ export default async function TimelinePage({
     Number.parseInt(resolvedSearchParams.upcomingPage ?? "1", 10) || 1
   );
 
+  type MyIntentFilter =
+    | "all"
+    | "personal"
+    | "social"
+    | "planned"
+    | "week"
+    | "month";
+
+  const selectedMine: MyIntentFilter =
+    resolvedSearchParams.mine === "personal" ||
+    resolvedSearchParams.mine === "social" ||
+    resolvedSearchParams.mine === "planned" ||
+    resolvedSearchParams.mine === "week" ||
+    resolvedSearchParams.mine === "month"
+      ? resolvedSearchParams.mine
+      : "all";
+
   const supabase =
     await createClient();
 
@@ -3461,6 +3482,107 @@ const {
     (entry): entry is IntentTimelineEntry => entry.kind === "intent"
   );
 
+  const personalIntentSeeds = timelineSeeds.filter((seed) => {
+    if (seed.status === "archived") return false;
+
+    const active =
+      seed.status === "active" &&
+      !isSeedPastDue(seed, today);
+
+    const converted =
+      toSeedCount(seed.grown_intent_count) > 0;
+
+    return active || converted;
+  });
+
+  const socialIntentEntries = timelineEntries.filter(
+    (entry): entry is IntentTimelineEntry =>
+      entry.kind === "intent" &&
+      (getEntryView(entry) === "open" ||
+        getEntryView(entry) === "full")
+  );
+
+  const plannedIntentEntries = timelineEntries.filter(
+    (entry) => getEntryView(entry) === "planned"
+  );
+
+  const allMyIntentItems = [
+    ...personalIntentSeeds.map((seed) => ({
+      kind: "personal" as const,
+      key: `personal-${seed.seed_id}`,
+      seed,
+      sortDate: seed.target_date || seed.created_at,
+      createdDate: seed.created_at,
+    })),
+
+    ...socialIntentEntries.map((entry) => ({
+      kind: "social" as const,
+      key: `social-${entry.intent.id}`,
+      entry,
+      sortDate: getTimelineEntrySortDate(entry),
+      createdDate: entry.intent.created_at,
+    })),
+
+    ...plannedIntentEntries.map((entry) => ({
+      kind: "planned" as const,
+      key:
+        entry.kind === "plan"
+          ? `planned-${entry.plan.id}`
+          : `planned-${entry.intent.id}`,
+      entry,
+      sortDate: getTimelineEntrySortDate(entry),
+      createdDate:
+        entry.kind === "plan"
+          ? entry.plan.created_at
+          : entry.intent.created_at,
+    })),
+  ].sort(
+    (first, second) =>
+      new Date(first.sortDate).getTime() -
+      new Date(second.sortDate).getTime()
+  );
+
+  const mineNow = new Date();
+
+  const mineWeekAgo = new Date(mineNow);
+  mineWeekAgo.setDate(mineWeekAgo.getDate() - 7);
+
+  const mineMonthAgo = new Date(mineNow);
+  mineMonthAgo.setDate(mineMonthAgo.getDate() - 30);
+
+  const filteredMyIntentItems =
+    selectedMine === "personal"
+      ? allMyIntentItems.filter((item) => item.kind === "personal")
+      : selectedMine === "social"
+        ? allMyIntentItems.filter((item) => item.kind === "social")
+        : selectedMine === "planned"
+          ? allMyIntentItems.filter((item) => item.kind === "planned")
+          : selectedMine === "week"
+            ? allMyIntentItems.filter(
+                (item) => new Date(item.createdDate) >= mineWeekAgo
+              )
+            : selectedMine === "month"
+              ? allMyIntentItems.filter(
+                  (item) => new Date(item.createdDate) >= mineMonthAgo
+                )
+              : allMyIntentItems;
+
+  const myIntentPageCount = Math.max(
+    1,
+    Math.ceil(filteredMyIntentItems.length / 12)
+  );
+
+  const myIntentSafePage = Math.min(
+    requestedPage,
+    myIntentPageCount
+  );
+
+  const visibleMyIntentItems =
+    filteredMyIntentItems.slice(
+      (myIntentSafePage - 1) * 12,
+      myIntentSafePage * 12
+    );
+
 
   const upcomingSocialEntries = timelineEntries
     .filter(
@@ -4883,14 +5005,120 @@ const {
 
         <IntentResolutionPanel items={intentResolutionItems} />
 
-        {selectedView === "open" && (
-          <>
 
-            <TimelineGrowingSeeds seeds={timelineSeeds} />
-          </>
+        {selectedView === "open" && (
+          <section className="mt-8">
+            <div className="mb-5">
+              <h2 className="text-2xl font-black text-gray-950">
+                Niyetlerim
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-500">
+                Kişisel ve sosyal niyetlerin tek yerde.
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {([
+                  ["all", "Tümü"],
+                  ["personal", "Kişisel"],
+                  ["social", "Sosyal"],
+                  ["planned", "Planlandı"],
+                  ["week", "Son 7 gün"],
+                  ["month", "Son 30 gün"],
+                ] as const).map(([key, label]) => {
+                  const active = selectedMine === key;
+
+                  return (
+                    <Link
+                      key={key}
+                      href={
+                        key === "all"
+                          ? "/timeline?view=open"
+                          : `/timeline?view=open&mine=${key}`
+                      }
+                      className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
+                        active
+                          ? "border-gray-950 bg-gray-950 text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:border-gray-400 hover:text-gray-950"
+                      }`}
+                    >
+                      {label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+
+            {visibleMyIntentItems.length > 0 ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {visibleMyIntentItems.map((item) => {
+                  if (item.kind === "personal") {
+                    return (
+                      <div
+                        key={item.key}
+                        className="h-[400px] min-w-0 [&>*]:h-full"
+                      >
+                        <SeedCard
+                          seed={item.seed}
+                          isAuthenticated
+                          variant="timeline"
+                        />
+                      </div>
+                    );
+                  }
+
+                  return renderTimelineEntry(item.entry);
+                })}
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-gray-200 bg-white p-10 text-center">
+                <h3 className="text-lg font-black text-gray-950">
+                  Bu filtrede niyet yok.
+                </h3>
+              </div>
+            )}
+
+            {myIntentPageCount > 1 && (
+              <nav
+                className="mt-6 flex flex-wrap items-center justify-center gap-2"
+                aria-label="Niyetlerim sayfaları"
+              >
+                {Array.from(
+                  { length: myIntentPageCount },
+                  (_, index) => index + 1
+                ).map((pageNumber) => {
+                  const params = new URLSearchParams();
+
+                  params.set("view", "open");
+
+                  if (selectedMine !== "all") {
+                    params.set("mine", selectedMine);
+                  }
+
+                  if (pageNumber > 1) {
+                    params.set("page", String(pageNumber));
+                  }
+
+                  return (
+                    <Link
+                      key={pageNumber}
+                      href={`/timeline?${params.toString()}`}
+                      className={`min-w-10 rounded-xl px-3.5 py-2 text-center text-sm font-black transition ${
+                        pageNumber === myIntentSafePage
+                          ? "bg-gray-950 text-white"
+                          : "border border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
+                      }`}
+                    >
+                      {pageNumber}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+          </section>
         )}
 
-        <section className="mt-8">
+        <section className={selectedView === "open" ? "hidden" : "mt-8"}>
           {isIntentLifecycleView ? (
             <div className="space-y-12">
               <section>
