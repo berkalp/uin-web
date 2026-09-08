@@ -8,6 +8,22 @@ export type AdminRole =
   | "moderator"
   | "support";
 
+const ADMIN_ROLES = new Set<AdminRole>([
+  "owner",
+  "admin",
+  "moderator",
+  "support",
+]);
+
+export function isAdminRole(
+  value: unknown
+): value is AdminRole {
+  return (
+    typeof value === "string" &&
+    ADMIN_ROLES.has(value as AdminRole)
+  );
+}
+
 export type StaffCapability =
   | "staff_identity"
   | "staff_messaging"
@@ -39,7 +55,7 @@ export async function requireAdmin() {
 
   if (
     roleError ||
-    !roleData
+    !isAdminRole(roleData)
   ) {
     redirect("/timeline");
   }
@@ -47,8 +63,7 @@ export async function requireAdmin() {
   return {
     supabase,
     user,
-    role:
-      roleData as AdminRole,
+    role: roleData,
   };
 }
 
