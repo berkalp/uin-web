@@ -1802,7 +1802,7 @@ export default async function PublicProfilePage({
 
       <section className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         {[
-          { label: "Aktif Sosyal Niyet", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
+          { label: "Aktif Etkinlik", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
           { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
           { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
           { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
@@ -1844,17 +1844,17 @@ export default async function PublicProfilePage({
         {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">
           <ProfileActivityTabs
-            eyebrow="Aktif Sosyal"
-            title={`${displayName} · Aktif Sosyal Niyetler`}
-            description="Şu anda açık olan sosyal niyetler."
+            eyebrow="Aktif Etkinlikler"
+            title={`${displayName} · Aktif Etkinlikler`}
+            description="Şu anda açık olan etkinlikler."
             hostedCards={hostedActiveCards}
             participatingCards={participatingActiveCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
             hostingLabel="Yürüttükleri"
             participatingLabel="Katıldıkları"
-            emptyTitle="Aktif sosyal niyet yok"
-            emptyDescription="Şu anda gösterilebilecek aktif bir sosyal niyet bulunmuyor."
+            emptyTitle="Aktif etkinlik yok"
+            emptyDescription="Şu anda gösterilebilecek aktif bir etkinlik bulunmuyor."
             lifecycleMode="active"
           />
         </div>
@@ -1880,15 +1880,15 @@ export default async function PublicProfilePage({
           <ProfileActivityTabs
             eyebrow="Planlanıyor"
             title={`${displayName} · Planlanıyor`}
-            description="Planlama aşamasındaki sosyal niyetler."
+            description="Planlama aşamasındaki etkinlikler."
             hostedCards={hostedActiveCards}
             participatingCards={participatingActiveCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
             hostingLabel="Yürüttükleri"
             participatingLabel="Katıldıkları"
-            emptyTitle="Planlanan sosyal niyet yok"
-            emptyDescription="Şu anda planlama aşamasında görünen bir sosyal niyet bulunmuyor."
+            emptyTitle="Planlanan etkinlik yok"
+            emptyDescription="Şu anda planlama aşamasında görünen bir etkinlik bulunmuyor."
             lifecycleMode="forming"
           />
         </div>
@@ -1933,15 +1933,15 @@ export default async function PublicProfilePage({
           <ProfileActivityTabs
             eyebrow="Yaklaşan"
             title={`${displayName} · Yaklaşan`}
-            description="Tarihi yaklaşan veya ileri bir tarihe planlanmış sosyal niyetler."
+            description="Tarihi yaklaşan veya ileri bir tarihe planlanmış etkinlikler."
             hostedCards={hostedActiveCards}
             participatingCards={participatingActiveCards}
             currentUserId={viewerUserId}
             isAuthenticated={page.viewer.is_authenticated}
             hostingLabel="Yürüttükleri"
             participatingLabel="Katıldıkları"
-            emptyTitle="Yaklaşan sosyal niyet yok"
-            emptyDescription="Şu anda yaklaşan bir sosyal niyet bulunmuyor."
+            emptyTitle="Yaklaşan etkinlik yok"
+            emptyDescription="Şu anda yaklaşan bir etkinlik bulunmuyor."
             lifecycleMode="upcoming"
           />
         </div>
@@ -2048,21 +2048,11 @@ export default async function PublicProfilePage({
           />
         )}
 
-        {(page.viewer.is_owner || pawedReactionItems.length > 0) && (
-          <ProfileIntentReactions
-            eyebrow="Destek Verilen Niyetler"
-            title={`${displayName} · destek verdiği niyetler`}
-            description="Bu bölüm, kullanıcının destek tepkisi verdiği ve görünürlüğü buna izin veren niyetleri gösterir."
-            items={pawedReactionItems}
-            emptyTitle="Henüz görünür bir destek yok"
-            emptyDescription="Bir niyete destek vermek, katılım isteği göndermeden onu öne çıkarmanın bir yoludur."
-          />
-        )}
 
-        <PublicCommunityMembershipsPanel
+        {false && <PublicCommunityMembershipsPanel
           memberships={publicCommunityMemberships}
           isOwner={page.viewer.is_owner}
-        />
+        />}
 
       </div>
     </main>
