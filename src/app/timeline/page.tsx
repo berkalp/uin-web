@@ -5065,29 +5065,28 @@ const {
           family={profileFamily}
         />
 
-        <header className="mt-7"><h1 className="text-3xl font-black text-slate-950">Niyetlerim</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, etkinliklerin ve deneyimlerin tek yerde.</p></header>
-        <section aria-label="Niyetlerimi filtrele" className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <header className="mt-7"><h1 className="text-3xl font-black text-slate-950">Listem</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, planların ve yaşadıkların tek yerde.</p></header>
+        <section aria-label="Listemi filtrele" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             {id:"wanted",label:"Niyetlerim",count:personalIntentSeeds.length+currentIndependentIntents.length},
-            {id:"events",label:"Etkinliklerim",count:allMyIntentItems.filter(item=>item.kind!=="personal").length},
-            {id:"experiences",label:"Deneyimlerim",count:experienceTotals.all},
-            {id:"loved",label:"Sevdiklerim",count:experienceTotals.loved},
-          ].map(item=><Link key={item.id} href={"/timeline?tab="+item.id+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)} scroll={false} aria-current={selectedTab===item.id?"page":undefined} className={"rounded-3xl border p-5 text-center shadow-sm transition "+(selectedTab===item.id?"border-emerald-400 bg-emerald-50 text-emerald-900":"border-gray-200 bg-white text-slate-950 hover:border-emerald-300")}><p className="text-3xl font-black">{item.count}</p><p className="mt-1 text-xs font-bold">{item.label}</p></Link>)}
+            {id:"events",label:"Planlananlar",count:allMyIntentItems.filter(item=>item.kind!=="personal").length},
+            {id:"experiences",label:"Yaşadıklarım",count:experienceTotals.all},
+          ].map(item=>{const active=selectedTab===item.id||(selectedTab==="loved"&&item.id==="experiences");return <Link key={item.id} href={"/timeline?tab="+item.id+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)} scroll={false} aria-current={active?"page":undefined} className={"rounded-3xl border p-5 text-center shadow-sm transition "+(active?"border-emerald-400 bg-emerald-50 text-emerald-900":"border-gray-200 bg-white text-slate-950 hover:border-emerald-300")}><p className="text-3xl font-black">{item.count}</p><p className="mt-1 text-xs font-bold">{item.label}</p></Link>})}
         </section>
         <div className="mt-5"><Link href="/together" className="text-sm font-bold text-emerald-800 hover:underline">Birlikte yapma önerilerim ↗</Link></div>
         <MyCardFilters key={selectedTab+":"+(resolvedSearchParams.q||"")} types={myTypesResult.data||[]}/>
-        {(selectedTab==="experiences"||selectedTab==="loved")&&<section className="mt-8"><h2 className="text-2xl font-black">{selectedTab==="loved"?"Sevdiklerim":"Deneyimlerim"}</h2>{selectedTab==="loved"&&<p className="mt-2 text-sm text-slate-500">9–10 puan verdiğin deneyimler burada toplanır.</p>}<MySeedsContent data={experienceData} typeFilter={selectedKind} query={cardQuery} sourceTypes={mySources} filter={selectedTab==="loved"?"loved":resolvedSearchParams.experience==="personal"?"personal":resolvedSearchParams.experience==="social"?"social":"all"} lovedOnly={selectedTab==="loved"}/></section>}
+        {(selectedTab==="experiences"||selectedTab==="loved")&&<section className="mt-8"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-black">{selectedTab==="loved"?"Sevdiklerim":"Yaşadıklarım"}</h2>{selectedTab==="loved"&&<p className="mt-2 text-sm text-slate-500">9–10 puan verdiğin deneyimler burada toplanır.</p>}</div><Link href={selectedTab==="loved"?"/timeline?tab=experiences":"/timeline?tab=loved"} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:border-rose-200 hover:text-rose-700">{selectedTab==="loved"?"Tüm yaşadıklarım":"Sevdiklerim · "+experienceTotals.loved}</Link></div><MySeedsContent data={experienceData} typeFilter={selectedKind} query={cardQuery} sourceTypes={mySources} filter={selectedTab==="loved"?"loved":resolvedSearchParams.experience==="personal"?"personal":resolvedSearchParams.experience==="social"?"social":"all"} lovedOnly={selectedTab==="loved"}/></section>}
         {(selectedTab==="wanted"||selectedTab==="events")&&<IntentResolutionPanel items={intentResolutionItems}/>}
 
         {selectedView === "open" && (selectedTab==="wanted"||selectedTab==="events") && (
           <section className="mt-8">
             <div className="mb-5">
               <h2 className="text-2xl font-black text-gray-950">
-                {selectedTab==="events"?"Etkinliklerim":"Niyetlerim"}
+                {selectedTab==="events"?"Planlananlar":"Niyetlerim"}
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                {selectedTab==="events"?"Düzenlediğin veya katıldığın aktif etkinlikler.":"Yapmak, görmek, okumak veya deneyimlemek istediklerin."}
+                {selectedTab==="events"?"Niyetten etkinliğe dönüşen, düzenlediğin veya katıldığın planlar.":"Yapmak, görmek, okumak veya deneyimlemek istediklerin."}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">

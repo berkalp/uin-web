@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const metadata = { ...sourceMetadata };
     const {data:duplicate,error:duplicateError}=await supabase.rpc("find_uin_duplicate_v73",{p_title:title,p_kind:kind,p_creator:mode==="verified"?clean(raw.creatorName||raw.subtitle,240):clean(body.creatorName,240)});
     if(duplicateError)return NextResponse.json({error:"Kart kontrol edilemedi."},{status:500});
-    if(duplicate)return NextResponse.json({error:"Bu kayıt UIN Kütüphanesi’nde zaten var. Mevcut kaydı açabilirsin.",canonicalTargetId:duplicate.canonicalTargetId||null,status:duplicate.status},{status:409});
+    if(duplicate)return NextResponse.json({error:"Bu kayıt Kütüphanede zaten var. Mevcut kaydı açabilirsin.",canonicalTargetId:duplicate.canonicalTargetId||null,status:duplicate.status},{status:409});
     if (mode === "verified") {
       const { data: verified, error: verifiedError } = await supabase.rpc("add_verified_seed_catalog_item_v42", {
         p_seed_type_id: seedTypeId, p_item_kind: itemKind(kind, sourceMetadata), p_canonical_title: title,

@@ -27,10 +27,10 @@ export default function TimelineHeader({ email, personal, managedProfiles, unrea
     <header className="fixed inset-x-0 top-0 z-[90] border-b border-gray-200/80 bg-white/95 shadow-sm backdrop-blur-xl">
       <div className="mx-auto w-full max-w-[1320px] px-3 py-3 sm:px-5">
         <nav aria-label="Ana navigasyon" className="flex min-h-14 items-center gap-2 overflow-visible">
-          <Link href="/ideas" aria-label="Ana Sayfa" className="mr-auto flex h-14 items-center rounded-2xl px-1.5 transition hover:bg-gray-50"><img src="/uin-logo.png" alt="uin? logo" className="h-12 w-auto"/></Link>
+          <Link href="/ideas" aria-label="Kütüphane" className="mr-auto flex h-14 items-center rounded-2xl px-1.5 transition hover:bg-gray-50"><img src="/uin-logo.png" alt="uin? logo" className="h-12 w-auto"/></Link>
           <div className="hidden items-center gap-2 md:flex">
-            <PrimaryNavLink href="/ideas"><HomeIcon/><span>Ana Sayfa</span></PrimaryNavLink>
-            <PrimaryNavLink href="/timeline"><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
+            <PrimaryNavLink href="/ideas"><HomeIcon/><span>Kütüphane</span></PrimaryNavLink>
+            <PrimaryNavLink href="/timeline"><SeedIcon/><span>Listem</span></PrimaryNavLink>
             <PrimaryNavLink href="/discover"><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
             <PrimaryNavLink href="/friends"><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
           </div>
@@ -52,8 +52,8 @@ export default function TimelineHeader({ email, personal, managedProfiles, unrea
     </header>
     <div className="h-20" aria-hidden="true" />
     <nav aria-label="Mobil navigasyon" className="uin-mobile-nav fixed inset-x-0 bottom-0 z-[100] grid grid-cols-4 gap-1 border-t border-gray-200 bg-white/95 px-3 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur-xl md:hidden">
-      <PrimaryNavLink href="/ideas" mobile><HomeIcon/><span>Ana Sayfa</span></PrimaryNavLink>
-      <PrimaryNavLink href="/timeline" mobile><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
+      <PrimaryNavLink href="/ideas" mobile><HomeIcon/><span>Kütüphane</span></PrimaryNavLink>
+      <PrimaryNavLink href="/timeline" mobile><SeedIcon/><span>Listem</span></PrimaryNavLink>
       <PrimaryNavLink href="/discover" mobile><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
       <PrimaryNavLink href="/friends" mobile><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
     </nav>
