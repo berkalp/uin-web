@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "../activities/ActivityLifecycleTimeline";
-import type { IntentCommunityContext } from "../../utils/communities";
 
 type Props = {
   targetStart?: string | null;
@@ -19,7 +18,7 @@ type Props = {
   recurrenceValue: string;
   costLabel: string;
   costValue: string;
-  communities?: IntentCommunityContext[];
+  communities?: unknown[];
   locationLabel?: string | null;
   locationPrecision?: "public_venue" | "approximate";
   note?: string | null;
@@ -57,7 +56,7 @@ export default function CanonicalActivityCardDetails({
   recurrenceValue,
   costLabel,
   costValue,
-  communities = [],
+  communities: _communities = [],
   locationLabel = null,
   locationPrecision = "approximate",
   note = null,
@@ -66,9 +65,6 @@ export default function CanonicalActivityCardDetails({
   originHref = null,
   extra = null,
 }: Props) {
-  const primaryCommunity =
-    communities.find((community) => community.isPrimary) ?? communities[0] ?? null;
-
   return (
     <div className="hidden min-h-0 flex-1 overflow-y-auto overscroll-contain bg-white/85 px-2.5 py-2 peer-checked:block">
       <div className="shrink-0">
@@ -94,31 +90,8 @@ export default function CanonicalActivityCardDetails({
         <DetailMetric label={costLabel} value={costValue} />
       </div>
 
-      {(primaryCommunity || locationLabel) && (
+      {locationLabel && (
         <div className="mt-1 flex min-w-0 gap-1 overflow-hidden">
-          {primaryCommunity && (
-            <Link
-              href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`}
-              className="inline-flex min-w-0 max-w-[58%] items-center gap-1 rounded-full border border-green-200 bg-green-50 px-1.5 py-0.5 text-[8.5px] font-semibold text-green-800 transition hover:bg-green-100"
-            >
-              {primaryCommunity.iconUrl ? (
-                <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded bg-white p-[1px] ring-1 ring-black/5">
-                  <img src={primaryCommunity.iconUrl} alt="" className="h-full w-full object-contain" />
-                </span>
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: primaryCommunity.accentColor }}
-                />
-              )}
-              <span className="truncate">{primaryCommunity.name}</span>
-              {communities.length > 1 && (
-                <span className="shrink-0 text-green-600">+{communities.length - 1}</span>
-              )}
-            </Link>
-          )}
-
           {locationLabel && (
             <span className="inline-flex min-w-0 flex-1 items-center gap-1 rounded-full border border-gray-200 bg-white px-1.5 py-0.5 text-[8.5px] font-medium text-gray-600">
               <span aria-hidden="true">{locationPrecision === "public_venue" ? "📍" : "≈"}</span>

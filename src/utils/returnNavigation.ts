@@ -32,7 +32,7 @@ export function resolveReturnNavigation(
   if (from === "timeline") {
     return {
       href: "/timeline",
-      label: "Timeline",
+      label: "Kartlarım",
     };
   }
 

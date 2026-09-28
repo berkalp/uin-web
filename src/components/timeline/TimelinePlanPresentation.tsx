@@ -1,5 +1,7 @@
+import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { UinCardHeader } from "@/components/cards/UinCard";
 
 import ActivityPeopleStrip from "../activities/ActivityPeopleStrip";
 import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
@@ -13,6 +15,7 @@ import type { ActivityPersonView } from "../../utils/activityPeople";
 
 export type TimelinePlanPresentationProps = {
   detailToggleId: string;
+  communityTargetId?:string;
   planId: string;
   title: string;
   canonicalActivityName: string;
@@ -186,7 +189,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
   // Kesin konumda bile sokak seviyesine gömülme; şehir/ilçe bilgisinde daha geniş kal.
   const mapZoom = exact ? 12 : 10;
   const mapEmbedUrl = query ? `https://www.google.com/maps?q=${encodeURIComponent(query)}&z=${mapZoom}&output=embed` : null;
-  const primaryCommunity = communities.find((community) => community.isPrimary) ?? communities[0] ?? null;
+  const primaryCommunity = null;
   const meetingLabel = meetingLocationSameAsActivity
     ? "Aktivite konumuyla aynı"
     : [meetingPoint, meetingAddressText].filter(Boolean).join(", ") || "Belirlenmedi";
@@ -195,38 +198,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
 
   return (
     <>
-      <div className="relative h-[128px] shrink-0 overflow-hidden bg-gray-950">
-        {coverUrl ? (
-          <img src={coverUrl} alt={`${title} cover`} className="h-full w-full object-cover" />
-        ) : (
-          <div className="h-full bg-gradient-to-br from-gray-800 to-gray-950" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/45" />
-        <div className="absolute inset-x-3 top-3 flex min-w-0 items-start justify-between gap-2">
-          <div className="flex max-w-[76%] min-w-0 flex-wrap items-center gap-1.5">
-            <span className={`inline-flex h-5 items-center rounded-full px-2 text-[8.5px] font-bold uppercase leading-none ${statusClasses}`}>{statusLabel}</span>
-            <span className={`inline-flex h-5 max-w-[130px] items-center truncate rounded-full px-2 text-[8.5px] font-semibold uppercase leading-none ${relationshipClasses}`}>{relationshipLabel}</span>
-          </div>
-          {recruitmentStatus !== "open" && (
-            <span className="inline-flex h-5 items-center rounded-full bg-black/70 px-2 text-[8.5px] font-semibold uppercase leading-none text-white">{readableChoice(recruitmentStatus)}</span>
-          )}
-        </div>
-        <div className="absolute inset-x-0 bottom-0 px-3 pb-3">
-          <p className="h-3 truncate text-[9px] font-bold uppercase tracking-[0.11em] text-green-300">{categoryName}</p>
-          <div className="mt-0.5 flex h-[38px] min-w-0 items-end justify-between gap-2">
-            <h2 className="min-w-0 flex-1 line-clamp-2 text-[17px] font-bold leading-[1.12] text-white">{title}</h2>
-            {planStatus === "planned" && <div className="mb-0.5 shrink-0"><PlanWeatherBadges planId={planId} compact /></div>}
-          </div>
-          <div className="mt-1 flex h-6 min-w-0 items-center">
-            {primaryCommunity ? (
-              <Link href={`/communities/${encodeURIComponent(primaryCommunity.slug)}`} className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm">
-                <CommunityIcon iconKey={primaryCommunity.iconKey} iconUrl={primaryCommunity.iconUrl} className="h-5 w-5 shrink-0 object-contain" />
-                <span className="truncate">{primaryCommunity.name}</span>
-              </Link>
-            ) : <span aria-hidden="true" className="block h-6 w-1" />}
-          </div>
-        </div>
-      </div>
+      <UinCardHeader title={title} subtitle={[district, city].filter(Boolean).join(", ")} category={categoryName} coverUrl={coverUrl} badge={statusLabel} tone="plan" href={activityHref} />
 
       <CanonicalActivityCardBody
         targetStart={windowStart}
@@ -266,6 +238,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
         }
       />
 
+      {props.communityTargetId&&<div className="px-3 py-3"><CanonicalTargetPeople targetId={props.communityTargetId}/></div>}
       <CanonicalActivityCardDetails
         targetStart={windowStart}
         targetEnd={windowEnd}

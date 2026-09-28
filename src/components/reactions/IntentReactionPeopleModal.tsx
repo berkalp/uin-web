@@ -97,7 +97,7 @@ export default function IntentReactionPeopleModal({
   const empty =
     reactionType === "save"
       ? "Henüz bu Niyeti kaydeden yok."
-      : "Henüz bu Sosyal Niyeti öne çıkaran yok.";
+      : "Henüz bu etkinliği öne çıkaran yok.";
 
   return createPortal(
     <div
@@ -115,7 +115,7 @@ export default function IntentReactionPeopleModal({
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-green-700">
-              SOSYAL NİYET
+              ETKİNLİK
             </p>
             <h2 className="mt-1 text-lg font-black text-gray-950">
               {title} · {count}

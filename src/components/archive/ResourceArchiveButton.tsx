@@ -34,14 +34,14 @@ export default function ResourceArchiveButton({
   const archiveLabel =
     label ??
     (resourceType === "intent"
-      ? "Archive Intent"
-      : "Archive from my account");
+      ? "Etkinliği Arşivle"
+      : "Hesabımdan Arşivle");
 
   async function handleArchive() {
     const confirmed = window.confirm(
       resourceType === "intent"
-        ? "Archive this Intent? It will disappear from your Timeline, Discover and public profile. You can restore it later from Personal Archive."
-        : "Archive this Shared Activity from your account? It will disappear from your Timeline, Discover and profile, but other members keep their own record."
+        ? "Bu etkinlik arşivlensin mi? Niyetlerim, Etkinlikler ve herkese açık profilinden kaldırılır. Daha sonra arşivden geri yükleyebilirsin."
+        : "Bu ortak etkinlik hesabından arşivlensin mi? Niyetlerim, Etkinlikler ve profilinden kaldırılır; diğer katılımcıların kayıtları korunur."
     );
 
     if (!confirmed) return;
@@ -64,7 +64,7 @@ export default function ResourceArchiveButton({
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "The record could not be archived."
+          : "Kayıt arşivlenemedi."
       );
     } finally {
       setIsSaving(false);
@@ -84,7 +84,7 @@ export default function ResourceArchiveButton({
         }
       >
         {isSaving
-          ? "Archiving…"
+          ? "Arşivleniyor…"
           : archiveLabel}
       </button>
 

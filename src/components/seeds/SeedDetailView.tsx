@@ -452,26 +452,17 @@ export default function SeedDetailView({
                         Bu konu sende nasıl yer alsın?
                       </h3>
 
-                      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+                      <p className="mt-1 text-xs text-gray-500">
+                        9–10 puan verdiğin deneyimler otomatik olarak sevdiklerine eklenir.
+                      </p>
+
+                      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <Link
                           href={`/seeds/explore?mode=experience&q=${encodeURIComponent(seed.title)}`}
                           className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-green-400"
                         >
                           ✓ Deneyim ekle
                         </Link>
-
-                        {seed.catalog_item_id ? (
-                          <Link
-                            href={`/seeds/explore?mode=favorite&catalog=${encodeURIComponent(seed.catalog_item_id)}`}
-                            className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-rose-300"
-                          >
-                            ♡ Sevdiklerime ekle
-                          </Link>
-                        ) : (
-                          <span className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-400">
-                            Katalog dışı kayıt
-                          </span>
-                        )}
 
                         <Link
                           href={`/seeds/explore?mode=intent&q=${encodeURIComponent(seed.title)}`}
@@ -484,7 +475,7 @@ export default function SeedDetailView({
                           href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
                           className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-violet-400"
                         >
-                          ♧ Sosyal niyet
+                          ♧ Etkinlik oluştur
                         </Link>
                       </div>
                     </section>
@@ -777,11 +768,11 @@ export default function SeedDetailView({
           <aside className="space-y-5">
             <section className="rounded-3xl border border-violet-100 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">
-                SOSYAL NİYETLER
+                ETKİNLİKLER
               </p>
               <div className="mt-2 flex items-start justify-between gap-3">
                 <h2 className="text-xl font-black text-gray-950">
-                  Bu konudan doğan Sosyal Niyetler
+                  Bu konudan doğan etkinlikler
                 </h2>
 
                 {seed.is_owner && seed.status !== "archived" && (
@@ -789,7 +780,7 @@ export default function SeedDetailView({
                     href={`/onboarding?seed=${encodeURIComponent(seed.seed_id)}`}
                     className="shrink-0 rounded-xl bg-green-600 px-3 py-2 text-xs font-black text-white transition hover:bg-green-700"
                   >
-                    Sosyal Niyet oluştur
+                    Etkinlik oluştur
                   </Link>
                 )}
               </div>
@@ -803,7 +794,7 @@ export default function SeedDetailView({
                       className="block rounded-2xl border border-violet-100 bg-violet-50/60 p-4 transition hover:border-violet-300"
                     >
                       <p className="text-sm font-bold text-violet-950">
-                        {intent.activity_name || "Sosyal Niyet"}
+                        {intent.activity_name || "Etkinlik"}
                       </p>
                       <p className="mt-1 text-xs capitalize text-violet-700">
                         {intent.status} · {intent.relationship.replaceAll("_", " ")}
@@ -813,7 +804,7 @@ export default function SeedDetailView({
                 </div>
               ) : (
                 <p className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm leading-6 text-gray-500">
-                  Bu konudan henüz görünür bir Sosyal Niyet doğmadı.
+                  Bu konudan henüz görünür bir etkinlik doğmadı.
                 </p>
               )}
 
@@ -827,7 +818,7 @@ export default function SeedDetailView({
               <p className="mt-3 text-sm leading-7 text-gray-600">
                 {isPrivateSeed
                   ? "Bu kayıt yalnızca sana görünür. Görünürlüğünü deneyim düzenleme alanından değiştirebilirsin."
-                  : "Kişisel Niyetler seçtiğin görünürlükle paylaşılır. Öne çıkarmak sosyal bir destek işaretidir; birlikte katılım ise kayıt Sosyal Niyete dönüştüğünde başlar."}
+                  : "Niyetler seçtiğin görünürlükle paylaşılır. Birlikte katılım, kayıt etkinliğe dönüştüğünde başlar."}
               </p>
             </section>
           </aside>

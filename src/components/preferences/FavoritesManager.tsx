@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import UinCard, { cardGrid, cardSecondary } from "@/components/cards/UinCard";
 import {
   useEffect,
   useMemo,
@@ -23,31 +24,7 @@ export type FavoriteItem = {
 
 const FAVORITES_PAGE_SIZE = 12;
 
-const labels: Record<
-  string,
-  {
-    label: string;
-    icon: string;
-  }
-> = {
-  artist: { label: "Sanatçı", icon: "🎵" },
-  book: { label: "Kitap", icon: "📚" },
-  movie: { label: "Film", icon: "🎬" },
-  series: { label: "Dizi", icon: "📺" },
-  game: { label: "Oyun", icon: "🎮" },
-  place: { label: "Yer", icon: "📍" },
-  director: { label: "Yönetmen", icon: "🎥" },
-  actor: { label: "Oyuncu", icon: "🎭" },
-  writer: { label: "Yazar", icon: "✍️" },
-  comedian: { label: "Komedyen", icon: "🎙️" },
-  theatre_artist: { label: "Tiyatrocu", icon: "🎭" },
-  athlete: { label: "Sporcu", icon: "🏅" },
-  club: { label: "Spor kulübü", icon: "⚽" },
-  sport: { label: "Spor", icon: "🏃" },
-  hobby: { label: "Hobi", icon: "🧩" },
-  activity: { label: "Aktivite", icon: "✨" },
-  other: { label: "Diğer", icon: "•" },
-};
+import { favoriteLabels as labels } from "@/utils/favoriteLabels";
 
 function kindOf(item: FavoriteItem) {
   return item.itemKind || "other";
@@ -428,7 +405,7 @@ export default function FavoritesManager({
 
       {visibleItems.length > 0 ? (
         <>
-          <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          <section className={`mt-5 ${cardGrid}`}>
             {visibleItems.map(
               (item) => {
                 const key =
@@ -446,116 +423,21 @@ export default function FavoritesManager({
                   )}`;
 
                 return (
-                  <article
-                    key={key}
-                    className="group flex min-h-[350px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    <Link
-                      href={href}
-                      className="relative block aspect-[4/5] overflow-hidden bg-gray-950"
-                    >
-                      {item.coverUrl ? (
-                        <img
-                          src={
-                            item.coverUrl
-                          }
-                          alt=""
-                          className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center bg-rose-50 text-5xl">
-                          ♡
-                        </div>
-                      )}
-
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-3 pb-3 pt-12">
-                        <p className="truncate text-sm font-black text-white">
-                          {item.title}
-                        </p>
-
-                        {item.creatorName && (
-                          <p className="mt-0.5 truncate text-[11px] font-semibold text-white/75">
-                            {item.creatorName}
-                          </p>
-                        )}
-                      </div>
-
-                      <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-1 text-[9px] font-black uppercase text-white backdrop-blur">
-                        {labels[kind]?.icon ??
-                          "•"}{" "}
-                        {labels[kind]?.label ??
-                          "Diğer"}
-                      </span>
-
-                      <span className="absolute right-2 top-2 rounded-full bg-white/95 px-2 py-1 text-[9px] font-black text-rose-600 shadow-sm">
-                        ♥ SEVİLEN
-                      </span>
-                    </Link>
-
-                    <div className="flex flex-1 flex-col p-3">
-                      <div className="flex flex-wrap gap-2 text-[10px] font-black">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            void setVisibility(
-                              item,
-                              !item.isPublic,
-                              false
-                            )
-                          }
-                          className="rounded-full border border-gray-200 px-2.5 py-1.5 text-gray-600 transition hover:border-gray-400 hover:text-gray-950 disabled:opacity-40"
-                        >
-                          {item.isPublic
-                            ? "Herkese açık"
-                            : "Gizli"}
-                        </button>
-
-                        {item.isPublic && (
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() =>
-                              void toggleFeatured(
-                                item
-                              )
-                            }
-                            className={
-                              item.isFeatured
-                                ? "rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-amber-700 disabled:opacity-40"
-                                : "rounded-full border border-gray-200 px-2.5 py-1.5 text-gray-600 transition hover:border-gray-400 hover:text-gray-950 disabled:opacity-40"
-                            }
-                          >
-                            {item.isFeatured
-                              ? "★ Öne çıkarıldı"
-                              : "☆ Öne çıkar"}
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="mt-auto flex items-center justify-between gap-2 pt-3">
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() =>
-                            void removeItem(
-                              item
-                            )
-                          }
-                          className="rounded-xl px-2 py-2 text-[10px] font-black text-red-600 transition hover:bg-red-50 disabled:opacity-40"
-                        >
-                          Kaldır
-                        </button>
-
-                        <Link
-                          href={href}
-                          className="rounded-xl border border-gray-200 px-3 py-2 text-[10px] font-black text-gray-700 transition hover:bg-gray-50"
-                        >
-                          Detaylar →
-                        </Link>
-                      </div>
+                  <UinCard key={key} title={item.title} subtitle={item.creatorName}
+                    category={labels[kind]?.label || "Sevilen"} icon={labels[kind]?.icon || "♥"}
+                    coverUrl={item.coverUrl} href={href} badge="SEVDİĞİM" tone="favorite"
+                    secondary={item.isPublic ? <button type="button" disabled={busy} onClick={() => void toggleFeatured(item)}
+                      className={`${cardSecondary} ${item.isFeatured ? "!border-amber-200 !bg-amber-50 !text-amber-800" : ""}`}>
+                      {item.isFeatured ? "★ Profil vitrininde" : "☆ Profilimde öne çıkar"}
+                    </button> : null}>
+                    <p className="rounded-xl bg-rose-50 px-3 py-3 text-sm text-rose-800">♥ Sevdiklerin arasında</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" disabled={busy} onClick={() => void setVisibility(item, !item.isPublic, false)} className={cardSecondary}>
+                        {item.isPublic ? "◉ Herkese açık" : "🔒 Gizli"}
+                      </button>
+                      <button type="button" disabled={busy} onClick={() => void removeItem(item)} className={`${cardSecondary} !text-red-600`}>Sevdiklerimden kaldır</button>
                     </div>
-                  </article>
+                  </UinCard>
                 );
               }
             )}

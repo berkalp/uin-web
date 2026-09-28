@@ -11,6 +11,7 @@ import {
   useRouter,
 } from "next/navigation";
 
+import EventCardPicker,{type EventTopic} from "@/components/ideas/EventCardPicker";
 import CommunityPicker from "@/components/communities/CommunityPicker";
 import ActivityPicker, {
   type ActivityRequestDetails,
@@ -128,19 +129,27 @@ type IntentFormProps = {
   initialCategoryId?: string;
   initialActivityId?: string;
   initialCommunityId?: string;
+  initialSportId?: string;
   initialNotes?: string;
   sourceSeed?: SeedGrowthContext | null;
   sourceSeedCandidates?: SeedGrowthCandidate[];
+  commonTargetId?: string;
+  commonTargetTitle?: string;
 };
 
 export default function IntentForm({
   initialCategoryId = "",
   initialActivityId = "",
   initialCommunityId = "",
+  initialSportId = "",
   initialNotes = "",
   sourceSeed = null,
   sourceSeedCandidates = [],
+  commonTargetId = "",
+  commonTargetTitle = "",
 }: IntentFormProps) {
+  const [mainCard,setMainCard]=useState<EventTopic|null>(commonTargetId?{id:commonTargetId,title:commonTargetTitle}:null);
+  const [relatedTargetIds,setRelatedTargetIds]=useState<string[]>([]);
   const router =
     useRouter();
 
@@ -151,8 +160,7 @@ export default function IntentForm({
   const requestedCategoryId =
     initialCategoryId;
 
-  const requestedCommunityId =
-    initialCommunityId;
+  const requestedCommunityId = "";
 
   const hasAppliedCommunityPrefill =
     useRef(false);
@@ -180,6 +188,8 @@ export default function IntentForm({
     startDate,
     setStartDate,
   ] = useState("");
+
+  const [commonIntentSubtitle, setCommonIntentSubtitle] = useState("");
 
   const [
     endDate,
@@ -211,7 +221,7 @@ export default function IntentForm({
   const [
     sportId,
     setSportId,
-  ] = useState("");
+  ] = useState(initialSportId);
 
   const [
     communities,
@@ -473,6 +483,9 @@ export default function IntentForm({
 
     async function loadCommunities() {
       setCommunities([]);
+      setCommunityIds([]);
+      setIsLoadingCommunities(false);
+      return;
 
       if (
         !activityId ||
@@ -835,7 +848,7 @@ export default function IntentForm({
     dayDifference !== null;
 
   const canCreate =
-    hasCoreIntentDetails &&
+    Boolean(mainCard)&&hasCoreIntentDetails &&
     Boolean(categoryId) &&
     Boolean(activityId) &&
     (!requiresSport ||
@@ -984,7 +997,7 @@ export default function IntentForm({
       const user =
         await getAuthenticatedUser();
 
-      const createdIntentId = await createIntent({
+      const createdIntentId = await createIntent({targetId:mainCard!.id,eventTitle:commonIntentSubtitle,relatedTargetIds,
         userId:
           user.id,
         startDate,
@@ -1004,7 +1017,7 @@ export default function IntentForm({
         participantEligibility,
         joinMessageMode,
         joinMessagePrompt,
-        communityIds,
+        communityIds: [],
         professionalRequirement:
           people ===
           "professionals"
@@ -1016,6 +1029,7 @@ export default function IntentForm({
             ? professionalRoleId
             : null,
       });
+
 
       if (sourceSeed && selectedSourceSeedIds.length > 0) {
         for (const seedId of selectedSourceSeedIds) {
@@ -1030,9 +1044,7 @@ export default function IntentForm({
         }
       }
 
-      router.push(
-        "/timeline"
-      );
+      router.push(`/activities/${encodeURIComponent(createdIntentId)}`);
 
       router.refresh();
     } catch (error) {
@@ -1084,9 +1096,7 @@ export default function IntentForm({
           notes,
           intentType,
           maxParticipants,
-          communityId:
-            communityIds[0] ||
-            null,
+          communityId: null,
           timingMode:
             "flexible",
         });
@@ -1132,10 +1142,10 @@ export default function IntentForm({
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-green-700">Intent DNA</p>
                 <h2 className="mt-2 text-xl font-black text-gray-950">
-                  Bu deneyimden Sosyal Niyet oluştur
+                  Bu deneyimden etkinlik oluştur
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Sosyal Niyet bu deneyime bağlı oluşturulur. Kaynak deneyim geçmişte korunur.
+                  Etkinlik bu deneyime bağlı oluşturulur. Kaynak deneyim geçmişinde korunur.
                 </p>
 
                 <div className="mt-4 grid gap-2">
@@ -1179,6 +1189,12 @@ export default function IntentForm({
           </section>
         )}
 
+        <section className="mb-7 space-y-4 rounded-3xl border bg-white p-5">
+          <EventCardPicker value={mainCard} onChange={card=>{setMainCard(card);setRelatedTargetIds(ids=>ids.filter(id=>id!==card?.id));if(card?.activityId)setActivityId(card.activityId);if(card?.categoryId)setCategoryId(card.categoryId)}}/>
+          {mainCard&&<EventCardPicker related mainTargetId={mainCard.id} value={null} onChange={()=>{}} selectedIds={relatedTargetIds} onRelatedChange={setRelatedTargetIds}/>}
+          <label className="block text-sm font-bold">Etkinliğin adı<input value={commonIntentSubtitle} onChange={e=>setCommonIntentSubtitle(e.target.value)} maxLength={120} placeholder="Örn. Pazar sabahı birlikte fotoğraf yürüyüşü" className="mt-2 w-full rounded-xl border bg-white px-4 py-3"/></label>
+        </section>
+
         <div className="text-center">
           <Link href="/timeline" aria-label="UIN Timeline" className="inline-flex">
             <img
@@ -1189,7 +1205,7 @@ export default function IntentForm({
           </Link>
 
           <h1 className="mt-8 text-3xl font-bold text-gray-900">
-            What is your Intent?
+            Etkinliğini planla
           </h1>
 
           <p className="mt-4 leading-7 text-gray-500">
@@ -1292,7 +1308,7 @@ export default function IntentForm({
               </div>
             )}
 
-            {requiresSport &&
+            {false && requiresSport &&
               Boolean(sportId) && (
               <label className="flex flex-col gap-2 md:col-span-2">
                 <span className="text-sm font-semibold text-gray-600">
@@ -1371,7 +1387,7 @@ export default function IntentForm({
               </label>
             )}
 
-            {!requiresSport && (
+            {false && !requiresSport && (
               <CommunityPicker
                 categoryId={
                   categoryId
@@ -1398,7 +1414,7 @@ export default function IntentForm({
               />
             )}
 
-            {requiresSport &&
+            {false && requiresSport &&
               !sportId && (
               <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm leading-6 text-gray-500">
                 Select a sport first. Only Communities
@@ -1944,7 +1960,7 @@ export default function IntentForm({
             >
               {isSaving
                 ? "Creating Intent..."
-                : "Create Intent"}
+                : "Etkinlik Oluştur"}
             </button>
           </div>
 

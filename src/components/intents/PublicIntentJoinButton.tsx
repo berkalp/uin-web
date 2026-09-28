@@ -293,7 +293,7 @@ export default function PublicIntentJoinButton({
         }
         className="rounded-xl border border-green-200 bg-green-50 px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-100"
       >
-        Niyet Odasını Aç
+        Etkinlik Odasını Aç
       </a>
     );
   }
@@ -301,7 +301,7 @@ export default function PublicIntentJoinButton({
   if (!viewerIsEligible) {
     return (
       <span className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-        Bu Niyete katılma koşullarını karşılamıyorsun.
+        Bu etkinliğe katılma koşullarını karşılamıyorsun.
       </span>
     );
   }
@@ -370,7 +370,7 @@ export default function PublicIntentJoinButton({
         href="/"
         className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
       >
-        Sign in to join
+        Katılmak için giriş yap
       </a>
     );
   }
@@ -378,7 +378,7 @@ export default function PublicIntentJoinButton({
   if (!viewerCanRequest) {
     return (
       <span className="rounded-xl border border-gray-200 bg-gray-100 px-4 py-3 text-sm font-semibold text-gray-600">
-        Not Available to Join
+        Katılıma açık değil
       </span>
     );
   }
@@ -395,7 +395,7 @@ export default function PublicIntentJoinButton({
         onClick={openRequestDialog}
         className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
       >
-        I&apos;m in
+        Katıl
       </button>
 
       {isOpen && (
@@ -422,7 +422,7 @@ export default function PublicIntentJoinButton({
             </p>
 
             <h2 className="mt-2 text-2xl font-bold text-gray-950">
-              {activityName} için Ben de varım
+              {activityName} etkinliğine katıl
             </h2>
 
             <p className="mt-3 text-sm leading-7 text-gray-500">
@@ -431,23 +431,23 @@ export default function PublicIntentJoinButton({
 
             {isLoadingSettings ? (
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm font-semibold text-gray-600">
-                Loading request settings...
+                Katılım ayarları yükleniyor...
               </div>
             ) : joinMessageMode ===
               "none" ? (
               <div className="mt-6 rounded-2xl border border-green-100 bg-green-50 p-5">
                 <p className="text-sm font-semibold text-green-900">
-                  No message is requested
+                  Mesaj istenmiyor
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-green-800">
-                  The host only needs your participation request. You can send it without writing a message.
+                  Yürütücünün yalnızca katılım isteğine ihtiyacı var. Mesaj yazmadan gönderebilirsin.
                 </p>
               </div>
             ) : (
               <label className="mt-6 block">
                 <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Host asks
+                  Yürütücünün sorusu
                 </span>
 
                 <span className="mt-2 block text-base font-semibold leading-7 text-gray-900">
@@ -510,7 +510,7 @@ export default function PublicIntentJoinButton({
                 }
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
               >
-                Cancel
+                Vazgeç
               </button>
 
               <button
@@ -534,4 +534,3 @@ export default function PublicIntentJoinButton({
     </>
   );
 }
-

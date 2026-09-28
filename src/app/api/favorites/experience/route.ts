@@ -157,7 +157,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: stateError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ seedId });
+    const { error: favoriteError } = await supabase.rpc("toggle_my_favorite_v2921", {
+      p_catalog_item_id: catalogItemId,
+      p_favorite: true,
+    });
+
+    if (favoriteError) {
+      return NextResponse.json({ error: favoriteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ seedId, catalogItemId });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : "Deneyime eklenemedi.";
     return NextResponse.json({ error: message }, { status: 500 });

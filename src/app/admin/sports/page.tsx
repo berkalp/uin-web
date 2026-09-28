@@ -3,6 +3,7 @@ import Link from "next/link";
 import SportsManager, {
   type AdminSport,
 } from "@/components/admin/SportsManager";
+import SportsHierarchyManager, { type SportsHierarchy } from "@/components/admin/SportsHierarchyManager";
 import {
   type AdminRole,
   requireAdmin,
@@ -33,12 +34,10 @@ export default async function AdminSportsPage() {
     role,
   } = await requireAdmin();
 
-  const {
-    data,
-    error,
-  } = await supabase.rpc(
-    "get_admin_sports"
-  );
+  const [{data,error},{data:hierarchyData,error:hierarchyError}] = await Promise.all([
+    supabase.rpc("get_admin_sports"),
+    supabase.rpc("get_admin_sport_hierarchy_v47"),
+  ]);
 
   if (error) {
     console.error(
@@ -132,6 +131,7 @@ export default async function AdminSportsPage() {
             <SportsManager
               sports={sports}
             />
+            {!hierarchyError && hierarchyData && <SportsHierarchyManager catalogue={hierarchyData as SportsHierarchy}/>}
           </section>
         )}
       </div>

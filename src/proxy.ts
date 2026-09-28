@@ -88,6 +88,25 @@ export async function proxy(
   const pathname =
     request.nextUrl.pathname;
 
+  if (pathname === "/communities" || pathname.startsWith("/communities/")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/ideas";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (
+    pathname === "/admin/communities" ||
+    pathname.startsWith("/admin/communities/") ||
+    pathname === "/admin/community-sports" ||
+    pathname.startsWith("/admin/community-sports/")
+  ) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/admin";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
+  }
+
   const isAuthRoute =
     pathname.startsWith(
       "/auth/"
@@ -179,6 +198,13 @@ export async function proxy(
       response,
       redirectResponse
     );
+  }
+
+  if (pathname === "/") {
+    const homeUrl = request.nextUrl.clone();
+    homeUrl.pathname = "/ideas";
+    homeUrl.search = "";
+    return copyResponseCookies(response, NextResponse.redirect(homeUrl));
   }
 
   return response;

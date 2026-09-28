@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useEffect,
   useMemo,
@@ -144,22 +145,10 @@ export default function ActivityPicker({
         categoryId
     ) ?? null;
 
-  const categoryActivities =
-    useMemo(
-      () =>
-        activities.filter(
-          (activity) =>
-            activity.category_id ===
-            categoryId
-        ),
-      [
-        activities,
-        categoryId,
-      ]
-    );
+  const categoryActivities = activities;
 
   const selectedActivity =
-    categoryActivities.find(
+    activities.find(
       (activity) =>
         activity.id ===
         activityId
@@ -188,14 +177,6 @@ export default function ActivityPicker({
       selectedActivity?.name ?? ""
     );
   }, [selectedActivity]);
-
-  useEffect(() => {
-    setQuery("");
-    setRequestOpen(false);
-    setProposedActivityName("");
-    setDescription("");
-    setLocalMessage(null);
-  }, [categoryId]);
 
   const normalizedQuery =
     normalizeSearchValue(query);
@@ -269,7 +250,6 @@ export default function ActivityPicker({
     ]);
 
   const showResults =
-    Boolean(categoryId) &&
     isFocused &&
     !selectedActivity;
 
@@ -283,6 +263,7 @@ export default function ActivityPicker({
   function selectActivity(
     activity: ActivityCatalogueItem
   ) {
+    onCategoryChange(activity.category_id);
     onActivityChange(
       activity.id
     );
@@ -364,50 +345,11 @@ export default function ActivityPicker({
 
   return (
     <section className="md:col-span-2">
-      <div className="grid gap-5 md:grid-cols-2">
-        <label className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-gray-600">
-            Activity category
-            <span
-              aria-hidden="true"
-              className="ml-1 text-red-600"
-            >
-              *
-            </span>
-          </span>
-
-          <select
-            value={categoryId}
-            required
-            onChange={(event) => {
-              onCategoryChange(
-                event.target.value
-              );
-              onActivityChange("");
-            }}
-            className="rounded-xl border border-gray-200 bg-white px-4 py-3 outline-none focus:border-green-500"
-          >
-            <option value="">
-              Select a category
-            </option>
-
-            {categories.map(
-              (category) => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              )
-            )}
-          </select>
-        </label>
-
+      <div>
         <div className="relative">
           <label className="flex flex-col gap-2">
             <span className="text-sm font-semibold text-gray-600">
-              Activity
+              Konu
             <span
               aria-hidden="true"
               className="ml-1 text-red-600"
@@ -420,7 +362,6 @@ export default function ActivityPicker({
               <input
                 value={query}
                 aria-required="true"
-                disabled={!categoryId}
                 onFocus={() =>
                   setIsFocused(true)
                 }
@@ -437,11 +378,9 @@ export default function ActivityPicker({
                   }
                 }}
                 placeholder={
-                  categoryId
-                    ? "Search or select an Activity"
-                    : "Select a category first"
+                  "Ne yapmak istediğini ara ve bir konu seç"
                 }
-                className="min-w-0 flex-1 rounded-xl bg-transparent px-4 py-3 outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                className="min-w-0 flex-1 rounded-xl bg-transparent px-4 py-3 outline-none"
               />
 
               {selectedActivity && (
@@ -485,7 +424,7 @@ export default function ActivityPicker({
                         </span>
 
                         <span className="text-sm font-semibold text-green-700">
-                          Select
+                          Seç
                         </span>
                       </button>
                     )
@@ -493,26 +432,11 @@ export default function ActivityPicker({
                 </div>
               ) : (
                 <p className="px-4 py-5 text-sm text-gray-500">
-                  No Activity matched in {selectedCategory?.name ?? "this category"}.
+                  Aramana uygun bir konu bulunamadı.
                 </p>
               )}
 
-              {canOfferRequest ? (
-                <button
-                  type="button"
-                  onMouseDown={(event) =>
-                    event.preventDefault()
-                  }
-                  onClick={openRequestPanel}
-                  className="mt-2 w-full rounded-xl border border-dashed border-purple-300 bg-purple-50 px-4 py-3 text-left text-sm font-semibold text-purple-800 transition hover:border-purple-500 hover:bg-purple-100"
-                >
-                  Can&apos;t find it in {selectedCategory?.name}? Request a new Activity
-                </button>
-              ) : (
-                <p className="mt-2 px-4 py-3 text-xs leading-5 text-gray-400">
-                  Search inside this category first. The request option appears after you enter at least 2 characters.
-                </p>
-              )}
+              {normalizedQuery.length >= 2 && <Link href={`/seeds/explore?q=${encodeURIComponent(query.trim())}`} className="mt-2 block w-full rounded-xl border border-dashed border-purple-300 bg-purple-50 px-4 py-3 text-left text-sm font-semibold text-purple-800 transition hover:border-purple-500 hover:bg-purple-100">Konuyu bulamadın mı? Yeni konu ekle</Link>}
             </div>
           )}
         </div>
@@ -521,7 +445,7 @@ export default function ActivityPicker({
       {selectedActivity && (
         <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-            Selected canonical Activity
+            Seçilen konu
           </p>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -530,23 +454,13 @@ export default function ActivityPicker({
             </span>
 
             <span className="text-sm text-gray-500">
-              under {selectedActivity.category_name}
+              <span className="font-semibold text-emerald-700">Kategori otomatik bağlandı:</span> {selectedActivity.category_name}
             </span>
           </div>
         </div>
       )}
 
-      {canOfferRequest &&
-        !selectedActivity &&
-        !requestOpen && (
-          <button
-            type="button"
-            onClick={openRequestPanel}
-            className="mt-3 text-sm font-semibold text-purple-700 transition hover:text-purple-900 hover:underline"
-          >
-            Can&apos;t find the Activity in {selectedCategory?.name}? Request it
-          </button>
-        )}
+      {!selectedActivity && normalizedQuery.length >= 2 && <p className="mt-3 text-xs text-gray-500">Kategori, seçtiğin konuya göre UIN tarafından otomatik belirlenir.</p>}
 
       {requestOpen && (
         <section className="mt-4 rounded-2xl border border-purple-200 bg-purple-50 p-5">

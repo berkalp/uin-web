@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { UinCardHeader } from "@/components/cards/UinCard";
 
 import EyeIcon from "../ui/EyeIcon";
 import CanonicalActivityCardBody from "../cards/CanonicalActivityCardBody";
@@ -59,26 +60,10 @@ export default function TimelineExpiredPresentation(props: Props) {
   const detailToggleId = `expired-card-details-${props.itemType}-${props.planId ?? props.sourceIntentId ?? props.title.replace(/\s+/g, "-")}`;
 
   return (
-    <article className="peer-card relative flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
+    <article className="peer-card relative flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
       <input id={detailToggleId} type="checkbox" className="peer sr-only" aria-label={`Toggle details for ${props.title}`} />
 
-      <div className="relative h-[128px] shrink-0 overflow-hidden bg-gray-950">
-        <img src={cover} alt={`${props.title} cover`} className="h-full w-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/45" />
-        <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap gap-1.5">
-            <span className="inline-flex h-5 items-center rounded-full bg-orange-100 px-2 text-[8.5px] font-bold uppercase leading-none text-orange-800">Süresi Doldu</span>
-            <span className="inline-flex h-5 max-w-[130px] items-center truncate rounded-full bg-black/70 px-2 text-[8.5px] font-semibold uppercase leading-none text-white">{props.roleLabel}</span>
-          </div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 px-3 pb-3">
-          <p className="h-3 truncate text-[9px] font-bold uppercase tracking-[0.11em] text-green-300">{props.categoryName ?? "Activity"}</p>
-          <div className="mt-0.5 flex h-[38px] items-end">
-            <h2 className="line-clamp-2 text-[17px] font-bold leading-[1.12] text-white">{props.title}</h2>
-          </div>
-          <div className="mt-1 h-6" />
-        </div>
-      </div>
+      <UinCardHeader title={props.title} subtitle={locationLabel} category={props.categoryName} coverUrl={cover} badge="SÜRESİ DOLDU" tone="plan" href={href ?? undefined} />
 
       <CanonicalActivityCardBody
         targetStart={props.windowStart}
@@ -131,7 +116,8 @@ export default function TimelineExpiredPresentation(props: Props) {
         }
       />
 
-      <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+      <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+      <div className="flex min-h-10 items-center justify-between gap-1">
         {href ? (
           <Link
             href={href}
@@ -148,6 +134,7 @@ export default function TimelineExpiredPresentation(props: Props) {
         {props.canCreateAgain && props.sourceIntentId ? (
           <Link href={`/onboarding?copyFrom=${encodeURIComponent(props.sourceIntentId)}`} className="ml-auto flex h-6 min-w-[82px] items-center justify-center rounded-md bg-green-600 px-2 text-[9.5px] font-semibold text-white transition hover:bg-green-700">Tekrar Oluştur</Link>
         ) : null}
+      </div>
       </div>
     </article>
   );

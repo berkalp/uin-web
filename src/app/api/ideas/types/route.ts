@@ -1,0 +1,3 @@
+import {NextRequest,NextResponse} from "next/server";
+import {createClient} from "@/utils/supabase/server";
+export async function POST(request:NextRequest){const supabase=await createClient();const {data:role}=await supabase.rpc("get_admin_role");if(!role)return NextResponse.json({error:"Admin yetkisi gerekir."},{status:403});const body=await request.json();const {error}=await supabase.rpc("admin_save_uin_content_type_v58",{p_id:body.id,p_label:body.label,p_icon:body.icon,p_base_kind:body.base_kind,p_active:body.active!==false,p_ui_labels:body.ui_labels||{}});return error?NextResponse.json({error:error.message},{status:400}):NextResponse.json({saved:true});}

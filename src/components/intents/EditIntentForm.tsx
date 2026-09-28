@@ -453,6 +453,9 @@ export default function EditIntentForm({
     let isCurrent = true;
 
     async function loadCurrentCommunities() {
+      setCommunityIds([]);
+      return;
+
       const { data, error } = await supabase.rpc(
         "get_my_intent_communities",
         { p_intent_id: intent.id }
@@ -488,6 +491,9 @@ export default function EditIntentForm({
 
     async function loadCommunities() {
       setCommunities([]);
+      setCommunityIds([]);
+      setIsLoadingCommunities(false);
+      return;
 
       if (!activityId) {
         setCommunityIds([]);
@@ -841,7 +847,7 @@ export default function EditIntentForm({
         joinMessageMode,
         joinMessagePrompt,
         notes,
-        communityIds,
+        communityIds: [],
         relatedLinks,
       });
 
@@ -941,7 +947,7 @@ export default function EditIntentForm({
           </div>
         )}
 
-        <CommunityPicker
+        {false && <CommunityPicker
           categoryId={
             categoryId
           }
@@ -964,7 +970,7 @@ export default function EditIntentForm({
           onChange={
             setCommunityIds
           }
-        />
+        />}
 
         <div className="md:col-span-2">
           <p className="text-sm font-semibold text-gray-700">

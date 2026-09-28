@@ -1,8 +1,13 @@
+import EventCardLinks from "@/components/ideas/EventCardLinks";
+import {viewingSummary,type ViewingContext} from "@/utils/clubProfile";
+import { liveSportTitle } from "@/utils/liveSportTitle";
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import ActivityLifecycleTimeline from "@/components/activities/ActivityLifecycleTimeline";
 import ActivityPublicMapPanel from "@/components/activities/ActivityPublicMapPanel";
+import SportActivityPlanningHero, { type SportFixtureOption } from "@/components/activities/SportActivityPlanningHero";
 import ActivityCompactOrigins from "@/components/activities/ActivityCompactOrigins";
 import TimelineHomeLogo from "@/components/navigation/TimelineHomeLogo";
 import PublicPlanMeetingPoint from "@/components/plans/PublicPlanMeetingPoint";
@@ -196,6 +201,15 @@ type ActivityPersonRow = {
   role: "host" | "co_host" | "participant" | string;
 };
 
+type ActivityCommonTargetContext = {
+  canonical_target_id: string;
+  canonical_target_title: string;
+  intent_location: string | null;
+  location_scope: string | null;
+};
+
+type SportTargetCard = { metadata?:{club_profile?:{logo_url?:string|null}} };
+
 type IntentProfessionalRequirementData = {
   intent_id: string;
   requirement: "preferred" | "required";
@@ -227,7 +241,7 @@ function formatDate(value: string | null) {
     return value;
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -249,7 +263,7 @@ function formatDateTime(
   }
 
   try {
-    return new Intl.DateTimeFormat("en-GB", {
+    return new Intl.DateTimeFormat("tr-TR", {
       timeZone: timezone,
       day: "numeric",
       month: "short",
@@ -259,46 +273,46 @@ function formatDateTime(
       hourCycle: "h23",
     }).format(date);
   } catch {
-    return date.toLocaleString("en-GB");
+    return date.toLocaleString("tr-TR");
   }
 }
 
 function getStatusPresentation(status: string) {
   if (status === "forming") {
     return {
-      label: "Forming Activity",
-      helper: "Planning is in progress",
+      label: "Şekillenen Etkinlik",
+      helper: "Planlama devam ediyor",
       classes: "bg-violet-100 text-violet-800",
     };
   }
 
   if (status === "planned") {
     return {
-      label: "Planned Activity",
-      helper: "The schedule is confirmed",
+      label: "Planlanmış Etkinlik",
+      helper: "Program kesinleşti",
       classes: "bg-indigo-100 text-indigo-800",
     };
   }
 
   if (status === "completed") {
     return {
-      label: "Completed",
-      helper: "This Activity has been completed",
+      label: "Tamamlandı",
+      helper: "Bu etkinlik tamamlandı",
       classes: "bg-purple-100 text-purple-800",
     };
   }
 
   if (status === "cancelled") {
     return {
-      label: "Cancelled",
-      helper: "This Activity was cancelled",
+      label: "İptal Edildi",
+      helper: "Bu etkinlik iptal edildi",
       classes: "bg-red-100 text-red-800",
     };
   }
 
   return {
-    label: "Open Intent",
-    helper: "This Intent can still become a real-world Activity",
+    label: "Açık Etkinlik",
+    helper: "Bu etkinliğe katılım hâlâ açık",
     classes: "bg-green-100 text-green-800",
   };
 }
@@ -319,7 +333,7 @@ function getParticipantLimit(
   maxKatılımcılar: number | null
 ) {
   return maxKatılımcılar === null
-    ? "Unlimited"
+    ? "Sınırsız"
     : String(maxKatılımcılar);
 }
 
@@ -397,17 +411,17 @@ function getIntentShareContent({
       : activity.title;
 
   const title =
-    `${hostName}'s ${shareActivityTitle} Intent`;
+    `${hostName} · ${shareActivityTitle}`;
 
   const parts = [
-    `${hostName} has a ${shareActivityTitle} Intent on UIN.`,
+    `${hostName}, UIN'de ${shareActivityTitle} etkinliğini paylaştı.`,
     targetWindow
-      ? `Target availability: ${targetWindow}.`
+      ? `Tarih: ${targetWindow}.`
       : null,
     locationLabel
-      ? `Approximate area: ${locationLabel}.`
+      ? `Yaklaşık konum: ${locationLabel}.`
       : null,
-    "Are you in?",
+    "Sen de katılmak ister misin?",
   ].filter(Boolean);
 
   return {
@@ -549,9 +563,9 @@ export async function generateMetadata({
     );
 
   const genericMetadata: Metadata = {
-    title: "Shared UIN Intent",
+    title: "UIN Etkinliği",
     description:
-      "Open this UIN link to see the Intent or Activity details available to you.",
+      "Etkinliğin ayrıntılarını UIN'de gör.",
     alternates: {
       canonical:
         canonicalUrl,
@@ -565,16 +579,16 @@ export async function generateMetadata({
       siteName: "UIN",
       url: canonicalUrl,
       title:
-        "Shared UIN Intent",
+        "UIN Etkinliği",
       description:
-        "Open this UIN link to see the Intent or Activity details available to you.",
+        "Etkinliğin ayrıntılarını UIN'de gör.",
     },
     twitter: {
       card: "summary",
       title:
-        "Shared UIN Intent",
+        "UIN Etkinliği",
       description:
-        "Open this UIN link to see the Intent or Activity details available to you.",
+        "Etkinliğin ayrıntılarını UIN'de gör.",
     },
   };
 
@@ -644,7 +658,7 @@ export async function generateMetadata({
           width: 1200,
           height: 630,
           alt:
-            `${shareContent.title} on UIN`,
+            `${shareContent.title} · UIN`,
         },
       ],
     },
@@ -669,7 +683,7 @@ export default async function ActivityDetailPage({
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const backNavigation = resolveReturnNavigation(resolvedSearchParams, {
     href: "/discover",
-    label: "Discover",
+    label: "Etkinlikler",
   });
   const supabase = await createClient();
 
@@ -686,7 +700,7 @@ export default async function ActivityDetailPage({
 
           <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
             <h1 className="text-2xl font-bold text-gray-950">
-              Invalid Intent address
+              Geçersiz etkinlik adresi
             </h1>
           </section>
         </div>
@@ -721,15 +735,15 @@ export default async function ActivityDetailPage({
 
           <section className="mt-8 rounded-3xl border border-amber-200 bg-white p-8 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-              Intent unavailable
+              Etkinlik kullanılamıyor
             </p>
 
             <h1 className="mt-3 text-2xl font-bold text-gray-950">
-              This Intent or Activity is not visible to you
+              Bu etkinliği görüntüleyemezsin
             </h1>
 
             <p className="mt-3 text-sm leading-7 text-gray-600">
-              It may be private, invite-only, restricted to friends or no longer available.
+                           Etkinlik özel, davete bağlı, yalnızca arkadaşlara açık veya artık kullanılamıyor olabilir.
             </p>
           </section>
         </div>
@@ -776,6 +790,12 @@ export default async function ActivityDetailPage({
       p_resource_id: resourceId,
     }
   );
+
+  const commonTargetPromise = activity.intent_id
+    ? supabase.rpc("get_visible_activity_common_context_v41", {
+        p_intent_id: activity.intent_id,
+      })
+    : Promise.resolve({ data: null, error: null });
 
   const planOriginsPromise = activity.plan_id
     ? supabase.rpc("get_visible_plan_origins", {
@@ -882,6 +902,7 @@ export default async function ActivityDetailPage({
     catalogueResult,
     linksResult,
     peopleResult,
+    commonTargetResult,
     planOriginsResult,
     timelineResult,
     professionalRequirementResult,
@@ -895,6 +916,7 @@ export default async function ActivityDetailPage({
     cataloguePromise,
     linksPromise,
     peoplePromise,
+    commonTargetPromise,
     planOriginsPromise,
     timelinePromise,
     professionalRequirementPromise,
@@ -1052,16 +1074,43 @@ export default async function ActivityDetailPage({
     peopleResult.data ?? []
   ) as ActivityPersonRow[];
 
+  const commonTarget = commonTargetResult.error
+    ? null
+    : ((commonTargetResult.data as ActivityCommonTargetContext | null) ?? null);
+
+  const isLiveSportActivity=Boolean(commonTarget?.canonical_target_id&&sportCoverContext?.sport_name);
+  const [sportTargetCardResult,sportFixturesResult]=isLiveSportActivity&&commonTarget
+    ? await Promise.all([
+        supabase.rpc("get_uin_card_profile_v60",{p_target_id:commonTarget.canonical_target_id}),
+        activity.intent_id?supabase.rpc("get_intent_match_options_v50",{p_intent_id:activity.intent_id}):Promise.resolve({data:[],error:null}),
+      ])
+    : [{data:[],error:null},{data:[],error:null}];
+  const sportTargetCard=(sportTargetCardResult.data as SportTargetCard|null)||null;
+  const mediaViewingResult=activity.intent_id?await supabase.rpc("get_uin_media_event_v66",{p_intent_id:activity.intent_id}):null;
+  const mediaViewing=mediaViewingResult?.data as {context:ViewingContext;target_id:string;title:string;private_info:string|null}|null;
+  const clubViewingResult=activity.intent_id?await supabase.rpc("get_uin_event_viewing_v60",{p_intent_id:activity.intent_id}):null;
+  const clubViewing=clubViewingResult?.data as {context:ViewingContext;target_id:string;club_title:string}|null;
+  const sportTeamLogo=sportTargetCard?.metadata?.club_profile?.logo_url||null;
+  const sportFixtures=(sportFixturesResult.data??[]) as SportFixtureOption[];
+
   const planOrigins = parsePlanOriginRows(
     planOriginsResult.data
   );
   const planOriginCount = getPlanOriginCount(planOrigins);
 
-  const participants =
-    activityPeople.filter(
-      (person) =>
-        person.role !== "host"
-    );
+  const peopleById = new Map<string, ActivityPersonRow>();
+  for (const person of activityPeople) {
+    peopleById.set(person.user_id, person);
+  }
+  peopleById.set(activity.host_user_id, {
+    user_id: activity.host_user_id,
+    full_name: activity.host_full_name,
+    username: activity.host_username,
+    avatar_url: activity.host_avatar_url,
+    role: "host",
+  });
+  const participants = Array.from(peopleById.values());
+  const visiblePeopleCount = participants.length;
 
   const professionalRequirement =
     (professionalRequirementResult.data as IntentProfessionalRequirementData | null) ??
@@ -1270,11 +1319,7 @@ export default async function ActivityDetailPage({
     experienceBundle?.sharedTitle ||
     null;
 
-  const displayTitle =
-    activity.status === "completed"
-      ? canonicalActivityName
-      : visibleSharedTitle ||
-        activity.title;
+  const displayTitle = liveSportTitle(activity.status === "completed" ? canonicalActivityName : visibleSharedTitle || activity.title, sportCoverContext?.sport_name, null);
 
   const completedSharedTitle =
     activity.status === "completed" &&
@@ -1317,7 +1362,7 @@ export default async function ActivityDetailPage({
           ? `/plans/${encodeURIComponent(activity.plan_id)}/planning`
           : `/plans/${encodeURIComponent(activity.plan_id)}/activity`,
         activityDetailHref,
-        "Activity",
+        "Etkinlik",
         "activity"
       )
     : null;
@@ -1354,12 +1399,14 @@ export default async function ActivityDetailPage({
   ]
     .filter(Boolean)
     .join(", ");
+  const mapLocationLabel =
+    approximateLocationLabel || commonTarget?.intent_location || null;
 const detailLabel =
     page.resource_type === "intent"
-      ? "Intent detail"
+      ? "Etkinlik ayrıntısı"
       : activity.status === "completed"
-        ? "Activity archive"
-        : "Shared Activity";
+        ? "Etkinlik arşivi"
+        : "Ortak etkinlik";
 
   const canonicalUrl =
     getActivityCanonicalUrl(
@@ -1374,8 +1421,8 @@ const detailLabel =
 
   const aboutLabel =
     page.resource_type === "intent"
-      ? "About this Intent"
-      : "About this Activity";
+      ? "Bu etkinlik hakkında"
+      : "Etkinlik hakkında";
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
@@ -1423,7 +1470,7 @@ const detailLabel =
                   )}/edit`}
                   className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
                 >
-                  Edit Intent
+                  Etkinliği Düzenle
                 </Link>
               )}
 
@@ -1445,10 +1492,10 @@ const detailLabel =
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
               >
                 {isForming
-                  ? "Open Planning Room"
+                  ? "Planlama Odasını Aç"
                   : activity.status === "completed"
-                    ? "Open Activity Archive"
-                    : "Open Activity Room"}
+                    ? "Etkinlik Arşivini Aç"
+                    : "Etkinlik Odasını Aç"}
               </Link>
             )}
 
@@ -1469,44 +1516,38 @@ const detailLabel =
                   )}/visibility`}
                   className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-3 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                 >
-                  Manage Görünürlük
+                  Görünürlüğü Yönet
                 </Link>
               )}
           </div>
         </div>
 
-        <section className="mt-6 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
-          <div className="grid lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.82fr)]">
-            <div className="relative min-h-[330px] overflow-hidden bg-gray-950 lg:min-h-[390px]">
-              <img
-                src={coverUrl}
-                alt={`${activity.activity_name} cover`}
-                className="absolute inset-0 h-full w-full object-cover"
-              />
-
+        <section className="mt-6">
+          <div className={`grid overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm ${isLiveSportActivity?"md:grid-cols-[128px_minmax(0,1fr)]":"lg:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.82fr)]"}`}>
+            <div className={`relative overflow-hidden ${isLiveSportActivity?"m-6 mb-0 h-24 w-24 self-start rounded-2xl border border-gray-200 bg-white md:mr-0":"bg-gray-950 min-h-[330px] lg:min-h-[390px]"}`}>
+              {isLiveSportActivity ? (sportTeamLogo ? <img src={sportTeamLogo} alt="Kulüp logosu" className="h-full w-full object-contain p-2"/> : <span aria-label="Kulüp logosu eklenmemiş" className="grid h-full w-full place-items-center bg-gray-50 text-3xl font-black">{commonTarget?.canonical_target_title?.charAt(0)||"⚽"}</span>) : <img src={coverUrl} alt={`${activity.activity_name} cover`} className="absolute inset-0 h-full w-full object-cover"/>}
+              <div className={isLiveSportActivity?"hidden":""}>
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/35" />
 
               <div className="absolute left-5 top-5 flex flex-wrap gap-2 md:left-7 md:top-7">
                 <span
                   className={`rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-sm ${status.classes}`}
                 >
-                  {status.label}
+                  {page.resource_type === "intent" ? "ETKİNLİK" : status.label}
                 </span>
 
                 <span className="rounded-full bg-gray-950/75 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur">
-                  {getActivityVisibilityLabel(
-                    activity.visibility
-                  )}
+                  {activity.visibility === "public" ? "Herkese Açık" : getActivityVisibilityLabel(activity.visibility)}
                 </span>
 
-                <ParticipantEligibilityBadge
-                  eligibility={
-                    participantEligibility
-                  }
-                />
+                {participantEligibility !== "everyone" && <ParticipantEligibilityBadge eligibility={participantEligibility} />}
 
                 <span className="rounded-full bg-gray-950/75 px-3 py-1.5 text-xs font-semibold capitalize text-white backdrop-blur">
-                  {activity.recruitment_status}
+                  {activity.recruitment_status === "open"
+                    ? "Katılıma Açık"
+                    : activity.recruitment_status === "full"
+                      ? "Kontenjan Dolu"
+                      : "Katılıma Kapalı"}
                 </span>
               </div>
 
@@ -1528,18 +1569,18 @@ const detailLabel =
                   {activity.category_name}
                 </p>
 
-                <h1 className="mt-3 max-w-3xl text-4xl font-black leading-tight text-white md:text-6xl">
+                <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold text-white">{sportCoverContext?.sport_name && <span className="rounded-full bg-white/20 px-3 py-1.5">{sportCoverContext.sport_name}</span>}</div><h1 className="mt-3 max-w-3xl text-4xl font-black leading-tight text-white md:text-4xl">
                   {displayTitle}
                 </h1>
 
                 {activity.status === "completed" &&
                 completedSharedTitle ? (
                   <p className="mt-2 text-sm font-semibold text-white/75">
-                    Shared experience · {completedSharedTitle}
+                    Paylaşılan deneyim · {completedSharedTitle}
                   </p>
                 ) : displayTitle !== canonicalActivityName ? (
                   <p className="mt-2 text-sm font-semibold text-white/75">
-                    Activity type · {canonicalActivityName}
+                    Konu · {canonicalActivityName}
                   </p>
                 ) : null}
 
@@ -1568,30 +1609,44 @@ const detailLabel =
                       className="rounded-full border border-emerald-300/40 bg-emerald-950/55 px-3 py-1.5 font-bold text-emerald-100 backdrop-blur transition hover:bg-emerald-900/70"
                     >
                       ↘ {planOriginCount > 1
-                        ? `Formed from ${planOriginCount} Intents`
-                        : "Started from 1 Intent"}
+                        ? `${planOriginCount} niyetten oluştu`
+                        : "1 niyetten doğdu"}
                     </a>
                   )}
 
                   {approximateLocationLabel && (
                     <span className="rounded-full border border-white/20 bg-black/25 px-3 py-1.5 backdrop-blur">
-                      Approximate area · {approximateLocationLabel}
+                      Yaklaşık bölge · {approximateLocationLabel}
                     </span>
                   )}
+                  {commonTarget && (
+                    <Link
+                      href={`/intentions/${encodeURIComponent(commonTarget.canonical_target_id)}`}
+                      className="rounded-full border border-emerald-300/40 bg-emerald-950/55 px-3 py-1.5 font-bold text-emerald-100 backdrop-blur transition hover:bg-emerald-900/70"
+                    >
+                      ▦ UIN kartı · {commonIntentTitle(commonTarget.canonical_target_title)}
+                    </Link>
+                  )}
                 </div>
+              </div>
               </div>
             </div>
 
             <div className="overflow-hidden border-t border-gray-200 bg-white lg:border-l lg:border-t-0">
-              <ActivityPublicMapPanel
+              <EventCardLinks resourceId={resourceId}/>
+              {isLiveSportActivity?<SportActivityPlanningHero intentId={activity.intent_id} teamTitle={commonTarget?.canonical_target_title||displayTitle} sportName={sportCoverContext?.sport_name||null} scheduleLabel={scheduleLabel} locationLabel={locationLabel||approximateLocationLabel} hostName={hostName} participantCount={activity.participant_count} maxParticipants={activity.max_participants} visibilityLabel={activity.visibility==="public"?"Herkese Açık":getActivityVisibilityLabel(activity.visibility)} recruitmentLabel={activity.recruitment_status==="open"?"Katılıma Açık":activity.recruitment_status==="full"?"Kontenjan Dolu":"Katılıma Kapalı"} fixtures={sportFixtures} canManage={viewer.is_owner} roomHref={roomHref}/>:<ActivityPublicMapPanel
                 planId={activity.plan_id}
                 title={displayTitle}
-                fallbackActivityLocation={approximateLocationLabel || null}
-              />
+                fallbackActivityLocation={mapLocationLabel}
+                fallbackLocationScope={commonTarget?.location_scope ?? null}
+              />}
             </div>
           </div>
-          <div className="grid gap-6 p-5 md:p-7 lg:grid-cols-[minmax(0,1fr)_320px]">
+
+<div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <div className="min-w-0">
+              {mediaViewing&&<section className="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-violet-700">{mediaViewing.context.media_kind==="series"?"Dizi izleme etkinliği":"Film izleme etkinliği"}</p><p className="mt-2 font-black">{mediaViewing.title}</p><p className="mt-2 text-sm text-violet-800">{viewingSummary(mediaViewing.context)}</p>{mediaViewing.private_info&&<div className="mt-4 rounded-xl border border-violet-200 bg-white p-4"><p className="text-xs font-bold text-violet-700">Yalnızca düzenleyen ve kabul edilen katılımcılar görebilir</p>{mediaViewing.context.mode==="online"?<a href={mediaViewing.private_info} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block font-bold text-violet-800 hover:underline">Çevrim içi izlemeye katıl ↗</a>:<p className="mt-2 whitespace-pre-line text-sm">{mediaViewing.private_info}</p>}</div>}</section>}
+              {clubViewing&&<section className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><p className="text-xs font-black uppercase tracking-wide text-emerald-700">Maç izleme etkinliği</p><a href={"/clubs/"+clubViewing.target_id} className="mt-2 inline-block font-black text-emerald-900 hover:underline">{clubViewing.club_title} · Kulüp profili ↗</a><p className="mt-2 text-sm text-emerald-800">{viewingSummary(clubViewing.context)||"Branş ve izleme biçimi henüz belli değil."}</p></section>}
               <ActivityLifecycleTimeline
                 targetStart={activityTimeline.target_start}
                 targetEnd={activityTimeline.target_end}
@@ -1617,14 +1672,14 @@ const detailLabel =
               )}
               {seedOrigins.length > 0 && (
                 <section className="mt-5 rounded-3xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-lime-50 p-5 shadow-sm md:p-6">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Intent DNA</p>
-                  <h2 className="mt-2 text-xl font-black text-gray-950">Grown from {seedOrigins.length} Seed{seedOrigins.length === 1 ? "" : "s"}</h2>
-                  <p className="mt-2 text-sm leading-6 text-gray-600">These are the ideas and possibilities that led to this Intent. Private Seed text stays hidden from other people.</p>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">NİYETİN KÖKENİ</p>
+                  <h2 className="mt-2 text-xl font-black text-gray-950">{seedOrigins.length} niyetten doğdu</h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">Bu etkinliğin oluşmasını sağlayan kişisel niyetler burada görünür. Özel niyetlerin içeriği diğer kişilerden gizlenir.</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {seedOrigins.map((origin) => (
                       <span key={origin.seed_id} className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-bold ${origin.seed_scope === "private" ? "border-gray-300 bg-white text-gray-700" : "border-emerald-200 bg-white text-emerald-800"}`}>
                         <span aria-hidden="true">{origin.seed_type_icon}</span>
-                        {origin.seed_scope === "private" && !origin.viewer_is_owner ? "🔒 Private Seed" : origin.display_title}
+                        {origin.seed_scope === "private" && !origin.viewer_is_owner ? "🔒 Özel niyet" : origin.display_title}
                       </span>
                     ))}
                   </div>
@@ -1636,7 +1691,7 @@ const detailLabel =
                   <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-700">
-                        Verified professional preference
+                        Doğrulanmış uzman tercihi
                       </p>
 
                       <h2 className="mt-2 text-xl font-bold text-blue-950">
@@ -1645,20 +1700,20 @@ const detailLabel =
 
                       <p className="mt-2 text-sm leading-6 text-blue-900">
                         {professionalRequirement.requirement === "required"
-                          ? `Only people with an approved and current ${professionalRequirement.role_name} credential can match or request to join this Intent.`
-                          : `A verified ${professionalRequirement.role_name} is preferred. Other people may still request to join.`}
+                          ? `Yalnızca onaylı ve güncel ${professionalRequirement.role_name} yeterliliği olan kişiler katılma isteği gönderebilir.`
+                          : `Doğrulanmış bir ${professionalRequirement.role_name} tercih ediliyor. Diğer kişiler de katılma isteği gönderebilir.`}
                       </p>
                     </div>
 
                     <span className="self-start rounded-full border border-blue-200 bg-white px-4 py-2 text-xs font-semibold text-blue-800">
                       {professionalRequirement.requirement === "required"
-                        ? "Required"
-                        : "Preferred"}
+                        ? "Zorunlu"
+                        : "Tercih edilen"}
                     </span>
                   </div>
 
                   <p className="mt-4 text-xs leading-5 text-blue-700">
-                    Credential context: {professionalRequirement.activity_name || professionalRequirement.category_name}
+                    Uzmanlık bağlamı: {professionalRequirement.activity_name || professionalRequirement.category_name}
                   </p>
                 </section>
               )}
@@ -1703,7 +1758,7 @@ const detailLabel =
                     Katılımcılar
                   </p>
                   <p className="mt-2 text-xl font-black text-gray-950">
-                    {activity.participant_count} / {getParticipantLimit(activity.max_participants)}
+                    {visiblePeopleCount} / {getParticipantLimit(activity.max_participants)}
                   </p>
                 </div>
 
@@ -1720,7 +1775,7 @@ const detailLabel =
                   <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
                     {page.resource_type ===
                     "intent"
-                      ? "Estimated cost / person"
+                      ? "Tahmini kişi başı maliyet"
                       : "Plan bütçesi"}
                   </p>
 
@@ -1739,7 +1794,7 @@ const detailLabel =
                         ? `${Number(
                             activity.budget
                           ).toLocaleString(
-                            "en-US"
+                          "tr-TR"
                           )} TL`
                         : "Belirtilmedi"}
                   </p>
@@ -1817,7 +1872,7 @@ const detailLabel =
                     </p>
 
                     <h2 className="mt-2 text-lg font-bold text-gray-950">
-                      People in this Activity
+                      Bu etkinlikteki insanlar
                     </h2>
                   </div>
 
@@ -1833,7 +1888,7 @@ const detailLabel =
                         const personName =
                           person.full_name ||
                           person.username ||
-                          "UIN member";
+                          "UIN üyesi";
 
                         const personCard = (
                           <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-gray-50 p-3 transition hover:bg-violet-50">
@@ -1859,8 +1914,10 @@ const detailLabel =
                                   ? `@${person.username} · `
                                   : ""}
                                 {person.role === "co_host"
-                                  ? "Co-host"
-                                  : "Participant"}
+                                  ? "Yardımcı yürütücü"
+                                  : person.role === "host"
+                                    ? "Yürütücü"
+                                    : "Katılımcı"}
                               </p>
                             </div>
                           </div>
@@ -1886,7 +1943,7 @@ const detailLabel =
                   </div>
                 ) : (
                   <p className="mt-4 rounded-2xl bg-gray-50 px-4 py-5 text-sm leading-6 text-gray-500">
-                    No participants are attached to this Activity yet.
+                    Bu etkinliğe henüz katılımcı eklenmedi.
                   </p>
                 )}
               </section>
@@ -1901,30 +1958,22 @@ const detailLabel =
                   />
                 )}
 
-              {activity.intent_id && (
-                <IntentReactionBar
-                  intentId={activity.intent_id}
-                  initialContext={reactionContext}
-                  isAuthenticated={viewer.is_authenticated}
-                  isOwner={viewer.is_owner}
-                  variant="detail"
-                />
-              )}
+
 
               {!viewer.is_owner &&
                 activity.intent_id &&
                 !isPlannedOrCompleted && (
                   <section className="rounded-3xl border border-green-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-                      Join this Intent
+                      BU ETKİNLİĞE KATIL
                     </p>
 
                     <h2 className="mt-2 text-xl font-bold text-gray-950">
-                      Interested in joining?
+                      Katılmak ister misin?
                     </h2>
 
                     <p className="mt-2 text-sm leading-6 text-gray-600">
-                      Send a request without unlocking private Planning Room messages.
+                      Özel planlama mesajlarını görmeden katılma isteği gönderebilirsin.
                     </p>
 
                     <div className="mt-5">
@@ -1955,7 +2004,7 @@ const detailLabel =
                 activity.status === "active" && (
                   <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-400">
-                      Manage Intent
+                      ETKİNLİĞİ YÖNET
                     </p>
 
                     <div className="mt-4 grid gap-3">
@@ -1965,7 +2014,7 @@ const detailLabel =
                         )}/edit`}
                         className="rounded-xl bg-gray-950 px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-gray-800"
                       >
-                        Edit Intent
+                        Etkinliği Düzenle
                       </Link>
 
                       <Link
@@ -1974,7 +2023,7 @@ const detailLabel =
                         )}/visibility`}
                         className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-center text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100"
                       >
-                        Manage Görünürlük
+                        Görünürlüğü Yönet
                       </Link>
                     </div>
                   </section>
@@ -1982,11 +2031,11 @@ const detailLabel =
 
               <section className="rounded-3xl border border-gray-200 bg-white p-5">
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                  Privacy boundary
+                  GİZLİLİK SINIRI
                 </p>
 
                 <p className="mt-3 text-sm leading-7 text-gray-600">
-                  This page shows only details allowed by the selected audience. Planning messages, invitation history and member management remain private to the Plan.
+                  Bu sayfada yalnızca seçilen kitlenin görebileceği bilgiler yer alır. Planlama mesajları, davet geçmişi ve üye yönetimi etkinliğin katılımcılarına özel kalır.
                 </p>
               </section>
 

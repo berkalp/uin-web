@@ -1,0 +1,3 @@
+import type {CardStyle} from "@/utils/cardStyle";
+export type ClubCard={cardStyle?:CardStyle|null;ownStyle?:CardStyle|null;target_id:string;parent_target_id:string|null;sport:string;division:string;league:string;season:string;displayName:string;title:string;coverUrl:string|null;logoUrl:string|null;catalogItemId:string;wanting:number;done:number;active:number};
+export function clubMatches(card:ClubCard|undefined,sport:string,league:string,division:string){return !sport&&!league&&!division?!card?.parent_target_id:Boolean(card?.parent_target_id&&(!sport||card.sport===sport)&&(!league||card.league===league)&&(!division||card.division===division))}

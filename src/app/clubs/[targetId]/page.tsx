@@ -1,0 +1,6 @@
+import {notFound} from "next/navigation";
+import AppNavigation from "@/components/navigation/AppNavigation";
+import ClubProfilePage from "@/components/clubs/ClubProfilePage";
+import {createClient} from "@/utils/supabase/server";
+export const dynamic="force-dynamic";
+export default async function Page({params}:{params:Promise<{targetId:string}>}){const {targetId}=await params;if(!/^[0-9a-f-]{36}$/i.test(targetId))notFound();const supabase=await createClient();const {data,error}=await supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId});if(error||!data)notFound();const {data:types}=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels");const type=types?.find(type=>type.id===data.metadata?.content_type_id);if(type?.base_kind!=="club")notFound();const {data:role}=await supabase.rpc("get_admin_role");return <main className="min-h-screen bg-slate-50 px-4 py-6"><div className="mx-auto max-w-6xl"><AppNavigation/><a href="/ideas?kind=club" className="my-6 inline-block text-sm font-bold text-emerald-800">← Spor kulüpleri</a><ClubProfilePage isAdmin={Boolean(role)} targetId={targetId} title={data.title} subtitle={data.creator_name||null} coverUrl={data.cover_url||null} metadata={data.metadata||{}} contentType={type}/></div></main>}

@@ -130,7 +130,7 @@ export default function ActivityShareMenu({
     <details className="group relative z-50">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-green-300 hover:text-green-700 [&::-webkit-details-marker]:hidden">
         <ShareIcon />
-        Share
+        Paylaş
 
         <span className="text-[10px] text-gray-400 transition group-open:rotate-180">
           ▼
@@ -140,7 +140,7 @@ export default function ActivityShareMenu({
       <div className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-2xl border border-gray-200 bg-white p-2 text-left shadow-2xl">
         <div className="mb-1 rounded-xl border border-green-100 bg-green-50/70 p-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.15em] text-green-700">
-            Intent share preview
+            ETKİNLİK PAYLAŞIM ÖNİZLEMESİ
           </p>
 
           <p className="mt-1 text-sm font-bold text-gray-950">
@@ -162,7 +162,7 @@ export default function ActivityShareMenu({
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-950 text-xs font-bold text-white">
             ↗
           </span>
-          Share via device
+          Cihazdan paylaş
         </button>
 
         <a
@@ -226,15 +226,15 @@ export default function ActivityShareMenu({
             ⧉
           </span>
           {copied
-            ? "Link copied"
-            : "Copy link"}
+            ? "Bağlantı kopyalandı"
+            : "Bağlantıyı kopyala"}
         </button>
 
         <div className="mx-2 mt-1 border-t border-gray-100 px-1 py-3">
           <p className="text-xs leading-5 text-gray-500">
             {isPublic
-              ? "Public preview enabled. The cover, title and approximate details can appear in supported apps."
-              : "This link follows the selected visibility. Social crawlers receive a generic UIN preview."}
+              ? "Kapak, başlık ve yaklaşık bilgiler desteklenen uygulamalarda önizleme olarak görünebilir."
+              : "Bu bağlantı seçilen görünürlük ayarına uyar. Dış uygulamalarda genel bir UIN önizlemesi gösterilir."}
           </p>
         </div>
       </div>

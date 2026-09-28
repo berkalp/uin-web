@@ -9,8 +9,8 @@ export default function TimelineHomeLogo({
 }: TimelineHomeLogoProps) {
   return (
     <Link
-      href="/timeline"
-      aria-label="UIN Timeline"
+      href="/ideas"
+      aria-label="Ana Sayfa"
       className={`inline-flex items-center rounded-xl px-2 py-1 transition hover:bg-white ${className}`}
     >
       <img

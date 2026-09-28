@@ -45,3 +45,5 @@ supabase/.temp/
 tsconfig.before-supabase-exclude.json
 
 .vscode/
+.vercel
+.env*

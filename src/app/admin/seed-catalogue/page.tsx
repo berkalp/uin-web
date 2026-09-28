@@ -548,7 +548,7 @@ export default async function AdminSeedCataloguePage({
                               <div>
                                 <p className="text-sm font-black text-red-900">Yanlış veya hatalı kayıt</p>
                                 <p className="mt-1 text-xs leading-5 text-red-700">
-                                  Kütüphane kaydı ve ona bağlı {item.personal_seed_count} kişisel niyet/deneyim kalıcı olarak silinir. Sosyal niyetlerin kendisi korunur.
+                                  Kütüphane kaydı ve ona bağlı {item.personal_seed_count} kişisel niyet/deneyim kalıcı olarak silinir. Etkinliklerin kendisi korunur.
                                 </p>
                               </div>
                               <DeleteCatalogueItemForm action={deleteSeedCatalogueItem} catalogItemId={item.catalog_item_id} returnTo={returnTo} personalRecordCount={item.personal_seed_count} />

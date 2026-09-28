@@ -10,19 +10,18 @@ function contextualTarget(pathname: string) {
   if (pathname.startsWith("/u/")) return { href: "/admin/users", label: "Profili düzenle" };
   if (pathname.startsWith("/activities/") || pathname.startsWith("/intents/")) return { href: "/admin/intents", label: "Niyete müdahale et" };
   if (pathname.startsWith("/plans/") || pathname.startsWith("/plan-room/")) return { href: "/admin/plans", label: "Planı düzenle" };
-  if (pathname.startsWith("/communities/")) return { href: "/admin/communities", label: "Topluluğu düzenle" };
   return { href: "/admin", label: "Bu alanı yönet" };
 }
 
 export default function GlobalAdminEditBar({ role }: { role: string }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   if (role !== "owner" && role !== "admin") {
     return null;
   }
 
-  if (pathname.startsWith("/admin")) return null;
+  if (pathname === "/" || pathname.startsWith("/admin")) return null;
   const target = contextualTarget(pathname);
 
   if (!open) return <button type="button" onClick={() => setOpen(true)} className="fixed bottom-4 right-4 z-[100] rounded-full bg-amber-400 px-4 py-2 text-xs font-black text-slate-950 shadow-xl">🛠 Admin</button>;

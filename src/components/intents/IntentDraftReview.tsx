@@ -499,10 +499,10 @@ export default function IntentDraftReview({
             </p>
 
             <Link
-              href="/onboarding"
+              href="/ideas"
               className="mt-5 inline-flex rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-800"
             >
-              Create a new Intent
+              UIN Kartı seç
             </Link>
           </section>
         )}

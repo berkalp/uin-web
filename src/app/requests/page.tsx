@@ -1016,10 +1016,10 @@ export default async function RequestsPage() {
             </Link>
 
             <Link
-              href="/onboarding"
+              href="/ideas"
               className="rounded-xl bg-green-600 px-5 py-3 font-semibold text-white transition hover:bg-green-700"
             >
-              Create New Intent
+              UIN Kartı seç
             </Link>
           </div>
         </header>

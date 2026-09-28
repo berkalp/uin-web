@@ -97,6 +97,9 @@ export type SeedReactionContext = {
 };
 
 export type SeedRecord = {
+  wish_presentation?:import("@/components/cards/PersonalWishSummary").WishPresentation;
+  canonical_target_id?: string;
+  canonical_source_seed_ids?: string[];
   seed_id: string;
   seed_type_id: string;
   seed_type_name: string;
@@ -113,6 +116,7 @@ export type SeedRecord = {
   status: SeedStatus;
   target_date: string | null;
   completed_at: string | null;
+  personal_rating?:number|null;
   origin?: SeedOrigin;
   completed_date_precision?: SeedCompletionPrecision | null;
   completed_year?: number | null;

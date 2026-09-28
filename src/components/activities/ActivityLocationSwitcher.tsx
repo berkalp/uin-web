@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 
 type LocationKind = "activity" | "meeting";
 
-function makeEmbedUrl(query: string) {
+function makeEmbedUrl(query: string, locationScope?: string | null) {
+  const zoom = locationScope === "country" ? 5 : locationScope === "city" ? 9 : 12;
   return `https://www.google.com/maps?q=${encodeURIComponent(
     query
-  )}&z=12&output=embed`;
+  )}&z=${zoom}&output=embed`;
 }
 
 function makeOpenUrl(query: string) {
@@ -20,10 +21,12 @@ export default function ActivityLocationSwitcher({
   title,
   activityLocation,
   meetingPoint,
+  locationScope,
 }: {
   title: string;
   activityLocation: string | null;
   meetingPoint: string | null;
+  locationScope?: string | null;
 }) {
   const firstKind: LocationKind = activityLocation ? "activity" : "meeting";
   const [activeKind, setActiveKind] = useState<LocationKind>(firstKind);
@@ -34,8 +37,8 @@ export default function ActivityLocationSwitcher({
       : activityLocation || meetingPoint;
 
   const embedUrl = useMemo(
-    () => (activeQuery ? makeEmbedUrl(activeQuery) : null),
-    [activeQuery]
+    () => (activeQuery ? makeEmbedUrl(activeQuery, activeKind === "activity" ? locationScope : null) : null),
+    [activeKind, activeQuery, locationScope]
   );
   const openUrl = useMemo(
     () => (activeQuery ? makeOpenUrl(activeQuery) : null),
@@ -124,6 +127,11 @@ export default function ActivityLocationSwitcher({
               <span className="mt-1 block text-sm font-black text-gray-950">
                 {activityLocation}
               </span>
+              {locationScope === "country" && (
+                <span className="mt-1 block text-[10px] font-semibold text-gray-500">
+                  Ülkenin tamamı gösteriliyor; şehir seçilince harita yakınlaşır.
+                </span>
+              )}
             </span>
           </button>
         )}

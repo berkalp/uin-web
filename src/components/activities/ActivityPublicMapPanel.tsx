@@ -11,12 +11,15 @@ export default async function ActivityPublicMapPanel({
   planId,
   title,
   fallbackActivityLocation,
+  fallbackLocationScope,
 }: {
   planId: string | null;
   title: string;
   fallbackActivityLocation: string | null;
+  fallbackLocationScope?: string | null;
 }) {
   let activityLocation = fallbackActivityLocation?.trim() || null;
+  let activityLocationScope = fallbackLocationScope ?? null;
   let meetingPoint: string | null = null;
 
   if (planId) {
@@ -41,6 +44,7 @@ export default async function ActivityPublicMapPanel({
 
       if (visibleActivityLocation) {
         activityLocation = visibleActivityLocation;
+        activityLocationScope = null;
       }
       if (visibleMeetingPoint) {
         meetingPoint = visibleMeetingPoint;
@@ -53,6 +57,7 @@ export default async function ActivityPublicMapPanel({
       title={title}
       activityLocation={activityLocation}
       meetingPoint={meetingPoint}
+      locationScope={activityLocationScope}
     />
   );
 }

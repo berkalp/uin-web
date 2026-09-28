@@ -5,6 +5,8 @@ import {
 } from "next/navigation";
 
 import EditIntentForm from "../../../../components/intents/EditIntentForm";
+import SportFixtureEditor from "../../../../components/intents/SportFixtureEditor";
+import type { SportFixtureOption } from "../../../../components/activities/SportActivityPlanningHero";
 import { createClient } from "../../../../utils/supabase/server";
 import {
   normalizeParticipantEligibility,
@@ -323,6 +325,18 @@ export default async function EditIntentPage({
     };
   });
 
+  const currentActivityName =
+    activities.find((activity) => activity.id === String(intent.activity_id))?.name ?? "";
+  const isLiveSportIntent =
+    currentActivityName.toLocaleLowerCase("tr-TR").includes("spor") &&
+    currentActivityName.toLocaleLowerCase("tr-TR").includes("yerinde");
+  const fixtureResult = isLiveSportIntent
+    ? await supabase.rpc("get_intent_match_options_v50", {
+        p_intent_id: intent.id,
+      })
+    : { data: [], error: null };
+  const fixtures = (fixtureResult.data ?? []) as SportFixtureOption[];
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10 md:px-6">
       <div className="mx-auto max-w-4xl">
@@ -353,6 +367,9 @@ export default async function EditIntentPage({
           </div>
 
           <div className="mt-7">
+            {isLiveSportIntent && (
+              <SportFixtureEditor intentId={intent.id} fixtures={fixtures} />
+            )}
             <EditIntentForm
               intent={{
                 id:

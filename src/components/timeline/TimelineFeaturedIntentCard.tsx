@@ -98,7 +98,7 @@ export default function TimelineFeaturedIntentCard({
   const title =
     item.displayTitle?.trim() ||
     item.activityName ||
-    "Sosyal Niyet";
+    "Etkinlik";
 
   const ownerName =
     item.ownerFullName ||
@@ -121,7 +121,7 @@ export default function TimelineFeaturedIntentCard({
 
   return (
     <article
-      className="relative flex h-[400px] min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+      className="relative flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
     >
       <input
         id={detailToggleId}
@@ -134,7 +134,7 @@ export default function TimelineFeaturedIntentCard({
         detailToggleId={detailToggleId}
         intentId={item.intentId}
         title={title}
-        categoryName={item.categoryName || "Sosyal Niyet"}
+        categoryName={item.categoryName || "Etkinlik"}
         activityCoverUrl={
           item.contextCoverUrl ||
           item.activityCoverUrl ||
@@ -187,7 +187,8 @@ export default function TimelineFeaturedIntentCard({
         copiedFromIntentId={null}
       />
 
-      <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+      <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+      <div className="flex min-h-10 items-center justify-between gap-1">
         <CompactIntentReactionBar
           intentId={item.intentId}
           initialContext={initialContext}
@@ -206,7 +207,7 @@ export default function TimelineFeaturedIntentCard({
 
         <TimelineShareButton
           title={`${title} Intent`}
-          text={`UIN'deki ${title} Sosyal Niyetine göz at.`}
+          text={`UIN'deki ${title} etkinliğine göz at.`}
           url={detailHref}
           className="!h-6 !min-h-0 !w-auto !min-w-[54px] !rounded-md !px-2 !text-[9.5px] !leading-none"
         />
@@ -217,6 +218,7 @@ export default function TimelineFeaturedIntentCard({
         >
           Detaylar
         </label>
+      </div>
       </div>
     </article>
   );

@@ -10,6 +10,7 @@ import {
 
 type CreateIntentInput = {
   userId: string;
+  targetId:string;eventTitle?:string;relatedTargetIds?:string[];
   startDate: string;
   endDate: string;
   people: string;
@@ -75,7 +76,7 @@ function parseCapacity(
 }
 
 export async function createIntent({
-  userId,
+  userId,targetId,eventTitle="",relatedTargetIds=[],
   startDate,
   endDate,
   people,
@@ -95,6 +96,7 @@ export async function createIntent({
   professionalRequirement = "none",
   professionalRoleId = null,
 }: CreateIntentInput) {
+  if(!targetId)throw new Error("Etkinliğin ana UIN kartını seç.");
   if (!userId) {
     throw new Error(
       "You must be signed in to create an Intent."
@@ -167,8 +169,8 @@ export async function createIntent({
 
   const { data, error } =
     await supabase.rpc(
-      "create_my_intent_with_communities_eligibility_and_join_settings",
-      {
+      "create_my_card_event_v72",
+      {p_target_id:targetId,p_related_target_ids:relatedTargetIds,p_details:{p_event_title:eventTitle.trim()||null,
         p_start_date: startDate,
         p_end_date: endDate,
         p_people: normalizedPeople,
@@ -195,7 +197,7 @@ export async function createIntent({
           normalizedRequirement === "none"
             ? null
             : professionalRoleId,
-      }
+      }}
     );
 
   if (error) {

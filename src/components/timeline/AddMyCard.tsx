@@ -1,0 +1,10 @@
+"use client";
+import {useEffect,useState,type ComponentProps} from 'react';
+import {useRouter} from 'next/navigation';
+import InlineTopicSearch from '@/components/ideas/InlineTopicSearch';
+type Data=ComponentProps<typeof InlineTopicSearch>;
+export default function AddMyCard(){const router=useRouter();const [open,setOpen]=useState(false),[data,setData]=useState<Data|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
+useEffect(()=>{if(!open)return;const controller=new AbortController();setData(null);setError('');void fetch('/api/ideas/picker',{signal:controller.signal,cache:'no-store'}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'Kartlar yüklenemedi.');setData(d)}).catch(e=>{if(e.name!=='AbortError')setError(e.message)});return()=>controller.abort()},[open,retry]);
+function close(){setOpen(false);router.refresh()}
+return <><button type="button" onClick={()=>setOpen(true)} className="shrink-0 rounded-2xl bg-emerald-600 px-5 py-3 font-black text-white hover:bg-emerald-700">＋ Yeni UIN kartı ekle</button>{open&&<div className="fixed inset-0 z-[100] overflow-y-auto bg-black/65 p-3 backdrop-blur-sm md:p-6" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}><section role="dialog" aria-modal="true" aria-label="Yeni UIN kartı ekle" className="mx-auto my-3 max-w-6xl rounded-[30px] bg-gray-50 p-4 shadow-2xl md:p-6"><header className="flex items-start justify-between gap-4"><div><h2 className="text-2xl font-black">Yeni UIN kartı ekle</h2><p className="mt-2 text-sm text-gray-600">Tür seçip kaynakta ara. Bulduğun karttan istek, deneyim veya etkinlik ekleyebilirsin.</p></div><button type="button" aria-label="Kart eklemeyi kapat" onClick={close} className="h-10 w-10 shrink-0 rounded-full bg-white font-black">×</button></header>{error?<div role="alert" className="mt-5"><p>{error}</p><button type="button" onClick={()=>setRetry(n=>n+1)} className="mt-3 font-bold text-emerald-700">Tekrar dene</button></div>:data?<InlineTopicSearch {...data} addingOnly/>:<p className="p-8 text-center text-gray-500">Kartlar yükleniyor…</p>}</section></div>}</>;
+}

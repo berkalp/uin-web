@@ -8,7 +8,7 @@ import { supabase } from "@/utils/supabase/client";
 
 type Collaboration = { can_suggest?: boolean; viewer_status?: string | null };
 
-export default function SeedPublicActions({ seedId, title, catalogItemId, ownSeedId }: { seedId: string; title: string; catalogItemId: string | null; ownSeedId?: string | null }) {
+export default function SeedPublicActions({ seedId, title, ownSeedId }: { seedId: string; title: string; catalogItemId: string | null; ownSeedId?: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [mine, setMine] = useState(ownSeedId ?? null);
@@ -37,7 +37,7 @@ export default function SeedPublicActions({ seedId, title, catalogItemId, ownSee
     setBusy(false);
   }
 
-  const explore = (mode: "experience" | "favorite") => `/seeds/explore?mode=${mode}&q=${encodeURIComponent(title)}`;
+  const experienceHref = `/seeds/explore?mode=experience&q=${encodeURIComponent(title)}`;
 
   return <div className="mt-4 space-y-3">
     <div className="grid gap-2 sm:grid-cols-2">
@@ -46,11 +46,11 @@ export default function SeedPublicActions({ seedId, title, catalogItemId, ownSee
     </div>
     <section className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
       <h3 className="text-sm font-black text-gray-950">Bu konu sende nasıl yer alsın?</h3>
-      <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <Link href={explore("experience")} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-green-400">✓ Deneyime ekle</Link>
-        {catalogItemId ? <Link href={explore("favorite")} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-rose-300">♡ Sevdiklerime ekle</Link> : <span className="rounded-xl border border-gray-200 bg-gray-100 px-3 py-3 text-center text-xs font-bold text-gray-400">Katalog dışı kayıt</span>}
+      <p className="mt-1 text-xs text-gray-500">9–10 puan verdiğin deneyimler otomatik olarak sevdiklerine eklenir.</p>
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Link href={experienceHref} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-green-400">✓ Deneyim ekle</Link>
         <button type="button" disabled={busy} onClick={() => void addIntent(true)} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-xs font-black text-gray-800 hover:border-green-400">🌿 Kişisel niyet</button>
-        <Link href={`/onboarding?seed=${encodeURIComponent(seedId)}`} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-violet-400">♧ Sosyal niyet</Link>
+        <Link href={`/onboarding?seed=${encodeURIComponent(seedId)}`} className="rounded-xl border border-gray-200 bg-white px-3 py-3 text-center text-xs font-black text-gray-800 hover:border-violet-400">♧ Etkinlik oluştur</Link>
       </div>
     </section>
   </div>;

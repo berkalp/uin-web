@@ -279,8 +279,7 @@ function SportEditor({
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
         <p>
-          {intentCount} Intents ·{" "}
-          {communityCount} Community links
+          {intentCount} niyet
         </p>
 
         {message && (

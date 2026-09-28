@@ -38,7 +38,7 @@ function getSafeTimezone(
 
   try {
     new Intl.DateTimeFormat(
-      "en-GB",
+      "tr-TR",
       {
         timeZone: candidate,
       }
@@ -93,7 +93,7 @@ function formatTargetDate(
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: "UTC",
       day: "numeric",
@@ -115,7 +115,7 @@ function formatDateTime(
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: timezone,
       day: "numeric",
@@ -140,7 +140,7 @@ function formatTime(
   }
 
   return new Intl.DateTimeFormat(
-    "en-GB",
+    "tr-TR",
     {
       timeZone: timezone,
       hour: "2-digit",
@@ -354,8 +354,8 @@ function getSteps({
         completedRecord &&
         completedRecord !==
           occurredAt
-          ? `Marked complete in UIN on ${completedRecord}.`
-          : "The Activity was recorded as completed.",
+          ? `${completedRecord} tarihinde UIN'de tamamlandı olarak kaydedildi.`
+          : "Etkinlik tamamlandı olarak kaydedildi.",
       tone: "success",
     };
   } else if (
@@ -363,14 +363,14 @@ function getSteps({
     "cancelled"
   ) {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value: cancellationRecord
         ? `İptal · ${cancellationRecord}`
         : "İptal edildi",
       helper:
         confirmedSchedule
-          ? "A confirmed plan existed, but the Activity was cancelled."
-          : "The Activity was cancelled before it happened.",
+          ? "Kesinleşmiş bir plan vardı ancak etkinlik iptal edildi."
+          : "Etkinlik gerçekleşmeden iptal edildi.",
       tone: "danger",
     };
   } else if (
@@ -378,10 +378,10 @@ function getSteps({
     "expired"
   ) {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value: "Gerçekleşmedi",
       helper:
-        "The target window ended without a completed Activity.",
+        "Hedef tarih aralığı etkinlik tamamlanmadan sona erdi.",
       tone: "warning",
     };
   } else if (
@@ -391,14 +391,14 @@ function getSteps({
       "forming"
   ) {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value:
         "Aktivite bekleniyor",
       helper:
         normalizedStatus ===
         "planned"
-          ? "The schedule is confirmed, but the result has not been recorded yet."
-          : "Planning has started, but no final result exists yet.",
+          ? "Program kesinleşti ancak sonuç henüz kaydedilmedi."
+          : "Planlama başladı ancak henüz sonuç oluşmadı.",
       tone: "pending",
     };
   } else if (
@@ -406,20 +406,20 @@ function getSteps({
     "closed"
   ) {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value:
         "Sonuç olmadan kapandı",
       helper:
-        "This Intent is no longer accepting matches and has no completed Activity.",
+        "Bu niyet artık eşleşme kabul etmiyor ve tamamlanmış bir etkinliği yok.",
       tone: "warning",
     };
   } else {
     outcomeStep = {
-      label: "Outcome",
+      label: "Sonuç",
       value:
         "Eşleşme bekleniyor",
       helper:
-        "This person shared when they are available, but no Activity has happened yet.",
+        "Kişi uygun olduğu zamanı paylaştı ancak henüz bir etkinlik gerçekleşmedi.",
       tone: "pending",
     };
   }
@@ -430,7 +430,7 @@ function getSteps({
         "Niyet",
       value: targetWindow,
       helper:
-        "When this person said they were available for the Activity.",
+        "Kişinin etkinlik için uygun olduğunu belirttiği zaman.",
       tone: "target",
     },
     planStep,
@@ -501,7 +501,7 @@ export default function ActivityLifecycleTimeline({
   variant = "detail",
   title = "Niyet Yolculuğu",
   description =
-    "Niyet, netleşen Aktivite ve gerçek sonuç.",
+    "Niyet, netleşen etkinlik ve gerçekleşen sonuç.",
   hideCompactTitle = false,
 }: ActivityLifecycleTimelineProps) {
   const steps = getSteps({

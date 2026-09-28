@@ -436,10 +436,10 @@ export default function CommunitySuggestionForm({
           </button>
 
           <Link
-            href="/onboarding"
+            href="/ideas"
             className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            Back to Intent Builder
+            UIN Kartlarına dön
           </Link>
         </div>
       </section>

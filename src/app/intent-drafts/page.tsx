@@ -136,10 +136,10 @@ export default async function IntentDraftsPage() {
 
             <div className="flex flex-wrap gap-3">
               <Link
-                href="/onboarding"
+                href="/ideas"
                 className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-700"
               >
-                Create New Intent
+                UIN Kartı seç
               </Link>
 
               <Link

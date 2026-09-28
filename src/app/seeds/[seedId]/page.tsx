@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 
+import CanonicalMatchForm from "@/components/seeds/CanonicalMatchForm";
+import SeedCollaborationSettings from "@/components/seeds/SeedCollaborationSettings";
 import SeedDetailView from "@/components/seeds/SeedDetailView";
 import {
   parseSeedDetailData,
@@ -189,7 +191,11 @@ export default async function SeedDetailPage({
       }
     }
   }
+  const canonicalResult = await supabase.rpc("get_canonical_seed_detail_v31", { p_source_seed_id: seedId });
+  const canonical = Array.isArray(canonicalResult.data) ? canonicalResult.data[0] : canonicalResult.data;
+  if (canonical?.title) detail.seed.title = canonical.title;
   return (
+    <>
     <SeedDetailView
       detail={detail}
       subjectSnapshot={subjectSnapshot}
@@ -207,5 +213,8 @@ export default async function SeedDetailPage({
       }
       editExperience={(Array.isArray(query.editExperience) ? query.editExperience[0] : query.editExperience) === "1"}
     />
+    {detail.seed.is_owner && canonical?.canonical_kind === "live_match" && <CanonicalMatchForm seedId={seedId} />}
+    {detail.seed.is_owner && detail.seed.status !== "completed" && <SeedCollaborationSettings seedId={seedId} />}
+    </>
   );
 }

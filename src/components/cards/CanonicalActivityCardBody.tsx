@@ -59,29 +59,8 @@ export default function CanonicalActivityCardBody({
         />
       </div>
 
-      <div className="relative h-[118px] shrink-0 overflow-hidden border-b border-black/5 bg-gray-100">
-        {mapEmbedUrl ? (
-          <iframe
-            title={mapTitle}
-            src={mapEmbedUrl}
-            className="pointer-events-none absolute -top-9 left-0 h-[calc(100%+36px)] w-full border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            tabIndex={-1}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center p-3 text-center text-[11px] text-gray-500">
-            No map
-          </div>
-        )}
-
-        {locationLabel && (
-          <span className="absolute bottom-2 left-2 max-w-[78%] truncate rounded-full bg-gray-950/80 px-2 py-0.5 text-[8.5px] font-semibold text-white backdrop-blur">
-            {locationPrecision === "public_venue" ? "📍" : "≈"} {locationLabel}
-          </span>
-        )}
-
-        {mapAction}
+      <div className="shrink-0 px-4 py-2 text-xs text-gray-500">
+        📍 {locationLabel || "Konum henüz belirlenmedi"}
       </div>
 
       <div className="flex h-[52px] shrink-0 min-w-0 items-center justify-between gap-3 border-b border-black/5 px-3">

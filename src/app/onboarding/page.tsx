@@ -6,6 +6,15 @@ type OnboardingSearchParams = Promise<
   Record<string, string | string[] | undefined>
 >;
 
+type CommonTargetContext = {
+  target_id: string;
+  title: string;
+  category_id: string | null;
+  activity_id: string | null;
+  sport_id: string | null;
+  community_id: string | null;
+};
+
 function getParam(
   searchParams: Record<string, string | string[] | undefined>,
   key: string
@@ -27,9 +36,17 @@ export default async function OnboardingPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const requestedSeedId = getParam(resolvedSearchParams, "seed");
+  const requestedTargetId = getParam(resolvedSearchParams, "target");
 
   let seedContext: SeedGrowthContext | null = null;
   let seedCandidates: SeedGrowthCandidate[] = [];
+  let targetContext: CommonTargetContext | null = null;
+
+  if (requestedTargetId && isValidUuid(requestedTargetId)) {
+    const supabase = await createClient();
+    const result = await supabase.rpc("get_common_target_create_context_v38", { p_target_id: requestedTargetId });
+    if (!result.error) targetContext = result.data as CommonTargetContext | null;
+  }
 
   if (requestedSeedId && isValidUuid(requestedSeedId)) {
     const supabase = await createClient();
@@ -54,14 +71,17 @@ export default async function OnboardingPage({
   return (
     <IntentForm
       initialCategoryId={
-        seedContext?.suggested_category_id ||
+        targetContext?.category_id || seedContext?.suggested_category_id ||
         getParam(resolvedSearchParams, "category")
       }
-      initialActivityId={seedContext?.suggested_activity_id || ""}
-      initialCommunityId={getParam(resolvedSearchParams, "community")}
+      initialActivityId={targetContext?.activity_id || seedContext?.suggested_activity_id || ""}
+      initialSportId={targetContext?.sport_id || ""}
+      initialCommunityId={targetContext?.community_id || getParam(resolvedSearchParams, "community")}
       initialNotes={seedContext?.seed_notes || ""}
       sourceSeed={seedContext}
       sourceSeedCandidates={seedCandidates}
+      commonTargetId={targetContext?.target_id || ""}
+      commonTargetTitle={targetContext?.title || ""}
     />
   );
 }

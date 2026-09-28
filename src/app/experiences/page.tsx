@@ -1,5 +1,2 @@
 import { redirect } from "next/navigation";
-
-export default function ExperiencesPage() {
-  redirect("/seeds?alan=deneyimler");
-}
+export default function ExperiencesPage(){redirect("/timeline?tab=experiences")}

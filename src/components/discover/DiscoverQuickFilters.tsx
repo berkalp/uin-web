@@ -163,7 +163,7 @@ export default function DiscoverQuickFilters({
 
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
-      <label className="min-w-[190px]">
+      <label className="hidden">
         <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
           Quick lifecycle
         </span>
@@ -217,52 +217,6 @@ export default function DiscoverQuickFilters({
                 {option.label}
               </option>
             )
-          )}
-        </select>
-      </label>
-
-      <label className="min-w-[190px]">
-        <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-gray-500">
-          Quick Community
-        </span>
-
-        <select
-          value={
-            selectedCommunityFilter
-          }
-          disabled={isPending}
-          onChange={(event) =>
-            updateCommunityFilter(
-              event.target.value
-            )
-          }
-          className="mt-1.5 w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-800 outline-none transition focus:border-indigo-500 disabled:cursor-wait disabled:opacity-60"
-        >
-          {communityScopeOptions.map(
-            (option) => (
-              <option
-                key={option.value}
-                value={option.value}
-              >
-                {option.label}
-              </option>
-            )
-          )}
-
-          {followedCommunities.length >
-            0 && (
-            <optgroup label="Followed Communities">
-              {followedCommunities.map(
-                (community) => (
-                  <option
-                    key={community.id}
-                    value={`community:${community.id}`}
-                  >
-                    {community.name}
-                  </option>
-                )
-              )}
-            </optgroup>
           )}
         </select>
       </label>

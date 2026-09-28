@@ -1361,14 +1361,7 @@ export default async function PlanRoomView({
             ],
           }
         ),
-        supabase.rpc(
-          "get_visible_intent_communities",
-          {
-            p_intent_ids: [
-              sourceIntentId,
-            ],
-          }
-        ),
+        Promise.resolve({ data: [], error: null }),
       ])
     : [
         { data: [], error: null },
@@ -1384,15 +1377,6 @@ export default async function PlanRoomView({
     );
   }
 
-  if (
-    sourceCommunityContextResponse.error
-  ) {
-    console.error(
-      "Plan Room Community context query failed:",
-      sourceCommunityContextResponse.error
-    );
-  }
-
   const sourceSportContext =
     (
       (
@@ -1401,10 +1385,7 @@ export default async function PlanRoomView({
       ) as IntentSportCoverContext[]
     )[0] ?? null;
 
-  const sourceCommunities: IntentCommunityContext[] =
-    parseIntentCommunityRows(
-      sourceCommunityContextResponse.data
-    );
+  const sourceCommunities: IntentCommunityContext[] = [];
 
   const sourceSportPresentation =
     sourceSportContext?.sport_name
@@ -2820,7 +2801,6 @@ export default async function PlanRoomView({
               </div>
             )}
 
-          <CommunityContextList communities={sourceCommunities} variant="hero" />
         </div>
       </div>
     </section>

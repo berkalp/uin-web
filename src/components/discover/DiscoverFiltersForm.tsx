@@ -294,14 +294,14 @@ export default function DiscoverFiltersForm({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">
-            Search & filters
+            ARAMA VE FİLTRELER
           </p>
           <p className="mt-1 text-sm text-gray-500">
             {isExpanded
-              ? "Refine the visible Intent results."
+              ? "Görünen etkinlik sonuçlarını daralt."
               : activeFilterCount > 0
-                ? `${activeFilterCount} active filter${activeFilterCount === 1 ? "" : "s"}.`
-                : "Open filters only when you need them."}
+                ? `${activeFilterCount} etkin filtre.`
+                : "Yalnızca gerektiğinde filtreleri aç."}
           </p>
         </div>
 
@@ -317,8 +317,8 @@ export default function DiscoverFiltersForm({
         >
           <span aria-hidden="true">{isExpanded ? "▴" : "▾"}</span>
           {isExpanded
-            ? "Hide filters"
-            : `Show filters${activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}`}
+            ? "Filtreleri gizle"
+            : `Filtreleri göster${activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}`}
         </button>
       </div>
 
@@ -357,55 +357,23 @@ export default function DiscoverFiltersForm({
 
         <label className="xl:col-span-4">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Search
+            Ara
           </span>
 
           <input
             type="search"
             name="q"
             defaultValue={query}
-            placeholder="Activity, sport, Community, category or district"
+            placeholder="Etkinlik, konu, kişi veya konum ara"
             className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
           />
         </label>
 
-        <label className="xl:col-span-2">
+        {selectedCategoryId && <input type="hidden" name="category" value={selectedCategoryId} />}
+
+        <label className="xl:col-span-3">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Category
-          </span>
-
-          <select
-            name="category"
-            value={
-              selectedCategoryId
-            }
-            onChange={(event) =>
-              handleCategoryChange(
-                event.target.value
-              )
-            }
-            className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-blue-500"
-          >
-            <option value="">
-              All categories
-            </option>
-
-            {categories.map(
-              (category) => (
-                <option
-                  key={category.id}
-                  value={category.id}
-                >
-                  {category.name}
-                </option>
-              )
-            )}
-          </select>
-        </label>
-
-        <label className="xl:col-span-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Activity
+            Konu
           </span>
 
           <select
@@ -435,16 +403,16 @@ export default function DiscoverFiltersForm({
               ) {
                 setSelectedSportId("");
               }
+
+              setSelectedCategoryId(nextActivity?.category_id ?? "");
             }}
             className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-blue-500"
           >
             <option value="">
-              {selectedCategoryId
-                ? "All Activities in category"
-                : "All Activities"}
+              Tüm konular
             </option>
 
-            {visibleActivities.map(
+            {activities.map(
               (activity) => (
                 <option
                   key={activity.id}
@@ -460,7 +428,7 @@ export default function DiscoverFiltersForm({
         {selectedActivityRequiresSport && (
           <label className="xl:col-span-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-              Sport
+              Spor
             </span>
 
             <select
@@ -476,7 +444,7 @@ export default function DiscoverFiltersForm({
               className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-green-500"
             >
               <option value="">
-                All Sports
+                Tüm sporlar
               </option>
 
               {sports.map(
@@ -493,55 +461,9 @@ export default function DiscoverFiltersForm({
           </label>
         )}
 
-        <label
-          className={
-            selectedActivityRequiresSport
-              ? "xl:col-span-2"
-              : "xl:col-span-4"
-          }
-        >
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Community
-          </span>
-
-          <select
-            name="community"
-            value={
-              selectedCommunityId
-            }
-            onChange={(event) =>
-              setSelectedCommunityId(
-                event.target.value
-              )
-            }
-            className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-indigo-500"
-          >
-            <option value="">
-              {selectedCategoryId
-                ? "All Communities in category"
-                : "All Communities"}
-            </option>
-
-            {visibleCommunities.map(
-              (community) => (
-                <option
-                  key={
-                    community.id
-                  }
-                  value={
-                    community.id
-                  }
-                >
-                  {community.name}
-                </option>
-              )
-            )}
-          </select>
-        </label>
-
         <label className="xl:col-span-3">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Participant Eligibility
+            Katılım Koşulu
           </span>
 
           <select
@@ -550,26 +472,26 @@ export default function DiscoverFiltersForm({
             className="mt-2 w-full rounded-xl border border-gray-200 px-3 py-3 text-sm outline-none transition focus:border-fuchsia-500"
           >
             <option value="eligible">
-              Eligible for me
+              Katılabileceklerim
             </option>
             <option value="everyone">
-              Open to Everyone
+              Herkese açık
             </option>
             <option value="women_only">
-              Women Only
+              Yalnızca kadınlar
             </option>
             <option value="men_only">
-              Men Only
+              Yalnızca erkekler
             </option>
             <option value="all">
-              All eligibility rules
+              Tüm katılım koşulları
             </option>
           </select>
         </label>
 
         <div className="xl:col-span-3">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Approximate location
+            Yaklaşık konum
           </span>
 
           <div className="mt-2">
@@ -585,7 +507,7 @@ export default function DiscoverFiltersForm({
               }
               name="location"
               allowEmpty
-              emptyLabel="All locations"
+              emptyLabel="Tüm konumlar"
               variant="filter"
             />
           </div>
@@ -593,7 +515,7 @@ export default function DiscoverFiltersForm({
 
         <label className="xl:col-span-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            From
+            Başlangıç
           </span>
 
           <input
@@ -608,7 +530,7 @@ export default function DiscoverFiltersForm({
 
         <label className="xl:col-span-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-            Until
+            Bitiş
           </span>
 
           <input
@@ -630,7 +552,7 @@ export default function DiscoverFiltersForm({
             type="submit"
             className="flex-1 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Search
+            Ara
           </button>
 
           <Link
@@ -639,7 +561,7 @@ export default function DiscoverFiltersForm({
             }
             className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
           >
-            Clear
+            Temizle
           </Link>
         </div>
       </form>

@@ -10,7 +10,7 @@ function getSafeNextPath(
     !value.startsWith("/") ||
     value.startsWith("//")
   ) {
-    return "/timeline";
+    return "/ideas";
   }
 
   return value;

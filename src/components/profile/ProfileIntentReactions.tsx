@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import CommunityContextList from "@/components/communities/CommunityContextList";
 import ProfilePagination from "@/components/profile/ProfilePagination";
 import { resolveActivityCover } from "@/utils/activityCover";
 import type { IntentCommunityContext } from "@/utils/communities";
@@ -186,10 +185,6 @@ export default function ProfileIntentReactions({
                       <h3 className="mt-1 line-clamp-2 text-xl font-black leading-tight">
                         {item.displayTitle || item.activityName}
                       </h3>
-                      <CommunityContextList
-                        communities={item.communities}
-                        variant="card"
-                      />
                     </div>
                   </div>
 

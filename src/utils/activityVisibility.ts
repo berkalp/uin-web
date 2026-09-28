@@ -18,64 +18,64 @@ export const ACTIVITY_VISIBILITY_OPTIONS:
   ActivityVisibilityOption[] = [
   {
     value: "public",
-    label: "Anyone",
+    label: "Herkese Açık",
     description:
-      "Everyone can see this Activity. Signed-in users can request to join.",
+      "Herkes bu etkinliği görebilir. Giriş yapan kullanıcılar katılma isteği gönderebilir.",
     discovery:
-      "Visible on the profile",
+      "Profilde görünür",
     request:
-      "Join requests enabled",
+      "Katılma istekleri açık",
     invitation:
-      "Direct invitations enabled",
+      "Doğrudan davetler açık",
   },
   {
     value: "friends",
-    label: "Friends only",
+    label: "Yalnızca Arkadaşlar",
     description:
-      "Only accepted friends can see this Activity and request to join.",
+      "Yalnızca arkadaşların bu etkinliği görebilir ve katılma isteği gönderebilir.",
     discovery:
-      "Visible only to friends",
+      "Yalnızca arkadaşlara görünür",
     request:
-      "Friend join requests enabled",
+      "Arkadaşların katılma istekleri açık",
     invitation:
-      "Direct invitations enabled",
+      "Doğrudan davetler açık",
   },
   {
     value: "except_friends",
     label:
-      "Anyone except friends",
+      "Arkadaşlar Hariç Herkes",
     description:
-      "People outside your accepted friend network can see and request to join.",
+      "Arkadaşların dışındaki kişiler görebilir ve katılma isteği gönderebilir.",
     discovery:
-      "Hidden from friends",
+      "Arkadaşlardan gizli",
     request:
-      "Non-friend join requests enabled",
+      "Arkadaş olmayanların katılma istekleri açık",
     invitation:
-      "Direct invitations enabled",
+      "Doğrudan davetler açık",
   },
   {
     value: "invite_only",
-    label: "Invite only",
+    label: "Yalnızca Davetliler",
     description:
-      "Only active members and directly invited people can see this Activity.",
+      "Yalnızca mevcut katılımcılar ve doğrudan davet edilen kişiler görebilir.",
     discovery:
-      "Hidden from discovery",
+      "Etkinlikler sayfasında görünmez",
     request:
-      "Join requests disabled",
+      "Katılma istekleri kapalı",
     invitation:
-      "Direct invitations enabled",
+      "Doğrudan davetler açık",
   },
   {
     value: "private",
-    label: "Only me",
+    label: "Yalnızca Ben",
     description:
-      "Only you can see this Activity. Pending requests and invitations are closed.",
+      "Bu etkinliği yalnızca sen görebilirsin. Bekleyen istekler ve davetler kapatılır.",
     discovery:
-      "Completely private",
+      "Tamamen özel",
     request:
-      "Join requests disabled",
+      "Katılma istekleri kapalı",
     invitation:
-      "Direct invitations disabled",
+      "Doğrudan davetler kapalı",
   },
 ];
 
