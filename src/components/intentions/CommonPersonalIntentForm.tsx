@@ -1,0 +1,61 @@
+"use client";
+import MediaViewingFields from "@/components/media/MediaViewingFields";
+import ClubViewingFields from "@/components/clubs/ClubViewingFields";
+import {defaultClubViewing,type ClubProfile,type ViewingContext} from "@/utils/clubProfile";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import LocationHierarchySelect from "@/components/locations/LocationHierarchySelect";
+import { getLocations } from "@/services/locationService";
+import type { HierarchicalLocation } from "@/utils/location";
+import { supabase } from "@/utils/supabase/client";
+import { trackProductEvent } from "@/utils/productAnalytics";
+
+type Precision="flexible"|"day"|"range"|"week"|"month"|"year"|"multiple";
+function iso(date:Date){const pad=(value:number)=>String(value).padStart(2,"0");return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`}
+function bounds(mode:Precision,value:string,dates:string[],rangeStart:string,rangeEnd:string):[string|null,string|null]{
+  if(mode==="multiple"&&dates.length){const sorted=[...dates].sort();return[sorted[0],sorted[sorted.length-1]||sorted[0]]}
+  if(mode==="range")return[rangeStart||null,rangeEnd||rangeStart||null];
+  if(!value||mode==="flexible")return[null,null];
+  if(mode==="day")return[value,value];
+  if(mode==="week"){const [year,week]=value.split("-W").map(Number);const d=new Date(Date.UTC(year,0,4));d.setUTCDate(d.getUTCDate()+(week-1)*7-(d.getUTCDay()||7)+1);const end=new Date(d);end.setUTCDate(d.getUTCDate()+6);return[iso(d),iso(end)]}
+  if(mode==="month"){const [year,month]=value.split("-").map(Number);return[`${value}-01`,iso(new Date(Date.UTC(year,month,0)))]}
+  return[`${value}-01-01`,`${value}-12-31`];
+}
+
+export default function CommonPersonalIntentForm({targetId,mediaKind,clubProfile,initialViewing,initialStartDate,isSport=false,embedded=false,onSaved,onArchived,noteLabel,notePlaceholder,saveLabel}:{targetId:string;mediaKind?:"movie"|"series";clubProfile?:ClubProfile;initialViewing?:ViewingContext;initialStartDate?:string;isSport?:boolean;embedded?:boolean;onSaved?:()=>void;onArchived?:()=>void;noteLabel?:string;notePlaceholder?:string;saveLabel?:string}) {
+  const [viewing,setViewing]=useState<ViewingContext>(initialViewing||(mediaKind?{media_kind:mediaKind,mode:"undecided"}:defaultClubViewing(clubProfile)));
+  useEffect(()=>{if(clubProfile||mediaKind)void supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId}).then(({data})=>{if(data?.own_context?.mode)setViewing(data.own_context)});},[targetId,clubProfile,mediaKind]);
+  const router=useRouter(); const [mode,setMode]=useState<Precision>("flexible"); const [value,setValue]=useState("");
+  const [dateToAdd,setDateToAdd]=useState(""); const [dates,setDates]=useState<string[]>([]); const [rangeStart,setRangeStart]=useState(""); const [rangeEnd,setRangeEnd]=useState("");
+  const [initializing,setInitializing]=useState(true);const [ready,setReady]=useState(false);const [locationId,setLocationId]=useState(""); const [locations,setLocations]=useState<HierarchicalLocation[]>([]);
+  const [notes,setNotes]=useState(""); const [visibility,setVisibility]=useState("everyone");
+  const [expired,setExpired]=useState(false);
+  const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+  useEffect(()=>{let active=true;setInitializing(true);setReady(false);setLocationId("");void Promise.all([getLocations(),supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId})]).then(([available,result])=>{
+    if(!active)return;if(result.error)throw result.error;setLocations(available);setReady(true);
+    const row=result.data as {start_date?:string|null;end_date?:string|null;visibility?:string;location_id?:string|null;notes?:string|null;timing_precision?:Precision;date_options?:string[]}|null;
+    if(!row){const istanbul=available.find(location=>(location.country_code||"TR").toUpperCase()==="TR"&&location.city?.trim().toLocaleLowerCase("tr-TR")==="istanbul"&&(location.scope==="city"||(!location.scope&&!location.district?.trim())));setLocationId(istanbul?.id||"");return;}
+    setExpired(Boolean(row.end_date&&row.end_date.slice(0,10)<iso(new Date())));const precision=row.timing_precision||(!row.start_date?"flexible":row.start_date===row.end_date?"day":"range");setMode(precision);setLocationId(row.location_id||"");setNotes(row.notes||"");setVisibility(row.visibility||"only_me");setDates(Array.isArray(row.date_options)?row.date_options:[]);setRangeStart(row.start_date||"");setRangeEnd(row.end_date||"");if(precision==="day")setValue(row.start_date||"");else if(precision==="month")setValue((row.start_date||"").slice(0,7));else if(precision==="year")setValue((row.start_date||"").slice(0,4));
+  }).catch(()=>{if(active)setError("İstek ve konum bilgileri yüklenemedi. Formu yeniden açıp tekrar deneyebilirsin.")}).finally(()=>{if(active)setInitializing(false)});return()=>{active=false}},[targetId]);
+  const range=useMemo(()=>bounds(mode,value,dates,rangeStart,rangeEnd),[mode,value,dates,rangeStart,rangeEnd]);
+  function addDate(){if(dateToAdd&&!dates.includes(dateToAdd)){setDates(current=>[...current,dateToAdd].sort());setDateToAdd("")}}
+  function addNextMonthWeekends(){const now=new Date();const first=new Date(now.getFullYear(),now.getMonth()+1,1);const month=first.getMonth();const result:string[]=[];for(let d=new Date(first);d.getMonth()===month;d.setDate(d.getDate()+1)){if(d.getDay()===0||d.getDay()===6)result.push(iso(d))}setMode("multiple");setDates(result)}
+  async function archive(){setBusy(true);setError("");try{const {error}=await supabase.rpc("archive_my_common_wish_v73",{p_target_id:targetId});if(error)throw error;onArchived?.();router.refresh();}catch{setError("İstek arşivlenemedi.")}finally{setBusy(false)}}
+  async function save(){if(!ready)return;if(range[1]&&range[1]<iso(new Date())){setError("İsteğini yenilemek için gelecek bir tarih seç veya zamanı Esnek yap.");return;}setBusy(true);setError("");const {error:problem}=await supabase.rpc("save_my_common_personal_intent_v39",{
+    p_target_id:targetId,p_start_date:range[0],p_end_date:range[1],p_visibility:visibility,p_location_id:locationId||null,
+    p_notes:notes||null,p_timing_precision:mode,p_date_options:mode==="multiple"?dates:[]});
+    if(problem){setError(problem.message||"Kaydedilemedi.");setBusy(false);return;}if(clubProfile||mediaKind){const {error:contextError}=await supabase.rpc(mediaKind?"save_my_media_viewing_v66":"save_my_club_viewing_v60",{p_target_id:targetId,p_context:viewing,p_intent_id:null,...(mediaKind?{p_private_info:null}:{})});if(contextError){setError(contextError.message);setBusy(false);return}}await trackProductEvent("intent_created",{targetId,source:"common_personal_intent"});setBusy(false);if(embedded){onSaved?.();router.refresh();return;}router.push(`/intentions/${targetId}`);router.refresh();}
+  return <div className="grid gap-6"><p className="text-xs text-slate-500">Bu genel isteğini belirtir; bir etkinliğe katılım kaydı oluşturmaz.</p>{expired&&<div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-bold">Hâlâ yapmak istiyor musun?</p><p className="mt-1">Bu isteğin tarihi geçmiş. Yeni tarih seçerek yenileyebilir, zamanı esnek yapabilir veya arşivleyebilirsin.</p><div className="mt-3 flex gap-4"><button type="button" onClick={()=>{setMode("flexible");setValue("")}} className="font-bold underline">Zamanımı esnek yap</button><button type="button" disabled={busy} onClick={()=>void archive()} className="font-bold underline">İsteği arşivle</button></div></div>}{mediaKind&&<MediaViewingFields kind={mediaKind} value={viewing} onChange={setViewing}/>}{clubProfile&&<ClubViewingFields profile={clubProfile} value={viewing} onChange={setViewing}/>}
+    <fieldset><legend className="text-sm font-black">Ne zaman?</legend><div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-7">{([['flexible','Esnek'],['day','Gün'],['range','Aralık'],['week','Hafta'],['month','Ay'],['year','Yıl'],['multiple','Birden çok']] as const).map(([id,label])=><button key={id} type="button" onClick={()=>{setMode(id);setValue("")}} className={`rounded-xl border px-3 py-2 text-xs font-bold ${mode===id?'border-emerald-600 bg-emerald-50 text-emerald-800':'border-gray-200'}`}>{label}</button>)}</div>
+      {mode!=="flexible"&&mode!=="multiple"&&mode!=="range"&&<input type={mode==="day"?"date":mode==="week"?"week":mode==="month"?"month":"number"} min={mode==="year"?new Date().getFullYear():undefined} value={value} onChange={e=>setValue(e.target.value)} className="mt-4 w-full rounded-xl border border-gray-200 px-4 py-3"/>}
+      {mode==="range"&&<div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold text-gray-500">Başlangıç<input type="date" value={rangeStart} onChange={e=>setRangeStart(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3"/></label><label className="text-xs font-bold text-gray-500">Bitiş<input type="date" min={rangeStart||undefined} value={rangeEnd} onChange={e=>setRangeEnd(e.target.value)} className="mt-1 w-full rounded-xl border border-gray-200 px-4 py-3"/></label></div>}
+      {mode==="multiple"&&<div className="mt-4"><div className="flex gap-2"><input type="date" value={dateToAdd} onChange={e=>setDateToAdd(e.target.value)} className="min-w-0 flex-1 rounded-xl border border-gray-200 px-4 py-3"/><button type="button" onClick={addDate} className="rounded-xl bg-gray-950 px-4 text-sm font-bold text-white">Tarih ekle</button></div><button type="button" onClick={addNextMonthWeekends} className="mt-2 text-xs font-bold text-emerald-700">+ Önümüzdeki ayın tüm hafta sonları</button><div className="mt-3 flex flex-wrap gap-2">{dates.map(date=><button type="button" key={date} onClick={()=>setDates(current=>current.filter(item=>item!==date))} className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-800">{date} ×</button>)}</div></div>}
+    </fieldset>
+    <fieldset disabled={initializing||!ready}><label className="text-sm font-black">Nerede?<div className="mt-2"><LocationHierarchySelect locations={locations} value={locationId} onChange={setLocationId} allowEmpty emptyLabel="Konum seçmek istemiyorum"/></div></label>{initializing&&<p className="mt-2 text-xs text-slate-500">Konum bilgileri yükleniyor…</p>}</fieldset>
+    <label className="text-sm font-black">{noteLabel||(isSport?"Maç tercihin":"Notun")} <span className="font-normal text-gray-400">(isteğe bağlı)</span><textarea value={notes} onChange={e=>setNotes(e.target.value)} maxLength={2000} placeholder={notePlaceholder||(isSport?"Örn. Gitmek istediğin belirli maç veya tribün tercihin…":"Uygun olduğun saatleri veya beklentini yaz…")} className="mt-2 h-28 w-full resize-none rounded-xl border border-gray-200 px-4 py-3"/></label>
+    <label className="text-sm font-black">Kimler görebilir?<select value={visibility} onChange={e=>setVisibility(e.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3"><option value="only_me">Yalnızca ben</option><option value="friends">Arkadaşlarım</option><option value="everyone">Herkese açık</option></select></label>
+    {range[0]&&<p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">Seçilen dönem: {range[0]}{range[1]!==range[0]?` → ${range[1]}`:""}</p>}
+    {error&&<p className="text-sm font-semibold text-red-700">{error}</p>}
+    <button type="button" disabled={busy||!ready} onClick={()=>void save()} className="rounded-xl bg-emerald-600 px-5 py-3 font-black text-white disabled:bg-gray-300">{busy?"Kaydediliyor…":saveLabel||(isSport?"İzleme isteğimi kaydet":"İsteğimi kaydet")}</button>
+  </div>;
+}

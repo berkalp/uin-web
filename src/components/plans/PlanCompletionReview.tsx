@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabase } from "@/utils/supabase/client";
+import { trackProductEvent } from "@/utils/productAnalytics";
 
 type AttendanceStatus = "pending" | "attended" | "no_show";
 type MemberRole = "host" | "co_host" | "participant";
@@ -190,6 +191,7 @@ export default function PlanCompletionReview({
       });
 
       if (error) throw error;
+      await trackProductEvent("social_plan_completed", { planId: plan.id, source: "plan_completion" });
 
       router.push(`/plans/${encodeURIComponent(plan.id)}/activity#activity-feedback`);
       router.refresh();

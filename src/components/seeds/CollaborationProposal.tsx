@@ -1,9 +1,10 @@
 "use client";
 import { useState } from "react";
 import { supabase } from "@/utils/supabase/client";
+import { trackProductEvent } from "@/utils/productAnalytics";
 import { cardSecondary, cardPrimary } from "@/components/cards/UinCard";
 
-export default function CollaborationProposal({ seedId, name }: { seedId: string; name: string }) {
+export default function CollaborationProposal({ seedId, name, targetId }: { seedId: string; name: string; targetId?: string }) {
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -22,9 +23,9 @@ export default function CollaborationProposal({ seedId, name }: { seedId: string
   async function send() {
     setBusy(true);
     try {
-      const { error } = await supabase.rpc("create_personal_intent_collaboration_suggestion_v2918", { p_seed_id: seedId });
+      const { data, error } = await supabase.rpc("create_personal_intent_collaboration_suggestion_v2918", { p_seed_id: seedId });
       if (error) setMessage(error.message);
-      else { setSent(true); setReview(false); setMessage("Önerin gönderildi."); }
+      else { await trackProductEvent("collaboration_requested",{targetId,resourceId:typeof data==="string"?data:null,source:"wanting_list"}); setSent(true); setReview(false); setMessage("Önerin gönderildi."); }
     } catch { setMessage("Öneri gönderilemedi."); } finally { setBusy(false); }
   }
   return <div className="mt-3">

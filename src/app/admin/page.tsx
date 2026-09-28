@@ -192,6 +192,10 @@ function AdminModuleCard({
   available = false,
   badge = null,
 }: AdminModuleCardProps) {
+  if (/communit/i.test(`${title} ${href}`)) {
+    return null;
+  }
+
   if (!available) {
     return (
       <article className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
@@ -256,7 +260,6 @@ export default async function AdminDashboardPage() {
   const [
     summaryResult,
     pendingActivitySuggestionResult,
-    pendingCommunitySuggestionResult,
     seedCatalogueCountsResult,
   ] = await Promise.all([
     supabase.rpc(
@@ -265,10 +268,6 @@ export default async function AdminDashboardPage() {
 
     supabase.rpc(
       "get_admin_pending_activity_suggestion_count"
-    ),
-
-    supabase.rpc(
-      "get_admin_pending_community_suggestion_count"
     ),
 
     supabase.rpc(
@@ -287,15 +286,6 @@ export default async function AdminDashboardPage() {
     console.error(
       "Pending Activity suggestion count query failed:",
       pendingActivitySuggestionResult.error
-    );
-  }
-
-  if (
-    pendingCommunitySuggestionResult.error
-  ) {
-    console.error(
-      "Pending Community suggestion count query failed:",
-      pendingCommunitySuggestionResult.error
     );
   }
 
@@ -372,11 +362,6 @@ export default async function AdminDashboardPage() {
   const pendingActivitySuggestions =
     toNumber(
       pendingActivitySuggestionResult.data
-    );
-
-  const pendingCommunitySuggestions =
-    toNumber(
-      pendingCommunitySuggestionResult.data
     );
 
   const seedCatalogueCounts = (seedCatalogueCountsResult.data ?? {}) as {
@@ -622,14 +607,6 @@ export default async function AdminDashboardPage() {
             />
 
             <AdminModuleCard
-              title="Community Sports"
-              description="Choose which sports each Community belongs to and manage sport-specific covers."
-              href="/admin/community-sports"
-              available
-            />
-
-
-            <AdminModuleCard
               title="İlk Karşılama Mesajı"
               description="Yeni kullanıcı onboarding'i ilk kez tamamladığında UIN Owner hesabından gidecek otomatik özel mesajı yönet."
               href="/admin/welcome-message"
@@ -650,20 +627,6 @@ export default async function AdminDashboardPage() {
                 pendingActivitySuggestions > 0
                   ? `${formatNumber(
                       pendingActivitySuggestions
-                    )} pending`
-                  : null
-              }
-              available
-            />
-
-            <AdminModuleCard
-              title="Communities"
-              description="Curate broad Intent contexts, review user suggestions and merge duplicates before they reach Discover."
-              href="/admin/communities"
-              badge={
-                pendingCommunitySuggestions > 0
-                  ? `${formatNumber(
-                      pendingCommunitySuggestions
                     )} pending`
                   : null
               }
@@ -705,6 +668,12 @@ export default async function AdminDashboardPage() {
               available
             />
 
+            <AdminModuleCard
+              title="Ürün analitiği"
+              description="Ortak karttan deneyime uzanan çekirdek ürün akışını kişisel içerik toplamadan ölç."
+              href="/admin/analytics"
+              available
+            />
             <AdminModuleCard
               title="Audit Log"
               description="Track administrative actions and changes across the platform."

@@ -6,6 +6,7 @@ import { useState } from "react";
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
 import { saveSeedJournalEntry } from "@/services/seedService";
 import { supabase } from "@/utils/supabase/client";
+import { trackProductEvent } from "@/utils/productAnalytics";
 import {
   SEED_VISIBILITY_OPTIONS,
   type SeedJournalAttachment,
@@ -25,6 +26,9 @@ type SeedExperienceEditorProps = {
   completedDatePrecision?: "exact" | "year" | "unknown" | null;
   completedYear?: number | null;
   personalCoverUrl?: string | null;
+  initialRating?: number | null;
+  catalogItemId?: string | null;
+  onSaved?: (result: { favorite: boolean }) => void;
 };
 
 function today() {
@@ -43,6 +47,9 @@ export default function SeedExperienceEditor({
   completedDatePrecision = null,
   completedYear = null,
   personalCoverUrl = null,
+  initialRating = null,
+  catalogItemId = null,
+  onSaved,
 }: SeedExperienceEditorProps) {
   const router = useRouter();
   const [open, setOpen] = useState(autoOpen);
@@ -50,7 +57,7 @@ export default function SeedExperienceEditor({
   const [experienceDate, setExperienceDate] = useState(occurredOn?.slice(0, 10) ?? "");
   const [experienceYear, setExperienceYear] = useState(completedYear ? String(completedYear) : "");
   const [coverUrl, setCoverUrl] = useState(personalCoverUrl ?? "");
-  const [rating, setRating] = useState<number | null>(null);
+  const [rating, setRating] = useState<number | null>(initialRating);
   const [body, setBody] = useState(existingExperience?.body ?? "");
   const [keyTakeaway, setKeyTakeaway] = useState(
     existingExperience?.key_takeaway ?? ""
@@ -83,6 +90,13 @@ export default function SeedExperienceEditor({
         p_rating: rating,
       });
       if (stateError) throw stateError;
+      if (rating !== null && rating >= 9 && catalogItemId) {
+        const { error: favoriteError } = await supabase.rpc("toggle_my_favorite_v2921", {
+          p_catalog_item_id: catalogItemId,
+          p_favorite: true,
+        });
+        if (favoriteError) throw favoriteError;
+      }
       const hasExperienceNote = body.trim().length > 0 || keyTakeaway.trim().length > 0 || attachments.some((item) => item.url.trim().length > 0);
       if (hasExperienceNote || existingExperience) {
         await saveSeedJournalEntry({
@@ -96,8 +110,10 @@ export default function SeedExperienceEditor({
           attachments,
         });
       }
+      await trackProductEvent("experience_created", { resourceId: seedId, source: "seed_experience_editor" });
       setOpen(false);
       router.refresh();
+      onSaved?.({ favorite: rating !== null && rating >= 9 });
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -121,7 +137,7 @@ export default function SeedExperienceEditor({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[30px] bg-white shadow-2xl">
             <div className="border-b border-gray-200 p-6 md:p-8">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-purple-700">

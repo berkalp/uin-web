@@ -11,6 +11,7 @@ import { createIntent } from "@/services/intentService";
 import { getLocations } from "@/services/locationService";
 import type { HierarchicalLocation } from "@/utils/location";
 import { supabase } from "@/utils/supabase/client";
+import { trackProductEvent } from "@/utils/productAnalytics";
 
 type ExistingEvent={intent_id:string;subtitle:string|null;start_date:string;end_date:string;visibility:string;viewing_context?:ViewingContext|null};
 
@@ -69,6 +70,7 @@ export default function CommonTargetEventForm({targetId,mediaKind,clubProfile,in
       }
       if((clubProfile||mediaKind)&&savedIntentId){const {error:contextError}=await supabase.rpc(mediaKind?"save_my_media_viewing_v66":"save_my_club_viewing_v60",{p_target_id:targetId,p_intent_id:savedIntentId,p_context:viewing,...(mediaKind?{p_private_info:privateInfo.trim()||null}:{})});if(contextError)throw contextError;}
       if(!savedIntentId)throw new Error("Etkinlik kaydı oluşturulamadı.");
+      if(!existing)await trackProductEvent("social_plan_created",{targetId,intentId:savedIntentId,source:"common_card_event"});
       onSaved(savedIntentId);
     }catch(problem){setError(problem instanceof Error?problem.message:"Etkinlik kaydedilemedi.");setBusy(false);}
   }
