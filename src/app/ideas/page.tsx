@@ -40,11 +40,11 @@ export default async function IdeasPage(){
     <div className="relative z-50 mx-auto mb-8 max-w-[1320px]"><AppNavigation/></div>
     <div className="mx-auto max-w-[1320px]">
       <header className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
-        <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700">UIN KARTLARI</p>
+        <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700">UIN KÜTÜPHANESİ</p>
         <h1 className="mt-2 text-3xl font-black">Ne arıyorsun?</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">Film, dizi, kitap, sanatçı, yer, spor ve diğer ortak kartları bul. Kartı açınca isteyenleri, deneyimleyenleri ve ilgili etkinlikleri birlikte gör.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">Film, dizi, kitap, sanatçı, yer, spor ve diğer ortak kayıtları bul. Bir kaydı açınca isteyenleri, deneyimleyenleri ve ilgili etkinlikleri birlikte gör.</p>
       </header>
-      {topicError||summaryResult.error||typeResult.error||seedTypeResult.error||placementError||ownSeedPages.some(page=>page.error)?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">UIN Kartları şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={catalogue} isAdmin={Boolean(adminResult.data)}/>}
+      {topicError||summaryResult.error||typeResult.error||seedTypeResult.error||placementError||ownSeedPages.some(page=>page.error)?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">UIN Kütüphanesi şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={catalogue} isAdmin={Boolean(adminResult.data)}/>}
     </div>
   </main>;
 }
