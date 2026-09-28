@@ -1,3 +1,4 @@
+import AppNavigation from "@/components/navigation/AppNavigation";
 import Link from "next/link";
 import {
   redirect,
@@ -86,6 +87,17 @@ type DiscoverMapPointContextRow = {
   public_location_name: string | null;
 };
 
+type VisiblePlanPublicContent = {
+  meeting_point?: string | null;
+  activity_location_name?: string | null;
+};
+
+type IntentCommonTargetRow = {
+  intent_id: string;
+  canonical_target_id: string;
+  canonical_target_title: string;
+};
+
 type IntentSportCoverContext = {
   intent_id: string;
   sport_id: string | null;
@@ -151,7 +163,7 @@ type DiscoverSearchParams =
     >
   >;
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 20;
 const MAP_BATCH_LIMIT = 60;
 const MAP_MAX_RESULTS = 240;
 
@@ -166,77 +178,77 @@ function getDiscoverKind(value: string): DiscoverKind {
 const LIFECYCLE_OPTIONS = [
   {
     value: "current",
-    label: "Open, Future & Forming",
+    label: "Açık, Gelecek ve Şekillenen",
   },
   {
     value: "all",
-    label: "All lifecycle stages",
+    label: "Tüm aşamalar",
   },
   {
     value: "open",
-    label: "Open now",
+    label: "Şimdi açık",
   },
   {
     value: "future",
-    label: "Future Intents",
+    label: "Gelecek etkinlikler",
   },
   {
     value: "forming",
-    label: "Forming Activities",
+    label: "Şekillenen etkinlikler",
   },
   {
     value: "planned",
-    label: "Planned Activities",
+    label: "Planlanmış etkinlikler",
   },
   {
     value: "closed",
-    label: "Closed Intents",
+    label: "Kapanmış etkinlikler",
   },
   {
     value: "completed",
-    label: "Completed",
+    label: "Tamamlananlar",
   },
   {
     value: "cancelled",
-    label: "Cancelled",
+    label: "İptal edilenler",
   },
   {
     value: "expired",
-    label: "Expired / did not happen",
+    label: "Süresi geçen / gerçekleşmeyen",
   },
   {
     value: "history",
-    label: "All history",
+    label: "Tüm geçmiş",
   },
 ] as const;
 
 const COMMUNITY_SCOPE_OPTIONS = [
   {
     value: "all",
-    label: "All Communities",
+    label: "Tüm Topluluklar",
   },
   {
     value: "following",
-    label: "Following Communities",
+    label: "Takip Edilen Topluluklar",
   },
 ] as const;
 
 const SCOPE_OPTIONS = [
   {
     value: "all",
-    label: "Everyone",
+    label: "Herkes",
   },
   {
     value: "mine",
-    label: "Hosted by me",
+    label: "Yürüttüklerim",
   },
   {
     value: "friends",
-    label: "My friends",
+    label: "Arkadaşlarım",
   },
   {
     value: "others",
-    label: "Other people",
+    label: "Diğer kişiler",
   },
 ] as const;
 
@@ -544,7 +556,7 @@ export default async function DiscoverPage({
       "q"
     ).trim();
 
-  const kind = getDiscoverKind(getParam(resolvedSearchParams, "kind"));
+  const kind: DiscoverKind = "social";
 
   const categoryId =
     getParam(
@@ -564,19 +576,8 @@ export default async function DiscoverPage({
       "sport"
     );
 
-  const communityId =
-    getParam(
-      resolvedSearchParams,
-      "community"
-    );
-
-  const communityScope =
-    getCommunityScope(
-      getParam(
-        resolvedSearchParams,
-        "community_scope"
-      )
-    );
+  const communityId = "";
+  const communityScope = getCommunityScope("");
 
   const locationId =
     getParam(
@@ -726,24 +727,16 @@ export default async function DiscoverPage({
         "get_intent_discovery_filters"
       ),
 
-      supabase.rpc(
-        "get_active_communities",
-        {
-          p_category_id:
-            null,
-        }
-      ),
+      Promise.resolve({ data: [], error: null }),
 
-      supabase.rpc(
-        "get_my_followed_communities"
-      ),
+      Promise.resolve({ data: [], error: null }),
 
       runDiscoverSearch(resultLimit, resultOffset),
-      supabase.rpc("get_discoverable_personal_intents_v29", {
-        p_mode: "growing",
+      supabase.rpc("get_common_intent_cards_v38", {
         p_query: query || null,
         p_limit: 100,
         p_offset: 0,
+        p_target_id: null,
       }),
     ]);
 
@@ -996,6 +989,32 @@ export default async function DiscoverPage({
     );
 
   const {
+    data: intentCommonTargetData,
+    error: intentCommonTargetError,
+  } = visibleIntentIds.length > 0
+    ? await supabase.rpc("get_visible_intent_common_targets_v40", {
+        p_intent_ids: visibleIntentIds,
+      })
+    : { data: [], error: null };
+
+  if (intentCommonTargetError) {
+    console.warn(
+      "Intent common target lineage is temporarily unavailable:",
+      intentCommonTargetError.message
+    );
+  }
+
+  const commonTargetByIntentId = new Map(
+    ((intentCommonTargetData ?? []) as IntentCommonTargetRow[]).map((row) => [
+      row.intent_id,
+      {
+        id: row.canonical_target_id,
+        title: row.canonical_target_title,
+      },
+    ])
+  );
+
+  const {
     data: reactionContextData,
     error: reactionContextError,
   } = visibleIntentIds.length > 0
@@ -1031,39 +1050,17 @@ export default async function DiscoverPage({
         reactionContextByIntentId.get(intent.intent_id) ?? null,
     }));
   const mixedDiscoverItems: Array<
-    | {
-        kind: "personal";
-        key: string;
-        item: DiscoverPersonalIntent;
-      }
-    | {
+    {
         kind: "social";
         key: string;
         item: (typeof results)[number];
       }
   > = [];
 
-  const mixedDiscoverLength = Math.max(
-    personalResults.length,
-    results.length
-  );
+  const mixedDiscoverLength = results.length;
 
   for (let index = 0; index < mixedDiscoverLength; index += 1) {
-    if (
-      kind !== "social" &&
-      personalResults[index]
-    ) {
-      mixedDiscoverItems.push({
-        kind: "personal",
-        key: `personal-${personalResults[index].source_seed_id}`,
-        item: personalResults[index],
-      });
-    }
-
-    if (
-      kind !== "personal" &&
-      results[index]
-    ) {
+    if (results[index]) {
       mixedDiscoverItems.push({
         kind: "social",
         key: `social-${results[index].intent_id}`,
@@ -1355,6 +1352,21 @@ export default async function DiscoverPage({
       ])
     );
 
+  const publicPlanContentEntries = await Promise.all(
+    visiblePlanIds.map(async (planId) => {
+      const { data, error } = await supabase.rpc("get_visible_plan_public_content", {
+        p_plan_id: planId,
+      });
+      return [planId, error ? null : (data as VisiblePlanPublicContent | null)] as const;
+    })
+  );
+  const publicMeetingPointByPlanId = new Map(
+    publicPlanContentEntries.map(([planId, content]) => [
+      planId,
+      typeof content?.meeting_point === "string" ? content.meeting_point.trim() || null : null,
+    ])
+  );
+
   let intentLinkRows:
     IntentLinkRpcRow[] =
     [];
@@ -1374,20 +1386,9 @@ export default async function DiscoverPage({
           intent.intent_id
       );
 
-    const [
-      intentLinksResponse,
-      intentCommunitiesResponse,
-    ] = await Promise.all([
+    const [intentLinksResponse] = await Promise.all([
       supabase.rpc(
         "get_visible_intent_links",
-        {
-          p_intent_ids:
-            intentIds,
-        }
-      ),
-
-      supabase.rpc(
-        "get_visible_intent_communities",
         {
           p_intent_ids:
             intentIds,
@@ -1410,19 +1411,6 @@ export default async function DiscoverPage({
         ) as IntentLinkRpcRow[];
     }
 
-    if (
-      intentCommunitiesResponse.error
-    ) {
-      console.error(
-        "Intent Community context query failed:",
-        intentCommunitiesResponse.error
-      );
-    } else {
-      intentCommunityRows =
-        parseIntentCommunityRows(
-          intentCommunitiesResponse.data
-        );
-    }
   }
 
   const intentLinksByIntentId =
@@ -1485,7 +1473,7 @@ export default async function DiscoverPage({
         option.value ===
         lifecycle
     )?.label ??
-    "All lifecycle stages";
+    "Tüm aşamalar";
 
   const mapPoints: DiscoverMapPoint[] = view === "cards"
     ? []
@@ -1580,80 +1568,30 @@ export default async function DiscoverPage({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
-      <div className="mx-auto max-w-[1680px]">
+      <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
+      <div className="mx-auto max-w-[1320px]">
         <header className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-                Intent Discovery
+                ETKİNLİK KEŞFİ
               </p>
 
               <h1 className="mt-2 text-3xl font-bold text-gray-950">
-                Discover Intents
+                Etkinlikleri Keşfet
               </h1>
 
               <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-500">
-                Discover opens with a rotating
-                mix of Open, Future and Forming
-                Intents. Forming Activities appear
-                first, followed by current Intent
-                opportunities. Use the search area for
-                precise criteria, or the quick
-                filters above the results to switch
-                lifecycle and ownership instantly.
+                Tarihi, konumu, yürütücüsü ve katılım bilgileri belirlenmiş etkinlikleri keşfet.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/timeline"
-                aria-label="UIN Timeline"
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 transition hover:border-green-400"
-              >
-                <img src="/uin-logo.png" alt="uin? logo" className="h-8 w-auto" />
-              </Link>
-
-              <Link
-                href="/communities"
-                className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5 text-sm font-semibold text-violet-700 transition hover:border-violet-400 hover:bg-violet-100"
-              >
-                Communities
-              </Link>
-
-              <Link
-                href="/communities/suggest"
-                className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-semibold text-indigo-700 transition hover:border-indigo-400 hover:bg-indigo-100"
-              >
-                Suggest Community
-              </Link>
-
-              <Link
-                href="/onboarding"
-                className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
-              >
-                Create New Intent
-              </Link>
-            </div>
           </div>
         </header>
 
-        <nav className="mt-5 grid grid-cols-3 gap-2" aria-label="Niyet türü">
-          {([
-            ["all", "✨ Tümü"],
-            ["personal", "♙ Kişisel"],
-            ["social", "♧ Sosyal"],
-          ] as const).map(([value, label]) => {
-            const params = new URLSearchParams();
-            if (value !== "all") params.set("kind", value);
-            if (query) params.set("q", query);
-            return <Link key={value} href={`/discover${params.size ? `?${params}` : ""}`} className={`rounded-2xl border px-4 py-3 text-center text-sm font-bold transition ${kind === value ? "border-slate-950 bg-slate-950 text-white" : "border-gray-200 bg-white text-gray-700 hover:border-green-400"}`}>{label}</Link>;
-          })}
-        </nav>
-
         <form action="/discover" method="get" className="mt-4 flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
-          {kind !== "all" && <input type="hidden" name="kind" value={kind} />}
           <span className="grid w-10 shrink-0 place-items-center text-xl text-gray-400" aria-hidden="true">⌕</span>
-          <input name="q" type="search" defaultValue={query} placeholder="Niyet, kişi, aktivite veya konum ara" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-gray-950 outline-none placeholder:text-gray-400" />
+          <input name="q" type="search" defaultValue={query} placeholder="Etkinlik, kişi veya konum ara" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-gray-950 outline-none placeholder:text-gray-400" />
           <button type="submit" className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-green-700">Ara</button>
         </form>
 
@@ -1680,8 +1618,6 @@ export default async function DiscoverPage({
         />
 
         {(filterResponse.error ||
-          communityResponse.error ||
-          followedCommunityResponse.error ||
           searchResponse.error ||
           intentEligibilityResponse.error ||
           discoverMapContextError ||
@@ -1694,7 +1630,6 @@ export default async function DiscoverPage({
 
             <p className="mt-2 text-sm text-red-700">
               {searchResponse.error?.message ??
-                communityResponse.error?.message ??
                 intentEligibilityResponse.error?.message ??
                 discoverMapContextError?.message ??
                 mapBatchError?.message ??
@@ -1707,34 +1642,32 @@ export default async function DiscoverPage({
           <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Kişisel Niyet araması yüklenemedi: {personalResponse.error.message}</section>
         )}
 
-        {(kind === "social" || !personalResponse.error) &&
-          (kind === "personal" ||
-            (!searchResponse.error &&
+        {(!searchResponse.error &&
               !intentEligibilityResponse.error &&
               !discoverMapContextError &&
-              !mapBatchError)) && (
+              !mapBatchError) && (
           <>
             <section className="mt-7 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
                   {selectedCommunity
-                    ? `${selectedCommunity.name} Community`
+                    ? `${selectedCommunity.name} Topluluğu`
                     : selectedSport
                       ? selectedSport.name
                       : hasAdvancedSearch
-                      ? "Search results"
+                      ? "Arama sonuçları"
                       : lifecycleLabel}
                 </p>
 
                 <h2 className="mt-1 text-2xl font-bold text-gray-950">
-                  Niyetleri Keşfet
+                  Etkinlikleri Keşfet
                 </h2>
 
                 <p className="mt-1 text-sm font-semibold text-gray-500">
                   {view === "cards"
                     ? mixedDiscoverItems.length
                     : results.length}{" "}
-                  niyet
+                  etkinlik
                 </p>
 
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -1789,13 +1722,13 @@ export default async function DiscoverPage({
                   rawResults.length >
                     visibleResultCount && (
                   <p className="mt-2 text-sm text-gray-500">
-                    Intents that do not match the selected participant eligibility are hidden from this page.
+                    Seçilen katılım koşullarına uymayan etkinlikler bu sayfada gösterilmez.
                   </p>
                 )}
 
                 {view === "cards" && totalCount > 0 && (
                   <p className="mt-2 text-sm text-gray-500">
-                    Page {page} of {totalPages}
+                    Sayfa {page} / {totalPages}
                   </p>
                 )}
               </div>
@@ -1805,20 +1738,20 @@ export default async function DiscoverPage({
                   {([
                     {
                       value: "cards",
-                      label: "Cards",
-                      helper: "Grid",
+                      label: "Kartlar",
+                      helper: "Izgara",
                       icon: "▦",
                     },
                     {
                       value: "map",
-                      label: "Map",
-                      helper: "Explore",
+                      label: "Harita",
+                      helper: "Keşfet",
                       icon: "⌖",
                     },
                     {
                       value: "split",
-                      label: "Split",
-                      helper: "List + map",
+                      label: "Bölünmüş",
+                      helper: "Liste + harita",
                       icon: "◫",
                     },
                   ] as const).map((option) => {
@@ -1904,18 +1837,9 @@ export default async function DiscoverPage({
 
             {(view === "cards" ? mixedDiscoverItems.length : results.length) > 0 ? (
               view === "cards" ? (
-              <section className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              <section className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {mixedDiscoverItems.map(
                   (entry) => {
-                    if (entry.kind === "personal") {
-                      return (
-                        <DiscoverPersonalIntentCard
-                          key={entry.key}
-                          item={entry.item}
-                        />
-                      );
-                    }
-
                     const intent = entry.item;
                     const intentCommunities =
                       intentCommunitiesByIntentId.get(
@@ -1935,11 +1859,15 @@ export default async function DiscoverPage({
                         key={
                           intent.intent_id
                         }
-                        intent={
-                          intent
-                        }
+                        intent={{
+                          ...intent,
+                          sport_name: sportCoverContextByIntentId.get(intent.intent_id)?.sport_name || intent.sport_name,
+                        }}
                         currentUserId={
                           user.id
+                        }
+                        commonTarget={
+                          commonTargetByIntentId.get(intent.intent_id) ?? null
                         }
                         displayTitle={
                           privatePresentation
@@ -1972,6 +1900,11 @@ export default async function DiscoverPage({
                             ? publicActivityLocationByPlanId.get(
                                 intent.plan_id
                               ) ?? null
+                            : null
+                        }
+                        publicMeetingPoint={
+                          intent.plan_id
+                            ? publicMeetingPointByPlanId.get(intent.plan_id) ?? null
                             : null
                         }
                         communities={
@@ -2039,18 +1972,11 @@ export default async function DiscoverPage({
             ) : (
               <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
                 <h2 className="text-xl font-bold text-gray-950">
-                  No Intents found
+                  Etkinlik bulunamadı
                 </h2>
 
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-gray-500">
-                  Broaden the Activity,
-                  Community, lifecycle,
-                  ownership, location or
-                  date filters.
-                  Private records remain
-                  visible only to their
-                  owners and eligible
-                  members.
+                  Etkinlik, aşama, sahiplik, konum veya tarih filtrelerini genişlet. Özel kayıtları yalnızca sahipleri ve izin verilen katılımcılar görebilir.
                 </p>
 
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -2058,14 +1984,14 @@ export default async function DiscoverPage({
                     href="/discover"
                     className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
                   >
-                    Clear filters
+                    Filtreleri temizle
                   </Link>
 
                   <Link
-                    href="/onboarding"
+                    href="/ideas"
                     className="rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white"
                   >
-                    Create an Intent
+                    UIN Kartı seç
                   </Link>
                 </div>
               </section>
@@ -2074,7 +2000,7 @@ export default async function DiscoverPage({
             {view === "cards" && totalPages >
               1 && (
               <nav
-                aria-label="Intent discovery pagination"
+                aria-label="Etkinlik sonuç sayfaları"
                 className="mt-8 flex items-center justify-center gap-3"
               >
                 {hasPrevious ? (

@@ -1,9 +1,13 @@
 "use client";
+import {buildExperienceEntries} from "@/utils/experienceEntries";
 
-import Link from "next/link";
+import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
+import UinCard from "@/components/cards/UinCard";
 import { useEffect, useMemo, useState } from "react";
 
+import { getPublicFavoriteId, type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
 import SeedCard from "@/components/seeds/SeedCard";
+import { favoriteLabels } from "@/utils/favoriteLabels";
 import {
   getLocalDateKey,
   getSeedDashboardStatus,
@@ -29,51 +33,16 @@ export type SocialExperienceItem = {
 type ExperienceDashboardProps = {
   seeds: SeedWithReminder[];
   socialExperiences: SocialExperienceItem[];
+  favorites: PublicFavoriteItem[];
+  initialFilter?: ExperienceFilter;
+  lovedOnly?:boolean;
+  typeFilter?:string;query?:string;sourceTypes?:Array<{resource_id:string;target_id:string;type_id:string}>;
   isAuthenticated: boolean;
 };
 
-type ExperienceFilter = "all" | "personal" | "social";
-
-type ExperienceEntry =
-  | {
-      kind: "personal";
-      key: string;
-      sortAt: string;
-      seed: SeedWithReminder;
-    }
-  | {
-      kind: "social";
-      key: string;
-      sortAt: string;
-      item: SocialExperienceItem;
-    };
+type ExperienceFilter = "all" | "loved" | "social" | "personal";
 
 const EXPERIENCE_PAGE_SIZE = 24;
-
-function getPersonalSortAt(seed: SeedRecord) {
-  const record = seed as unknown as Record<string, unknown>;
-
-  for (const key of [
-    "completed_at",
-    "experience_date",
-    "target_date",
-    "updated_at",
-    "created_at",
-  ]) {
-    const value = record[key];
-
-    if (typeof value === "string" && value.trim()) {
-      return value;
-    }
-  }
-
-  return "";
-}
-
-function timestamp(value: string) {
-  const result = new Date(value).getTime();
-  return Number.isFinite(result) ? result : 0;
-}
 
 function formatDate(value: string) {
   if (!value) return null;
@@ -91,80 +60,36 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function SocialExperienceCard({
-  item,
-}: {
-  item: SocialExperienceItem;
-}) {
-  const dateLabel = formatDate(item.sortAt);
+function SocialExperienceCard({ item,targetId }: { item: SocialExperienceItem;targetId?:string }) {
+  return <UinCard title={item.title} subtitle={item.locationLabel} coverUrl={item.coverUrl}
+    href={item.href} category={item.categoryName} icon="✓" badge="DENEYİMİM" tone="experience">
+    <p className="rounded-xl bg-blue-50 p-3 text-xs text-blue-900">✓ {formatDate(item.sortAt) || "Tarih belirtilmedi"}</p>
+    <p className="mt-3 text-xs text-gray-500">{item.roleLabel}</p>{targetId&&<div className="mt-3"><CanonicalTargetPeople targetId={targetId}/></div>}
+  </UinCard>;
+}
 
-  return (
-    <Link
-      href={item.href}
-      className="group flex min-h-[330px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-    >
-      <div className="relative h-40 shrink-0 overflow-hidden bg-gray-950">
-        {item.coverUrl ? (
-          <img
-            src={item.coverUrl}
-            alt={item.title}
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-          />
-        ) : (
-          <div className="h-full bg-gradient-to-br from-purple-950 via-gray-900 to-gray-950" />
-        )}
+function LovedExperienceCard({ item }: { item: PublicFavoriteItem }) {
+  const itemId = getPublicFavoriteId(item);
+  const words = favoriteLabels[item.item_kind || "other"] || favoriteLabels.other;
+  const href = item.source_type === "subject" ? `/loved/subject/${itemId}` : `/seeds/subjects/${itemId}`;
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/30" />
-
-        <span className="absolute left-3 top-3 rounded-full bg-purple-600/95 px-2.5 py-1 text-[9px] font-black uppercase tracking-wide text-white">
-          Sosyal deneyim
-        </span>
-
-        <div className="absolute inset-x-3 bottom-3">
-          <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-purple-200">
-            {item.categoryName}
-          </p>
-
-          <h3 className="mt-1 line-clamp-2 text-lg font-black leading-tight text-white">
-            {item.title}
-          </h3>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        {dateLabel && (
-          <p className="text-xs font-bold text-gray-700">
-            {dateLabel}
-          </p>
-        )}
-
-        {item.locationLabel && (
-          <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-500">
-            {item.locationLabel}
-          </p>
-        )}
-
-        <div className="mt-auto flex items-center justify-between gap-2 pt-5">
-          <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[10px] font-black text-purple-700">
-            {item.roleLabel}
-          </span>
-
-          <span className="text-xs font-black text-gray-500 transition group-hover:text-purple-700">
-            Görüntüle →
-          </span>
-        </div>
-      </div>
-    </Link>
-  );
+  return <UinCard title={item.title} subtitle={item.creator_name} coverUrl={item.cover_url}
+    href={href} category={words.label} icon={words.icon} badge="SEVDİĞİM DENEYİM" tone="favorite">
+    <p className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-800">♥ Sevdiğim deneyimler arasında</p>
+    {item.is_featured && <p className="mt-3 text-xs text-amber-700">★ Profil vitrininde</p>}
+  </UinCard>;
 }
 
 export default function ExperienceDashboard({
   seeds,
   socialExperiences,
+  favorites,
+  initialFilter = "all",
+  lovedOnly=false,typeFilter="",query="",sourceTypes=[],
   isAuthenticated,
 }: ExperienceDashboardProps) {
   const [filter, setFilter] =
-    useState<ExperienceFilter>("all");
+    useState<ExperienceFilter>(initialFilter);
 
   const [page, setPage] = useState(1);
 
@@ -185,42 +110,21 @@ export default function ExperienceDashboard({
     [seeds, today]
   );
 
-  const allEntries =
-    useMemo<ExperienceEntry[]>(() => {
-      const personalEntries: ExperienceEntry[] =
-        completedSeeds.map((seed) => ({
-          kind: "personal",
-          key: `personal-${seed.seed_id}`,
-          sortAt: getPersonalSortAt(seed),
-          seed,
-        }));
-
-      const socialEntries: ExperienceEntry[] =
-        socialExperiences.map((item) => ({
-          kind: "social",
-          key: `social-${item.id}`,
-          sortAt: item.sortAt,
-          item,
-        }));
-
-      return [
-        ...personalEntries,
-        ...socialEntries,
-      ].sort(
-        (first, second) =>
-          timestamp(second.sortAt) -
-          timestamp(first.sortAt)
-      );
-    }, [completedSeeds, socialExperiences]);
+  const allEntries=useMemo(()=>buildExperienceEntries(seeds,socialExperiences,favorites,today).filter(entry=>{
+    const title=entry.kind==="personal"?entry.seed.title:entry.item.title;
+    const id=String(entry.kind==="personal"?entry.seed.seed_id:entry.item.id||"");
+    const type=entry.kind==="personal"?entry.seed.wish_presentation?.type_id||sourceTypes.find(s=>s.resource_id===id)?.type_id||"activity":sourceTypes.find(s=>s.resource_id===id.replace(/^(plan|intent)-/,""))?.type_id||"activity";
+    return (!typeFilter||type===typeFilter)&&(!query||title.toLocaleLowerCase("tr-TR").includes(query));
+  }),[seeds,socialExperiences,favorites,today,typeFilter,query,sourceTypes]);
 
   const filteredEntries = useMemo(() => {
-    if (filter === "personal") {
+    if (filter === "loved") {
       return allEntries.filter(
-        (entry) =>
-          entry.kind === "personal"
+        (entry) => entry.loved
       );
     }
 
+    if(filter==="personal")return allEntries.filter(entry=>entry.kind==="personal");
     if (filter === "social") {
       return allEntries.filter(
         (entry) =>
@@ -254,7 +158,7 @@ export default function ExperienceDashboard({
 
   useEffect(() => {
     setPage(1);
-  }, [filter]);
+  }, [filter,typeFilter,query]);
 
   useEffect(() => {
     if (page > pageCount) {
@@ -273,7 +177,7 @@ export default function ExperienceDashboard({
 
   return (
     <>
-      <nav className="mt-6 grid gap-3 rounded-[28px] border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-3">
+      {!lovedOnly&&<nav className="mt-6 grid gap-3 rounded-[28px] border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-3">
         <button
           type="button"
           onClick={() =>
@@ -288,9 +192,7 @@ export default function ExperienceDashboard({
 
         <button
           type="button"
-          onClick={() =>
-            setFilter("personal")
-          }
+          onClick={() => setFilter("personal")}
           className={tabClass(
             filter === "personal"
           )}
@@ -307,18 +209,18 @@ export default function ExperienceDashboard({
             filter === "social"
           )}
         >
-          Sosyal deneyimler · {socialExperiences.length}
+          Birlikte · {socialExperiences.length}
         </button>
-      </nav>
+      </nav>}
 
       {filteredEntries.length > 0 ? (
         <>
-          <section className="mt-6 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          <section className="mt-6 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {visibleEntries.map(
               (entry) =>
                 entry.kind ===
                 "personal" ? (
-                  <SeedCard
+                  <SeedCard editable
                     key={entry.key}
                     seed={entry.seed}
                     isAuthenticated={
@@ -333,11 +235,13 @@ export default function ExperienceDashboard({
                         .reminder_timezone
                     }
                   />
-                ) : (
-                  <SocialExperienceCard
+                ) : entry.kind === "social" ? (
+                  <SocialExperienceCard targetId={sourceTypes.find(s=>s.resource_id===entry.item.id.replace(/^(plan|intent)-/,""))?.target_id}
                     key={entry.key}
                     item={entry.item}
                   />
+                ) : (
+                  <LovedExperienceCard key={entry.key} item={entry.item} />
                 )
             )}
           </section>
@@ -426,9 +330,8 @@ export default function ExperienceDashboard({
           <h2 className="text-2xl font-black text-gray-950">
             {filter === "social"
               ? "Henüz sosyal deneyimin yok"
-              : filter ===
-                  "personal"
-                ? "Henüz kişisel deneyimin yok"
+              : filter === "loved"
+                ? "Henüz sevdiğin bir deneyim yok"
                 : "Henüz deneyimin yok"}
           </h2>
         </section>

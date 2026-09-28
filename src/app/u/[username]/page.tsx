@@ -1619,7 +1619,7 @@ export default async function PublicProfilePage({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1320px]">
         <Link
           href="/timeline"
           className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
@@ -1631,7 +1631,7 @@ export default async function PublicProfilePage({
           <div
             className={`grid overflow-hidden bg-gray-950 ${
               youtubeEmbedUrl
-                ? "md:grid-cols-2"
+                ? "xl:grid-cols-2"
                 : ""
             }`}
           >
@@ -1648,7 +1648,7 @@ export default async function PublicProfilePage({
             </div>
 
             {youtubeEmbedUrl && (
-              <div className="relative aspect-video overflow-hidden border-t border-white/10 bg-black md:aspect-auto md:h-72 md:border-l md:border-t-0">
+              <div className="relative aspect-video overflow-hidden border-t border-white/10 bg-black xl:aspect-auto xl:h-72 xl:border-l xl:border-t-0">
                 <iframe
                   title="Featured YouTube video"
                   src={youtubeEmbedUrl}

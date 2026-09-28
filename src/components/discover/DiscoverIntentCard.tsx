@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
+import { liveSportTitle } from "@/utils/liveSportTitle";
+import UinCard, { cardPrimary } from "@/components/cards/UinCard";
+import LifecycleCurrentDate from "@/components/activities/LifecycleCurrentDate";
+import IntentReactionBar from "@/components/reactions/IntentReactionBar";
 
 import EyeIcon from "@/components/ui/EyeIcon";
 
-import ActivityPeopleStrip from "@/components/activities/ActivityPeopleStrip";
 import CanonicalActivityCardBody from "@/components/cards/CanonicalActivityCardBody";
 import CanonicalActivityCardDetails from "@/components/cards/CanonicalActivityCardDetails";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
@@ -17,7 +21,6 @@ import {
   resolveActivityCover,
 } from "@/utils/activityCover";
 import type { IntentLinkView } from "@/utils/intentLinks";
-import CommunityIcon from "@/components/communities/CommunityIcon";
 import type { IntentCommunityContext } from "@/utils/communities";
 import { getSportPresentation } from "@/utils/sportPresentation";
 import { formatEstimatedCost } from "@/utils/estimatedCost";
@@ -221,9 +224,9 @@ function getLifecyclePresentation(
 ): LifecyclePresentation {
   if (lifecycle === "future") {
     return {
-      label: "Future",
+      label: "Gelecek",
       helper:
-        "Availability has not started",
+        "Katılım dönemi başlamadı",
       badgeClasses:
         "bg-blue-100 text-blue-800",
     };
@@ -231,17 +234,17 @@ function getLifecyclePresentation(
 
   if (lifecycle === "forming") {
     return {
-      label: "Forming",
-      helper: "Planning in progress",
+      label: "Şekilleniyor",
+      helper: "Planlama devam ediyor",
       badgeClasses: "bg-violet-100 text-violet-800",
     };
   }
 
   if (lifecycle === "planned") {
     return {
-      label: "Planned",
+      label: "Planlandı",
       helper:
-        "Schedule confirmed",
+        "Program kesinleşti",
       badgeClasses:
         "bg-indigo-100 text-indigo-800",
     };
@@ -249,9 +252,9 @@ function getLifecyclePresentation(
 
   if (lifecycle === "closed") {
     return {
-      label: "Closed",
+      label: "Kapalı",
       helper:
-        "Not accepting matches",
+        "Yeni katılım kabul etmiyor",
       badgeClasses:
         "bg-gray-200 text-gray-700",
     };
@@ -259,9 +262,9 @@ function getLifecyclePresentation(
 
   if (lifecycle === "completed") {
     return {
-      label: "Completed",
+      label: "Tamamlandı",
       helper:
-        "Activity completed",
+        "Etkinlik tamamlandı",
       badgeClasses:
         "bg-purple-100 text-purple-800",
     };
@@ -269,9 +272,9 @@ function getLifecyclePresentation(
 
   if (lifecycle === "cancelled") {
     return {
-      label: "Cancelled",
+      label: "İptal edildi",
       helper:
-        "Activity cancelled",
+        "Etkinlik iptal edildi",
       badgeClasses:
         "bg-red-100 text-red-800",
     };
@@ -279,18 +282,18 @@ function getLifecyclePresentation(
 
   if (lifecycle === "expired") {
     return {
-      label: "Expired",
+      label: "Süresi geçti",
       helper:
-        "Did not reach a scheduled Activity",
+        "Planlanmış bir etkinliğe dönüşmedi",
       badgeClasses:
         "bg-orange-100 text-orange-800",
     };
   }
 
   return {
-    label: "Open",
+    label: "Açık",
     helper:
-      "Accepting matches",
+      "Katılım kabul ediyor",
     badgeClasses:
       "bg-green-100 text-green-800",
   };
@@ -330,63 +333,6 @@ function getLifecycleSurfaceClasses(
   return "border-green-200 bg-gradient-to-b from-green-50 via-green-50/45 to-white";
 }
 
-function getOwnerAction({
-  intent,
-}: {
-  intent: DiscoverIntentRow;
-}) {
-  if (!intent.plan_id) {
-    if (
-      intent.intent_status ===
-        "active"
-    ) {
-      return {
-        href:
-          `/intents/${encodeURIComponent(
-            intent.intent_id
-          )}/edit`,
-        label:
-          "Edit Intent",
-      };
-    }
-
-    return {
-      href:
-        `/activities/${encodeURIComponent(
-          intent.intent_id
-        )}`,
-      label:
-        "View record",
-    };
-  }
-
-  if (
-    intent.plan_status ===
-      "forming"
-  ) {
-    return {
-      href:
-        `/plans/${encodeURIComponent(
-          intent.plan_id
-        )}/planning`,
-      label:
-        "Niyet Odasını Aç",
-    };
-  }
-
-  return {
-    href:
-      `/plans/${encodeURIComponent(
-        intent.plan_id
-      )}/activity`,
-    label:
-      intent.lifecycle_status ===
-        "completed"
-        ? "Open Activity Archive"
-        : "Open Activity Room",
-  };
-}
-
 function getMemberRoomHref(
   intent: DiscoverIntentRow
 ) {
@@ -414,6 +360,7 @@ export default function DiscoverIntentCard({
   privateCoverUrl,
   contextCoverUrl = null,
   publicActivityLocationName = null,
+  publicMeetingPoint = null,
   mapPointContext = null,
   activityPeople = [],
   viewerLineage = null,
@@ -421,6 +368,7 @@ export default function DiscoverIntentCard({
   fallbackCommunityName = null,
   fallbackCommunityHref = null,
   intentNote = null,
+  commonTarget = null,
 }: {
   intent: DiscoverIntentRow;
   currentUserId: string;
@@ -431,6 +379,7 @@ export default function DiscoverIntentCard({
   privateCoverUrl?: string | null;
   contextCoverUrl?: string | null;
   publicActivityLocationName?: string | null;
+  publicMeetingPoint?: string | null;
   mapPointContext?: {
     location_query: string | null;
     public_location_name: string | null;
@@ -443,45 +392,36 @@ export default function DiscoverIntentCard({
   fallbackCommunityName?: string | null;
   fallbackCommunityHref?: string | null;
   intentNote?: string | null;
+  commonTarget?: { id: string; title: string } | null;
 }) {
-  const resolvedActivityPeople =
+  const activityPeopleFromQuery =
     activityPeople.length > 0
       ? activityPeople
       : intent.activity_people ?? [];
 
+  const resolvedActivityPeople = activityPeopleFromQuery.some(
+    (person) => person.userId === intent.owner_user_id
+  )
+    ? activityPeopleFromQuery
+    : [
+        {
+          userId: intent.owner_user_id,
+          fullName: intent.owner_full_name,
+          username: intent.owner_username,
+          avatarUrl: intent.owner_avatar_url,
+          role: "host",
+        },
+        ...activityPeopleFromQuery,
+      ];
+
   const resolvedViewerLineage =
     viewerLineage ?? intent.viewer_lineage ?? null;
 
-  const cardTitle =
-    displayTitle?.trim() ||
-    intent.activity_name;
 
-  const resolvedCommunities =
-    communities.length > 0
-      ? communities
-      : intent.community_contexts ?? [];
+  const primaryCommunityName: string | null = null;
 
-  const primaryCommunity =
-    resolvedCommunities.find(
-      (community) =>
-        community.isPrimary
-    ) ??
-    resolvedCommunities[0] ??
-    null;
-
-  const primaryCommunityName =
-    primaryCommunity?.name ||
-    fallbackCommunityName?.trim() ||
-    null;
-
-  const primaryCommunityAccent =
-    primaryCommunity?.accentColor ||
-    "#059669";
-
-  const primaryCommunityHref =
-    primaryCommunity?.slug
-      ? `/communities/${encodeURIComponent(primaryCommunity.slug)}`
-      : fallbackCommunityHref;
+  const baseTitle = displayTitle?.trim() || intent.activity_name;
+  const cardTitle = liveSportTitle(baseTitle, intent.sport_name, null);
 
   const resolvedContextCoverUrl =
     contextCoverUrl ||
@@ -498,7 +438,7 @@ export default function DiscoverIntentCard({
   const ownerName =
     intent.owner_full_name ||
     intent.owner_username ||
-    "UIN member";
+    "UIN üyesi";
 
   const isOwner =
     intent.owner_user_id ===
@@ -510,11 +450,11 @@ export default function DiscoverIntentCard({
 
   const viewerPlanRoleLabel =
     viewerPlanPerson?.role === "host"
-      ? "You · Host"
+      ? "Sen · Yürütücü"
       : viewerPlanPerson?.role === "co_host"
-        ? "You · Co-host"
+        ? "Sen · Eş yürütücü"
         : viewerPlanPerson?.role === "participant"
-          ? "You · Participant"
+          ? "Sen · Katılımcı"
           : null;
 
   const lifecycle =
@@ -527,10 +467,17 @@ export default function DiscoverIntentCard({
       intent.lifecycle_status
     );
 
-  const participantCount =
-    toNumber(
-      intent.active_participant_count
-    );
+  const participantCount = Math.max(
+    toNumber(intent.active_participant_count),
+    resolvedActivityPeople.length
+  );
+
+  const participants = resolvedActivityPeople.filter(
+    (person) => person.userId !== intent.owner_user_id
+  );
+
+  const visibleParticipants = participants.slice(0, 2);
+  const hiddenParticipantCount = Math.max(0, participants.length - visibleParticipants.length);
 
   const participantLimit =
     intent.max_participants ===
@@ -549,13 +496,13 @@ export default function DiscoverIntentCard({
 
   const costLabel =
     intent.plan_id
-      ? "Plan budget"
-      : "Est. cost / person";
+      ? "Plan bütçesi"
+      : "Tahmini kişi başı maliyet";
 
   const costValue =
     intent.plan_id
       ? budget === null
-        ? "Not set"
+        ? "Belirtilmedi"
         : `${budget.toLocaleString(
             "en-US"
           )} TL`
@@ -635,11 +582,6 @@ export default function DiscoverIntentCard({
         )}`
       : null;
 
-  const ownerAction =
-    getOwnerAction({
-      intent,
-    });
-
   const memberRoomHref =
     getMemberRoomHref(
       intent
@@ -665,314 +607,67 @@ export default function DiscoverIntentCard({
   const detailToggleId =
     `intent-card-details-${intent.intent_id}`;
 
+  const detailHref = `/activities/${encodeURIComponent(intent.plan_id ?? intent.resource_id ?? intent.intent_id)}`;
   return (
-    <article
-      className={`relative flex h-[400px] min-w-0 flex-col overflow-hidden rounded-3xl border shadow-sm transition hover:shadow-md ${lifecycleSurfaceClasses}`}
-    >
-      <input
-        id={detailToggleId}
-        type="checkbox"
-        className="peer sr-only"
-        aria-label={`Toggle details for ${cardTitle}`}
-      />
-
-      {/* Cover is intentionally outside the front/back swap. Details never replace it. */}
-      <div className="relative h-[128px] shrink-0 overflow-hidden bg-gray-950">
-        <img
-          src={coverUrl}
-          alt={`${cardTitle} cover`}
-          className="h-full w-full object-cover"
-        />
-
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-black/45" />
-
-        <div className="absolute inset-x-3 top-3 flex min-w-0 items-start justify-between gap-2">
-          <div className="flex max-w-[70%] min-w-0 flex-wrap items-center gap-1.5">
-            <span
-              className={`inline-flex h-5 items-center rounded-full px-2 py-0 text-[8.5px] font-bold uppercase leading-none tracking-[0.04em] shadow-sm ${lifecycle.badgeClasses}`}
-            >
-              {lifecycle.label}
-            </span>
-
-            <div className="flex h-5 items-center [&>*]:!h-5 [&>*]:!min-h-0 [&>*]:!rounded-full [&>*]:!px-2 [&>*]:!py-0 [&>*]:!text-[8.5px] [&>*]:!leading-none">
-              <ParticipantEligibilityBadge
-                eligibility={intent.participant_eligibility}
-              />
-            </div>
-
-            {!isOwner &&
-            intent.plan_id &&
-            viewerPlanRoleLabel ? (
-              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-[0.03em] text-white backdrop-blur">
-                {viewerPlanRoleLabel.replace(/^You · /, "")}
-              </span>
-            ) : actionMode === "profile" &&
-              intent.profile_role_label &&
-              intent.profile_role !== "host" ? (
-              <span className="max-w-[130px] truncate rounded-full bg-gray-950/80 px-1.5 py-0.5 text-[8.5px] font-semibold uppercase tracking-[0.03em] text-white backdrop-blur">
-                {intent.profile_role_label}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex max-w-[42%] shrink-0 items-center gap-1.5">
-            {intent.sport_name && sportPresentation && (
-              <span
-                className="inline-flex max-w-[118px] items-center gap-1 truncate rounded-full border px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.05em] shadow-sm"
-                style={{
-                  backgroundColor: sportPresentation.backgroundColor,
-                  borderColor: sportPresentation.borderColor,
-                  color: sportPresentation.textColor,
-                }}
-              >
-                <span aria-hidden="true">
-                  {sportPresentation.icon}
-                </span>
-                <span className="truncate">
-                  {intent.sport_name}
-                </span>
-              </span>
-            )}
-
-            {!isOwner && isAuthenticated && (
-              <UserDiscoveryControlsMenu
-                targetUserId={intent.owner_user_id}
-                targetDisplayName={ownerName}
-                compact
-              />
-            )}
-          </div>
+    <UinCard title={cardTitle} subtitle={commonTarget ? <Link href={`/intentions/${encodeURIComponent(commonTarget.id)}`} className="font-bold text-emerald-700 hover:underline">▦ UIN kartı: {commonIntentTitle(commonTarget.title)}</Link> : mapLocationLabel || primaryCommunityName}
+      category={intent.category_name} icon={sportPresentation?.icon || "♧"} coverUrl={coverUrl}
+      href={detailHref} badge={intent.lifecycle_status === "completed" ? "DENEYİM" : "ETKİNLİK"}
+      tone={intent.lifecycle_status === "completed" ? "experience" : "plan"}
+      badgeExtra={<><span className="rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">{intent.visibility === "public" ? "Herkese Açık" : getActivityVisibilityLabel(intent.visibility)}</span>{primaryCommunityName && <span className="max-w-full truncate rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-violet-800" title={primaryCommunityName}>{primaryCommunityName}</span>}{intent.sport_name && <span className="rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">{intent.sport_name}</span>}</>}
+      detailContent={<div className="space-y-4">
+        {commonTarget && <div className="space-y-2 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black text-emerald-800">Ana UIN kartı</p><Link href={`/intentions/${encodeURIComponent(commonTarget.id)}`} className="block font-black text-emerald-700 hover:underline">💡 {commonIntentTitle(commonTarget.title)}</Link><p className="text-xs font-black text-gray-500">Etkinliğin adı</p><Link href={detailHref} className="block font-black text-gray-950 hover:text-violet-700">{cardTitle}</Link></div>}
+        <p className="rounded-xl bg-cyan-50 px-3 py-2 text-sm text-cyan-950"><span className="font-black">Buluşma adresi:</span> {publicMeetingPoint || "Henüz netleşmedi"}</p>
+        <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-950"><span className="font-black">Etkinlik adresi:</span> {mapLocationLabel || "Henüz netleşmedi"}</p>
+        <div className="rounded-2xl bg-violet-50 p-4"><p className="text-xs font-bold text-violet-700">ETKİNLİK</p><p className="mt-1 font-semibold">{primaryCommunityName || intent.category_name}{intent.sport_name ? ` · ${intent.sport_name}` : ""}</p></div>
+        <LifecycleCurrentDate targetStart={intent.start_date} targetEnd={intent.end_date} scheduledStart={intent.scheduled_start} scheduledEnd={intent.scheduled_end} status={intent.lifecycle_status} timezone={intent.timezone} />
+        <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-gray-500">Tahmini kişi başı maliyet</dt><dd>{formatEstimatedCost(intent.budget)}</dd></div><div><dt className="text-gray-500">Kontenjan</dt><dd>{participantCount} / {participantLimit}</dd></div><div><dt className="text-gray-500">Düzenleyen</dt><dd>{ownerName}</dd></div><div><dt className="text-gray-500">Katılım koşulu</dt><dd><ParticipantEligibilityBadge eligibility={intent.participant_eligibility} /></dd></div></dl>
+        {relatedLinks.length > 0 && <div><h3 className="font-semibold">Etkinlik ve bilet bağlantıları</h3>{relatedLinks.map(link => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-emerald-700 underline">{link.label || link.url}</a>)}</div>}
+        <IntentReactionBar intentId={intent.intent_id} initialContext={intent.reaction_context ?? null} isAuthenticated={isAuthenticated} isOwner={isOwner} variant="detail" />
+        <Link href={detailHref} className={cardPrimary}>Tüm etkinlik detayları</Link>
+      </div>}
+      controls={!isOwner && isAuthenticated ? <UserDiscoveryControlsMenu targetUserId={intent.owner_user_id} targetDisplayName={ownerName} compact /> : null}
+      primary={isOwner ? null
+        : intent.viewer_is_member && memberRoomHref ? <Link href={memberRoomHref} className="flex min-h-10 w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-100 px-2 text-xs font-black text-amber-800 transition hover:bg-amber-200">✓ Katılıyorum</Link>
+        : canDisplayJoinAction ? <div className="[&_button]:!h-10 [&_button]:!min-h-10 [&_button]:!w-full [&_button]:!rounded-xl [&_button]:!px-2 [&_button]:!py-2 [&_button]:!text-[11px] [&_button]:!font-semibold">
+          <PublicIntentJoinButton
+            intentId={intent.intent_id} planId={intent.plan_id} activityName={cardTitle}
+            recruitmentStatus={intent.recruitment_status === "full" ? "full" : "open"}
+            visibility={intent.visibility} viewerCanRequest={intent.viewer_can_request}
+            viewerIsEligible={intent.viewer_is_eligible ?? (intent.viewer_can_request || intent.viewer_is_member)}
+            viewerIsMember={intent.viewer_is_member} viewerInvitationStatus={intent.viewer_invitation_status}
+            initialRequestStatus={intent.viewer_request_status} initialRequestId={intent.viewer_request_id}
+            isAuthenticated={isAuthenticated} />
+        </div> : null}
+      secondary={<CompactIntentReactionBar intentId={intent.intent_id} initialContext={intent.reaction_context ?? null} isAuthenticated={isAuthenticated} isOwner={isOwner} card />}>
+      <div className="space-y-2">
+        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-800">
+          <span className="shrink-0 font-black">Düzenleyen:</span>
+          {ownerProfileHref ? <Link href={ownerProfileHref} className="flex min-w-0 items-center gap-1.5 hover:text-emerald-700 hover:underline" title={ownerName}>{intent.owner_avatar_url ? <img src={intent.owner_avatar_url} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{ownerName.charAt(0)}</span>}<span className="truncate font-semibold">{ownerName}</span></Link> : <span className="flex min-w-0 items-center gap-1.5">{intent.owner_avatar_url ? <img src={intent.owner_avatar_url} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{ownerName.charAt(0)}</span>}<span className="truncate font-semibold">{ownerName}</span></span>}
         </div>
-
-        <div className="absolute inset-x-0 bottom-0 px-3 pb-3">
-          <p className="h-3 truncate text-[9px] font-bold uppercase tracking-[0.11em] text-green-300">
-            {intent.category_name}
-          </p>
-
-          <div className="mt-0.5 flex h-[38px] min-w-0 items-end justify-between gap-2">
-            <h2 className="min-w-0 flex-1 line-clamp-2 text-[17px] font-bold leading-[1.12] text-white">
-              {cardTitle}
-            </h2>
-
-            <div className="mb-0.5 shrink-0">
-              {intent.plan_id &&
-              intent.lifecycle_status === "planned" ? (
-                <PlanWeatherBadges
-                  planId={intent.plan_id}
-                  compact
-                />
-              ) : intent.lifecycle_status === "open" ||
-                intent.lifecycle_status === "future" ||
-                intent.lifecycle_status === "forming" ? (
-                <IntentWeatherBadge
-                  intentId={intent.intent_id}
-                  compact
-                />
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-1 flex h-6 min-w-0 items-center">
-            {primaryCommunityName ? (
-              primaryCommunityHref ? (
-                <Link
-                  href={primaryCommunityHref}
-                  title={`Open ${primaryCommunityName} Community`}
-                  className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur transition hover:-translate-y-px hover:bg-white"
-                >
-                  {primaryCommunity && (
-                    <CommunityIcon
-                      iconKey={primaryCommunity.iconKey}
-                      iconUrl={primaryCommunity.iconUrl}
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                  )}
-                  <span className="truncate">{primaryCommunityName}</span>
-                  {resolvedCommunities.length > 1 && (
-                    <span className="shrink-0 text-gray-500">
-                      +{resolvedCommunities.length - 1}
-                    </span>
-                  )}
-                </Link>
-              ) : (
-                <span
-                  className="inline-flex min-w-0 max-w-[78%] items-center gap-1.5 rounded-full bg-white/95 px-1.5 py-0.5 text-[9px] font-semibold text-gray-900 shadow-sm backdrop-blur"
-                >
-                  {primaryCommunity && (
-                    <CommunityIcon iconKey={primaryCommunity.iconKey} iconUrl={primaryCommunity.iconUrl} className="h-5 w-5 shrink-0 object-contain" />
-                  )}
-                  <span className="truncate">{primaryCommunityName}</span>
-                </span>
-              )
-            ) : (
-              <span aria-hidden="true" className="block h-6 w-1" />
-            )}
-          </div>
+        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-800">
+          <span className="shrink-0 font-black">Katılımcılar:</span>
+          {participants.length > 0 ? <div className="flex min-w-0 items-center gap-2">
+            {visibleParticipants.map((person) => {
+              const participantName = person.fullName || person.username || "UIN üyesi";
+              const participantContent = <>{person.avatarUrl ? <img src={person.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{participantName.charAt(0)}</span>}<span className="max-w-24 truncate font-semibold">{participantName}</span></>;
+              return person.username ? <Link key={person.userId} href={`/u/${encodeURIComponent(person.username)}`} className="flex min-w-0 items-center gap-1.5 hover:text-emerald-700 hover:underline" title={participantName}>{participantContent}</Link> : <span key={person.userId} className="flex min-w-0 items-center gap-1.5" title={participantName}>{participantContent}</span>;
+            })}
+            {hiddenParticipantCount > 0 && <details className="relative shrink-0"><summary className="grid h-7 min-w-7 cursor-pointer list-none place-items-center rounded-full bg-violet-50 px-1.5 font-black text-violet-700 hover:bg-violet-100">+{hiddenParticipantCount}</summary><div className="absolute left-0 top-9 z-30 w-56 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl"><p className="mb-2 text-[10px] font-black uppercase tracking-wide text-gray-400">Tüm katılımcılar</p>{participants.map((person) => <div key={person.userId} className="flex items-center gap-2 py-1.5">{person.avatarUrl ? <img src={person.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 font-black">{(person.fullName || person.username || "?").charAt(0)}</span>}<span className="truncate font-semibold">{person.fullName || person.username || "UIN üyesi"}</span></div>)}</div></details>}
+          </div> : <span className="text-gray-500">Katılımcılar bekleniyor</span>}
+        </div>
+        <p className="truncate text-xs text-cyan-950" title={publicMeetingPoint || "Henüz netleşmedi"}><span className="font-black">Buluşma:</span> {publicMeetingPoint || "Henüz netleşmedi"}</p>
+        <p className="truncate text-xs text-blue-950" title={mapLocationLabel || "Henüz netleşmedi"}><span className="font-black">Etkinlik:</span> {mapLocationLabel || "Henüz netleşmedi"}</p>
+        <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-gray-700">
+          <LifecycleCurrentDate targetStart={intent.start_date} targetEnd={intent.end_date}
+            scheduledStart={intent.scheduled_start} scheduledEnd={intent.scheduled_end}
+            completedAt={intent.completed_at} cancelledAt={intent.cancelled_at} expiredAt={intent.expired_at}
+            status={intent.lifecycle_status} timezone={intent.timezone} compact />
+        </div>
+        <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
+          <span>{participantCount} katılımcı · {participantLimit === "∞" || participantLimit === "Unlimited" ? "Sınırsız" : `${participantLimit} kişilik`}</span>
+          <span className="text-violet-700">{lifecycle.label}</span>
         </div>
       </div>
-
-      {/* Discover and Timeline share this exact canonical body. */}
-      <CanonicalActivityCardBody
-        targetStart={intent.start_date}
-        targetEnd={intent.end_date}
-        scheduledStart={intent.scheduled_start}
-        scheduledEnd={intent.scheduled_end}
-        completedAt={intent.completed_at}
-        cancelledAt={intent.cancelled_at}
-        expiredAt={intent.expired_at}
-        status={intent.lifecycle_status}
-        timezone={intent.timezone}
-        mapTitle={`${cardTitle} location preview`}
-        mapEmbedUrl={mapEmbedUrl}
-        locationLabel={mapLocationLabel}
-        locationPrecision={mapPrecision}
-        participantValue={`${participantCount} / ${participantLimit}`}
-        peopleContent={
-          resolvedActivityPeople.length > 0 ? (
-            <ActivityPeopleStrip
-              people={resolvedActivityPeople}
-              currentUserId={currentUserId}
-              activityHref={`/activities/${encodeURIComponent(
-                intent.plan_id ?? intent.resource_id ?? intent.intent_id
-              )}`}
-              variant="compact"
-              maxVisible={4}
-            />
-          ) : (
-            <div className="flex min-w-0 items-center gap-2">
-              {intent.owner_avatar_url ? (
-                <img
-                  src={intent.owner_avatar_url}
-                  alt={ownerName}
-                  className="h-7 w-7 shrink-0 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-semibold text-green-700">
-                  {getInitial(ownerName)}
-                </div>
-              )}
-              <div className="min-w-0">
-                {ownerProfileHref && !isOwner ? (
-                  <Link
-                    href={ownerProfileHref}
-                    className="block truncate text-[12px] font-semibold leading-tight text-gray-950 transition hover:text-green-700"
-                  >
-                    {ownerName}
-                  </Link>
-                ) : (
-                  <p className="truncate text-[12px] font-semibold leading-tight text-gray-950">
-                    {ownerName}
-                  </p>
-                )}
-                <p className="mt-0.5 text-[9px] font-medium text-gray-400">Host</p>
-              </div>
-            </div>
-          )
-        }
-      />
-
-      {/* Discover and Timeline share this exact canonical Details face. */}
-      <CanonicalActivityCardDetails
-        targetStart={intent.start_date}
-        targetEnd={intent.end_date}
-        scheduledStart={intent.scheduled_start}
-        scheduledEnd={intent.scheduled_end}
-        completedAt={intent.completed_at}
-        cancelledAt={intent.cancelled_at}
-        expiredAt={intent.expired_at}
-        status={intent.lifecycle_status}
-        timezone={intent.timezone}
-        participantValue={`${participantCount} / ${participantLimit}`}
-        visibilityValue={getActivityVisibilityLabel(intent.visibility)}
-        recurrenceValue={intent.recurrence}
-        costLabel={costLabel}
-        costValue={costValue}
-        communities={resolvedCommunities}
-        locationLabel={mapLocationLabel}
-        locationPrecision={mapPrecision}
-        note={intentNote}
-        linkCount={relatedLinks.length}
-        originLabel={
-          resolvedViewerLineage && intent.plan_id
-            ? resolvedViewerLineage.sourceIntentName ?? intent.activity_name
-            : null
-        }
-        originHref={
-          resolvedViewerLineage && intent.plan_id
-            ? resolvedViewerLineage.sourceIntentHref
-            : null
-        }
-      />
-
-      <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
-        <Link
-          href={`/activities/${encodeURIComponent(
-            intent.plan_id ?? intent.resource_id ?? intent.intent_id
-          )}`}
-          title="View"
-          aria-label={`View ${cardTitle}`}
-          className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md border border-gray-200 bg-white text-[11px] text-gray-600 transition hover:border-green-300 hover:text-green-700"
-        >
-          <EyeIcon />
-        </Link>
-
-        {isOwner ? (
-          <Link
-            href={ownerAction.href}
-            title={ownerAction.label}
-            aria-label={ownerAction.label}
-            className="flex h-6 w-8 shrink-0 items-center justify-center rounded-md bg-gray-950 text-[11px] font-semibold text-white transition hover:bg-gray-800"
-          >
-            ✎
-          </Link>
-        ) : intent.viewer_is_member && memberRoomHref ? (
-          <Link
-            href={memberRoomHref}
-            className="flex h-6 min-w-[52px] shrink-0 items-center justify-center rounded-md bg-green-600 px-2 text-[9.5px] font-semibold text-white transition hover:bg-green-700"
-          >
-            Room
-          </Link>
-        ) : canDisplayJoinAction ? (
-          <div className="shrink-0 [&_button]:!h-6 [&_button]:!min-h-0 [&_button]:!w-auto [&_button]:!min-w-[68px] [&_button]:!rounded-md [&_button]:!px-2 [&_button]:!py-0 [&_button]:!text-[9.5px] [&_button]:!leading-none">
-            <PublicIntentJoinButton
-              intentId={intent.intent_id}
-              planId={intent.plan_id}
-              activityName={cardTitle}
-              recruitmentStatus={intent.recruitment_status === "full" ? "full" : "open"}
-              visibility={intent.visibility}
-              viewerCanRequest={intent.viewer_can_request}
-              viewerIsEligible={
-                intent.viewer_is_eligible ??
-                (intent.viewer_can_request || intent.viewer_is_member)
-              }
-              viewerIsMember={intent.viewer_is_member}
-              viewerInvitationStatus={intent.viewer_invitation_status}
-              initialRequestStatus={intent.viewer_request_status}
-              initialRequestId={intent.viewer_request_id}
-              isAuthenticated={isAuthenticated}
-            />
-          </div>
-        ) : (
-          <span className="flex h-6 min-w-[58px] shrink-0 items-center justify-center rounded-md bg-gray-100 px-2 text-[9px] font-semibold text-gray-500">
-            {lifecycle.label}
-          </span>
-        )}
-
-        <div className="ml-auto shrink-0">
-        <CompactIntentReactionBar
-          intentId={intent.intent_id}
-          initialContext={intent.reaction_context ?? null}
-          isAuthenticated={isAuthenticated}
-          isOwner={isOwner}
-        />
-      </div>
-      <label
-          htmlFor={detailToggleId}
-          className="flex h-6 w-[56px] shrink-0 cursor-pointer items-center justify-center rounded-md border border-gray-200 bg-white px-1.5 text-[9.5px] font-semibold text-gray-700 transition hover:border-blue-300 hover:text-blue-700 after:ml-1 after:content-['▾'] peer-checked:after:content-['▴']"
-        >
-          Detaylar
-        </label>
-      </div>
-    </article>
+    </UinCard>
   );
 }

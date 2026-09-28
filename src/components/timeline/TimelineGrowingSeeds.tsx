@@ -237,7 +237,7 @@ export default function TimelineGrowingSeeds({
           </h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            Aktif veya Sosyal Niyete dönüşmüş kişisel niyetlerin.
+            Aktif veya etkinliğe dönüşmüş kişisel niyetlerin.
           </p>
         </div>
 
@@ -263,7 +263,7 @@ export default function TimelineGrowingSeeds({
 
             <button
               type="button"
-              title="Sosyal Niyete dönüşen kişisel niyetler"
+              title="Etkinliğe dönüşen kişisel niyetler"
               onClick={() =>
                 setFilter((current) =>
                   current === "intent" ? "all" : "intent"
@@ -304,10 +304,10 @@ export default function TimelineGrowingSeeds({
           )}
 
           <Link
-            href="/seeds/new?mode=personal"
+            href="/ideas"
             className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
           >
-            + Kişisel niyet oluştur
+            UIN Kartı seç
           </Link>
         </div>
       </div>
@@ -326,7 +326,7 @@ export default function TimelineGrowingSeeds({
         </div>
       )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mt-4 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {visibleSeeds.map((seed) => {
           const clock = clocks[seed.seed_id] ?? fallbackClock;
 

@@ -44,7 +44,7 @@ function ContextAvatar({
   const sizeClass =
     size === "row"
       ? "h-11 w-11 rounded-xl"
-      : "h-8 w-8 rounded-lg";
+      : "h-11 w-11 rounded-[14px]";
 
   const toneClass =
     tone === "blue"
@@ -80,7 +80,7 @@ export default async function UserAccountMenu({
   isAdmin,
 }: UserAccountMenuProps) {
   const personalDisplayName =
-    fullName || username || email || "UIN member";
+    fullName || username || email || "UIN üyesi";
 
   const currentManagedProfile =
     currentContext.type === "managed_profile"
@@ -101,8 +101,8 @@ export default async function UserAccountMenu({
 
   const activeContextLabel =
     currentContext.type === "managed_profile"
-      ? "Managed profile"
-      : "Personal";
+      ? "Yönetilen profil"
+      : "Kişisel";
 
   const supabase = await createClient();
 
@@ -129,9 +129,9 @@ export default async function UserAccountMenu({
   return (
     <details className="group relative z-[100]">
       <summary
-        title={`Active context: ${activeDisplayName}`}
-        aria-label={`Open account menu. Active context: ${activeDisplayName}`}
-        className="flex h-12 max-w-[230px] cursor-pointer list-none items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 font-semibold text-gray-700 shadow-sm transition hover:border-green-400 hover:text-green-700 [&::-webkit-details-marker]:hidden"
+        title={`Aktif profil: ${activeDisplayName}`}
+        aria-label={`Hesap menüsünü aç. Aktif profil: ${activeDisplayName}`}
+        className="flex h-14 w-14 cursor-pointer list-none items-center justify-center rounded-[18px] border border-gray-200 bg-white p-1.5 font-semibold text-gray-700 shadow-sm transition hover:border-green-400 hover:text-green-700 [&::-webkit-details-marker]:hidden"
       >
         <ContextAvatar
           imageUrl={activeAvatarUrl}
@@ -143,7 +143,7 @@ export default async function UserAccountMenu({
           }
         />
 
-        <span className="min-w-0 text-left">
+        <span className="sr-only">
           <span className="block truncate text-sm font-bold text-gray-950">
             {activeDisplayName}
           </span>
@@ -159,15 +159,15 @@ export default async function UserAccountMenu({
           </span>
         </span>
 
-        <span className="ml-auto text-[10px] text-gray-400 transition group-open:rotate-180">
+        <span className="sr-only">
           ▼
         </span>
       </summary>
 
-      <div className="absolute right-0 top-full mt-2 w-[340px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white text-left shadow-2xl">
+      <div className="absolute right-0 top-full mt-2 max-h-[calc(100vh-7rem)] w-[360px] max-w-[calc(100vw-2rem)] origin-top-right overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-gray-200 bg-white text-left shadow-[0_24px_70px_rgba(15,23,42,0.20)]">
         <div className="p-3">
           <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
-            Current context
+            Aktif profil
           </p>
 
           <Link
@@ -191,7 +191,7 @@ export default async function UserAccountMenu({
               </p>
 
               <p className="mt-1 text-xs font-semibold text-green-700">
-                Personal Timeline
+                Kişisel akış
               </p>
             </div>
 
@@ -205,7 +205,7 @@ export default async function UserAccountMenu({
           {managedProfiles.length > 0 && (
             <div className="mt-2 border-t border-gray-100 pt-2">
               <p className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-blue-500">
-                Managed profiles
+                Yönetilen profiller
               </p>
 
               <div className="space-y-1">
@@ -309,7 +309,7 @@ export default async function UserAccountMenu({
             href="/archive"
             className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
           >
-            <span>Personal Archive</span>
+            <span>Kişisel arşiv</span>
 
             {archiveCount > 0 && (
               <span className="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-amber-700 px-1.5 text-[11px] font-bold text-white">

@@ -202,7 +202,7 @@ export default function ProfileActivityTabs({
       { value: "all", label: "Tümü" },
       { value: "open", label: "Aktif" },
       { value: "forming", label: "Planlanıyor" },
-      { value: "planned", label: "PlanlandÄ±" },
+      { value: "planned", label: "Planlandı" },
       { value: "future", label: "Gelecek" },
     ];
 

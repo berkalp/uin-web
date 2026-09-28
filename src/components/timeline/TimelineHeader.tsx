@@ -1,270 +1,61 @@
-import type {
-  ReactNode,
-} from "react";
+import PrimaryNavLink from "@/components/navigation/PrimaryNavLink";
 import Link from "next/link";
 
-import type {
-  ManagedProfileSwitcherRow,
-} from "@/components/navigation/AccountContextSwitcher";
+import type { ManagedProfileSwitcherRow } from "@/components/navigation/AccountContextSwitcher";
 import UserAccountMenu from "@/components/navigation/UserAccountMenu";
 import NotificationBellButton from "@/components/notifications/NotificationBellButton";
 
 type TimelineHeaderProps = {
   email: string | null;
-
-  personal: {
-    fullName: string | null;
-    username: string | null;
-    avatarUrl: string | null;
-  };
-
+  personal: { fullName: string | null; username: string | null; avatarUrl: string | null };
   managedProfiles: ManagedProfileSwitcherRow[];
-
   activeMatchCount: number;
   inboxCount: number;
   directMessageCount?: number;
   unreadNotificationCount: number;
   isAdmin: boolean;
-
-  /*
-   * Temporary compatibility for callers that still pass legacy props.
-   * Remove this index signature after timeline and managed-profile pages
-   * stop sending those obsolete values.
-   */
   [key: string]: unknown;
 };
 
-function formatBadge(value: number) {
-  return value > 9
-    ? "9+"
-    : String(value);
-}
+function SeedIcon() { return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21V10"/><path d="M12 13c-4 0-7-2.5-7-6 4 0 7 2.5 7 6Z"/><path d="M12 10c0-4 2.5-7 7-7 0 4-2.5 7-7 7Z"/></svg>; }
+function DiscoverIcon() { return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z"/></svg>; }
+function HomeIcon() { return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>; }
+function FriendsIcon() { return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="h-5 w-5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M14 18.5a4 4 0 0 1 7 0"/></svg>; }
 
-
-function SeedIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M12 21V10" />
-      <path d="M12 13c-4 0-7-2.5-7-6 4 0 7 2.5 7 6Z" />
-      <path d="M12 10c0-4 2.5-7 7-7 0 4-2.5 7-7 7Z" />
-    </svg>
-  );
-}
-
-function DiscoverIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="m15.5 8.5-2.1 4.9-4.9 2.1 2.1-4.9 4.9-2.1Z" />
-    </svg>
-  );
-}
-
-function ExperienceIcon() {
-  return <span aria-hidden="true" className="text-lg">✓</span>;
-}
-
-function FavoriteIcon() {
-  return <span aria-hidden="true" className="text-lg">♡</span>;
-}
-
-function FriendsIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="9" cy="8" r="3" />
-      <circle cx="17" cy="9" r="2.5" />
-      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
-      <path d="M14 18.5a4 4 0 0 1 7 0" />
-    </svg>
-  );
-}
-
-
-function CommunitiesIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-5 w-5"
-      stroke="currentColor"
-      strokeWidth="1.9"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="8" cy="8" r="3" />
-      <circle cx="17" cy="7" r="2.5" />
-      <path d="M3.5 19a4.5 4.5 0 0 1 9 0" />
-      <path d="M13.5 18.5a3.5 3.5 0 0 1 7 0" />
-    </svg>
-  );
-}
-
-
-export default function TimelineHeader({
-  email,
-  personal,
-  managedProfiles,
-  unreadNotificationCount,
-  isAdmin,
-}: TimelineHeaderProps) {
-  return (
-    <header className="relative z-[60]">
-      <nav
-        aria-label="Primary navigation"
-        className="relative z-[70] flex flex-wrap items-center justify-center gap-3"
-      >
-        <Link
-          href="/timeline"
-          aria-label="UIN Timeline"
-          className="mr-1 flex h-12 items-center rounded-xl px-2 transition hover:bg-white"
-        >
-          <img
-            src="/uin-logo.png"
-            alt="uin? logo"
-            className="h-11 w-auto"
-          />
-        </Link>
-        <details className="group relative z-[90]">
-          <summary className="flex h-12 cursor-pointer list-none items-center gap-2 rounded-xl bg-green-600 px-5 font-semibold text-white shadow-sm transition hover:bg-green-700 [&::-webkit-details-marker]:hidden">
-            Create
-            <span className="text-[10px] transition group-open:rotate-180">▼</span>
-          </summary>
-
-          <div className="absolute left-0 top-full mt-2 w-[390px] max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border border-gray-200 bg-white p-3 text-left shadow-2xl">
-            <div className="px-3 pb-3 pt-1">
-              <p className="text-lg font-black text-gray-950">Ne eklemek istiyorsun?</p>
-              <p className="mt-1 text-xs leading-5 text-gray-500">Yapmak istediğini Niyet, yaptığını Deneyim olarak ekle. Başkalarıyla yapacaksan Sosyal Niyet oluştur.</p>
-            </div>
-            <Link
-              href="/seeds/new?mode=personal"
-              className="flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-green-200 hover:bg-green-50"
-            >
-              <span className="text-2xl" aria-hidden="true">🌱</span>
-              <span>
-                <span className="inline-flex rounded-full bg-green-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-green-800">KENDİM İÇİN</span>
-                <span className="mt-1 block text-sm font-black text-gray-950">Kişisel Niyet oluştur</span>
-                <span className="mt-1 block text-xs leading-5 text-gray-500">Okumak, izlemek, öğrenmek, gitmek, denemek veya yapmak istediğin bir şey.</span>
-              </span>
-            </Link>
-
-            <Link
-              href="/onboarding"
-              className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-violet-200 hover:bg-violet-50"
-            >
-              <span className="text-2xl" aria-hidden="true">👥</span>
-              <span>
-                <span className="inline-flex rounded-full bg-violet-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-violet-800">BİRLİKTE</span>
-                <span className="mt-1 block text-sm font-black text-gray-950">Sosyal Niyet oluştur</span>
-                <span className="mt-1 block text-xs leading-5 text-gray-500">Başkalarıyla gerçekleştirmek istediğin gezi, konser, spor veya buluşma.</span>
-              </span>
-            </Link>
-
-            <Link href="/seeds/explore?mode=experience" className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-purple-200 hover:bg-purple-50">
-              <span className="text-2xl" aria-hidden="true">✅</span><span><span className="inline-flex rounded-full bg-purple-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-purple-800">YAPTIM / YAŞADIM</span><span className="mt-1 block text-sm font-black text-gray-950">Deneyim ekle</span><span className="mt-1 block text-xs leading-5 text-gray-500">Daha önce yaptığın, okuduğun, izlediğin, dinlediğin, öğrendiğin veya gittiğin bir şey.</span></span>
-            </Link>
-
-            <Link href="/seeds/explore?mode=favorite" className="mt-2 flex items-start gap-3 rounded-2xl border border-gray-100 px-4 py-3 transition hover:border-rose-200 hover:bg-rose-50">
-              <span className="text-2xl" aria-hidden="true">♡</span><span><span className="inline-flex rounded-full bg-rose-50 px-2 py-0.5 text-[9px] font-black tracking-wide text-rose-700">SEVİYORUM</span><span className="mt-1 block text-sm font-black text-gray-950">Sevdiğin bir şey ekle</span><span className="mt-1 block text-xs leading-5 text-gray-500">Kişi, eser, yer, kulüp, spor, hobi veya aktivite.</span></span>
-            </Link>
+export default function TimelineHeader({ email, personal, managedProfiles, unreadNotificationCount, isAdmin }: TimelineHeaderProps) {
+  return <>
+    <header className="fixed inset-x-0 top-0 z-[90] border-b border-gray-200/80 bg-white/95 shadow-sm backdrop-blur-xl">
+      <div className="mx-auto w-full max-w-[1320px] px-3 py-3 sm:px-5">
+        <nav aria-label="Ana navigasyon" className="flex min-h-14 items-center gap-2 overflow-visible">
+          <Link href="/ideas" aria-label="Ana Sayfa" className="mr-auto flex h-14 items-center rounded-2xl px-1.5 transition hover:bg-gray-50"><img src="/uin-logo.png" alt="uin? logo" className="h-12 w-auto"/></Link>
+          <div className="hidden items-center gap-2 md:flex">
+            <PrimaryNavLink href="/ideas"><HomeIcon/><span>Ana Sayfa</span></PrimaryNavLink>
+            <PrimaryNavLink href="/timeline"><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
+            <PrimaryNavLink href="/discover"><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
+            <PrimaryNavLink href="/friends"><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
           </div>
-        </details>
-
-        <Link
-          href="/timeline"
-          className="flex h-12 items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 font-semibold text-green-800 shadow-sm transition hover:border-green-400 hover:bg-green-100"
-        >
-          <SeedIcon />
-          <span>Niyetlerim</span>
-        </Link>
-
-        <Link
-          href="/experiences"
-          className="flex h-12 items-center gap-2 rounded-xl border border-purple-200 bg-purple-50 px-4 font-semibold text-purple-700 shadow-sm transition hover:border-purple-400 hover:bg-purple-100"
-        >
-          <ExperienceIcon />
-          <span>Deneyimlerim</span>
-        </Link>
-
-        <Link
-          href="/favorites"
-          className="flex h-12 items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 font-semibold text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-100"
-        >
-          <FavoriteIcon />
-          <span>Sevdiklerim</span>
-        </Link>
-
-        <Link
-          href="/discover"
-          className="flex h-12 items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 font-semibold text-blue-700 shadow-sm transition hover:border-blue-400 hover:bg-blue-100"
-        >
-          <DiscoverIcon />
-
-          <span>Keşfet</span>
-        </Link>
-
-
-        <Link
-          href="/friends"
-          className="flex h-12 items-center gap-2 rounded-xl border border-cyan-200 bg-cyan-50 px-4 font-semibold text-cyan-700 shadow-sm transition hover:border-cyan-400 hover:bg-cyan-100"
-        >
-          <FriendsIcon />
-
-          <span>Arkadaşlar</span>
-        </Link>
-
-        <Link
-          href="/communities"
-          className="flex h-12 items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 font-semibold text-violet-700 shadow-sm transition hover:border-violet-400 hover:bg-violet-100"
-        >
-          <CommunitiesIcon />
-
-          <span>Topluluklar</span>
-        </Link>
-
-        <NotificationBellButton
-          initialUnreadCount={unreadNotificationCount}
-        />
-
-        <UserAccountMenu
-          fullName={personal.fullName}
-          username={personal.username}
-          email={email}
-          avatarUrl={personal.avatarUrl}
-          managedProfiles={managedProfiles}
-          currentContext={{
-            type: "personal",
-          }}
-          isAdmin={isAdmin}
-        />
-      </nav>
+          <details className="group relative z-[110]">
+            <summary title="Yeni kayıt oluştur" aria-label="Yeni kayıt oluştur" className="grid h-14 w-14 cursor-pointer list-none place-items-center rounded-[18px] bg-emerald-600 text-3xl font-light text-white shadow-sm transition hover:bg-emerald-700 [&::-webkit-details-marker]:hidden">+</summary>
+            <div className="absolute right-0 top-full mt-2 w-[360px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-[26px] border border-gray-200 bg-white p-3 text-left shadow-[0_24px_70px_rgba(15,23,42,.20)] md:left-0 md:right-auto">
+              <div className="px-3 pb-3 pt-1"><p className="text-lg font-black text-gray-950">Ne eklemek istiyorsun?</p><p className="mt-1 text-xs leading-5 text-gray-500">İstediğini, yaşadığını veya birlikte planlamak istediğini seç.</p></div>
+              <Link href="/seeds/new?mode=personal" className="flex items-start gap-3 rounded-2xl p-3 transition hover:bg-emerald-50"><span className="text-2xl">🌱</span><span><b className="block text-sm text-gray-950">Kişisel niyet</b><small className="mt-1 block text-gray-500">Kendin için yapmak istediğin bir şey.</small></span></Link>
+              <Link href="/onboarding" className="mt-1 flex items-start gap-3 rounded-2xl p-3 transition hover:bg-violet-50"><span className="text-2xl">👥</span><span><b className="block text-sm text-gray-950">Birlikte etkinlik</b><small className="mt-1 block text-gray-500">Başkalarıyla planlamak istediğin bir şey.</small></span></Link>
+              <Link href="/seeds/explore?mode=experience" className="mt-1 flex items-start gap-3 rounded-2xl p-3 transition hover:bg-blue-50"><span className="text-2xl">✓</span><span><b className="block text-sm text-gray-950">Deneyim</b><small className="mt-1 block text-gray-500">Yaptığın, okuduğun, izlediğin veya gittiğin bir şey.</small></span></Link>
+              <Link href="/seeds/explore?mode=favorite" className="mt-1 flex items-start gap-3 rounded-2xl p-3 transition hover:bg-rose-50"><span className="text-2xl">♡</span><span><b className="block text-sm text-gray-950">Sevdiğim</b><small className="mt-1 block text-gray-500">Sevdiğin kişi, eser, yer, kulüp veya aktivite.</small></span></Link>
+            </div>
+          </details>
+          <UserAccountMenu fullName={personal.fullName} username={personal.username} email={email} avatarUrl={personal.avatarUrl} managedProfiles={managedProfiles} currentContext={{ type: "personal" }} isAdmin={isAdmin}/>
+          <Link href="/friends" title="Arkadaşlar" aria-label="Arkadaşlar" className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 sm:flex md:hidden"><FriendsIcon/></Link>
+          <NotificationBellButton initialUnreadCount={unreadNotificationCount}/>
+        </nav>
+      </div>
     </header>
-  );
+    <div className="h-20" aria-hidden="true" />
+    <nav aria-label="Mobil navigasyon" className="uin-mobile-nav fixed inset-x-0 bottom-0 z-[100] grid grid-cols-4 gap-1 border-t border-gray-200 bg-white/95 px-3 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur-xl md:hidden">
+      <PrimaryNavLink href="/ideas" mobile><HomeIcon/><span>Ana Sayfa</span></PrimaryNavLink>
+      <PrimaryNavLink href="/timeline" mobile><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
+      <PrimaryNavLink href="/discover" mobile><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
+      <PrimaryNavLink href="/friends" mobile><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
+    </nav>
+  </>;
 }

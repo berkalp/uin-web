@@ -1,3 +1,4 @@
+import AppNavigation from "@/components/navigation/AppNavigation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -239,16 +240,12 @@ export default async function NotificationsPage({
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
+      <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
       <NotificationsRealtimeRefresh />
 
       <div className="mx-auto max-w-5xl">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <Link
-            href="/timeline"
-            className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
-          >
-            <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
-          </Link>
+        <div className="flex flex-wrap items-center justify-end gap-4">
+
 
           <MarkAllNotificationsReadButton disabled={unreadCount === 0} />
         </div>

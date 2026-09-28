@@ -64,7 +64,15 @@ export default function SeedDashboard({
   );
 
   const intentionSeeds = useMemo(
-    () => seeds.filter(belongsToIntentions),
+    () => {
+      const grouped = new Map<string, SeedWithReminder>();
+      for (const seed of seeds.filter(belongsToIntentions)) {
+        const key = seed.canonical_target_id || seed.seed_id;
+        const current = grouped.get(key);
+        if (!current || (seed.status === "active" && current.status !== "active")) grouped.set(key, seed);
+      }
+      return [...grouped.values()];
+    },
     [seeds]
   );
 
@@ -138,7 +146,7 @@ export default function SeedDashboard({
       <>
         {completedSeeds.length > 0 ? (
           <>
-            <section className="mt-6 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+            <section className="mt-6 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {visibleSeeds.map((seed) => (
                 <SeedCard
                   key={seed.seed_id}
@@ -203,7 +211,7 @@ export default function SeedDashboard({
 
           <button
             type="button"
-            title="Sosyal Niyete dönüşen kişisel niyetler"
+            title="Etkinliğe dönüşen kişisel niyetler"
             onClick={() => setFilter("converted")}
             className={`inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-sm font-black transition ${
               filter === "converted"
@@ -227,10 +235,10 @@ export default function SeedDashboard({
         </div>
 
         <Link
-          href="/seeds/new?mode=personal"
+          href="/ideas"
           className="inline-flex items-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
         >
-          + Kişisel niyet oluştur
+          UIN Kartı seç
         </Link>
       </section>
 
@@ -261,7 +269,7 @@ export default function SeedDashboard({
 
       {filteredIntentions.length > 0 ? (
         <>
-          <section className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+          <section className="mt-5 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
             {visibleSeeds.map((seed) => (
               <SeedCard
                 key={seed.seed_id}
@@ -334,10 +342,10 @@ export default function SeedDashboard({
           </h2>
 
           <Link
-            href="/seeds/new?mode=personal"
+            href="/ideas"
             className="mt-6 inline-flex rounded-xl bg-green-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-green-700"
           >
-            + Kişisel niyet oluştur
+            UIN Kartı seç
           </Link>
         </section>
       )}

@@ -1,3 +1,4 @@
+import AppNavigation from "@/components/navigation/AppNavigation";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -45,7 +46,7 @@ function PersonCard({
   const name =
     row.other_full_name ||
     row.other_username ||
-    "UIN member";
+    "UIN üyesi";
 
   const location = [
     row.other_city,
@@ -166,42 +167,34 @@ export default async function FriendsPage() {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
+      <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
       <div className="mx-auto max-w-6xl">
-        <Link
-          href="/timeline"
-          className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
-        >
-          <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
-        </Link>
 
-        <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
+
+        <header className="rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Mutual Connections
+            BAĞLANTILAR
           </p>
 
           <h1 className="mt-3 text-3xl font-bold text-gray-950 md:text-4xl">
-            Friends
+            Arkadaşların
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Friendship is mutual and is
-            used only for Friends-only and
-            Anyone-except-friends Activity
-            visibility. Following remains a
-            separate one-way subscription.
+            Arkadaşlık karşılıklıdır. Arkadaşlara özel görünürlükte kullanılır; takip etmek ise ayrı ve tek yönlüdür.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-              {friends.length} friends
+              {friends.length} arkadaş
             </span>
 
             <span className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-              {incoming.length} incoming
+              {incoming.length} gelen istek
             </span>
 
             <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {outgoing.length} sent
+              {outgoing.length} gönderilen
             </span>
           </div>
         </header>
@@ -217,11 +210,11 @@ export default async function FriendsPage() {
             0 && (
             <section className="mt-8">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                Action Required
+                YANIT BEKLEYENLER
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Incoming Requests
+                Gelen arkadaşlık istekleri
               </h2>
 
               <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -245,11 +238,11 @@ export default async function FriendsPage() {
             0 && (
             <section className="mt-10">
               <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                Friends
+                ARKADAŞLAR
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Accepted Friends
+                Arkadaşların
               </h2>
 
               <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -275,11 +268,11 @@ export default async function FriendsPage() {
             0 && (
             <section className="mt-10">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Sent
+                GÖNDERİLENLER
               </p>
 
               <h2 className="mt-2 text-2xl font-bold text-gray-950">
-                Pending Friend Requests
+                Gönderilen istekler
               </h2>
 
               <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -305,13 +298,11 @@ export default async function FriendsPage() {
             0 && (
             <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
               <h2 className="text-xl font-bold text-gray-950">
-                No friendships yet
+                Henüz arkadaşın yok
               </h2>
 
               <p className="mt-3 text-sm leading-7 text-gray-500">
-                Open another person&apos;s
-                profile to send a friend
-                request.
+                Başka bir kişinin profilini açarak arkadaşlık isteği gönderebilirsin.
               </p>
             </section>
           )}

@@ -37,8 +37,8 @@ export default async function IdeasPage(){
   const covers=new Map(((coverResult.data||[]) as Array<{target_id:string;cover_position_y:number}>).map(row=>[row.target_id,row.cover_position_y]));
   const catalogue=topics.map(item=>({...item,cover_position_y:Number(covers.get(item.canonical_target_id)??50),content_type_id:summaries.get(item.canonical_target_id)?.type_id as string|null,active_event_count:Number(summaries.get(item.canonical_target_id)?.active||0),completed_event_count:Number(summaries.get(item.canonical_target_id)?.completed||0),expired_event_count:Number(summaries.get(item.canonical_target_id)?.expired||0),cancelled_event_count:Number(summaries.get(item.canonical_target_id)?.cancelled||0),intent_people_count:Number(summaries.get(item.canonical_target_id)?.wanting||0),experience_people_count:Number(summaries.get(item.canonical_target_id)?.done||0),subtitle:(summaries.get(item.canonical_target_id)?.creator_name as string)||item.subtitle,catalog_cover_url:(summaries.get(item.canonical_target_id)?.editorial_cover_url as string)||item.catalog_cover_url,catalog_item_id:placements.get(item.canonical_target_id)?.id||null,item_kind:placements.get(item.canonical_target_id)?.item_kind||item.item_kind||null,own_seed_status:item.own_seed_id?ownSeedStatus.get(item.own_seed_id)||null:null}));
   return <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
-    <div className="relative z-50 mx-auto mb-8 max-w-[1680px]"><AppNavigation/></div>
-    <div className="mx-auto max-w-[1680px]">
+    <div className="relative z-50 mx-auto mb-8 max-w-[1320px]"><AppNavigation/></div>
+    <div className="mx-auto max-w-[1320px]">
       <header className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
         <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700">UIN KARTLARI</p>
         <h1 className="mt-2 text-3xl font-black">Ne arıyorsun?</h1>

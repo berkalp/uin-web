@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* The application always uses light mode, independently of device preference. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /*
  * UIN currently uses a light-first UI.
  *
@@ -16,7 +19,7 @@
 
   /* Keep native controls (inputs, date/time pickers, selects, autofill, etc.)
      in the same light appearance as the current UIN interface. */
-  color-scheme: light;
+  color-scheme: only light;
 }
 
 @theme inline {
@@ -28,7 +31,7 @@
 
 html {
   background: var(--background);
-  color-scheme: light;
+  color-scheme: only light;
 }
 
 body {
@@ -52,7 +55,7 @@ body {
   background-color: #ffffff;
   color: #171717;
   caret-color: #171717;
-  color-scheme: light;
+  color-scheme: only light;
 }
 
 :where(
@@ -76,7 +79,7 @@ body {
   input[type="month"],
   input[type="week"]
 ) {
-  color-scheme: light;
+  color-scheme: only light;
 }
 
 /*
@@ -104,4 +107,16 @@ body {
 /* Editable text areas used outside normal input/textarea elements. */
 :where([contenteditable="true"]) {
   caret-color: currentColor;
+}
+
+/* Shared cover geometry for catalogue, personal cards and event lists. */
+.uin-card-cover {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+}
+
+@media (max-width: 767px) {
+  body:has(.uin-mobile-nav) {
+    padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  }
 }

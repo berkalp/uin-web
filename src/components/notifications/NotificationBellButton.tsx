@@ -119,18 +119,18 @@ export default function NotificationBellButton({
   return (
     <Link
       href="/notifications"
-      title="Notifications"
+      title="Bildirimler"
       aria-label={
         count > 0
-          ? `Notifications, ${count} unread`
-          : "Notifications"
+          ? `Bildirimler, ${count} okunmamış`
+          : "Bildirimler"
       }
-      className="relative flex h-12 w-12 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-green-400 hover:text-green-700"
+      className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border border-gray-200 bg-white text-gray-700 shadow-sm transition hover:border-green-400 hover:text-green-700"
     >
       <BellIcon />
 
       {count > 0 && (
-        <span className="absolute -right-2 -top-2 flex min-h-6 min-w-6 items-center justify-center rounded-full bg-gray-950 px-1.5 text-[11px] font-bold text-white ring-2 ring-gray-50">
+        <span className="absolute right-1 top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-gray-950 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white">
           {formatBadge(count)}
         </span>
       )}

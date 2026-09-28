@@ -1,3 +1,7 @@
+import MyCardFilters from "@/components/timeline/MyCardFilters";
+import MyPersonalIntentCard from "@/components/seeds/MyPersonalIntentCard";
+import {getExperienceTotals} from "@/utils/experienceEntries";
+import MySeedsContent, {loadMySeedsData} from "@/components/seeds/MySeedsContent";
 import Link from "next/link";
 
 import EyeIcon from "../../components/ui/EyeIcon";
@@ -423,6 +427,10 @@ type UpcomingIntentFilter = "all" | "social" | "personal";
 type TimelinePageProps = {
   searchParams: Promise<{
     view?: string;
+    tab?:string;
+    kind?:string;
+    q?:string;
+    experience?:string;
     page?: string;
     moment?: string;
     upcoming?: string;
@@ -1208,10 +1216,10 @@ function getTimelineTabLabel(
 function getIntentSectionTitle(
   view: TimelineView
 ) {
-  if (view === "open") return "Sosyal Niyetlerim";
-  if (view === "full") return "Katılımı Dolan Sosyal Niyetlerim";
-  if (view === "closed") return "Kapanan Sosyal Niyetlerim";
-  return `${getTimelineTabLabel(view)} Sosyal Niyetler`;
+  if (view === "open") return "Etkinliklerim";
+  if (view === "full") return "Katılımı Dolan Etkinliklerim";
+  if (view === "closed") return "Kapanan Etkinliklerim";
+  return `${getTimelineTabLabel(view)} Etkinlikler`;
 }
 
 function getFormingActivitySectionTitle(
@@ -2005,6 +2013,9 @@ export default async function TimelinePage({
   const resolvedSearchParams =
     await searchParams;
 
+  const selectedTab=["wanted","events","experiences","loved"].includes(resolvedSearchParams.tab||"")?resolvedSearchParams.tab!:resolvedSearchParams.view==="completed"?"experiences":resolvedSearchParams.mine==="social"||resolvedSearchParams.mine==="planned"?"events":"wanted";
+  const experienceData=await loadMySeedsData({searchParams:Promise.resolve({alan:"deneyimler"})});
+  const experienceTotals=getExperienceTotals(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites);
   const selectedView =
     isTimelineView(
       resolvedSearchParams.view
@@ -2043,7 +2054,7 @@ export default async function TimelinePage({
     resolvedSearchParams.mine === "week" ||
     resolvedSearchParams.mine === "month"
       ? resolvedSearchParams.mine
-      : "all";
+      : selectedTab==="events"?"all":"personal";
 
   const supabase =
     await createClient();
@@ -2232,7 +2243,7 @@ export default async function TimelinePage({
       "get_my_active_matches"
     ),
 
-    supabase.rpc("get_my_seeds_v2", {
+    supabase.rpc("get_my_canonical_seeds_v31", {
       p_status: null,
     }),
 
@@ -2633,7 +2644,7 @@ export default async function TimelinePage({
 
 
   const timelineSeeds = sortProfileItems(
-    ((activeSeedResult.data ?? []) as SeedRecord[]).filter(
+    experienceData.seeds.filter(
       (seed) => seed.status !== "archived"
     ),
     (seed) => seed.seed_id,
@@ -3481,9 +3492,15 @@ const {
     (entry): entry is IntentTimelineEntry => entry.kind === "intent"
   );
 
+  const completedTargetIds=new Set(experienceData.seeds.filter(seed=>seed.status==="completed").map(seed=>seed.canonical_target_id));
+  const currentIndependentIntents=experienceData.independentIntents.filter(intent=>(!intent.end_date||intent.end_date.slice(0,10)>=today));
+  const pastIndependentIntents=experienceData.independentIntents.filter(intent=>intent.end_date&&intent.end_date.slice(0,10)<today);
+  const pastPersonalSeeds=timelineSeeds.filter(seed=>seed.status==="active"&&isSeedPastDue(seed,today)&&!experienceData.independentIntents.some(intent=>intent.target_id===seed.canonical_target_id));
   const personalIntentSeeds = timelineSeeds.filter(
     (seed) =>
       seed.status === "active" &&
+      !completedTargetIds.has(seed.canonical_target_id) &&
+      !currentIndependentIntents.some(intent=>intent.target_id===seed.canonical_target_id) &&
       !isSeedPastDue(seed, today)
   );
 
@@ -3503,11 +3520,13 @@ const {
       kind: "personal" as const,
       key: `personal-${seed.seed_id}`,
       seed,
+      commonIntent:null,
       sortDate: seed.target_date || seed.created_at,
       targetDate: seed.target_date,
       createdDate: seed.created_at,
     })),
 
+    ...currentIndependentIntents.map(intent=>({kind:"personal" as const,key:"common-personal-"+intent.id,seed:null,commonIntent:intent,sortDate:intent.start_date||intent.created_at,targetDate:intent.start_date,createdDate:intent.created_at})),
     ...socialIntentEntries.map((entry) => ({
       kind: "social" as const,
       key: `social-${entry.intent.id}`,
@@ -3569,21 +3588,30 @@ const {
     );
   }
 
+  const [myTypesResult,mySourcesResult]=await Promise.all([supabase.from("uin_content_types").select("id,label,icon").order("position").order("label"),supabase.rpc("get_my_uin_topic_sources_v71")]);
+  const mySources=(mySourcesResult.data||[]) as Array<{resource_id:string;target_id:string;type_id:string}>;
+  const selectedKind=resolvedSearchParams.kind||"";const cardQuery=(resolvedSearchParams.q||"").trim().toLocaleLowerCase("tr-TR");
+  const tabIntentItems=allMyIntentItems.filter(item=>selectedTab==="events"?item.kind!=="personal":item.kind==="personal").filter(item=>{
+    if(item.kind==="personal"){const p=item.commonIntent||item.seed?.wish_presentation;const title=item.commonIntent?.title||item.seed?.title||"";const subtitle=item.commonIntent?.subtitle||item.seed?.subtitle||"";return (!selectedKind||p?.type_id===selectedKind)&&(!cardQuery||(title+" "+subtitle).toLocaleLowerCase("tr-TR").includes(cardQuery))}
+    const resourceId=item.entry.kind==="plan"?item.entry.plan.id:item.entry.intent.id;
+    const typeId=mySources.find(s=>s.resource_id===resourceId)?.type_id||"activity";
+    return (!selectedKind||selectedKind===typeId)&&(!cardQuery||JSON.stringify(item.entry).toLocaleLowerCase("tr-TR").includes(cardQuery));
+  });
   const filteredMyIntentItems =
     selectedMine === "personal"
-      ? allMyIntentItems.filter(
+      ? tabIntentItems.filter(
           (item) => item.kind === "personal"
         )
       : selectedMine === "social"
-        ? allMyIntentItems.filter(
+        ? tabIntentItems.filter(
             (item) => item.kind === "social"
           )
         : selectedMine === "planned"
-          ? allMyIntentItems.filter(
+          ? tabIntentItems.filter(
               (item) => item.kind === "planned"
             )
           : selectedMine === "month"
-            ? allMyIntentItems
+            ? tabIntentItems
                 .filter((item) =>
                   isTargetWithin(
                     item.targetDate,
@@ -3596,7 +3624,7 @@ const {
                     new Date(b.targetDate!).getTime()
                 )
             : selectedMine === "week"
-              ? allMyIntentItems
+              ? tabIntentItems
                   .filter((item) =>
                     isTargetWithin(
                       item.targetDate,
@@ -3608,7 +3636,7 @@ const {
                       new Date(a.targetDate!).getTime() -
                       new Date(b.targetDate!).getTime()
                   )
-              : allMyIntentItems;
+              : tabIntentItems;
 
   const myIntentPageCount = Math.max(
     1,
@@ -3856,7 +3884,7 @@ const {
       return (
         <article
           key={`intent-${intent.id}`}
-          className="relative flex h-[400px] min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative flex h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <input
             id={intentDetailToggleId}
@@ -3864,7 +3892,7 @@ const {
             className="peer sr-only"
             aria-label={`Toggle details for ${activity?.name ?? "UIN Intent"}`}
           />
-          <TimelineIntentPresentation
+          <TimelineIntentPresentation communityTargetId={mySources.find(s=>s.resource_id===intent.id)?.target_id}
               detailToggleId={intentDetailToggleId}
               intentId={intent.id}
               title={
@@ -4005,7 +4033,8 @@ const {
               copiedFromIntentId={intent.copied_from_intent_id}
             />
 
-          <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+          <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+          <div className="flex min-h-10 items-center justify-between gap-1">
           <CompactIntentReactionBar
             intentId={intent.id}
             initialContext={timelineReactionContextByIntentId.get(intent.id) ?? null}
@@ -4056,6 +4085,7 @@ const {
           >
             Detaylar
           </label>
+          </div>
           </div>
         </article>
       );
@@ -4419,7 +4449,7 @@ const {
         )}
 
         <article
-          className="relative z-10 flex h-[400px] min-w-0 flex-col overflow-visible rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
         <input
           id={planDetailToggleId}
@@ -4427,7 +4457,7 @@ const {
           className="peer sr-only"
           aria-label={`Toggle details for ${visiblePlanTitle}`}
         />
-        <TimelinePlanPresentation
+        <TimelinePlanPresentation communityTargetId={mySources.find(s=>s.resource_id===plan.id)?.target_id}
           detailToggleId={planDetailToggleId}
           planId={plan.id}
           title={visiblePlanTitle}
@@ -4634,7 +4664,9 @@ const {
 
         {/* Lifecycle details now live behind the canonical Details face. */}
 
-        <div className="flex h-[34px] shrink-0 items-center gap-1 border-t border-black/5 bg-white/95 px-1.5">
+        <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+          <Link href={primaryPlanActionHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">{primaryPlanActionLabel}</Link>
+        <div className="flex min-h-10 items-center justify-between gap-1">
           <Link
             href={planViewHref}
             title="Görüntüle"
@@ -4664,6 +4696,7 @@ const {
           >
             {primaryPlanActionLabel}
           </Link>
+        </div>
         </div>
         </article>
       </div>
@@ -4985,7 +5018,7 @@ const {
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10 md:px-6">
-      <div className="mx-auto max-w-[1680px]">
+      <div className="mx-auto max-w-[1320px]">
         <TimelineHeader
           email={
             user.email ??
@@ -5036,48 +5069,48 @@ const {
           family={profileFamily}
         />
 
-        <section className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+        <header className="mt-7"><h1 className="text-3xl font-black text-slate-950">Niyetlerim</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, etkinliklerin ve deneyimlerin tek yerde.</p></header>
+        <section aria-label="Niyetlerimi filtrele" className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
           {[
-            ["Aktif Sosyal Niyet", viewCounts.open + viewCounts.full],
-            ["Aktif Kişisel Niyet", timelineSeeds.filter((seed) => seed.status === "active").length],
-            ["Sosyal Deneyim", viewCounts.completed],
-            ["Kişisel Deneyim", timelineSeeds.filter((seed) => seed.status === "completed").length],
-          ].map(([label, value]) => <div key={String(label)} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm"><p className="text-3xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs font-bold text-gray-500">{label}</p></div>)}
+            {id:"wanted",label:"Niyetlerim",count:personalIntentSeeds.length+currentIndependentIntents.length},
+            {id:"events",label:"Etkinliklerim",count:allMyIntentItems.filter(item=>item.kind!=="personal").length},
+            {id:"experiences",label:"Deneyimlerim",count:experienceTotals.all},
+            {id:"loved",label:"Sevdiklerim",count:experienceTotals.loved},
+          ].map(item=><Link key={item.id} href={"/timeline?tab="+item.id+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)} scroll={false} aria-current={selectedTab===item.id?"page":undefined} className={"rounded-3xl border p-5 text-center shadow-sm transition "+(selectedTab===item.id?"border-emerald-400 bg-emerald-50 text-emerald-900":"border-gray-200 bg-white text-slate-950 hover:border-emerald-300")}><p className="text-3xl font-black">{item.count}</p><p className="mt-1 text-xs font-bold">{item.label}</p></Link>)}
         </section>
+        <div className="mt-5"><Link href="/together" className="text-sm font-bold text-emerald-800 hover:underline">Birlikte yapma önerilerim ↗</Link></div>
+        <MyCardFilters key={selectedTab+":"+(resolvedSearchParams.q||"")} types={myTypesResult.data||[]}/>
+        {(selectedTab==="experiences"||selectedTab==="loved")&&<section className="mt-8"><h2 className="text-2xl font-black">{selectedTab==="loved"?"Sevdiklerim":"Deneyimlerim"}</h2>{selectedTab==="loved"&&<p className="mt-2 text-sm text-slate-500">9–10 puan verdiğin deneyimler burada toplanır.</p>}<MySeedsContent data={experienceData} typeFilter={selectedKind} query={cardQuery} sourceTypes={mySources} filter={selectedTab==="loved"?"loved":resolvedSearchParams.experience==="personal"?"personal":resolvedSearchParams.experience==="social"?"social":"all"} lovedOnly={selectedTab==="loved"}/></section>}
+        {(selectedTab==="wanted"||selectedTab==="events")&&<IntentResolutionPanel items={intentResolutionItems}/>}
 
-
-        <IntentResolutionPanel items={intentResolutionItems} />
-
-
-        {selectedView === "open" && (
+        {selectedView === "open" && (selectedTab==="wanted"||selectedTab==="events") && (
           <section className="mt-8">
             <div className="mb-5">
               <h2 className="text-2xl font-black text-gray-950">
-                Niyetlerim
+                {selectedTab==="events"?"Etkinliklerim":"Niyetlerim"}
               </h2>
 
               <p className="mt-1 text-sm text-gray-500">
-                Kişisel ve sosyal niyetlerin tek yerde.
+                {selectedTab==="events"?"Düzenlediğin veya katıldığın aktif etkinlikler.":"Yapmak, görmek, okumak veya deneyimlemek istediklerin."}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
                 {([
                   ["all", "Tümü"],
-                  ["personal", "Kişisel"],
-                  ["social", "Sosyal"],
-                  ["planned", "Planlandı"],
+
+                  ...(selectedTab==="events"?[["planned", "Planlandı"] as const]:[]),
                   ["month", "30 gün kaldı"],
                   ["week", "7 gün kaldı"],
                 ] as const).map(([key, label]) => {
-                  const active = selectedMine === key;
+                  const active = selectedMine === key || (key==="all"&&selectedMine==="personal");
 
                   return (
                     <Link
                       key={key}
                       href={
                         key === "all"
-                          ? "/timeline?view=open"
-                          : `/timeline?view=open&mine=${key}`
+                          ? "/timeline?tab="+selectedTab+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)
+                          : "/timeline?tab="+selectedTab+"&mine="+key+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)
                       }
                       className={`rounded-xl border px-4 py-2 text-sm font-black transition ${
                         active
@@ -5093,16 +5126,17 @@ const {
             </div>
 
             {visibleMyIntentItems.length > 0 ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {visibleMyIntentItems.map((item) => {
                   if (item.kind === "personal") {
+                    if(item.commonIntent)return <MyPersonalIntentCard key={item.key} intent={item.commonIntent}/>;
                     return (
                       <div
                         key={item.key}
-                        className="h-[400px] min-w-0 [&>*]:h-full"
+                        className="min-w-0 [&>*]:h-full"
                       >
-                        <SeedCard
-                          seed={item.seed}
+                        <SeedCard editable
+                          seed={item.seed!}
                           isAuthenticated
                           variant="timeline"
                         />
@@ -5133,6 +5167,7 @@ const {
                   const params = new URLSearchParams();
 
                   params.set("view", "open");
+                  params.set("tab",selectedTab);if(selectedKind)params.set("kind",selectedKind);if(cardQuery)params.set("q",cardQuery);
 
                   if (selectedMine !== "all") {
                     params.set("mine", selectedMine);
@@ -5161,7 +5196,7 @@ const {
           </section>
         )}
 
-        <section className={selectedView === "open" ? "hidden" : "mt-8"}>
+        <section className={selectedView === "open" ||selectedTab==="experiences"||selectedTab==="loved" ? "hidden" : "mt-8"}>
           {isIntentLifecycleView ? (
             <div className="space-y-12">
               <section>
@@ -5183,10 +5218,10 @@ const {
 
                   {selectedView === "open" && (
                     <Link
-                      href="/onboarding"
+                      href="/ideas"
                       className="rounded-xl bg-green-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-green-700"
                     >
-                      + Sosyal niyet oluştur
+                      UIN Kartı seç
                     </Link>
                   )}
                 </div>
@@ -5224,7 +5259,7 @@ const {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   {visibleIntentEntries.map(
                     renderTimelineEntry
                   )}
@@ -5245,10 +5280,10 @@ const {
                       {selectedView ===
                         "open" && (
                         <Link
-                          href="/onboarding"
+                          href="/ideas"
                           className="mt-6 inline-block rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-700"
                         >
-                          Create New Intent
+                          UIN Kartı seç
                         </Link>
                       )}
                     </div>
@@ -5279,7 +5314,7 @@ const {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {selectedView ===
                   "expired" &&
                   expiredActivityResult.error && (
@@ -5408,7 +5443,7 @@ const {
               </Link>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {recentCompletedItems.map((entry) => (
                 <div
                   key={`completed-${entry.kind}-${
@@ -5425,49 +5460,19 @@ const {
 
         {selectedView === "open" && (
           <>
-            {featuredIntentItems.length > 0 && (
-              <section className="mt-12 mb-12">
-                <div className="mb-5">
-                  <h2 className="text-2xl font-black text-gray-950">
-                    Öne Çıkardıklarım
-                  </h2>
-
-                  <p className="mt-1 text-sm font-semibold text-gray-500">
-                    {featuredIntentItems.length} Sosyal
-                  </p>
-                </div>
-                <TimelinePagedRow
-                  pageSize={4}
-                  ariaLabel="Öne Çıkardıklarım sayfaları"
-                >
-                  {featuredIntentItems.map((item) => (
-                    <TimelineFeaturedIntentCard
-                      key={item.reactionId}
-                      item={item}
-                      currentUserId={currentUserId}
-                      initialContext={
-                        timelineReactionContextByIntentId.get(
-                          item.intentId
-                        ) ?? null
-                      }
-                    />
-                  ))}
-                </TimelinePagedRow>
-              </section>
-            )}
-
-            {allExpiredCancelledItems.length > 0 && (
-              <section className="mb-12">
-                <div className="mb-5">
-                  <h2 className="text-2xl font-black text-gray-950">
-                    Süresi dolanlar ve iptal edilenler
-                  </h2>
+            {(allExpiredCancelledItems.length+pastPersonalSeeds.length+pastIndependentIntents.length)>0 && (
+              <>
+              {selectedTab==="wanted"&&(pastIndependentIntents.length>0||pastPersonalSeeds.length>0)&&<p className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Tarihi geçen isteklerin var. Aşağıdan açıp hâlâ yapmak istediklerini yeni tarihle veya esnek zamanla yenileyebilirsin.</p>}
+              <details className="mt-8 mb-12 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                <summary className="cursor-pointer text-sm font-bold text-slate-600">Geçmiş ve iptal edilenler · {allExpiredCancelledItems.length+pastPersonalSeeds.length+pastIndependentIntents.length}</summary>
+                <div className="mt-5 mb-5">
 
                   <p className="mt-1 text-sm font-semibold text-gray-500">
                     {allExpiredCancelledItems.length} Sosyal
                   </p>
                 </div>
 
+                {(pastPersonalSeeds.length>0||pastIndependentIntents.length>0)&&<div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{pastPersonalSeeds.map(seed=><SeedCard key={seed.seed_id} seed={seed} isAuthenticated editable/>)}{pastIndependentIntents.map(intent=><MyPersonalIntentCard key={intent.id} intent={intent}/>)}</div>}
                 <TimelinePagedRow
                   pageSize={4}
                   ariaLabel="Süresi dolanlar ve iptal edilenler sayfaları"
@@ -5476,12 +5481,12 @@ const {
                   renderArchivedHistoryItem
                 )}
               </TimelinePagedRow>
-              </section>
+              </details></>
             )}
-            <PublicCommunityMembershipsPanel
+            {false && <PublicCommunityMembershipsPanel
               memberships={profileCommunityMemberships}
               isOwner
-            />
+            />}
 
             {false && <PublicFavoritesPanel
               items={profileFavorites}
@@ -5571,7 +5576,7 @@ const {
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                   {recentExpiredCancelledItems.map((historyItem) =>
                     historyItem.kind === "timeline" ? (
                       <div key={historyItem.key} className="min-w-0">
