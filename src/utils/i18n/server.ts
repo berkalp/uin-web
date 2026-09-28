@@ -3,7 +3,8 @@ import {
   type AppLocale,
   type AppTranslationBundle,
 } from "@/utils/i18n/types";
-import { createClient } from "@/utils/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 
 type RawTranslationBundle = {
   locale?: string;
@@ -20,11 +21,14 @@ type RawTranslationBundle = {
   languages?: AppLocale[];
 };
 
-export async function getAppTranslationBundle(
+const loadAppTranslationBundle = unstable_cache(async function loadAppTranslationBundle(
   requestedLocale: string | null
 ): Promise<AppTranslationBundle> {
-  const supabase =
-    await createClient();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } }
+  );
 
   const {
     data,
@@ -102,4 +106,8 @@ export async function getAppTranslationBundle(
         ? payload.languages
         : [],
   };
+}, ["app-translation-bundle"], { revalidate: 300 });
+
+export async function getAppTranslationBundle(requestedLocale: string | null) {
+  return loadAppTranslationBundle(requestedLocale);
 }

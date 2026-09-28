@@ -6,8 +6,7 @@ import AppTranslationRuntime from "@/components/i18n/AppTranslationRuntime";
 import ReminderToastListener from "@/components/notifications/ReminderToastListener";
 import GlobalAdminEditBar from "@/components/admin/GlobalAdminEditBar";
 import { getAppTranslationBundle } from "@/utils/i18n/server";
-import { isAdminRole, type AdminRole } from "@/utils/admin";
-import { createClient } from "@/utils/supabase/server";
+import { getViewerContext } from "@/utils/viewerContext";
 
 import "./globals.css";
 
@@ -36,23 +35,16 @@ export default async function RootLayout({
   const requestedLocale =
     cookieStore.get("uin_locale")?.value ?? null;
 
-  const translationBundle =
-    await getAppTranslationBundle(requestedLocale);
-
-  let adminRole: AdminRole | null = null;
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase.rpc("get_admin_role");
-      adminRole = isAdminRole(data) ? data : null;
-    }
-  } catch {
-    adminRole = null;
-  }
+  const [translationBundle, viewerContext] = await Promise.all([
+    getAppTranslationBundle(requestedLocale),
+    getViewerContext().catch(() => ({ user: null, adminRole: null })),
+  ]);
+  const adminRole = viewerContext.adminRole;
 
   return (
     <html
+      data-theme="light"
+      style={{colorScheme:"only light"}}
       lang={translationBundle.locale || "en"}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
@@ -62,7 +54,11 @@ export default async function RootLayout({
         className="min-h-full flex flex-col"
       >
         <AppTranslationRuntime
-          bundle={translationBundle}
+          bundle={{
+            ...translationBundle,
+            messages: {},
+            languages: [],
+          }}
         />
 
         <ReminderToastListener />

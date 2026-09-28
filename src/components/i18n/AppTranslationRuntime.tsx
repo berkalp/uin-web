@@ -148,6 +148,12 @@ export default function AppTranslationRuntime({
     document.documentElement.lang =
       bundle.locale || bundle.default_locale || "en";
 
+    // The default locale normally has no source-text replacements. Avoid a
+    // full DOM walk and a permanent MutationObserver in that common case.
+    if (Object.keys(sourceMessages).length === 0) {
+      return;
+    }
+
     const textRecords = new WeakMap<
       Text,
       TranslationRecord

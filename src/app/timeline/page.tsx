@@ -2014,8 +2014,6 @@ export default async function TimelinePage({
     await searchParams;
 
   const selectedTab=["wanted","events","experiences","loved"].includes(resolvedSearchParams.tab||"")?resolvedSearchParams.tab!:resolvedSearchParams.view==="completed"?"experiences":resolvedSearchParams.mine==="social"||resolvedSearchParams.mine==="planned"?"events":"wanted";
-  const experienceData=await loadMySeedsData({searchParams:Promise.resolve({alan:"deneyimler"})});
-  const experienceTotals=getExperienceTotals(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites);
   const selectedView =
     isTimelineView(
       resolvedSearchParams.view
@@ -2070,9 +2068,18 @@ export default async function TimelinePage({
 
   const currentUserId = user.id;
 
-  const { error: resolutionRefreshError } = await supabase.rpc(
-    "refresh_my_intent_join_resolutions"
-  );
+  const [
+    experienceData,
+    { error: resolutionRefreshError },
+    { error: lineageReconcileError },
+    { data: familyCenterData, error: familyCenterError },
+  ] = await Promise.all([
+    loadMySeedsData({searchParams:Promise.resolve({alan:"deneyimler"})}),
+    supabase.rpc("refresh_my_intent_join_resolutions"),
+    supabase.rpc("reconcile_my_intent_plan_lineage"),
+    supabase.rpc("get_my_family_center"),
+  ]);
+  const experienceTotals=getExperienceTotals(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites);
 
   if (resolutionRefreshError) {
     console.warn(
@@ -2081,23 +2088,12 @@ export default async function TimelinePage({
     );
   }
 
-  const { error: lineageReconcileError } = await supabase.rpc(
-    "reconcile_my_intent_plan_lineage"
-  );
-
   if (lineageReconcileError) {
     console.warn(
       "Intent/Plan lineage reconciliation failed:",
       lineageReconcileError.message
     );
   }
-
-  const {
-    data: familyCenterData,
-    error: familyCenterError,
-  } = await supabase.rpc(
-    "get_my_family_center"
-  );
 
   if (familyCenterError) {
     console.error(

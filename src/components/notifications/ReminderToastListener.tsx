@@ -68,13 +68,14 @@ export default function ReminderToastListener() {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
     let pollId: ReturnType<typeof setInterval> | null = null;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
 
     const onFocus = () => void recoverRecentPopup();
     const onVisibility = () => {
       if (document.visibilityState === "visible") void recoverRecentPopup();
     };
 
-    void (async () => {
+    startTimer = setTimeout(() => void (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || cancelled) return;
       userIdRef.current = user.id;
@@ -103,12 +104,13 @@ export default function ReminderToastListener() {
       window.addEventListener("focus", onFocus);
       document.addEventListener("visibilitychange", onVisibility);
       void recoverRecentPopup();
-    })();
+    })(), 1200);
 
     return () => {
       cancelled = true;
       userIdRef.current = null;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (startTimer) clearTimeout(startTimer);
       if (pollId) clearInterval(pollId);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
