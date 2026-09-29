@@ -618,11 +618,11 @@ export default function DiscoverIntentCard({
     : "Tarih netleşmedi";
   const locationLabel = mapLocationLabel || "Konum netleşmedi";
   const action = isOwner
-    ? <Link href={editHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Etkinliği düzenle</Link>
+    ? <Link href={editHref} className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-amber-200 bg-amber-500 px-3 py-2.5 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-400">✎ Etkinliği düzenle</Link>
     : intent.viewer_is_member && memberRoomHref
-      ? <Link href={memberRoomHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Etkinliğe katılıyorum</Link>
+      ? <Link href={memberRoomHref} className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-emerald-200 bg-emerald-600 px-3 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">✓ Etkinliğe katılıyorum</Link>
       : canDisplayJoinAction
-        ? <div className="[&_button]:!min-h-11 [&_button]:!w-full [&_button]:!rounded-xl [&_button]:!bg-emerald-600 [&_button]:!px-3 [&_button]:!py-2.5 [&_button]:!text-sm [&_button]:!font-black [&_button]:!text-white">
+        ? <div className="[&_button]:!min-h-11 [&_button]:!w-full [&_button]:!rounded-xl [&_button]:!border-2 [&_button]:!border-violet-300 [&_button]:!bg-violet-600 [&_button]:!px-3 [&_button]:!py-2.5 [&_button]:!text-sm [&_button]:!font-black [&_button]:!text-white [&_button]:!shadow-sm [&_button]:!transition hover:[&_button]:!bg-violet-500">
             <PublicIntentJoinButton
               intentId={intent.intent_id} planId={intent.plan_id} activityName={cardTitle}
               recruitmentStatus={intent.recruitment_status === "full" ? "full" : "open"}
