@@ -3880,7 +3880,7 @@ const {
       return (
         <article
           key={`intent-${intent.id}`}
-          className="uin-perfect-card relative flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
         >
           <input
             id={intentDetailToggleId}
@@ -4446,7 +4446,7 @@ const {
         )}
 
         <article
-          className="uin-perfect-card relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
         >
         <input
           id={planDetailToggleId}
