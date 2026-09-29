@@ -181,10 +181,6 @@ const LIFECYCLE_OPTIONS = [
     label: "Açık, Gelecek ve Şekillenen",
   },
   {
-    value: "all",
-    label: "Tüm aşamalar",
-  },
-  {
     value: "open",
     label: "Şimdi açık",
   },
@@ -199,26 +195,6 @@ const LIFECYCLE_OPTIONS = [
   {
     value: "planned",
     label: "Planlanmış etkinlikler",
-  },
-  {
-    value: "closed",
-    label: "Kapanmış etkinlikler",
-  },
-  {
-    value: "completed",
-    label: "Tamamlananlar",
-  },
-  {
-    value: "cancelled",
-    label: "İptal edilenler",
-  },
-  {
-    value: "expired",
-    label: "Süresi geçen / gerçekleşmeyen",
-  },
-  {
-    value: "history",
-    label: "Tüm geçmiş",
   },
 ] as const;
 
@@ -666,7 +642,8 @@ export default async function DiscoverPage({
     redirect("/");
   }
 
-  function runDiscoverSearch(limit: number, offset: number) {
+  function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string) {
+    const requestedLifecycle = lifecycleOverride ?? lifecycle;
     if (communityId) {
       return supabase.rpc("search_visible_intents_by_community", {
         p_community_id: communityId,
@@ -677,7 +654,7 @@ export default async function DiscoverPage({
         p_location_id: locationId || null,
         p_start_date: startDate || null,
         p_end_date: endDate || null,
-        p_lifecycle: lifecycle,
+        p_lifecycle: requestedLifecycle,
         p_scope: scope,
         p_limit: limit,
         p_offset: offset,
@@ -693,7 +670,7 @@ export default async function DiscoverPage({
         p_location_id: locationId || null,
         p_start_date: startDate || null,
         p_end_date: endDate || null,
-        p_lifecycle: lifecycle,
+        p_lifecycle: requestedLifecycle,
         p_scope: scope,
         p_limit: limit,
         p_offset: offset,
@@ -708,7 +685,7 @@ export default async function DiscoverPage({
       p_location_id: locationId || null,
       p_start_date: startDate || null,
       p_end_date: endDate || null,
-      p_lifecycle: lifecycle,
+      p_lifecycle: requestedLifecycle,
       p_scope: scope,
       p_limit: limit,
       p_offset: offset,
@@ -720,6 +697,7 @@ export default async function DiscoverPage({
     communityResponse,
     followedCommunityResponse,
     searchResponse,
+    archiveResponse,
     personalResponse,
   ] =
     await Promise.all([
@@ -732,6 +710,7 @@ export default async function DiscoverPage({
       Promise.resolve({ data: [], error: null }),
 
       runDiscoverSearch(resultLimit, resultOffset),
+      runDiscoverSearch(80, 0, "history"),
       supabase.rpc("get_common_intent_cards_v38", {
         p_query: query || null,
         p_limit: 100,
@@ -791,6 +770,10 @@ export default async function DiscoverPage({
     );
   }
 
+  if (archiveResponse.error) {
+    console.warn("Etkinlik arşivi yüklenemedi:", archiveResponse.error.message);
+  }
+
   let mapBatchError: { message?: string } | null = null;
   const searchRows = [
     ...(((searchResponse.data ?? []) as DiscoverIntentRow[])),
@@ -815,6 +798,14 @@ export default async function DiscoverPage({
 
   const deduplicatedSearchRows = Array.from(
     new Map(searchRows.map((row) => [row.intent_id, row])).values()
+  );
+
+  const archivedResults = Array.from(
+    new Map(
+      ((archiveResponse.data ?? []) as DiscoverIntentRow[])
+        .filter((intent) => intent.lifecycle_status === "cancelled" || intent.lifecycle_status === "expired")
+        .map((intent) => [intent.intent_id, intent])
+    ).values()
   );
 
   const filters =
@@ -1040,9 +1031,13 @@ export default async function DiscoverPage({
   const results = eligibleResults
     .filter(
       (intent) =>
+        ["open", "future", "forming", "planned"].includes(intent.lifecycle_status) &&
         intent.intent_status !== "completed" &&
+        intent.intent_status !== "cancelled" &&
         intent.lifecycle_status !== "completed" &&
-        !intent.completed_at
+        !intent.completed_at &&
+        !intent.cancelled_at &&
+        !intent.expired_at
     )
     .map((intent) => ({
       ...intent,
@@ -2070,6 +2065,34 @@ export default async function DiscoverPage({
                   </span>
                 )}
               </nav>
+            )}
+
+            {view === "cards" && archivedResults.length > 0 && (
+              <details className="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-black text-gray-900 marker:hidden md:px-6">
+                  <span>
+                    İptal olanlar / süresi geçenler
+                    <span className="ml-2 rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600">{archivedResults.length}</span>
+                  </span>
+                  <span aria-hidden="true" className="text-lg text-gray-400">⌄</span>
+                </summary>
+                <div className="grid gap-3 border-t border-gray-100 p-4 md:grid-cols-2 md:p-5 xl:grid-cols-3">
+                  {archivedResults.map((intent) => {
+                    const expired = intent.lifecycle_status === "expired";
+                    const href = `/activities/${encodeURIComponent(intent.plan_id ?? intent.resource_id ?? intent.intent_id)}`;
+                    const location = [intent.district, intent.city].filter(Boolean).join(", ") || "Konum belirtilmedi";
+                    return (
+                      <Link key={intent.intent_id} href={href} className="rounded-2xl border border-gray-200 bg-gray-50 p-4 opacity-70 transition hover:border-gray-400 hover:opacity-100">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="font-black text-gray-950">{intent.activity_name}</p>
+                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${expired ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{expired ? "Süresi geçti" : "İptal"}</span>
+                        </div>
+                        <p className="mt-3 text-xs font-semibold text-gray-500">📍 {location}</p>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </details>
             )}
           </>
         )}
