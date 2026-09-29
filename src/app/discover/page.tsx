@@ -2076,21 +2076,14 @@ export default async function DiscoverPage({
                   </span>
                   <span aria-hidden="true" className="text-lg text-gray-400">⌄</span>
                 </summary>
-                <div className="grid gap-3 border-t border-gray-100 p-4 md:grid-cols-2 md:p-5 xl:grid-cols-3">
-                  {archivedResults.map((intent) => {
-                    const expired = intent.lifecycle_status === "expired";
-                    const href = `/activities/${encodeURIComponent(intent.plan_id ?? intent.resource_id ?? intent.intent_id)}`;
-                    const location = [intent.district, intent.city].filter(Boolean).join(", ") || "Konum belirtilmedi";
-                    return (
-                      <Link key={intent.intent_id} href={href} className="rounded-2xl border border-gray-200 bg-gray-50 p-4 opacity-70 transition hover:border-gray-400 hover:opacity-100">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="font-black text-gray-950">{intent.activity_name}</p>
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${expired ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{expired ? "Süresi geçti" : "İptal"}</span>
-                        </div>
-                        <p className="mt-3 text-xs font-semibold text-gray-500">📍 {location}</p>
-                      </Link>
-                    );
-                  })}
+                <div className="grid grid-cols-1 gap-5 border-t border-gray-100 p-4 md:grid-cols-2 md:p-5 xl:grid-cols-3">
+                  {archivedResults.map((intent) => (
+                    <DiscoverIntentCard
+                      key={intent.intent_id}
+                      intent={intent}
+                      currentUserId={user.id}
+                    />
+                  ))}
                 </div>
               </details>
             )}

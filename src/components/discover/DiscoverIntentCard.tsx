@@ -617,7 +617,12 @@ export default function DiscoverIntentCard({
     ? new Intl.DateTimeFormat("tr-TR", {timeZone:intent.timezone||"Europe/Istanbul",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(parsedDate)
     : "Tarih netleşmedi";
   const locationLabel = mapLocationLabel || "Konum netleşmedi";
-  const action = isOwner
+  const isArchived =
+    intent.lifecycle_status === "cancelled" ||
+    intent.lifecycle_status === "expired";
+  const action = isArchived
+    ? <Link href={detailHref} className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-white/20 bg-slate-700 px-3 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-slate-600">Etkinliği görüntüle</Link>
+    : isOwner
     ? <Link href={editHref} className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-amber-200 bg-amber-500 px-3 py-2.5 text-sm font-black text-slate-950 shadow-sm transition hover:bg-amber-400">✎ Etkinliği düzenle</Link>
     : intent.viewer_is_member && memberRoomHref
       ? <Link href={memberRoomHref} className="flex min-h-11 w-full items-center justify-center rounded-xl border-2 border-emerald-200 bg-emerald-600 px-3 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-700">✓ Etkinliğe katılıyorum</Link>
