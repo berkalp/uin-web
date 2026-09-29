@@ -42,13 +42,17 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(peopleResult.error||reviewResult.error||eventResult.error)return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
   async function allPeople(first:Array<Record<string,unknown>>,group:string){const rows=[...first];while(rows.length<Number(rows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:group,p_limit:100,p_offset:rows.length});if(page.error)throw new Error(page.error.message);const next=page.data as Array<Record<string,unknown>>;if(!next.length)break;rows.push(...next)}return rows}
   const [wantRows,doneRows]=await Promise.all([allPeople((peopleResult.data||[]) as Array<Record<string,unknown>>,"intent"),allPeople((reviewResult.data||[]) as Array<Record<string,unknown>>,"experience")]);
+  const permissionRequests=viewerId?[...new Map(wantRows.filter(row=>row.user_id!==viewerId).map(row=>{const sourceTarget=String(row.source_target_id||targetId);const recipient=String(row.user_id);return[`${sourceTarget}:${recipient}`,{target_id:sourceTarget,recipient_id:recipient}]})).values()]:[];
+  const permissionResult=permissionRequests.length?await supabase.rpc("get_uin_together_permissions_v83",{p_requests:permissionRequests}):{data:[],error:null};
+  if(permissionResult.error)return NextResponse.json({error:"Birlikte yapma izinleri yüklenemedi."},{status:500});
+  const permissions=new Map(((permissionResult.data||[]) as Array<Record<string,unknown>>).map(row=>[`${row.target_id}:${row.recipient_id}`,row]));
   const clubResult=await supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId});
   const clubContext=clubResult.data as {personal?:Array<{user_id:string;context:object}>;events?:Array<{intent_id:string;context:object}>}|null;
   const metadata={...((card.metadata||{}) as object),...((context.metadata||{}) as object)} as Record<string,unknown>;
   let typeId=typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
   if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
   const typeResult=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
-  const people:Array<Record<string,unknown>>=wantRows.map(row=>({...row,has_completed_experience:doneRows.some(done=>done.user_id===row.user_id),viewing_context:clubContext?.personal?.find(person=>person.user_id===row.user_id)?.context||metadata.legacy_viewing_context||null,is_current:true,id:row.source_id||row.user_id,start_date:row.start_date??row.target_date,end_date:row.end_date??row.target_date}));
+  const people:Array<Record<string,unknown>>=wantRows.map(row=>{const sourceTarget=String(row.source_target_id||targetId);const permission=permissions.get(`${sourceTarget}:${row.user_id}`);return{...row,has_completed_experience:doneRows.some(done=>done.user_id===row.user_id),viewing_context:clubContext?.personal?.find(person=>person.user_id===row.user_id)?.context||metadata.legacy_viewing_context||null,is_current:true,id:row.source_id||row.user_id,start_date:row.start_date??row.target_date,end_date:row.end_date??row.target_date,together_allowed:Boolean(permission?.allowed),together_reason:typeof permission?.reason==="string"?permission.reason:null,together_code:typeof permission?.code==="string"?permission.code:null}});
   const events=(eventResult.data||[]) as Array<Record<string,unknown>>;
   const eventDetails=await Promise.all(events.map(event=>supabase.rpc("get_activity_detail_page",{p_resource_id:typeof event.plan_id==="string"?event.plan_id:event.intent_id as string})));
   const resourceIds=events.map(event=>String(event.plan_id||event.intent_id));
@@ -65,7 +69,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const reviews=doneRows.map(row=>({...row,seed_id:row.seed_id||row.source_id||row.user_id,body:row.experience_text,comment_count:0}));
   const ownIntentResult=viewerId?await supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId}):null;
   if(ownIntentResult?.error)return NextResponse.json({error:"İsteğin yüklenemedi."},{status:500});
-  const hasOwnPersonalIntent=(ownIntentResult?.data as {status?:string}|null)?.status==="active";
+  const hasOwnPersonalIntent=Boolean(ownIntentResult?.data);
   const ownSeedId=typeof card.own_seed_id==="string"?card.own_seed_id:null;
   const ownDetailResult=ownSeedId?await supabase.rpc("get_visible_seed_detail",{p_seed_id:ownSeedId}):null;
   const ownDetail=ownDetailResult?parseSeedDetailData(ownDetailResult.data):null;
