@@ -4,6 +4,7 @@ import {buildExperienceEntries} from "@/utils/experienceEntries";
 
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
+import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import { useEffect, useMemo, useState } from "react";
 
 import { getPublicFavoriteId, type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
@@ -64,6 +65,7 @@ function formatDate(value: string) {
 function SocialExperienceCard({ item,targetId }: { item: SocialExperienceItem;targetId?:string }) {
   return <PersonalLibraryCard title={item.title} subtitle={item.locationLabel} coverUrl={item.coverUrl}
     href={item.href} badge="DENEYİMİM" icon="✓"
+    cornerMeta={targetId?<CardRatingBadge targetId={targetId}/>:undefined}
     metrics={targetId?<CanonicalTargetPeople targetId={targetId} appearance="overlay"/>:undefined}
     action={<Link href={item.href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimi aç</Link>}/>;
 }
@@ -75,6 +77,7 @@ function LovedExperienceCard({ item }: { item: PublicFavoriteItem }) {
 
   return <PersonalLibraryCard title={item.title} subtitle={item.creator_name} coverUrl={item.cover_url}
     href={href} badge="SEVDİĞİM DENEYİM" icon={words.icon}
+    cornerMeta={item.canonical_target_id?<CardRatingBadge targetId={item.canonical_target_id}/>:undefined}
     action={<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-black text-white hover:bg-rose-700">Deneyimi aç</Link>}/>;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
+import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import PersonalWishSummary,{wishBadge,wishHow,wishWhen,wishWords,type WishPresentation} from "@/components/cards/PersonalWishSummary";
 import UinCard, { cardPrimary, cardSecondary } from "@/components/cards/UinCard";
 import TargetHighlight from "@/components/cards/TargetHighlight";
@@ -30,7 +31,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       badge={experienceWords.done}
       icon={presentation.type_icon||"✓"}
       href={href}
-      cornerMeta={typeof seed.personal_rating==="number"?`Puanım ${seed.personal_rating}/10`:undefined}
+      cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id} personalRating={seed.personal_rating}/>}
       perfectScore={perfectScore}
       metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />:undefined}
       action={editable?<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimimi düzenle</Link>:<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-black text-white hover:bg-white/15">Deneyimi aç</Link>}
@@ -44,6 +45,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       badge={wishBadge(presentation)}
       icon={presentation.type_icon||words.icon}
       href={href}
+      cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id}/>}
       summary={<div className="space-y-1.5">
         <p className="font-black text-emerald-300">{wishHow(presentation)||wantLabel}</p>
         <p>📅 {wishWhen(presentation)}</p>

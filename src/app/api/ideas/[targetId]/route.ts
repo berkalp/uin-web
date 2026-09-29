@@ -19,13 +19,14 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(!/^[0-9a-f-]{36}$/i.test(targetId))return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const supabase=await requestClient(request);
   if(request.nextUrl.searchParams.get("summary")==="1"){
-    const [profile,summary]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v81",{p_target_ids:[targetId]})]);
+    const [profile,summary,rating]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v81",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:[targetId]})]);
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
-    if(profile.error||summary.error||!row?.title)return NextResponse.json({error:"Kart yüklenemedi."},{status:404});
+    if(profile.error||summary.error||rating.error||!row?.title)return NextResponse.json({error:"Kart yüklenemedi."},{status:404});
     const stats=(summary.data||[])[0];let typeId=String(stats?.type_id||row.metadata?.content_type_id||"");
     if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
     const type=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
-    return NextResponse.json({contentType:type.data,communityCounts:[Number(stats?.wanting||0),Number(stats?.done||0),Number(stats?.active||0)],card:{title:row.title,subtitle:visibleSubtitle(typeId,type.data?.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null},people:[],reviews:[],events:[]});
+    const ratingStats=(rating.data||[])[0];
+    return NextResponse.json({contentType:type.data,communityCounts:[Number(stats?.wanting||0),Number(stats?.done||0),Number(stats?.active||0)],averageRating:ratingStats?.average_rating==null?null:Number(ratingStats.average_rating),ratingCount:Number(ratingStats?.rating_count||0),viewerRating:ratingStats?.viewer_rating==null?null:Number(ratingStats.viewer_rating),card:{title:row.title,subtitle:visibleSubtitle(typeId,type.data?.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null},people:[],reviews:[],events:[]});
   }
   const [cardResult,contextResult,peopleResult,eventResult,reviewResult,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
