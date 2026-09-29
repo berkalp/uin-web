@@ -120,3 +120,27 @@ body {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 }
+/* A perfect 10 follows the rating badge wherever a UIN card is rendered. */
+.uin-perfect-card:has(.uin-perfect-score) {
+  border: 3px solid #facc15 !important;
+  box-shadow: 0 0 0 3px rgb(250 204 21 / 20%), 0 18px 40px -18px rgb(245 158 11 / 80%) !important;
+}
+
+.uin-perfect-card:has(.uin-perfect-score)::before,
+.uin-perfect-card:has(.uin-perfect-score)::after {
+  position: absolute;
+  left: 50%;
+  z-index: 30;
+  width: max-content;
+  transform: translateX(-50%);
+  color: #fde047;
+  content: "★  ★  ★";
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: .5rem;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 2px rgb(120 53 15 / 80%));
+}
+
+.uin-perfect-card:has(.uin-perfect-score)::before { top: 4px; }
+.uin-perfect-card:has(.uin-perfect-score)::after { bottom: 4px; }

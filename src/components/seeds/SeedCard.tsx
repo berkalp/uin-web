@@ -23,7 +23,6 @@ export default function SeedCard({ seed,editable=false,variant }: {
   const href = `/seeds/${seed.seed_id}`;
   if (variant === "experience" && completed) {
     const experienceWords=wishWords(presentation);
-    const perfectScore=seed.personal_rating===10;
     return <PersonalLibraryCard
       title={seed.title}
       subtitle={seed.subtitle}
@@ -32,7 +31,6 @@ export default function SeedCard({ seed,editable=false,variant }: {
       icon={presentation.type_icon||"✓"}
       href={href}
       cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id} personalRating={seed.personal_rating}/>}
-      perfectScore={perfectScore}
       metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />:undefined}
       action={editable?<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimimi düzenle</Link>:<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-black text-white hover:bg-white/15">Deneyimi aç</Link>}
     />;
