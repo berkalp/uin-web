@@ -3,7 +3,7 @@ import Link from "next/link";
 import type {ReactNode} from "react";
 
 export default function PersonalLibraryCard({title,subtitle,coverUrl,coverPositionY=50,badge,icon,href,onOpen,cornerMeta,summary,metrics,action}:{title:string;subtitle?:string|null;coverUrl?:string|null;coverPositionY?:number;badge:string;icon?:string|null;href?:string;onOpen?:()=>void;cornerMeta?:ReactNode;summary?:ReactNode;metrics?:ReactNode;action:ReactNode}){
-  const heading=<><h2 className="line-clamp-2 text-xl font-black leading-tight text-white">{title}</h2>{subtitle&&<p className="mt-1 line-clamp-2 text-xs font-medium text-white/70">{subtitle}</p>}</>;
+  const heading=<h2 className="line-clamp-2 text-xl font-black leading-tight text-white">{title}</h2>;
   return <article className="uin-perfect-card group relative flex min-h-[510px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-[0_14px_34px_-20px_rgba(15,23,42,.65)] transition-shadow hover:shadow-[0_22px_46px_-20px_rgba(15,23,42,.7)]">
     {coverUrl?<img src={coverUrl} alt="" loading="lazy" style={{objectPosition:`50% ${coverPositionY}%`}} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"/>:<div className="absolute inset-0 grid place-items-center bg-black text-7xl">{icon||"🌱"}</div>}
     <div className="pointer-events-none absolute inset-0 bg-slate-950/25"/>

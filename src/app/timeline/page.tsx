@@ -3889,6 +3889,7 @@ const {
             aria-label={`Toggle details for ${activity?.name ?? "UIN Intent"}`}
           />
           <TimelineIntentPresentation communityTargetId={mySources.find(s=>s.resource_id===intent.id)?.target_id}
+              listEditHref={selectedTab==="events"?`/intents/${encodeURIComponent(intent.id)}/edit`:null}
               detailToggleId={intentDetailToggleId}
               intentId={intent.id}
               title={
@@ -4029,7 +4030,7 @@ const {
               copiedFromIntentId={intent.copied_from_intent_id}
             />
 
-          <div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
+          {selectedTab!=="events"&&<div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
           <div className="flex min-h-10 items-center justify-between gap-1">
           <CompactIntentReactionBar
             intentId={intent.id}
@@ -4082,7 +4083,7 @@ const {
             Detaylar
           </label>
           </div>
-          </div>
+          </div>}
         </article>
       );
     }
@@ -4519,6 +4520,7 @@ const {
           people={planPeople}
           currentUserId={currentUserId}
           activityHref={planViewHref}
+          listEditHref={selectedTab==="events"?planRoomHref:null}
           participantCount={
             activeParticipants.length
           }
@@ -4660,7 +4662,7 @@ const {
 
         {/* Lifecycle details now live behind the canonical Details face. */}
 
-        <div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
+        {selectedTab!=="events"&&<div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
           <Link href={primaryPlanActionHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">{primaryPlanActionLabel}</Link>
         <div className="flex min-h-10 items-center justify-between gap-1">
           <Link
@@ -4693,7 +4695,7 @@ const {
             {primaryPlanActionLabel}
           </Link>
         </div>
-        </div>
+        </div>}
         </article>
       </div>
     );

@@ -2,7 +2,7 @@ import Link from "next/link";
 import type {ReactNode} from "react";
 import CardRatingBadge from "@/components/cards/CardRatingBadge";
 
-export default function TimelineLibraryCardFace({title,category,status,coverUrl,href,location,dateLabel,metrics,targetId}:{title:string;category:string;status:string;coverUrl?:string|null;href?:string;location?:string|null;dateLabel?:string|null;metrics?:ReactNode;targetId?:string|null}){
+export default function TimelineLibraryCardFace({title,category,status,coverUrl,href,location,dateLabel,metrics,targetId,action}:{title:string;category:string;status:string;coverUrl?:string|null;href?:string;location?:string|null;dateLabel?:string|null;metrics?:ReactNode;targetId?:string|null;action?:ReactNode}){
   return <>
     {coverUrl?<img src={coverUrl} alt="" className="absolute inset-0 z-0 h-full w-full object-cover peer-checked:hidden"/>:<div className="absolute inset-0 z-0 bg-slate-950 peer-checked:hidden"/>}
     <div className="pointer-events-none absolute inset-0 z-0 bg-slate-950/30 peer-checked:hidden"/>
@@ -16,6 +16,7 @@ export default function TimelineLibraryCardFace({title,category,status,coverUrl,
         {href?<Link href={href} className="block"><h2 className="line-clamp-2 text-xl font-black leading-tight">{title}</h2></Link>:<h2 className="line-clamp-2 text-xl font-black leading-tight">{title}</h2>}
         {(dateLabel||location)&&<div className="mt-2 space-y-1 text-xs font-semibold text-white/75">{dateLabel&&<p>📅 {dateLabel}</p>}{location&&<p className="line-clamp-1">📍 {location}</p>}</div>}
         {metrics&&<div className="mt-3">{metrics}</div>}
+        {action&&<div className="mt-2">{action}</div>}
       </div>
     </div>
   </>;

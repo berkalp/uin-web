@@ -39,7 +39,6 @@ export function UinCardHeader({ title, subtitle, category, icon, coverUrl, cover
         <h2 className="mt-2 line-clamp-2 text-2xl font-black leading-[1.08] tracking-tight">{title}</h2>
       </div>
     </div>
-    {subtitle && <div className="min-h-12 shrink-0 border-b border-gray-100 px-5 py-3 text-xs font-semibold text-gray-500">{subtitle}</div>}
   </>;
 }
 

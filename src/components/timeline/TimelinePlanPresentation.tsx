@@ -37,6 +37,7 @@ export type TimelinePlanPresentationProps = {
   people: ActivityPersonView[];
   currentUserId: string;
   activityHref: string;
+  listEditHref?: string | null;
   participantCount: number;
   participantLimit: string;
   committedBudget: number;
@@ -141,6 +142,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
     people,
     currentUserId,
     activityHref,
+    listEditHref = null,
     participantCount,
     participantLimit,
     committedBudget,
@@ -199,7 +201,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
 
   return (
     <>
-      <TimelineLibraryCardFace title={title} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={activityHref} location={locationLabel} dateLabel={formatDateTime(scheduledStart||windowStart,timezone)} targetId={props.communityTargetId} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kapasite</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>}/>
+      <TimelineLibraryCardFace title={title} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={activityHref} location={locationLabel} dateLabel={formatDateTime(scheduledStart||windowStart,timezone)} targetId={props.communityTargetId} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kapasite</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>} action={listEditHref?<Link href={listEditHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Planımı düzenle</Link>:undefined}/>
       <CanonicalActivityCardDetails
         targetStart={windowStart}
         targetEnd={windowEnd}
