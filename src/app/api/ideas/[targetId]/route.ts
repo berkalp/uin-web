@@ -19,7 +19,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(!/^[0-9a-f-]{36}$/i.test(targetId))return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const supabase=await requestClient(request);
   if(request.nextUrl.searchParams.get("summary")==="1"){
-    const [profile,summary]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v80",{p_target_ids:[targetId]})]);
+    const [profile,summary]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v81",{p_target_ids:[targetId]})]);
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
     if(profile.error||summary.error||!row?.title)return NextResponse.json({error:"Kart yüklenemedi."},{status:404});
     const stats=(summary.data||[])[0];let typeId=String(stats?.type_id||row.metadata?.content_type_id||"");
@@ -30,9 +30,9 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const [cardResult,contextResult,peopleResult,eventResult,reviewResult,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
     supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),
-    supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0}),
-    supabase.rpc("get_uin_card_events_v80",{p_target_id:targetId}),
-    supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0}),
+    supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0}),
+    supabase.rpc("get_uin_card_events_v81",{p_target_id:targetId}),
+    supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0}),
     supabase.auth.getUser(),
   ]);
   const card=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
@@ -40,7 +40,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const context=(contextResult.data||{}) as Record<string,unknown>;
   const viewerId=authResult.data.user?.id||null;
   if(peopleResult.error||reviewResult.error||eventResult.error)return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
-  async function allPeople(first:Array<Record<string,unknown>>,group:string){const rows=[...first];while(rows.length<Number(rows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:group,p_limit:100,p_offset:rows.length});if(page.error)throw new Error(page.error.message);const next=page.data as Array<Record<string,unknown>>;if(!next.length)break;rows.push(...next)}return rows}
+  async function allPeople(first:Array<Record<string,unknown>>,group:string){const rows=[...first];while(rows.length<Number(rows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:group,p_limit:100,p_offset:rows.length});if(page.error)throw new Error(page.error.message);const next=page.data as Array<Record<string,unknown>>;if(!next.length)break;rows.push(...next)}return rows}
   const [wantRows,doneRows]=await Promise.all([allPeople((peopleResult.data||[]) as Array<Record<string,unknown>>,"intent"),allPeople((reviewResult.data||[]) as Array<Record<string,unknown>>,"experience")]);
   const clubResult=await supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId});
   const clubContext=clubResult.data as {personal?:Array<{user_id:string;context:object}>;events?:Array<{intent_id:string;context:object}>}|null;
