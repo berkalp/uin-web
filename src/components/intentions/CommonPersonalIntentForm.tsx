@@ -11,6 +11,7 @@ import { supabase } from "@/utils/supabase/client";
 import { trackProductEvent } from "@/utils/productAnalytics";
 
 type Precision="flexible"|"day"|"range"|"week"|"month"|"year"|"multiple";
+export type CommonPersonalIntentDraft={start_date?:string|null;end_date?:string|null;visibility?:string;collaboration_mode?:string;location_id?:string|null;notes?:string|null;timing_precision?:Precision;date_options?:string[]};
 function iso(date:Date){const pad=(value:number)=>String(value).padStart(2,"0");return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}`}
 function bounds(mode:Precision,value:string,dates:string[],rangeStart:string,rangeEnd:string):[string|null,string|null]{
   if(mode==="multiple"&&dates.length){const sorted=[...dates].sort();return[sorted[0],sorted[sorted.length-1]||sorted[0]]}
@@ -22,7 +23,7 @@ function bounds(mode:Precision,value:string,dates:string[],rangeStart:string,ran
   return[`${value}-01-01`,`${value}-12-31`];
 }
 
-export default function CommonPersonalIntentForm({targetId,mediaKind,clubProfile,initialViewing,initialStartDate,isSport=false,embedded=false,onSaved,onArchived,noteLabel,notePlaceholder,saveLabel}:{targetId:string;mediaKind?:"movie"|"series";clubProfile?:ClubProfile;initialViewing?:ViewingContext;initialStartDate?:string;isSport?:boolean;embedded?:boolean;onSaved?:()=>void;onArchived?:()=>void;noteLabel?:string;notePlaceholder?:string;saveLabel?:string}) {
+export default function CommonPersonalIntentForm({targetId,mediaKind,clubProfile,initialViewing,initialStartDate,initialWish,isSport=false,embedded=false,onSaved,onArchived,noteLabel,notePlaceholder,saveLabel}:{targetId:string;mediaKind?:"movie"|"series";clubProfile?:ClubProfile;initialViewing?:ViewingContext;initialStartDate?:string;initialWish?:CommonPersonalIntentDraft|null;isSport?:boolean;embedded?:boolean;onSaved?:()=>void;onArchived?:()=>void;noteLabel?:string;notePlaceholder?:string;saveLabel?:string}) {
   const [viewing,setViewing]=useState<ViewingContext>(initialViewing||(mediaKind?{media_kind:mediaKind,mode:"undecided"}:defaultClubViewing(clubProfile)));
   useEffect(()=>{if(clubProfile||mediaKind)void supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId}).then(({data})=>{if(data?.own_context?.mode)setViewing(data.own_context)});},[targetId,clubProfile,mediaKind]);
   const router=useRouter(); const [mode,setMode]=useState<Precision>("flexible"); const [value,setValue]=useState("");
@@ -33,10 +34,10 @@ export default function CommonPersonalIntentForm({targetId,mediaKind,clubProfile
   const [busy,setBusy]=useState(false); const [error,setError]=useState("");
   useEffect(()=>{let active=true;setInitializing(true);setReady(false);setLocationId("");void Promise.all([getLocations(),supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId})]).then(([available,result])=>{
     if(!active)return;if(result.error)throw result.error;setLocations(available);setReady(true);
-    const row=result.data as {start_date?:string|null;end_date?:string|null;visibility?:string;collaboration_mode?:string;location_id?:string|null;notes?:string|null;timing_precision?:Precision;date_options?:string[]}|null;
+    const row=(result.data||initialWish) as CommonPersonalIntentDraft|null;
     if(!row){const istanbul=available.find(location=>(location.country_code||"TR").toUpperCase()==="TR"&&location.city?.trim().toLocaleLowerCase("tr-TR")==="istanbul"&&(location.scope==="city"||(!location.scope&&!location.district?.trim())));setLocationId(istanbul?.id||"");return;}
     setExpired(Boolean(row.end_date&&row.end_date.slice(0,10)<iso(new Date())));const precision=row.timing_precision||(!row.start_date?"flexible":row.start_date===row.end_date?"day":"range");setMode(precision);setLocationId(row.location_id||"");setNotes(row.notes||"");setVisibility(row.visibility||"only_me");setCollaborationMode(row.collaboration_mode||"everyone");setDates(Array.isArray(row.date_options)?row.date_options:[]);setRangeStart(row.start_date||"");setRangeEnd(row.end_date||"");if(precision==="day")setValue(row.start_date||"");else if(precision==="month")setValue((row.start_date||"").slice(0,7));else if(precision==="year")setValue((row.start_date||"").slice(0,4));
-  }).catch(()=>{if(active)setError("İstek ve konum bilgileri yüklenemedi. Formu yeniden açıp tekrar deneyebilirsin.")}).finally(()=>{if(active)setInitializing(false)});return()=>{active=false}},[targetId]);
+  }).catch(()=>{if(active)setError("İstek ve konum bilgileri yüklenemedi. Formu yeniden açıp tekrar deneyebilirsin.")}).finally(()=>{if(active)setInitializing(false)});return()=>{active=false}},[targetId,initialWish]);
   const range=useMemo(()=>bounds(mode,value,dates,rangeStart,rangeEnd),[mode,value,dates,rangeStart,rangeEnd]);
   function addDate(){if(dateToAdd&&!dates.includes(dateToAdd)){setDates(current=>[...current,dateToAdd].sort());setDateToAdd("")}}
   function addNextMonthWeekends(){const now=new Date();const first=new Date(now.getFullYear(),now.getMonth()+1,1);const month=first.getMonth();const result:string[]=[];for(let d=new Date(first);d.getMonth()===month;d.setDate(d.getDate()+1)){if(d.getDay()===0||d.getDay()===6)result.push(iso(d))}setMode("multiple");setDates(result)}
