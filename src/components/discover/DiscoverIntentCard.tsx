@@ -2,6 +2,8 @@ import Link from "next/link";
 import { commonIntentTitle } from "@/utils/commonIntentTitle";
 import { liveSportTitle } from "@/utils/liveSportTitle";
 import UinCard, { cardPrimary } from "@/components/cards/UinCard";
+import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
+import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import LifecycleCurrentDate from "@/components/activities/LifecycleCurrentDate";
 import IntentReactionBar from "@/components/reactions/IntentReactionBar";
 
@@ -608,66 +610,39 @@ export default function DiscoverIntentCard({
     `intent-card-details-${intent.intent_id}`;
 
   const detailHref = `/activities/${encodeURIComponent(intent.plan_id ?? intent.resource_id ?? intent.intent_id)}`;
-  return (
-    <UinCard title={cardTitle} subtitle={commonTarget ? <Link href={`/intentions/${encodeURIComponent(commonTarget.id)}`} className="font-bold text-emerald-700 hover:underline">▦ UIN kartı: {commonIntentTitle(commonTarget.title)}</Link> : mapLocationLabel || primaryCommunityName}
-      category={intent.category_name} icon={sportPresentation?.icon || "♧"} coverUrl={coverUrl}
-      href={detailHref} badge={intent.lifecycle_status === "completed" ? "DENEYİM" : "ETKİNLİK"}
-      tone={intent.lifecycle_status === "completed" ? "experience" : "plan"}
-      badgeExtra={<><span className="rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">{intent.visibility === "public" ? "Herkese Açık" : getActivityVisibilityLabel(intent.visibility)}</span>{primaryCommunityName && <span className="max-w-full truncate rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-violet-800" title={primaryCommunityName}>{primaryCommunityName}</span>}{intent.sport_name && <span className="rounded-full bg-white/95 px-2 py-1.5 text-[10px] font-semibold text-emerald-800">{intent.sport_name}</span>}</>}
-      detailContent={<div className="space-y-4">
-        {commonTarget && <div className="space-y-2 rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-black text-emerald-800">Ana UIN kartı</p><Link href={`/intentions/${encodeURIComponent(commonTarget.id)}`} className="block font-black text-emerald-700 hover:underline">💡 {commonIntentTitle(commonTarget.title)}</Link><p className="text-xs font-black text-gray-500">Etkinliğin adı</p><Link href={detailHref} className="block font-black text-gray-950 hover:text-violet-700">{cardTitle}</Link></div>}
-        <p className="rounded-xl bg-cyan-50 px-3 py-2 text-sm text-cyan-950"><span className="font-black">Buluşma adresi:</span> {publicMeetingPoint || "Henüz netleşmedi"}</p>
-        <p className="rounded-xl bg-blue-50 px-3 py-2 text-sm text-blue-950"><span className="font-black">Etkinlik adresi:</span> {mapLocationLabel || "Henüz netleşmedi"}</p>
-        <div className="rounded-2xl bg-violet-50 p-4"><p className="text-xs font-bold text-violet-700">ETKİNLİK</p><p className="mt-1 font-semibold">{primaryCommunityName || intent.category_name}{intent.sport_name ? ` · ${intent.sport_name}` : ""}</p></div>
-        <LifecycleCurrentDate targetStart={intent.start_date} targetEnd={intent.end_date} scheduledStart={intent.scheduled_start} scheduledEnd={intent.scheduled_end} status={intent.lifecycle_status} timezone={intent.timezone} />
-        <dl className="grid grid-cols-2 gap-3 text-sm"><div><dt className="text-gray-500">Tahmini kişi başı maliyet</dt><dd>{formatEstimatedCost(intent.budget)}</dd></div><div><dt className="text-gray-500">Kontenjan</dt><dd>{participantCount} / {participantLimit}</dd></div><div><dt className="text-gray-500">Düzenleyen</dt><dd>{ownerName}</dd></div><div><dt className="text-gray-500">Katılım koşulu</dt><dd><ParticipantEligibilityBadge eligibility={intent.participant_eligibility} /></dd></div></dl>
-        {relatedLinks.length > 0 && <div><h3 className="font-semibold">Etkinlik ve bilet bağlantıları</h3>{relatedLinks.map(link => <a key={link.id} href={link.url} target="_blank" rel="noopener noreferrer" className="mt-2 block text-sm text-emerald-700 underline">{link.label || link.url}</a>)}</div>}
-        <IntentReactionBar intentId={intent.intent_id} initialContext={intent.reaction_context ?? null} isAuthenticated={isAuthenticated} isOwner={isOwner} variant="detail" />
-        <Link href={detailHref} className={cardPrimary}>Tüm etkinlik detayları</Link>
-      </div>}
-      controls={!isOwner && isAuthenticated ? <UserDiscoveryControlsMenu targetUserId={intent.owner_user_id} targetDisplayName={ownerName} compact /> : null}
-      primary={isOwner ? null
-        : intent.viewer_is_member && memberRoomHref ? <Link href={memberRoomHref} className="flex min-h-10 w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-100 px-2 text-xs font-black text-amber-800 transition hover:bg-amber-200">✓ Katılıyorum</Link>
-        : canDisplayJoinAction ? <div className="[&_button]:!h-10 [&_button]:!min-h-10 [&_button]:!w-full [&_button]:!rounded-xl [&_button]:!px-2 [&_button]:!py-2 [&_button]:!text-[11px] [&_button]:!font-semibold">
-          <PublicIntentJoinButton
-            intentId={intent.intent_id} planId={intent.plan_id} activityName={cardTitle}
-            recruitmentStatus={intent.recruitment_status === "full" ? "full" : "open"}
-            visibility={intent.visibility} viewerCanRequest={intent.viewer_can_request}
-            viewerIsEligible={intent.viewer_is_eligible ?? (intent.viewer_can_request || intent.viewer_is_member)}
-            viewerIsMember={intent.viewer_is_member} viewerInvitationStatus={intent.viewer_invitation_status}
-            initialRequestStatus={intent.viewer_request_status} initialRequestId={intent.viewer_request_id}
-            isAuthenticated={isAuthenticated} />
-        </div> : null}
-      secondary={<CompactIntentReactionBar intentId={intent.intent_id} initialContext={intent.reaction_context ?? null} isAuthenticated={isAuthenticated} isOwner={isOwner} card />}>
-      <div className="space-y-2">
-        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-800">
-          <span className="shrink-0 font-black">Düzenleyen:</span>
-          {ownerProfileHref ? <Link href={ownerProfileHref} className="flex min-w-0 items-center gap-1.5 hover:text-emerald-700 hover:underline" title={ownerName}>{intent.owner_avatar_url ? <img src={intent.owner_avatar_url} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{ownerName.charAt(0)}</span>}<span className="truncate font-semibold">{ownerName}</span></Link> : <span className="flex min-w-0 items-center gap-1.5">{intent.owner_avatar_url ? <img src={intent.owner_avatar_url} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{ownerName.charAt(0)}</span>}<span className="truncate font-semibold">{ownerName}</span></span>}
-        </div>
-        <div className="flex min-w-0 items-center gap-2 text-xs text-gray-800">
-          <span className="shrink-0 font-black">Katılımcılar:</span>
-          {participants.length > 0 ? <div className="flex min-w-0 items-center gap-2">
-            {visibleParticipants.map((person) => {
-              const participantName = person.fullName || person.username || "UIN üyesi";
-              const participantContent = <>{person.avatarUrl ? <img src={person.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" /> : <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gray-100 font-black">{participantName.charAt(0)}</span>}<span className="max-w-24 truncate font-semibold">{participantName}</span></>;
-              return person.username ? <Link key={person.userId} href={`/u/${encodeURIComponent(person.username)}`} className="flex min-w-0 items-center gap-1.5 hover:text-emerald-700 hover:underline" title={participantName}>{participantContent}</Link> : <span key={person.userId} className="flex min-w-0 items-center gap-1.5" title={participantName}>{participantContent}</span>;
-            })}
-            {hiddenParticipantCount > 0 && <details className="relative shrink-0"><summary className="grid h-7 min-w-7 cursor-pointer list-none place-items-center rounded-full bg-violet-50 px-1.5 font-black text-violet-700 hover:bg-violet-100">+{hiddenParticipantCount}</summary><div className="absolute left-0 top-9 z-30 w-56 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl"><p className="mb-2 text-[10px] font-black uppercase tracking-wide text-gray-400">Tüm katılımcılar</p>{participants.map((person) => <div key={person.userId} className="flex items-center gap-2 py-1.5">{person.avatarUrl ? <img src={person.avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" /> : <span className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 font-black">{(person.fullName || person.username || "?").charAt(0)}</span>}<span className="truncate font-semibold">{person.fullName || person.username || "UIN üyesi"}</span></div>)}</div></details>}
-          </div> : <span className="text-gray-500">Katılımcılar bekleniyor</span>}
-        </div>
-        <p className="truncate text-xs text-cyan-950" title={publicMeetingPoint || "Henüz netleşmedi"}><span className="font-black">Buluşma:</span> {publicMeetingPoint || "Henüz netleşmedi"}</p>
-        <p className="truncate text-xs text-blue-950" title={mapLocationLabel || "Henüz netleşmedi"}><span className="font-black">Etkinlik:</span> {mapLocationLabel || "Henüz netleşmedi"}</p>
-        <div className="rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs text-gray-700">
-          <LifecycleCurrentDate targetStart={intent.start_date} targetEnd={intent.end_date}
-            scheduledStart={intent.scheduled_start} scheduledEnd={intent.scheduled_end}
-            completedAt={intent.completed_at} cancelledAt={intent.cancelled_at} expiredAt={intent.expired_at}
-            status={intent.lifecycle_status} timezone={intent.timezone} compact />
-        </div>
-        <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 text-xs">
-          <span>{participantCount} katılımcı · {participantLimit === "∞" || participantLimit === "Unlimited" ? "Sınırsız" : `${participantLimit} kişilik`}</span>
-          <span className="text-violet-700">{lifecycle.label}</span>
-        </div>
-      </div>
-    </UinCard>
-  );
+  const editHref = `/intents/${encodeURIComponent(intent.intent_id)}/edit`;
+  const rawDate = intent.scheduled_start || intent.start_date;
+  const parsedDate = rawDate ? new Date(rawDate) : null;
+  const dateLabel = parsedDate && !Number.isNaN(parsedDate.getTime())
+    ? new Intl.DateTimeFormat("tr-TR", {timeZone:intent.timezone||"Europe/Istanbul",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}).format(parsedDate)
+    : "Tarih netleşmedi";
+  const locationLabel = mapLocationLabel || "Konum netleşmedi";
+  const action = isOwner
+    ? <Link href={editHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Etkinliği düzenle</Link>
+    : intent.viewer_is_member && memberRoomHref
+      ? <Link href={memberRoomHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Etkinliğe katılıyorum</Link>
+      : canDisplayJoinAction
+        ? <div className="[&_button]:!min-h-11 [&_button]:!w-full [&_button]:!rounded-xl [&_button]:!bg-emerald-600 [&_button]:!px-3 [&_button]:!py-2.5 [&_button]:!text-sm [&_button]:!font-black [&_button]:!text-white">
+            <PublicIntentJoinButton
+              intentId={intent.intent_id} planId={intent.plan_id} activityName={cardTitle}
+              recruitmentStatus={intent.recruitment_status === "full" ? "full" : "open"}
+              visibility={intent.visibility} viewerCanRequest={intent.viewer_can_request}
+              viewerIsEligible={intent.viewer_is_eligible ?? (intent.viewer_can_request || intent.viewer_is_member)}
+              viewerIsMember={intent.viewer_is_member} viewerInvitationStatus={intent.viewer_invitation_status}
+              initialRequestStatus={intent.viewer_request_status} initialRequestId={intent.viewer_request_id}
+              isAuthenticated={isAuthenticated} />
+          </div>
+        : <Link href={detailHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-violet-700 px-3 py-2.5 text-sm font-black text-white hover:bg-violet-800">Etkinliği aç</Link>;
+
+  return <PersonalLibraryCard
+    title={cardTitle}
+    coverUrl={coverUrl}
+    badge="ETKİNLİK"
+    icon={sportPresentation?.icon||"✦"}
+    href={detailHref}
+    cornerMeta={<span className="flex flex-col items-end gap-1"><CardRatingBadge targetId={commonTarget?.id} compact/><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-violet-800 shadow-sm">{lifecycle.label}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold text-emerald-800 shadow-sm">{intent.visibility==="public"?"Herkese açık":getActivityVisibilityLabel(intent.visibility)}</span></span>}
+    summary={<div className="space-y-1.5"><p>📅 {dateLabel}</p><p className="line-clamp-1">📍 {locationLabel}</p><p className="line-clamp-1">Düzenleyen · {ownerName}</p></div>}
+    metrics={<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kontenjan</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{lifecycle.label}</b></div></div>}
+    action={action}
+  />;
 }
