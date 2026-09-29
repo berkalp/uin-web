@@ -3880,7 +3880,7 @@ const {
       return (
         <article
           key={`intent-${intent.id}`}
-          className="relative flex h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
           <input
             id={intentDetailToggleId}
@@ -4029,7 +4029,7 @@ const {
               copiedFromIntentId={intent.copied_from_intent_id}
             />
 
-          <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+          <div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
           <div className="flex min-h-10 items-center justify-between gap-1">
           <CompactIntentReactionBar
             intentId={intent.id}
@@ -4445,7 +4445,7 @@ const {
         )}
 
         <article
-          className="relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          className="relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
         >
         <input
           id={planDetailToggleId}
@@ -4660,7 +4660,7 @@ const {
 
         {/* Lifecycle details now live behind the canonical Details face. */}
 
-        <div className="mt-auto shrink-0 space-y-2 px-4 pb-4 pt-3">
+        <div className="relative z-10 mx-3 mb-3 mt-2 shrink-0 space-y-2 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 backdrop-blur-md">
           <Link href={primaryPlanActionHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-bold text-white hover:bg-emerald-700">{primaryPlanActionLabel}</Link>
         <div className="flex min-h-10 items-center justify-between gap-1">
           <Link

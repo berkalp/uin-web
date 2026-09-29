@@ -10,7 +10,7 @@ import { type SeedRecord, isSeedPastDue } from "@/utils/seeds";
 
 export default function SeedCard({ seed,editable=false,variant }: {
   seed: SeedRecord; isAuthenticated: boolean;editable?:boolean; reminderTargetTime?: string | null;
-  reminderTimezone?: string | null; variant?: "seeds" | "timeline";
+  reminderTimezone?: string | null; variant?: "seeds" | "timeline" | "experience";
 }) {
   const completed = seed.status === "completed";
   const archived = seed.status === "archived";
@@ -20,6 +20,19 @@ export default function SeedCard({ seed,editable=false,variant }: {
   const actionWants:Record<string,string>={"ÖĞREN":"Öğrenmek istiyorum","KEŞFET":"Keşfetmek istiyorum","ZİYARET ET":"Ziyaret etmek istiyorum","PRATİK YAP":"Pratik yapmak istiyorum","ÜRET":"Üretmek istiyorum"};
   const wantLabel=presentation.ui_labels?.want?.trim()||actionWants[words.action]||wishWords(presentation).want;
   const href = `/seeds/${seed.seed_id}`;
+  if (variant === "experience" && completed) {
+    return <PersonalLibraryCard
+      title={seed.title}
+      subtitle={seed.subtitle}
+      coverUrl={seed.cover_url}
+      badge="DENEYİMİM"
+      icon="✓"
+      href={href}
+      cornerMeta={typeof seed.personal_rating==="number"?`★ ${seed.personal_rating}/10`:undefined}
+      metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />:undefined}
+      action={editable?<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimimi düzenle</Link>:<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-black text-white hover:bg-white/15">Deneyimi aç</Link>}
+    />;
+  }
   if (variant === "timeline" && !completed && !archived) {
     return <PersonalLibraryCard
       title={seed.title}

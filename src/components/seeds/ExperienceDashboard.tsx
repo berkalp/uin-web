@@ -1,8 +1,9 @@
 "use client";
+import Link from "next/link";
 import {buildExperienceEntries} from "@/utils/experienceEntries";
 
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
-import UinCard from "@/components/cards/UinCard";
+import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
 import { useEffect, useMemo, useState } from "react";
 
 import { getPublicFavoriteId, type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
@@ -61,11 +62,10 @@ function formatDate(value: string) {
 }
 
 function SocialExperienceCard({ item,targetId }: { item: SocialExperienceItem;targetId?:string }) {
-  return <UinCard title={item.title} subtitle={item.locationLabel} coverUrl={item.coverUrl}
-    href={item.href} category={item.categoryName} icon="✓" badge="DENEYİMİM" tone="experience">
-    <p className="rounded-xl bg-blue-50 p-3 text-xs text-blue-900">✓ {formatDate(item.sortAt) || "Tarih belirtilmedi"}</p>
-    <p className="mt-3 text-xs text-gray-500">{item.roleLabel}</p>{targetId&&<div className="mt-3"><CanonicalTargetPeople targetId={targetId}/></div>}
-  </UinCard>;
+  return <PersonalLibraryCard title={item.title} subtitle={item.locationLabel} coverUrl={item.coverUrl}
+    href={item.href} badge="DENEYİMİM" icon="✓"
+    metrics={targetId?<CanonicalTargetPeople targetId={targetId} appearance="overlay"/>:undefined}
+    action={<Link href={item.href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimi aç</Link>}/>;
 }
 
 function LovedExperienceCard({ item }: { item: PublicFavoriteItem }) {
@@ -73,11 +73,9 @@ function LovedExperienceCard({ item }: { item: PublicFavoriteItem }) {
   const words = favoriteLabels[item.item_kind || "other"] || favoriteLabels.other;
   const href = item.source_type === "subject" ? `/loved/subject/${itemId}` : `/seeds/subjects/${itemId}`;
 
-  return <UinCard title={item.title} subtitle={item.creator_name} coverUrl={item.cover_url}
-    href={href} category={words.label} icon={words.icon} badge="SEVDİĞİM DENEYİM" tone="favorite">
-    <p className="rounded-xl bg-rose-50 p-3 text-xs font-bold text-rose-800">♥ Sevdiğim deneyimler arasında</p>
-    {item.is_featured && <p className="mt-3 text-xs text-amber-700">★ Profil vitrininde</p>}
-  </UinCard>;
+  return <PersonalLibraryCard title={item.title} subtitle={item.creator_name} coverUrl={item.cover_url}
+    href={href} badge="SEVDİĞİM DENEYİM" icon={words.icon}
+    action={<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-black text-white hover:bg-rose-700">Deneyimi aç</Link>}/>;
 }
 
 export default function ExperienceDashboard({
@@ -234,6 +232,7 @@ export default function ExperienceDashboard({
                       entry.seed
                         .reminder_timezone
                     }
+                    variant="experience"
                   />
                 ) : entry.kind === "social" ? (
                   <SocialExperienceCard targetId={sourceTypes.find(s=>s.resource_id===entry.item.id.replace(/^(plan|intent)-/,""))?.target_id}

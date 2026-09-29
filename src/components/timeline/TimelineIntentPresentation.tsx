@@ -1,4 +1,5 @@
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
+import TimelineLibraryCardFace from "@/components/timeline/TimelineLibraryCardFace";
 import Link from "next/link";
 import { liveSportTitle } from "@/utils/liveSportTitle";
 import { UinCardHeader } from "@/components/cards/UinCard";
@@ -171,39 +172,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
 
   return (
     <>
-      <UinCardHeader title={liveSportTitle(title, sportName, null)} subtitle={locationLabel} category={categoryName} coverUrl={coverUrl} badge={statusLabel} tone="plan" />
-
-      <CanonicalActivityCardBody
-        targetStart={startDate}
-        targetEnd={endDate}
-        completedAt={lifecycleStatus === "completed" ? endDate : null}
-        cancelledAt={lifecycleStatus === "cancelled" ? endDate : null}
-        expiredAt={expiredAt}
-        status={lifecycleStatus}
-        timezone="Europe/Istanbul"
-        mapTitle={`${title} approximate area`}
-        mapEmbedUrl={mapEmbedUrl}
-        locationLabel={locationLabel}
-        locationPrecision="approximate"
-        participantValue={`0 / ${participantLimit}`}
-        peopleContent={
-          <div className="flex min-w-0 items-center gap-2">
-            {ownerAvatarUrl ? (
-              <img src={ownerAvatarUrl} alt={ownerName} className="h-7 w-7 shrink-0 rounded-full object-cover" />
-            ) : (
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-50 text-[10px] font-semibold text-green-700">
-                {initials(ownerName)}
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-[12px] font-semibold leading-tight text-gray-950">{ownerName}</p>
-              <p className="mt-0.5 text-[9px] font-medium text-gray-400">Host</p>
-            </div>
-          </div>
-        }
-      />
-
-      {props.communityTargetId&&<div className="px-3 py-3"><CanonicalTargetPeople targetId={props.communityTargetId}/></div>}
+      <TimelineLibraryCardFace title={liveSportTitle(title,sportName,null)} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={`/activities/${encodeURIComponent(intentId)}`} location={locationLabel} dateLabel={formatDateTime(startDate)} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{`0 / ${participantLimit}`}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{statusLabel}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>}/>
       <CanonicalActivityCardDetails
         targetStart={startDate}
         targetEnd={endDate}

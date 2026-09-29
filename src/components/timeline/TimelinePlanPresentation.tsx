@@ -1,4 +1,5 @@
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
+import TimelineLibraryCardFace from "@/components/timeline/TimelineLibraryCardFace";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { UinCardHeader } from "@/components/cards/UinCard";
@@ -198,47 +199,7 @@ export default function TimelinePlanPresentation(props: TimelinePlanPresentation
 
   return (
     <>
-      <UinCardHeader title={title} subtitle={[district, city].filter(Boolean).join(", ")} category={categoryName} coverUrl={coverUrl} badge={statusLabel} tone="plan" href={activityHref} />
-
-      <CanonicalActivityCardBody
-        targetStart={windowStart}
-        targetEnd={windowEnd}
-        scheduledStart={scheduledStart}
-        scheduledEnd={scheduledEnd}
-        completedAt={completedAt}
-        cancelledAt={cancelledAt}
-        expiredAt={expiredAt}
-        status={planStatus}
-        timezone={timezone}
-        mapTitle={`${title} location`}
-        mapEmbedUrl={mapEmbedUrl}
-        locationLabel={locationLabel}
-        locationPrecision={exact ? "public_venue" : "approximate"}
-        mapAction={
-          mapUrl ? (
-            <a href={mapUrl} target="_blank" rel="noopener noreferrer nofollow" className="absolute right-2 top-2 rounded-md bg-white px-2 py-1 text-[8.5px] font-semibold text-blue-700 shadow-sm">
-              Harita ↗
-            </a>
-          ) : null
-        }
-        participantValue={`${participantCount} / ${participantLimit}`}
-        rightMeta={
-          attendanceLabel ? (
-            <span className={`inline-flex h-6 items-center rounded-full px-2 text-[9px] font-bold ${attendanceClasses}`}>{attendanceLabel}</span>
-          ) : null
-        }
-        peopleContent={
-          <ActivityPeopleStrip
-            people={people}
-            currentUserId={currentUserId}
-            activityHref={activityHref}
-            variant="compact"
-            maxVisible={4}
-          />
-        }
-      />
-
-      {props.communityTargetId&&<div className="px-3 py-3"><CanonicalTargetPeople targetId={props.communityTargetId}/></div>}
+      <TimelineLibraryCardFace title={title} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={activityHref} location={locationLabel} dateLabel={formatDateTime(scheduledStart||windowStart,timezone)} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kapasite</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>}/>
       <CanonicalActivityCardDetails
         targetStart={windowStart}
         targetEnd={windowEnd}
