@@ -70,7 +70,7 @@ export default function PlanWeatherBadges({
   }
 
   return (
-    <div
+    <span
       className={`flex items-end gap-1 ${
         compact ? "flex-row flex-wrap justify-end" : "flex-col"
       } ${className}`}
@@ -99,6 +99,6 @@ export default function PlanWeatherBadges({
           )}
         </span>
       ))}
-    </div>
+    </span>
   );
 }

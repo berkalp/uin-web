@@ -979,12 +979,19 @@ export default async function DiscoverPage({
       )
     );
 
+  const commonTargetIntentIds = Array.from(
+    new Set([
+      ...visibleIntentIds,
+      ...archivedResults.map((intent) => intent.intent_id),
+    ])
+  );
+
   const {
     data: intentCommonTargetData,
     error: intentCommonTargetError,
-  } = visibleIntentIds.length > 0
+  } = commonTargetIntentIds.length > 0
     ? await supabase.rpc("get_visible_intent_common_targets_v40", {
-        p_intent_ids: visibleIntentIds,
+        p_intent_ids: commonTargetIntentIds,
       })
     : { data: [], error: null };
 
@@ -2082,6 +2089,9 @@ export default async function DiscoverPage({
                       key={intent.intent_id}
                       intent={intent}
                       currentUserId={user.id}
+                      commonTarget={
+                        commonTargetByIntentId.get(intent.intent_id) ?? null
+                      }
                     />
                   ))}
                 </div>

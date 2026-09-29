@@ -422,7 +422,20 @@ export default function DiscoverIntentCard({
 
   const primaryCommunityName: string | null = null;
 
-  const baseTitle = displayTitle?.trim() || intent.activity_name;
+  const normalizedActivityTitle = commonIntentTitle(intent.activity_name)
+    .replace(/\s+Düzenlemek$/i, "")
+    .replace(/\s+Organize Etmek$/i, "")
+    .trim();
+  const dnaSubjectTitle = commonTarget?.title
+    ? commonIntentTitle(commonTarget.title).trim()
+    : null;
+  const dnaTitle = dnaSubjectTitle &&
+    !normalizedActivityTitle.toLocaleLowerCase("tr-TR").includes(
+      dnaSubjectTitle.toLocaleLowerCase("tr-TR")
+    )
+      ? `${normalizedActivityTitle} · ${dnaSubjectTitle} 🌱`
+      : normalizedActivityTitle;
+  const baseTitle = displayTitle?.trim() || dnaTitle;
   const cardTitle = liveSportTitle(baseTitle, intent.sport_name, null);
 
   const resolvedContextCoverUrl =
@@ -645,7 +658,7 @@ export default function DiscoverIntentCard({
     badge="ETKİNLİK"
     icon={sportPresentation?.icon||"✦"}
     href={detailHref}
-    cornerMeta={<span className="flex flex-col items-end gap-1"><CardRatingBadge targetId={commonTarget?.id} compact/><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-violet-800 shadow-sm">{lifecycle.label}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold text-emerald-800 shadow-sm">{intent.visibility==="public"?"Herkese açık":getActivityVisibilityLabel(intent.visibility)}</span></span>}
+    cornerMeta={<span className="flex flex-col items-end gap-1">{intent.plan_id ? <PlanWeatherBadges planId={intent.plan_id} compact/> : <IntentWeatherBadge intentId={intent.intent_id} compact/>}<CardRatingBadge targetId={commonTarget?.id} compact/><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-violet-800 shadow-sm">{lifecycle.label}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold text-emerald-800 shadow-sm">{intent.visibility==="public"?"Herkese açık":getActivityVisibilityLabel(intent.visibility)}</span></span>}
     summary={<div className="space-y-1.5"><p>📅 {dateLabel}</p><p className="line-clamp-1">📍 {locationLabel}</p><p className="line-clamp-1">Düzenleyen · {ownerName}</p></div>}
     metrics={<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kontenjan</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{lifecycle.label}</b></div></div>}
     action={action}
