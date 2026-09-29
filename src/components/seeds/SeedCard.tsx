@@ -1,13 +1,14 @@
 "use client";
 import Link from "next/link";
-import PersonalWishSummary,{wishBadge,wishHow,wishWords,type WishPresentation} from "@/components/cards/PersonalWishSummary";
+import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
+import PersonalWishSummary,{wishBadge,wishHow,wishWhen,wishWords,type WishPresentation} from "@/components/cards/PersonalWishSummary";
 import UinCard, { cardPrimary, cardSecondary } from "@/components/cards/UinCard";
 import TargetHighlight from "@/components/cards/TargetHighlight";
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import { cardDate, targetLanguage } from "@/utils/targetLanguage";
 import { type SeedRecord, isSeedPastDue } from "@/utils/seeds";
 
-export default function SeedCard({ seed,editable=false }: {
+export default function SeedCard({ seed,editable=false,variant }: {
   seed: SeedRecord; isAuthenticated: boolean;editable?:boolean; reminderTargetTime?: string | null;
   reminderTimezone?: string | null; variant?: "seeds" | "timeline";
 }) {
@@ -19,6 +20,28 @@ export default function SeedCard({ seed,editable=false }: {
   const actionWants:Record<string,string>={"ÖĞREN":"Öğrenmek istiyorum","KEŞFET":"Keşfetmek istiyorum","ZİYARET ET":"Ziyaret etmek istiyorum","PRATİK YAP":"Pratik yapmak istiyorum","ÜRET":"Üretmek istiyorum"};
   const wantLabel=presentation.ui_labels?.want?.trim()||actionWants[words.action]||wishWords(presentation).want;
   const href = `/seeds/${seed.seed_id}`;
+  if (variant === "timeline" && !completed && !archived) {
+    return <PersonalLibraryCard
+      title={seed.title}
+      subtitle={seed.subtitle}
+      coverUrl={seed.cover_url}
+      badge={wishBadge(presentation)}
+      icon={presentation.type_icon||words.icon}
+      href={href}
+      summary={<div className="space-y-1.5">
+        <p className="font-black text-emerald-300">{wishHow(presentation)||wantLabel}</p>
+        <p>📅 {wishWhen(presentation)}</p>
+        <p className="line-clamp-1">📍 {presentation.location||"Konum belirlemedim"}</p>
+        {isSeedPastDue(seed)&&<p className="font-bold text-amber-300">Süresi geçti · Tarihini yenileyebilirsin</p>}
+      </div>}
+      metrics={privateSeed
+        ? <p className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">🔒 Bu kayıt yalnızca sana ait.</p>
+        : <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />}
+      action={editable
+        ? <Link href={`${href}/edit`} className="flex min-h-11 w-full items-center justify-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"><span>✓</span><span>İsteğimi düzenle</span></Link>
+        : <span className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white/80">✓ Ekli</span>}
+    />;
+  }
   return <UinCard title={seed.title} subtitle={seed.subtitle} category={!completed&&!archived?(wishHow(presentation)||(wishWords(presentation).action==="YAP"?words.action:wishWords(presentation).action)):words.action} icon={presentation.type_icon||words.icon}
     coverUrl={seed.cover_url} href={href} badge={completed ? "DENEYİMİM" : archived ? "ARŞİV" : wishBadge(presentation)} tone={completed ? "experience" : "target"}
     primary={editable?<Link href={completed?href:href+"/edit"} className={cardPrimary}>{completed?"Deneyimimi düzenle":"İsteğimi düzenle"}</Link>:<span className="flex min-h-10 w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500">{completed ? "✓ Deneyimlerimde" : archived ? "Arşivimde" : "✓ Ekli"}</span>}
