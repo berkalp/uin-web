@@ -52,11 +52,6 @@ export default function IdeasPage(){
   return <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
     <div className="relative z-50 mx-auto mb-8 min-h-16 max-w-[1320px]"><Suspense fallback={<div className="h-16 animate-pulse rounded-2xl bg-white"/>}><AppNavigation/></Suspense></div>
     <div className="mx-auto max-w-[1320px]">
-      <header className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
-        <p className="text-xs font-black uppercase tracking-[.18em] text-emerald-700">UIN KÜTÜPHANESİ</p>
-        <h1 className="mt-2 text-3xl font-black">Ne arıyorsun?</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">Film, dizi, kitap, sanatçı, yer, spor ve diğer ortak kayıtları bul. Bir kaydı açınca isteyenleri, deneyimleyenleri ve ilgili etkinlikleri birlikte gör.</p>
-      </header>
       <Suspense fallback={<CatalogueFallback/>}><IdeasCatalogue/></Suspense>
     </div>
   </main>;
