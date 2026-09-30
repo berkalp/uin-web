@@ -31,6 +31,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       icon={presentation.type_icon||"✓"}
       href={href}
       cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id} personalRating={seed.personal_rating}/>}
+      topActionHref={presentation.base_kind==="club"?`/clubs/${seed.canonical_target_id}`:undefined}
       metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />:undefined}
       action={editable?<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimimi düzenle</Link>:<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-black text-white hover:bg-white/15">Deneyimi aç</Link>}
     />;
@@ -44,6 +45,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       icon={presentation.type_icon||words.icon}
       href={href}
       cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id}/>}
+      topActionHref={presentation.base_kind==="club"?`/clubs/${seed.canonical_target_id}`:undefined}
       summary={<div className="space-y-1.5">
         <p className="font-black text-emerald-300">{wishHow(presentation)||wantLabel}</p>
         <p>📅 {wishWhen(presentation)}</p>
@@ -59,7 +61,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
     />;
   }
   return <UinCard title={seed.title} subtitle={seed.subtitle} category={!completed&&!archived?(wishHow(presentation)||(wishWords(presentation).action==="YAP"?words.action:wishWords(presentation).action)):words.action} icon={presentation.type_icon||words.icon}
-    coverUrl={seed.cover_url} href={href} badge={completed ? "DENEYİMİM" : archived ? "ARŞİV" : wishBadge(presentation)} tone={completed ? "experience" : "target"}
+    coverUrl={seed.cover_url} href={href} badge={completed ? "DENEYİMİM" : archived ? "ARŞİV" : wishBadge(presentation)} tone={completed ? "experience" : "target"} topActionHref={presentation.base_kind==="club"?`/clubs/${seed.canonical_target_id}`:undefined}
     primary={editable?<Link href={completed?href:href+"/edit"} className={cardPrimary}>{completed?"Deneyimimi düzenle":"İsteğimi düzenle"}</Link>:<span className="flex min-h-10 w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-2 text-[11px] font-semibold text-gray-500">{completed ? "✓ Deneyimlerimde" : archived ? "Arşivimde" : "✓ Ekli"}</span>}
     secondary={privateSeed || archived ? <Link href={`${href}/edit`} className={cardSecondary}>Düzenle</Link> : <TargetHighlight seedId={seed.seed_id} />}>
     {completed ? <div className="space-y-2">

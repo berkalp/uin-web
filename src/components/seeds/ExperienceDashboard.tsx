@@ -78,6 +78,7 @@ function LovedExperienceCard({ item }: { item: PublicFavoriteItem }) {
   return <PersonalLibraryCard title={item.title} subtitle={item.creator_name} coverUrl={item.cover_url}
     href={href} badge="SEVDİĞİM DENEYİM" icon={words.icon}
     cornerMeta={item.canonical_target_id?<CardRatingBadge targetId={item.canonical_target_id}/>:undefined}
+    topActionHref={item.item_kind==="club"&&item.canonical_target_id?`/clubs/${item.canonical_target_id}`:undefined}
     action={<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-black text-white hover:bg-rose-700">Deneyimi aç</Link>}/>;
 }
 

@@ -21,9 +21,11 @@ type HeaderProps = {
   tone?: "target" | "plan" | "experience" | "favorite";
   controls?: ReactNode;
   badgeExtra?: ReactNode;
+  topActionHref?: string;
+  topActionLabel?: string;
 };
 
-export function UinCardHeader({ title, subtitle, category, icon, coverUrl, coverPositionY = 50, href, badge = "FİKİR", tone = "target", controls, badgeExtra }: HeaderProps) {
+export function UinCardHeader({ title, subtitle, category, icon, coverUrl, coverPositionY = 50, href, badge = "FİKİR", tone = "target", controls, badgeExtra, topActionHref, topActionLabel = "Kulüp profilini aç ↗" }: HeaderProps) {
   const tones = { target: "bg-emerald-50 text-emerald-800", plan: "bg-violet-50 text-violet-800", experience: "bg-blue-50 text-blue-800", favorite: "bg-rose-50 text-rose-800" };
   const cover = coverUrl
     ? <img src={coverUrl} alt="" loading="lazy" style={{ objectPosition: `50% ${coverPositionY}%` }} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
@@ -33,7 +35,7 @@ export function UinCardHeader({ title, subtitle, category, icon, coverUrl, cover
     <div className="uin-card-cover group relative shrink-0 overflow-hidden bg-gray-100">
       {href ? <Link href={href} aria-label={`${title} — Detayı gör`} className="block h-full">{cover}</Link> : cover}
       <div className="absolute left-3 right-12 top-3 flex flex-wrap items-center gap-1.5"><span className={`pointer-events-none rounded-full px-3 py-1.5 text-[10px] font-black tracking-wide shadow-sm ${tones[tone]}`}>{badge}</span>{badgeExtra}</div>
-      {controls && <div className="absolute right-3 top-3">{controls}</div>}
+      {(controls||topActionHref)&&<div className="absolute right-3 top-3 flex flex-col items-end gap-1.5">{controls}{topActionHref?<Link href={topActionHref} className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-emerald-800 shadow-sm hover:bg-emerald-50">{topActionLabel}</Link>:null}</div>}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-transparent px-5 pb-5 pt-20 text-white">
         {category && <p className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.14em] text-emerald-200"><span aria-hidden="true">{icon}</span>{category}</p>}
         <h2 className="mt-2 line-clamp-2 text-2xl font-black leading-[1.08] tracking-tight">{title}</h2>
