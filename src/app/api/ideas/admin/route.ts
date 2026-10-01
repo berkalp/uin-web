@@ -29,7 +29,14 @@ export async function POST(request:NextRequest){
     const saveStyle=Object.prototype.hasOwnProperty.call(body,'cardStyle');if(saveStyle&&body.cardStyle!==null&&!validCardStyle(body.cardStyle))return NextResponse.json({error:'Kart renklerini kontrol et.'},{status:400});
     const {error}=await supabase.rpc(clubHierarchy&&saveStyle?"admin_save_coloured_club_v76":clubHierarchy?"admin_save_club_card_v75":placeHierarchy?"admin_save_place_card_v74":"admin_save_uin_card_v62",{...(clubHierarchy&&saveStyle?{p_card_style:body.cardStyle}:{}),...(clubHierarchy?{p_hierarchy:clubHierarchy}:{}),...(placeHierarchy?{p_place_kind:placeHierarchy.kind,p_parent_target_id:placeHierarchy.parentTargetId||null}:{}),p_target_id:targetId,p_title:title,p_type_id:itemKind,p_creator_name:creatorAllowed?field("creatorName"):"",p_cover_url:field("coverUrl"),p_description:field("description"),p_reference_url:field("referenceUrl"),p_profile:profile||{},p_cover_position_y:coverPosition});
     if(error)return NextResponse.json({error:error.message},{status:500});
+    const typeSync=await supabase.rpc("admin_sync_uin_card_type_v87",{p_target_id:targetId,p_type_id:itemKind});
+    if(typeSync.error)return NextResponse.json({error:typeSync.error.message},{status:500});
     if(cardHierarchy){const hierarchySave=await supabase.rpc("admin_save_card_hierarchy_v81",{p_target_id:targetId,p_parent_target_id:cardHierarchy.parentTargetId||null,p_sort_order:Number(cardHierarchy.sortOrder||0),p_section_title:String(cardHierarchy.sectionTitle||"")||null});if(hierarchySave.error)return NextResponse.json({error:hierarchySave.error.message},{status:500});}
+    if(Object.prototype.hasOwnProperty.call(body,"cardRelations")){
+      if(!Array.isArray(body.cardRelations))return NextResponse.json({error:"Bağlı kart listesi geçersiz."},{status:400});
+      const relationSave=await supabase.rpc("admin_replace_uin_card_relations_v87",{p_target_id:targetId,p_relations:body.cardRelations});
+      if(relationSave.error)return NextResponse.json({error:relationSave.error.message},{status:500});
+    }
     return NextResponse.json({updated:true});
   }catch(cause){return NextResponse.json({error:cause instanceof Error?cause.message:"İşlem tamamlanamadı."},{status:500})}
 }
