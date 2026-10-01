@@ -14,7 +14,9 @@ type JoinRequestStatus =
   | "pending"
   | "accepted"
   | "declined"
-  | "withdrawn";
+  | "withdrawn"
+  | "expired"
+  | "cancelled";
 
 type JoinRequestRow = {
   request_id: string;
@@ -116,6 +118,8 @@ function isPendingAndRelevant(request: DecoratedRequest) {
 }
 
 function getHistoryStatus(request: DecoratedRequest) {
+  if (request.response_reason === "uin:no_response_expired") return "expired";
+  if (request.response_reason === "uin:event_cancelled") return "cancelled";
   if (request.planStatus === "cancelled") return "cancelled";
   if (request.planStatus === "completed") return "completed";
   if (request.planStatus === "planned") return "planned";
@@ -123,6 +127,16 @@ function getHistoryStatus(request: DecoratedRequest) {
   if (request.intentStatus === "cancelled") return "cancelled";
   if (request.intentExpiredAt) return "expired";
   return request.request_status;
+}
+
+function getHistoryExplanation(request: DecoratedRequest) {
+  if (request.response_reason === "uin:no_response_expired") return request.direction === "received"
+    ? "Bu katılım isteğine etkinlik tarihi geçmeden önce yanıt vermedin. İstek otomatik kapandı."
+    : "Etkinlik tarihi geçti ve yürütenden zamanında yanıt gelmedi. İstek otomatik kapandı.";
+  if (request.response_reason === "uin:event_cancelled") return request.direction === "received"
+    ? "Etkinlik iptal edildiği için bekleyen katılım isteği otomatik kapandı."
+    : "Katılmak istediğin etkinlik iptal edildiği için isteğin otomatik kapandı.";
+  return request.response_reason;
 }
 
 function getHistoryStatusLabel(status: string) {
@@ -326,6 +340,9 @@ export default async function JoinRequestsPage({
       const rightTime = new Date(right.request_responded_at || right.request_created_at).getTime();
       return rightTime - leftTime;
     });
+  const unansweredHistory = history.filter((request) => request.response_reason === "uin:no_response_expired");
+  const cancelledHistory = history.filter((request) => request.response_reason === "uin:event_cancelled");
+  const resolvedHistory = history.filter((request) => !["uin:no_response_expired", "uin:event_cancelled"].includes(request.response_reason ?? ""));
 
   const error =
     requestResponse.error ??
@@ -454,6 +471,13 @@ export default async function JoinRequestsPage({
               )}
             </section>
 
+            {(unansweredHistory.length > 0 || cancelledHistory.length > 0) && <section className="mt-10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Zamanı geçen ve iptal edilenler</p>
+              <h2 className="mt-2 text-2xl font-bold text-gray-950">Yanıt verilmeden kapanan istekler</h2>
+              <p className="mt-2 text-sm text-gray-500">Açıkça reddedilen isteklerden ayrı tutulur.</p>
+              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">{[...unansweredHistory,...cancelledHistory].map((request)=>{const lifecycleStatus=getHistoryStatus(request);return <article id={`request-${request.request_id}`} key={request.request_id} className="scroll-mt-24 rounded-3xl border border-amber-200 bg-amber-50/40 p-5 shadow-sm"><div className="flex items-start justify-between gap-4"><TitleBlock request={request}/><span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(lifecycleStatus)}`}>{getHistoryStatusLabel(lifecycleStatus)}</span></div><div className="mt-4"><PersonIdentity request={request} prefix={request.direction==="received"?"İstek gönderen":"Yürüten"}/></div><p className="mt-4 rounded-2xl bg-white p-4 text-sm leading-6 text-amber-900">{getHistoryExplanation(request)}</p><Link href={`/activities/${encodeURIComponent(request.intent_id)}?returnTo=${encodeURIComponent("/join-requests")}&returnLabel=${encodeURIComponent("Katılım İstekleri")}`} className="mt-4 inline-block rounded-xl border border-amber-200 bg-white px-4 py-2.5 text-xs font-semibold text-gray-700">Niyeti Gör</Link></article>})}</div>
+            </section>}
+
             <section className="mt-10">
               <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
                 Gönderdiğin bekleyen istekler
@@ -530,10 +554,10 @@ export default async function JoinRequestsPage({
                 <div className="flex items-center gap-3">
                   <span className="text-xs font-semibold text-gray-400">
                     {showAllHistory
-                      ? `${history.length} kayıt`
-                      : `Son ${Math.min(history.length, 10)} kayıt gösteriliyor`}
+                      ? `${resolvedHistory.length} kayıt`
+                      : `Son ${Math.min(resolvedHistory.length, 10)} kayıt gösteriliyor`}
                   </span>
-                  {history.length > 10 && (
+                  {resolvedHistory.length > 10 && (
                     <Link
                       href={showAllHistory ? "/join-requests" : "/join-requests?history=all"}
                       className="text-xs font-semibold text-green-700"
@@ -544,13 +568,13 @@ export default async function JoinRequestsPage({
                 </div>
               </div>
 
-              {history.length === 0 ? (
+              {resolvedHistory.length === 0 ? (
                 <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-sm text-gray-500">
                   İstekler sonuçlandıkça geçmiş burada görünecek.
                 </div>
               ) : (
                 <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {(showAllHistory ? history : history.slice(0, 10)).map((request) => {
+                  {(showAllHistory ? resolvedHistory : resolvedHistory.slice(0, 10)).map((request) => {
                     const lifecycleStatus = getHistoryStatus(request);
                     const planHref = getPlanHref(request);
                     const directionLabel =
@@ -558,6 +582,7 @@ export default async function JoinRequestsPage({
 
                     return (
                       <article
+                        id={`request-${request.request_id}`}
                         key={request.request_id}
                         className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"
                       >
@@ -585,9 +610,9 @@ export default async function JoinRequestsPage({
                           <PersonIdentity request={request} prefix={directionLabel} />
                         </div>
 
-                        {request.response_reason && (
+                        {getHistoryExplanation(request) && (
                           <p className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-800">
-                            {request.response_reason}
+                            {getHistoryExplanation(request)}
                           </p>
                         )}
 
