@@ -365,7 +365,6 @@ function CompactLocationEditor({
 
 export default function PlanPresentationSettingsForm({
   planId,
-  initialCoverUrl,
   initialMeetingPoint,
   initialMeetingAddressText,
   initialMeetingMapUrl,
@@ -453,7 +452,7 @@ export default function PlanPresentationSettingsForm({
         "update_plan_presentation_and_locations",
         {
           p_plan_id: planId,
-          p_cover_url: initialCoverUrl,
+          p_cover_url: null,
           p_meeting_point: resolvedMeetingLocation.name.trim() || null,
           p_meeting_address_text: resolvedMeetingLocation.addressText.trim() || null,
           p_meeting_map_url: generatedMeetingMapUrl,

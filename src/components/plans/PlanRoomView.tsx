@@ -13,7 +13,6 @@ import {
 } from "next/navigation";
 
 import ActivityLocationPreview from "./ActivityLocationPreview";
-import PlanCoverQuickEditor from "./PlanCoverQuickEditor";
 import PlanCompletionReview, {
   type CompletionMemberData,
   type CompletionPlanData,
@@ -40,8 +39,8 @@ import IntentRoomWorkspace, {
   type IntentRoomTeamMember,
 } from "./IntentRoomWorkspace";
 import SharedPlanScheduleForm from "./SharedPlanScheduleForm";
-import SharedActivityTitleForm from "../experiences/SharedActivityTitleForm";
-import ReportCustomActivityTitleButton from "../experiences/ReportCustomActivityTitleButton";
+import EventActivityDnaEditor from "../events/EventActivityDnaEditor";
+import type { EventPresentation } from "../../utils/eventPresentation";
 import ExperiencePanel from "../experiences/ExperiencePanel";
 import ProfileNameLink from "../profile/ProfileNameLink";
 import PlanPeoplePanel, {
@@ -71,7 +70,6 @@ import { getSportPresentation } from "../../utils/sportPresentation";
 import { createClient } from "../../utils/supabase/server";
 import {
   hydrateVisiblePlanPresentations,
-  normalizePlanPresentationVisibility,
   type VisiblePlanPresentationRow,
 } from "../../utils/planPresentationVisibility";
 import { withReturnContext } from "../../utils/returnNavigation";
@@ -1205,16 +1203,6 @@ export default async function PlanRoomView({
 
   const visiblePresentation = hydratedPresentations[0] ?? null;
 
-  const titlePresentationVisibility =
-    normalizePlanPresentationVisibility(
-      visiblePresentation?.title_visibility
-    );
-
-  const coverPresentationVisibility =
-    normalizePlanPresentationVisibility(
-      visiblePresentation?.cover_visibility
-    );
-
   const {
     data: experienceData,
     error: experienceError,
@@ -1293,7 +1281,7 @@ export default async function PlanRoomView({
     };
   }
 
-  const sharedTitle =
+  const legacySharedTitle =
     visiblePresentation?.custom_title ??
     experienceBundle?.sharedTitle ??
     null;
@@ -1347,6 +1335,16 @@ export default async function PlanRoomView({
       "string"
       ? sourceIntentLink.intent_id
       : null;
+
+  const { data: eventPresentationData, error: eventPresentationError } =
+    await supabase.rpc("get_uin_event_presentation_v86", { p_resource_id: plan.id });
+
+  if (eventPresentationError) {
+    console.error("Canonical Event presentation query failed:", eventPresentationError);
+  }
+
+  const eventPresentation = eventPresentationData as EventPresentation | null;
+  const sharedTitle = eventPresentation?.displayTitle ?? legacySharedTitle;
 
   const [
     sourceSportContextResponse,
@@ -1870,23 +1868,12 @@ export default async function PlanRoomView({
     );
 
   const canonicalActivityName =
+    eventPresentation?.eventLabel ||
     activity?.name ||
     plan.title ||
     "UIN Activity";
 
-  const heroTitle =
-    plan.status === "completed"
-      ? canonicalActivityName
-      : sharedTitle ||
-        plan.title ||
-        canonicalActivityName;
-
-  const completedSharedTitle =
-    plan.status === "completed" &&
-    sharedTitle &&
-    sharedTitle !== canonicalActivityName
-      ? sharedTitle
-      : null;
+  const heroTitle = eventPresentation?.displayTitle || canonicalActivityName;
 
   const completionPlanData: CompletionPlanData | null =
     canReviewActivityOutcome
@@ -2712,18 +2699,6 @@ export default async function PlanRoomView({
           </div>
 
           <div className="flex items-start gap-2">
-            {(isHost || (isCoHost && coverPresentationVisibility !== "only_me")) &&
-              !isExpiredPlanningPlan &&
-              !isOutcomeUnknown && (
-                <PlanCoverQuickEditor
-                  planId={plan.id}
-                  initialPreviewUrl={resolvedCoverUrl}
-                  initialExternalUrl={visiblePresentation?.custom_cover_external_url ?? null}
-                  initialStoragePath={visiblePresentation?.custom_cover_storage_path ?? null}
-                  initialVisibility={coverPresentationVisibility}
-                />
-              )}
-
             {!isExpiredPlanningArchive && hasLifecycleMenu && (
               <details className="group relative z-30">
                 <summary className="flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-xl border border-white/25 bg-black/45 text-lg font-black text-white backdrop-blur transition hover:bg-black/60">
@@ -2765,41 +2740,15 @@ export default async function PlanRoomView({
             )}
           </div>
 
-          {plan.status !== "completed" &&
-          (isHost || (isCoHost && titlePresentationVisibility !== "only_me")) &&
-          plan.status !== "cancelled" &&
-          !isOutcomeUnknown ? (
-            <SharedActivityTitleForm
-              planId={plan.id}
-              initialTitle={sharedTitle}
-              canonicalActivityName={canonicalActivityName}
-              canManage
-              initialVisibility={titlePresentationVisibility}
-              variant="hero"
-            />
+          {eventPresentation && plan.status !== "completed" &&
+          (isHost || isCoHost) && plan.status !== "cancelled" && !isOutcomeUnknown ? (
+            <EventActivityDnaEditor resourceId={plan.id} presentation={eventPresentation} />
           ) : (
-            <h1 className="mt-3 max-w-4xl text-3xl font-black leading-tight md:text-4xl">
-              {heroTitle}
-            </h1>
+            <div className="mt-3">
+              <h1 className="max-w-4xl text-3xl font-black leading-tight md:text-4xl">{heroTitle}</h1>
+              {eventPresentation?.dnaCards?.length ? <div className="mt-3 flex flex-wrap gap-2" aria-label="Etkinlik DNA kartları">{eventPresentation.dnaCards.slice(0,3).map(card=><span key={card.targetId} className="rounded-full border border-white/25 bg-black/35 px-3 py-1 text-xs font-bold text-white backdrop-blur">⌁ {card.title}</span>)}{eventPresentation.dnaCards.length>3&&<span className="rounded-full border border-white/25 bg-black/35 px-3 py-1 text-xs font-bold text-white">+{eventPresentation.dnaCards.length-3}</span>}</div>:null}
+            </div>
           )}
-
-          {completedSharedTitle && (
-            <p className="mt-2 text-sm font-semibold text-white/80">Ortak deneyim · {completedSharedTitle}</p>
-          )}
-
-          {!isHost &&
-            !isCoHost &&
-            sharedTitle &&
-            sharedTitle.trim() !== canonicalActivityName.trim() && (
-              <div className="mt-2">
-                <ReportCustomActivityTitleButton
-                  planId={plan.id}
-                  customTitle={sharedTitle}
-                  canonicalTitle={canonicalActivityName}
-                  compact
-                />
-              </div>
-            )}
 
         </div>
       </div>

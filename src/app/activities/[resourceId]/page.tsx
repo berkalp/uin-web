@@ -1,7 +1,7 @@
 import EventCardLinks from "@/components/ideas/EventCardLinks";
 import {viewingSummary,type ViewingContext} from "@/utils/clubProfile";
-import { liveSportTitle } from "@/utils/liveSportTitle";
 import { commonIntentTitle } from "@/utils/commonIntentTitle";
+import type { EventPresentation } from "@/utils/eventPresentation";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -17,7 +17,6 @@ import IntentWeatherBadge from "@/components/weather/IntentWeatherBadge";
 import ActivityShareMenu from "@/components/share/ActivityShareMenu";
 import OpenInUinAppButton from "@/components/mobile/OpenInUinAppButton";
 import ExperiencePanel from "@/components/experiences/ExperiencePanel";
-import ReportCustomActivityTitleButton from "@/components/experiences/ReportCustomActivityTitleButton";
 import ContextReputationBadge from "@/components/reputation/ContextReputationBadge";
 import ReputationFeedbackTargetsPanel from "@/components/reputation/ReputationFeedbackTargetsPanel";
 import PublicIntentJoinButton from "@/components/intents/PublicIntentJoinButton";
@@ -898,6 +897,10 @@ export default async function ActivityDetailPage({
     ? supabase.rpc("get_visible_intent_seed_origins", { p_intent_id: activity.intent_id })
     : Promise.resolve({ data: [], error: null });
 
+  const eventPresentationPromise = supabase.rpc("get_uin_event_presentation_v86", {
+    p_resource_id: resourceId,
+  });
+
   const [
     catalogueResult,
     linksResult,
@@ -912,6 +915,7 @@ export default async function ActivityDetailPage({
     eligibilityContextResult,
     reactionContextResult,
     seedOriginsResult,
+    eventPresentationResult,
   ] = await Promise.all([
     cataloguePromise,
     linksPromise,
@@ -926,6 +930,7 @@ export default async function ActivityDetailPage({
     eligibilityContextPromise,
     reactionContextPromise,
     seedOriginsPromise,
+    eventPresentationPromise,
   ]);
 
   if (catalogueResult.error) {
@@ -1311,22 +1316,12 @@ export default async function ActivityDetailPage({
     "UIN host";
 
   const canonicalActivityName =
+    (eventPresentationResult.data as EventPresentation | null)?.eventLabel ||
     activity.activity_name ||
     activity.title;
 
-  const visibleSharedTitle =
-    privatePresentation?.custom_title ||
-    experienceBundle?.sharedTitle ||
-    null;
-
-  const displayTitle = liveSportTitle(activity.status === "completed" ? canonicalActivityName : visibleSharedTitle || activity.title, sportCoverContext?.sport_name, null);
-
-  const completedSharedTitle =
-    activity.status === "completed" &&
-    visibleSharedTitle &&
-    visibleSharedTitle !== canonicalActivityName
-      ? visibleSharedTitle
-      : null;
+  const eventPresentation = eventPresentationResult.data as EventPresentation | null;
+  const displayTitle = eventPresentation?.displayTitle || canonicalActivityName;
 
   const coverUrl =
     privateExperienceCoverUrl ||
@@ -1573,30 +1568,7 @@ const detailLabel =
                   {displayTitle}
                 </h1>
 
-                {activity.status === "completed" &&
-                completedSharedTitle ? (
-                  <p className="mt-2 text-sm font-semibold text-white/75">
-                    Paylaşılan deneyim · {completedSharedTitle}
-                  </p>
-                ) : displayTitle !== canonicalActivityName ? (
-                  <p className="mt-2 text-sm font-semibold text-white/75">
-                    Konu · {canonicalActivityName}
-                  </p>
-                ) : null}
-
-                {activity.plan_id &&
-                  viewer.is_authenticated &&
-                  viewer.role !== "host" &&
-                  viewer.role !== "co_host" &&
-                  visibleSharedTitle &&
-                  visibleSharedTitle.trim() !== canonicalActivityName.trim() && (
-                    <ReportCustomActivityTitleButton
-                      planId={activity.plan_id}
-                      customTitle={visibleSharedTitle}
-                      canonicalTitle={canonicalActivityName}
-                      compact
-                    />
-                  )}
+                {eventPresentation?.dnaCards?.length ? <div className="mt-3 flex flex-wrap gap-2" aria-label="Etkinlik DNA kartları">{eventPresentation.dnaCards.slice(0,3).map(card=><span key={card.targetId} className="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">⌁ {card.title}</span>)}{eventPresentation.dnaCards.length>3&&<span className="rounded-full border border-white/20 bg-black/30 px-3 py-1.5 text-xs font-bold text-white">+{eventPresentation.dnaCards.length-3}</span>}</div>:null}
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-white/80">
                   <span className="rounded-full border border-white/20 bg-black/25 px-3 py-1.5 backdrop-blur">

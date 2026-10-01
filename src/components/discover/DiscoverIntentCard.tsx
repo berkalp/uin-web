@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { commonIntentTitle } from "@/utils/commonIntentTitle";
+import { buildEventTitle } from "@/utils/eventPresentation";
 import { liveSportTitle } from "@/utils/liveSportTitle";
 import UinCard, { cardPrimary } from "@/components/cards/UinCard";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
@@ -54,6 +54,7 @@ export type DiscoverIntentRow = {
 
   activity_id: string;
   activity_name: string;
+  event_display_title?: string | null;
   activity_cover_url: string | null;
 
   sport_id?: string | null;
@@ -422,20 +423,10 @@ export default function DiscoverIntentCard({
 
   const primaryCommunityName: string | null = null;
 
-  const normalizedActivityTitle = commonIntentTitle(intent.activity_name)
-    .replace(/\s+Düzenlemek$/i, "")
-    .replace(/\s+Organize Etmek$/i, "")
-    .trim();
-  const dnaSubjectTitle = commonTarget?.title
-    ? commonIntentTitle(commonTarget.title).trim()
-    : null;
-  const dnaTitle = dnaSubjectTitle &&
-    !normalizedActivityTitle.toLocaleLowerCase("tr-TR").includes(
-      dnaSubjectTitle.toLocaleLowerCase("tr-TR")
-    )
-      ? `${normalizedActivityTitle} · ${dnaSubjectTitle} 🌱`
-      : normalizedActivityTitle;
-  const baseTitle = displayTitle?.trim() || dnaTitle;
+  const baseTitle = displayTitle?.trim() || intent.event_display_title?.trim() || buildEventTitle({
+    activityName: intent.activity_name,
+    primaryDnaTitle: commonTarget?.title ?? null,
+  });
   const cardTitle = liveSportTitle(baseTitle, intent.sport_name, null);
 
   const resolvedContextCoverUrl =

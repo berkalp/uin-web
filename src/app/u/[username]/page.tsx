@@ -1498,6 +1498,23 @@ export default async function PublicProfilePage({
     )
   );
 
+  const profilePresentationEntries = await Promise.all(
+    profileResourceIds.map(async (resourceId) => {
+      const { data, error } = await supabase.rpc(
+        "get_uin_event_presentation_v86",
+        { p_resource_id: resourceId }
+      );
+      if (error) {
+        console.warn("Profile event presentation is temporarily unavailable:", error.message);
+        return [resourceId, null] as const;
+      }
+      const displayTitle = data && typeof data === "object" && !Array.isArray(data)
+        ? (data as { displayTitle?: unknown }).displayTitle
+        : null;
+      return [resourceId, typeof displayTitle === "string" ? displayTitle : null] as const;
+    })
+  );
+  const profileDisplayTitleByResourceId = new Map(profilePresentationEntries);
   const [profilePeopleResponse, profileLineageResponse] = await Promise.all([
     profileResourceIds.length > 0
       ? supabase.rpc("get_visible_activity_people_batch", {
@@ -1539,6 +1556,9 @@ export default async function PublicProfilePage({
   function enrichProfileCard(card: DiscoverIntentRow): DiscoverIntentRow {
     return {
       ...card,
+      event_display_title: profileDisplayTitleByResourceId.get(
+        card.plan_id ?? card.resource_id ?? card.intent_id
+      ) ?? null,
       activity_people:
         profilePeopleByResourceId.get(
           card.plan_id ?? card.resource_id ?? card.intent_id

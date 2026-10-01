@@ -1,4 +1,4 @@
-import { withSupabase } from '@supabase/server'
+import { withSupabase } from 'npm:@supabase/server@^1'
 
 type NotificationRecord = {
   id: string
@@ -30,13 +30,38 @@ type ExpoTicket = {
   details?: { error?: string }
 }
 
+const UIN_ACTIVITY_MESSAGE_CHANNEL = 'activity_messages_uin_v1'
+const UIN_UPDATE_CHANNEL = 'uin_updates_uin_v1'
+const UIN_INTENT_LIKE_CHANNEL = 'intent_likes_uin_v1'
+const UIN_INTENT_PAW_CHANNEL = 'intent_paws_uin_v1'
+
 function channelFor(notificationType: string | null) {
   const type = (notificationType ?? '').toLowerCase()
-  return type.includes('room_message') || type.includes('message') || type.includes('chat')
-    ? 'activity_messages'
-    : 'uin_updates'
+
+  if (type === 'intent_liked') return UIN_INTENT_LIKE_CHANNEL
+  if (type === 'intent_pawed') return UIN_INTENT_PAW_CHANNEL
+  if (type.includes('room_message') || type.includes('message') || type.includes('chat')) {
+    return UIN_ACTIVITY_MESSAGE_CHANNEL
+  }
+  return UIN_UPDATE_CHANNEL
 }
 
+// UIN_NOTIFICATION_NOISE_POLICY_V1
+// Room pushes are transport events. The same room should occupy one visible
+// notification card instead of stacking one card per message.
+function notificationGroupKey(notification: NotificationRecord) {
+  const type = (notification.notification_type ?? '').toLowerCase()
+  const entityType = (notification.entity_type ?? '').toLowerCase()
+  const entityId = notification.entity_id
+
+  if (!entityId) return null
+
+  if (entityType === 'plan' && type.includes('room_message')) {
+    return `uin-room-${entityId}`
+  }
+
+  return null
+}
 export default {
   fetch: withSupabase({ auth: 'secret' }, async (req, ctx) => {
     const payload = (await req.json()) as WebhookPayload
@@ -45,6 +70,18 @@ export default {
     }
 
     const notification = payload.record
+    const notificationType = (notification.notification_type ?? '').toLowerCase()
+
+    // Defense in depth: this event is discovery-only and must never become a push.
+    if (notificationType === 'followed_profile_public_intent') {
+      return Response.json({
+        ok: true,
+        skipped: true,
+        reason: 'followed-profile-public-intent-is-discovery-only',
+      })
+    }
+
+    const groupKey = notificationGroupKey(notification)
     const { data: devices, error } = await ctx.supabaseAdmin
       .from('user_push_devices')
       .select('id, expo_push_token')
@@ -71,11 +108,14 @@ export default {
 
     const messages = activeDevices.map((device) => ({
       to: device.expo_push_token,
-      sound: 'default',
+      sound: 'uin_push_background.wav',
       title: notification.title ?? 'UIN',
       body: notification.body ?? 'Yeni bir bildirimin var.',
       channelId: channelFor(notification.notification_type),
       priority: 'high',
+      // collapseId coalesces messages in transit. tag replaces an already
+      // displayed Android notification with the newest message from this room.
+      ...(groupKey ? { collapseId: groupKey, tag: groupKey } : {}),
       data: {
         notificationId: notification.id,
         notificationType: notification.notification_type,

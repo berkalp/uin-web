@@ -1012,6 +1012,23 @@ export default async function DiscoverPage({
     ])
   );
 
+  const eventPresentationEntries = await Promise.all(
+    commonTargetIntentIds.map(async (intentId) => {
+      const { data, error } = await supabase.rpc(
+        "get_uin_event_presentation_v86",
+        { p_resource_id: intentId }
+      );
+      if (error) {
+        console.warn("Canonical event presentation is temporarily unavailable:", error.message);
+        return [intentId, null] as const;
+      }
+      const displayTitle = data && typeof data === "object" && !Array.isArray(data)
+        ? (data as { displayTitle?: unknown }).displayTitle
+        : null;
+      return [intentId, typeof displayTitle === "string" ? displayTitle : null] as const;
+    })
+  );
+  const eventDisplayTitleByIntentId = new Map(eventPresentationEntries);
   const {
     data: reactionContextData,
     error: reactionContextError,
@@ -1511,7 +1528,7 @@ export default async function DiscoverPage({
           resourceHref: `/activities/${encodeURIComponent(
             intent.plan_id ?? intent.resource_id ?? intent.intent_id
           )}`,
-          title: privatePresentation?.custom_title?.trim() || intent.activity_name,
+          title: eventDisplayTitleByIntentId.get(intent.intent_id) || intent.activity_name,
           activityName: intent.activity_name,
           categoryName: intent.category_name,
           lifecycle: intent.lifecycle_status,
@@ -1547,7 +1564,7 @@ export default async function DiscoverPage({
           viewerIsMember: intent.viewer_is_member,
           cardIntent: intent,
           cardDisplayTitle:
-            privatePresentation?.custom_title ?? null,
+            eventDisplayTitleByIntentId.get(intent.intent_id) ?? null,
           cardPrivateCoverUrl: privateCoverUrl,
           cardContextCoverUrl: contextCover,
           cardPublicActivityLocationName:
@@ -1872,9 +1889,7 @@ export default async function DiscoverPage({
                           commonTargetByIntentId.get(intent.intent_id) ?? null
                         }
                         displayTitle={
-                          privatePresentation
-                            ?.custom_title ??
-                          null
+                          eventDisplayTitleByIntentId.get(intent.intent_id) ?? null
                         }
                         privateCoverUrl={
                           privatePresentation
@@ -2092,6 +2107,7 @@ export default async function DiscoverPage({
                       commonTarget={
                         commonTargetByIntentId.get(intent.intent_id) ?? null
                       }
+                      displayTitle={eventDisplayTitleByIntentId.get(intent.intent_id) ?? null}
                     />
                   ))}
                 </div>
