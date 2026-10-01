@@ -30,7 +30,7 @@ export default function PrivacyPage() {
         <p>Profilinde, niyetlerinde ve etkinliklerinde seçtiğin görünürlük ayarları hangi kullanıcıların bilgilerini görebileceğini belirler. Yasal zorunluluk veya güvenlik gereği dışında kişisel verilerini üçüncü taraflara satmayız.</p>
       </InfoSection>
       <InfoSection title="Saklama, düzeltme ve silme">
-        <p>Bilgilerini hesabın ve hizmet için gerekli olduğu sürece saklarız. Bilgilerine erişmek, düzeltmek veya hesabınla birlikte silinmesini istemek için <a className="font-semibold text-emerald-700 underline underline-offset-4" href="mailto:berkalp@hazircevap.tr">berkalp@hazircevap.tr</a> adresine başvurabilirsin.</p>
+        <p>Bilgilerini hesabın ve hizmet için gerekli olduğu sürece saklarız. Bilgilerine erişmek veya düzeltmek için <a className="font-semibold text-emerald-700 underline underline-offset-4" href="mailto:berkalp@hazircevap.tr">berkalp@hazircevap.tr</a> adresine başvurabilirsin. Hesabını ve hesabınla ilişkili kişisel verileri silme adımları için <a className="font-semibold text-emerald-700 underline underline-offset-4" href="/account-deletion">hesap silme sayfasını</a> kullanabilirsin.</p>
       </InfoSection>
       <InfoSection title="Güvenlik ve değişiklikler">
         <p>Verileri korumak için makul teknik ve idari önlemler uygularız. Bu politika değişirse güncelleme tarihini bu sayfada yenileriz.</p>
