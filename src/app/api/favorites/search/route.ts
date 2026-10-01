@@ -7,7 +7,7 @@ import { createClient } from "@/utils/supabase/server";
 type Kind =
   | "artist" | "book" | "movie" | "series" | "watch" | "game" | "place"
   | "director" | "actor" | "writer" | "comedian" | "theatre_artist"
-  | "athlete" | "club" | "sport" | "hobby" | "activity";
+  | "athlete" | "club" | "sport" | "hobby" | "activity" | "podcast";
 
 type SearchItem = {
   provider: string;
@@ -22,7 +22,7 @@ type SearchItem = {
 
 const ALLOWED = new Set<Kind>([
   "artist","book","movie","series","watch","game","place","director","actor","writer",
-  "comedian","theatre_artist","athlete","club","sport","hobby","activity"
+  "comedian","theatre_artist","athlete","club","sport","hobby","activity","podcast"
 ]);
 
 function text(value: unknown) {
@@ -43,10 +43,10 @@ function possibleSport(label: string, description: string) {
   return describesSport && !describesSomethingElse;
 }
 
-async function spotify(query: string): Promise<SearchItem[]> {
+async function spotify(query: string, filter: "artist" | "podcast" = "artist"): Promise<SearchItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase.functions.invoke("uin-spotify-search", {
-    body: { query, filter: "artist" },
+    body: { query, filter },
     ...(process.env.SUPABASE_FUNCTION_ANON_KEY?{headers:{Authorization:"Bearer "+process.env.SUPABASE_FUNCTION_ANON_KEY}}:{}),
   });
   if (error) throw new Error(`Sanatçı araması yapılamadı: ${error.message}`);
@@ -196,7 +196,7 @@ async function tvmaze(query: string): Promise<SearchItem[]> {
   }).slice(0, 18);
 }
 
-const KIND_HINTS: Record<Exclude<Kind, "artist" | "series" | "watch" | "game">, string[]> = {
+const KIND_HINTS: Record<Exclude<Kind, "artist" | "series" | "watch" | "game" | "podcast">, string[]> = {
   book: ["book", "novel", "kitap", "roman", "literary work"],
   movie: ["film", "movie", "sinema"],
   place: ["city", "town", "village", "district", "country", "museum", "park", "şehir", "ilçe", "ülke", "müze", "ada", "island"],
@@ -212,7 +212,7 @@ const KIND_HINTS: Record<Exclude<Kind, "artist" | "series" | "watch" | "game">, 
   activity: ["activity", "recreation", "aktivite", "etkinlik"],
 };
 
-async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" | "watch" | "game">): Promise<SearchItem[]> {
+async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" | "watch" | "game" | "podcast">): Promise<SearchItem[]> {
   const all: Array<Record<string, unknown>> = [];
 
   for (const language of ["tr", "en"]) {
@@ -321,6 +321,7 @@ export async function GET(request: NextRequest) {
     let items: SearchItem[];
 
     if (kindRaw === "artist") items = await spotify(query);
+    else if (kindRaw === "podcast") items = await spotify(query, "podcast");
     else if (kindRaw === "book") {try{items=await googleBooks(query);if(!items.length)items=await wikidata(query,"book")}catch{items=await wikidata(query,"book")}}
     else if (kindRaw === "series") items = await tvmaze(query);
     else if (kindRaw === "watch") {

@@ -5,7 +5,7 @@ import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 async function requestClient(request:NextRequest){const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];return token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):createClient()}
 
 const PROVIDERS = new Set(["spotify", "google_books", "tvmaze", "igdb", "wikidata"]);
-const KINDS = new Set(["artist", "book", "movie", "series", "watch", "game", "place", "director", "actor", "writer", "comedian", "theatre_artist", "athlete", "club", "sport", "hobby", "activity"]);
+const KINDS = new Set(["artist", "book", "movie", "series", "watch", "game", "place", "director", "actor", "writer", "comedian", "theatre_artist", "athlete", "club", "sport", "hobby", "activity", "podcast"]);
 function clean(value: unknown, max = 2000) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function itemKind(kind: string, metadata?: Record<string, unknown>) { if (kind === "watch") return metadata?.uin_item_kind === "series" ? "series" : "movie"; return kind; }
 
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({canonicalTargetId:targetId,status:"active",...(kind==="club"?{redirectUrl:`/clubs/${targetId}`}:{})});
     }
     const { data: catalogItemId, error: suggestionError } = await supabase.rpc("suggest_seed_catalog_item", {
-      p_seed_type_id: seedTypeId, p_item_kind: ["book","movie","series","game","artist","place"].includes(kind)?itemKind(kind):"generic", p_canonical_title: title,
+      p_seed_type_id: seedTypeId, p_item_kind: ["book","movie","series","game","artist","place","podcast"].includes(kind)?itemKind(kind):"generic", p_canonical_title: title,
       p_creator_name: clean(body.creatorName,240)||null,
       p_original_title: null, p_release_year: null, p_cover_url: clean(body.coverUrl)||null,
       p_language_code: "tr", p_metadata: { ...metadata, content_type_id:contentTypeId, ...(sourceUrl ? { reference_url: sourceUrl } : {}) },
