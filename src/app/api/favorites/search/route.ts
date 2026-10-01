@@ -109,6 +109,8 @@ async function googleBooks(query: string): Promise<SearchItem[]> {
   url.searchParams.set("printType", "books");
   url.searchParams.set("orderBy", "relevance");
   url.searchParams.set("maxResults", "18");
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
+  if (apiKey) url.searchParams.set("key", apiKey);
 
   const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
   if (!response.ok) throw new Error("Kitap arama servisi şu anda yanıt vermiyor.");
