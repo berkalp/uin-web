@@ -32,7 +32,7 @@ export type CollaborationChatSummary = {
   last_message_at: string | null;
 };
 
-export default function CollaborationInbox({ initialRequests, initialChats }: { initialRequests: CollaborationRequest[]; initialChats: CollaborationChatSummary[] }) {
+export default function CollaborationInbox({ initialRequests, initialChats, focusedId }: { initialRequests: CollaborationRequest[]; initialChats: CollaborationChatSummary[]; focusedId: string | null }) {
   const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [busy, setBusy] = useState("");
@@ -59,8 +59,8 @@ export default function CollaborationInbox({ initialRequests, initialChats }: { 
     {error && <p role="alert" className="rounded-2xl bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</p>}
     <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
       <header className="border-b p-5 md:p-7"><h1 className="text-2xl font-black">Birlikte yapma önerileri</h1><p className="mt-1 text-sm text-gray-500">Öneriyi kabul edince 20’şer mesajlık tanışma sohbeti açılır.</p></header>
-      <div className="divide-y divide-gray-100">{requests.length ? requests.map((request) => <article key={request.id} className="flex flex-wrap items-center justify-between gap-4 p-5 md:px-7">
-        <div className="flex min-w-0 items-center gap-3">{request.avatar_url ? <img src={request.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover"/> : <span className="grid h-12 w-12 place-items-center rounded-full bg-gray-100 font-black">{request.full_name.charAt(0)}</span>}<div className="min-w-0"><p className="truncate font-black">{request.full_name} birlikte yapmayı önerdi</p><p className="mt-1 text-sm text-gray-500">{request.seed_title}</p></div></div>
+      <div className="divide-y divide-gray-100">{requests.length ? requests.map((request) => <article id={`oner-${request.id}`} key={request.id} className={`flex flex-wrap items-center justify-between gap-4 p-5 md:px-7 ${focusedId === request.id ? "bg-emerald-50 ring-2 ring-inset ring-emerald-400" : ""}`}>
+        <div className="flex min-w-0 items-center gap-3">{request.avatar_url ? <img src={request.avatar_url} alt="" className="h-12 w-12 rounded-full object-cover"/> : <span className="grid h-12 w-12 place-items-center rounded-full bg-gray-100 font-black">{request.full_name.charAt(0)}</span>}<div className="min-w-0"><p className="font-black">{request.full_name}, “{request.seed_title}” için birlikte yapmayı önerdi</p><p className="mt-1 text-sm text-gray-500">Kabul edersen tanışma sohbeti doğrudan açılır.</p></div></div>
         <div className="flex gap-2"><button type="button" disabled={busy === request.id} onClick={() => void answer(request, "accepted")} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-50">Kabul et ve sohbeti aç</button><button type="button" disabled={busy === request.id} onClick={() => void answer(request, "rejected")} className="rounded-xl border px-4 py-2.5 text-sm font-bold disabled:opacity-50">Kabul etme</button></div>
       </article>) : <p className="p-8 text-center text-sm text-gray-500">Yanıt bekleyen öneri yok.</p>}</div>
     </section>

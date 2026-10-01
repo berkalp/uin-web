@@ -8,6 +8,7 @@ import {
 } from "@/components/notifications/NotificationActions";
 import NotificationsRealtimeRefresh from "@/components/notifications/NotificationsRealtimeRefresh";
 import { createClient } from "@/utils/supabase/server";
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
 
 type NotificationRow = {
   notification_id: string;
@@ -53,10 +54,10 @@ function formatDateTime(value: string) {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
-    return "Unknown time";
+    return "Bilinmeyen zaman";
   }
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -71,7 +72,7 @@ function getNotificationTone(type: string) {
     return {
       border: "border-purple-200",
       badge: "bg-purple-50 text-purple-700",
-      label: "Feedback",
+      label: "Geri Bildirim",
     };
   }
 
@@ -79,7 +80,7 @@ function getNotificationTone(type: string) {
     return {
       border: "border-green-200",
       badge: "bg-green-50 text-green-700",
-      label: "Update",
+      label: "Güncelleme",
     };
   }
 
@@ -87,7 +88,7 @@ function getNotificationTone(type: string) {
     return {
       border: "border-red-200",
       badge: "bg-red-50 text-red-700",
-      label: "Resolved",
+      label: "Sonuçlandı",
     };
   }
 
@@ -95,7 +96,7 @@ function getNotificationTone(type: string) {
     return {
       border: "border-purple-200",
       badge: "bg-purple-50 text-purple-700",
-      label: "Invitation",
+      label: "Davet",
     };
   }
 
@@ -103,15 +104,29 @@ function getNotificationTone(type: string) {
     return {
       border: "border-blue-200",
       badge: "bg-blue-50 text-blue-700",
-      label: "Join Request",
+      label: "Katılım İsteği",
     };
   }
 
   return {
     border: "border-gray-200",
     badge: "bg-gray-100 text-gray-600",
-    label: "Notification",
+    label: "Bildirim",
   };
+}
+
+function localizedNotificationTitle(title: string) {
+  const match = title.match(/^(.*?)\s+wants to join\s+(.+)$/i);
+  if (!match) return title;
+  return `${match[1].trim()}, “${commonIntentTitle(match[2])}” etkinliğine katılmak istiyor`;
+}
+
+function localizedNotificationBody(type: string, body: string | null) {
+  if (!body) return null;
+  if (type.includes("join_request") && /(open|review|accept|decline|join request)/i.test(body)) {
+    return "Katılım isteğini incelemek, kabul etmek veya reddetmek için aç.";
+  }
+  return body;
 }
 
 function pageHref(page: number) {
@@ -166,6 +181,19 @@ export default async function NotificationsPage({
     redirect(pageHref(pageCount));
   }
 
+  const collaborationIds = notifications
+    .filter((item) => item.notification_type.startsWith("personal_intent_collaboration") && item.entity_id)
+    .map((item) => item.entity_id as string);
+  const chatRoutes = new Map<string, string>();
+  if (collaborationIds.length) {
+    const { data: chats } = await supabase
+      .from("personal_intent_collaboration_chats")
+      .select("suggestion_id")
+      .in("suggestion_id", collaborationIds);
+    for (const row of chats ?? []) chatRoutes.set(row.suggestion_id, `/collaboration-chat/${row.suggestion_id}`);
+    for (const id of collaborationIds) if (!chatRoutes.has(id)) chatRoutes.set(id, `/collaboration-suggestions?focus=${id}`);
+  }
+
   const unreadNotifications = notifications.filter(
     (notification) => !notification.is_read
   );
@@ -177,6 +205,11 @@ export default async function NotificationsPage({
     const actorName =
       notification.actor_full_name || notification.actor_username || "UIN";
     const tone = getNotificationTone(notification.notification_type);
+    const displayTitle = localizedNotificationTitle(notification.title);
+    const displayBody = localizedNotificationBody(notification.notification_type, notification.body);
+    const actionUrl = notification.entity_id && chatRoutes.get(notification.entity_id)
+      ? chatRoutes.get(notification.entity_id)!
+      : notification.action_url;
 
     return (
       <article
@@ -207,18 +240,18 @@ export default async function NotificationsPage({
 
                 {!notification.is_read && (
                   <span className="rounded-full bg-gray-950 px-3 py-1 text-xs font-semibold text-white">
-                    New
+                    Yeni
                   </span>
                 )}
               </div>
 
               <h2 className="mt-3 text-lg font-bold leading-7 text-gray-950">
-                {notification.title}
+                {displayTitle}
               </h2>
 
-              {notification.body && (
+              {displayBody && (
                 <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-gray-600">
-                  {notification.body}
+                  {displayBody}
                 </p>
               )}
 
@@ -230,7 +263,7 @@ export default async function NotificationsPage({
 
           <NotificationOpenButton
             notificationId={notification.notification_id}
-            actionUrl={notification.action_url}
+            actionUrl={actionUrl}
             isRead={notification.is_read}
           />
         </div>
@@ -252,30 +285,30 @@ export default async function NotificationsPage({
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-            Activity Updates
+            Etkinlik güncellemeleri
           </p>
 
           <h1 className="mt-3 text-3xl font-bold text-gray-950 md:text-4xl">
-            Notifications
+            Bildirimler
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Important updates about your Intents, Plans, Activities and people you follow.
-            Room conversations live in Messages, not here.
+            Niyetlerin, planların, etkinliklerin ve takip ettiğin kişilerle ilgili önemli
+            gelişmeler burada görünür. Oda konuşmalarını Mesajlar bölümünde bulabilirsin.
           </p>
 
           <div className="mt-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white">
-              {unreadCount} unread
+              {unreadCount} okunmamış
             </span>
 
             <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {totalCount} total
+              {totalCount} toplam
             </span>
 
             {totalCount > 0 && (
               <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-                Page {Math.min(requestedPage, pageCount)} / {pageCount}
+                Sayfa {Math.min(requestedPage, pageCount)} / {pageCount}
               </span>
             )}
           </div>
@@ -283,7 +316,7 @@ export default async function NotificationsPage({
 
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
-            <p className="font-semibold text-red-800">Notifications could not be loaded.</p>
+            <p className="font-semibold text-red-800">Bildirimler yüklenemedi.</p>
             <p className="mt-2 text-sm text-red-700">{error.message}</p>
           </div>
         )}
@@ -293,17 +326,17 @@ export default async function NotificationsPage({
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-xl font-bold text-green-700">
               ✓
             </div>
-            <h2 className="mt-5 text-xl font-bold text-gray-950">No updates yet</h2>
+            <h2 className="mt-5 text-xl font-bold text-gray-950">Henüz güncelleme yok</h2>
             <p className="mt-3 text-sm leading-7 text-gray-500">
-              Meaningful Intent, Plan and Activity updates will appear here.
+              Niyet, plan ve etkinliklerle ilgili gelişmeler burada görünecek.
             </p>
           </section>
         )}
 
         {!error && unreadNotifications.length > 0 && (
           <section className="mt-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">New</p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-950">Unread Notifications</h2>
+            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">Yeni</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">Okunmamış bildirimler</h2>
             <div className="mt-5 space-y-4">
               {unreadNotifications.map(renderNotification)}
             </div>
@@ -312,8 +345,8 @@ export default async function NotificationsPage({
 
         {!error && readNotifications.length > 0 && (
           <section className="mt-10">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">History</p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-950">Earlier Notifications</h2>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Geçmiş</p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">Önceki bildirimler</h2>
             <div className="mt-5 space-y-4">
               {readNotifications.map(renderNotification)}
             </div>
@@ -322,7 +355,7 @@ export default async function NotificationsPage({
 
         {!error && totalCount > PAGE_SIZE && (
           <nav
-            aria-label="Notification pages"
+            aria-label="Bildirim sayfaları"
             className="mt-10 flex items-center justify-between gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm"
           >
             <Link
@@ -334,7 +367,7 @@ export default async function NotificationsPage({
                   : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
               }`}
             >
-              ← Previous
+              ← Önceki
             </Link>
 
             <span className="text-sm font-semibold text-gray-500">
@@ -350,7 +383,7 @@ export default async function NotificationsPage({
                   : "border-gray-200 bg-white text-gray-700 hover:border-green-300 hover:text-green-700"
               }`}
             >
-              Next →
+              Sonraki →
             </Link>
           </nav>
         )}
