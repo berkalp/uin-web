@@ -78,6 +78,7 @@ import type {
 } from "../../utils/profilePresence";
 import type { PublicCommunityMembership } from "../../utils/communityMemberships";
 import type { PublicProfessionalStatus } from "../../utils/professionals";
+import type { EventPresentation } from "../../utils/eventPresentation";
 
 type IntentStatus =
   | "active"
@@ -1825,6 +1826,7 @@ function ExpiredActivityCard({
   planById,
   sportCoverContextByIntentId,
   privatePresentationByPlanId,
+  eventPresentationByResourceId,
 }: {
   item: ExpiredActivityHistoryRow;
   ownedIntentById: Map<string, TimelineIntent>;
@@ -1837,6 +1839,7 @@ function ExpiredActivityCard({
     string,
     VisiblePlanPresentation
   >;
+  eventPresentationByResourceId: Map<string, EventPresentation | null>;
 }) {
   const participantCount =
     toFiniteNumber(
@@ -1912,6 +1915,10 @@ function ExpiredActivityCard({
         ) ?? null
       : null;
 
+  const eventPresentation = eventPresentationByResourceId.get(
+    item.plan_id ?? effectiveSourceIntentId ?? item.item_id
+  ) ?? null;
+
   const resolvedCoverUrl =
     privatePresentation
       ?.signed_experience_cover_url ??
@@ -1929,6 +1936,7 @@ function ExpiredActivityCard({
         item.item_type
       }
       title={
+        eventPresentation?.displayTitle ||
         privatePresentation?.custom_title ||
         item.title ||
         activity?.name ||
@@ -2987,6 +2995,24 @@ const {
       )
     );
 
+  const eventPresentationResources = Array.from(new Set([
+    ...visibleIntentIds,
+    ...presentationPlanIds,
+  ]));
+  const eventPresentationEntries = await Promise.all(
+    eventPresentationResources.map(async (resourceId) => {
+      const { data, error } = await supabase.rpc("get_uin_event_presentation_v86", {
+        p_resource_id: resourceId,
+      });
+      if (error) {
+        console.warn("Timeline event presentation is temporarily unavailable:", error.message);
+        return [resourceId, null] as const;
+      }
+      return [resourceId, (data && typeof data === "object" && !Array.isArray(data) ? data : null) as EventPresentation | null] as const;
+    })
+  );
+  const eventPresentationByResourceId = new Map(eventPresentationEntries);
+
   for (
     let startIndex = 0;
     startIndex <
@@ -3826,6 +3852,8 @@ const {
           intent.sports
         );
 
+      const eventPresentation = eventPresentationByResourceId.get(intent.id) ?? null;
+
 
       const sportCoverContext =
         sportCoverContextByIntentId.get(
@@ -3892,10 +3920,8 @@ const {
               listEditHref={selectedTab==="events"?`/intents/${encodeURIComponent(intent.id)}/edit`:null}
               detailToggleId={intentDetailToggleId}
               intentId={intent.id}
-              title={
-              activity?.name ??
-              "Unknown Activity"
-            }
+              title={eventPresentation?.displayTitle || activity?.name || "Unknown Activity"}
+              dnaTitles={(eventPresentation?.dnaCards ?? []).map((card) => card.title)}
             categoryName={
               category?.name ??
               "Unknown Category"
@@ -4276,18 +4302,18 @@ const {
       ) ??
       null;
 
+    const eventPresentation = eventPresentationByResourceId.get(plan.id) ?? null;
+
     const canonicalActivityName =
       activity?.name ||
       plan.title ||
       "UIN Activity";
 
     const visiblePlanTitle =
-      plan.status === "completed"
+      eventPresentation?.displayTitle ||
+      (plan.status === "completed"
         ? canonicalActivityName
-        : privatePresentation
-            ?.custom_title ||
-          plan.title ||
-          canonicalActivityName;
+        : privatePresentation?.custom_title || plan.title || canonicalActivityName);
 
     const {
       sourceCount,
@@ -4458,6 +4484,7 @@ const {
           detailToggleId={planDetailToggleId}
           planId={plan.id}
           title={visiblePlanTitle}
+          dnaTitles={(eventPresentation?.dnaCards ?? []).map((card) => card.title)}
           canonicalActivityName={canonicalActivityName}
           categoryName={
             category?.name ??
@@ -4746,6 +4773,7 @@ const {
     const category = getFirst(activity?.activity_categories);
     const location = getFirst(plan.locations);
     const presentation = privatePresentationByPlanId.get(plan.id) ?? null;
+    const eventPresentation = eventPresentationByResourceId.get(plan.id) ?? null;
 
     // Keep compact timeline cards on exactly the same presentation chain as
     // the full Planned card. Otherwise a sport/community Activity can show a
@@ -4765,11 +4793,10 @@ const {
       activity?.name || plan.title || "UIN Activity";
 
     const title =
-      plan.status === "completed"
+      eventPresentation?.displayTitle ||
+      (plan.status === "completed"
         ? canonicalActivityName
-        : presentation?.custom_title ||
-          plan.title ||
-          canonicalActivityName;
+        : presentation?.custom_title || plan.title || canonicalActivityName);
 
     const coverUrl =
       presentation?.signed_experience_cover_url ??
@@ -4961,6 +4988,7 @@ const {
           privatePresentationByPlanId={
             privatePresentationByPlanId
           }
+          eventPresentationByResourceId={eventPresentationByResourceId}
         />
       </div>
     );
@@ -5349,6 +5377,7 @@ const {
                         privatePresentationByPlanId={
                           privatePresentationByPlanId
                         }
+                        eventPresentationByResourceId={eventPresentationByResourceId}
                       />
                     )
                   )}
@@ -5587,6 +5616,7 @@ const {
                           planById={planById}
                           sportCoverContextByIntentId={sportCoverContextByIntentId}
                           privatePresentationByPlanId={privatePresentationByPlanId}
+                          eventPresentationByResourceId={eventPresentationByResourceId}
                         />
                       </div>
                     )
