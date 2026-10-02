@@ -1,4 +1,5 @@
 import {validCardStyle} from "@/utils/cardStyle";
+import {normalizeReferenceLinks} from "@/utils/referenceLinks";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
@@ -16,6 +17,18 @@ export async function POST(request:NextRequest){
       return NextResponse.json({deleted:true});
     }
     const title=typeof body.title==="string"?body.title.trim():"";const itemKind=typeof body.itemKind==="string"?body.itemKind:"";
+    const legacyReference=typeof body.referenceUrl==="string"?body.referenceUrl.trim():"";
+    const rawReferenceLinks=body.referenceLinks===undefined?(legacyReference?[{label:"Kaynak",url:legacyReference}]:[]):body.referenceLinks;
+    if(!Array.isArray(rawReferenceLinks)||rawReferenceLinks.length>20)return NextResponse.json({error:"En fazla 20 kaynak bağlantısı ekleyebilirsin."},{status:400});
+    for(const row of rawReferenceLinks){
+      if(!row||typeof row!=="object")return NextResponse.json({error:"Kaynak bağlantısı geçersiz."},{status:400});
+      const link=row as Record<string,unknown>;const label=typeof link.label==="string"?link.label.trim():"";const url=typeof link.url==="string"?link.url.trim():"";
+      if(!label&&!url)continue;
+      if(!url)return NextResponse.json({error:"Her kaynak için bir bağlantı adresi gir."},{status:400});
+      if(label.length>80)return NextResponse.json({error:"Kaynak adı en fazla 80 karakter olabilir."},{status:400});
+      try{if(!["https:","http:"].includes(new URL(url).protocol))throw new Error();}catch{return NextResponse.json({error:"Kaynak bağlantılarını kontrol et."},{status:400});}
+    }
+    const referenceLinks=normalizeReferenceLinks(rawReferenceLinks);
     const field=(name:string)=>typeof body[name]==="string"?(body[name] as string).trim():"";
     for(const name of ["coverUrl","referenceUrl"]){const value=field(name);if(value){try{const url=new URL(value);if(!["https:","http:"].includes(url.protocol))throw new Error();}catch{return NextResponse.json({error:"Geçerli bir görsel veya kaynak bağlantısı gir."},{status:400});}}}
     const coverPosition=body.coverPositionY??50;
@@ -27,8 +40,10 @@ export async function POST(request:NextRequest){
     const placeHierarchy=body.placeHierarchy as {kind?:unknown;parentTargetId?:unknown}|undefined;if(placeHierarchy&&(typeof placeHierarchy.kind!=="string"||!["","Ülke","İl","Şehir","İlçe","Yer"].includes(placeHierarchy.kind)||placeHierarchy.parentTargetId&&(!/^[0-9a-f-]{36}$/i.test(String(placeHierarchy.parentTargetId))||placeHierarchy.parentTargetId===targetId)))return NextResponse.json({error:"Yer türünü ve bağlı kartı kontrol et."},{status:400});
     let clubHierarchy=body.clubHierarchy;const clubType=await supabase.from('uin_content_types').select('base_kind').eq('id',itemKind).maybeSingle();if(clubType.error)return NextResponse.json({error:'İçerik türü yüklenemedi.'},{status:500});const creatorAllowed=!/(festival|concert|konser)/i.test(itemKind)&&['artist','book','movie','series','game','director','actor','writer'].includes(clubType.data?.base_kind||'');if(clubType.data?.base_kind==='club'&&!clubHierarchy){const h=await supabase.rpc('get_club_hierarchy_v75');if(h.error)return NextResponse.json({error:'Takım bağlantısı yüklenemedi.'},{status:500});clubHierarchy=(h.data||[]).find((r:{target_id:string})=>r.target_id===targetId)||{};}
     const saveStyle=Object.prototype.hasOwnProperty.call(body,'cardStyle');if(saveStyle&&body.cardStyle!==null&&!validCardStyle(body.cardStyle))return NextResponse.json({error:'Kart renklerini kontrol et.'},{status:400});
-    const {error}=await supabase.rpc(clubHierarchy&&saveStyle?"admin_save_coloured_club_v76":clubHierarchy?"admin_save_club_card_v75":placeHierarchy?"admin_save_place_card_v74":"admin_save_uin_card_v62",{...(clubHierarchy&&saveStyle?{p_card_style:body.cardStyle}:{}),...(clubHierarchy?{p_hierarchy:clubHierarchy}:{}),...(placeHierarchy?{p_place_kind:placeHierarchy.kind,p_parent_target_id:placeHierarchy.parentTargetId||null}:{}),p_target_id:targetId,p_title:title,p_type_id:itemKind,p_creator_name:creatorAllowed?field("creatorName"):"",p_cover_url:field("coverUrl"),p_description:field("description"),p_reference_url:field("referenceUrl"),p_profile:profile||{},p_cover_position_y:coverPosition});
+    const {error}=await supabase.rpc(clubHierarchy&&saveStyle?"admin_save_coloured_club_v76":clubHierarchy?"admin_save_club_card_v75":placeHierarchy?"admin_save_place_card_v74":"admin_save_uin_card_v62",{...(clubHierarchy&&saveStyle?{p_card_style:body.cardStyle}:{}),...(clubHierarchy?{p_hierarchy:clubHierarchy}:{}),...(placeHierarchy?{p_place_kind:placeHierarchy.kind,p_parent_target_id:placeHierarchy.parentTargetId||null}:{}),p_target_id:targetId,p_title:title,p_type_id:itemKind,p_creator_name:creatorAllowed?field("creatorName"):"",p_cover_url:field("coverUrl"),p_description:field("description"),p_reference_url:referenceLinks[0]?.url||field("referenceUrl"),p_profile:profile||{},p_cover_position_y:coverPosition});
     if(error)return NextResponse.json({error:error.message},{status:500});
+    const sourceSave=await supabase.rpc("admin_save_uin_card_reference_links_v93",{p_target_id:targetId,p_links:referenceLinks});
+    if(sourceSave.error)return NextResponse.json({error:sourceSave.error.message},{status:500});
     const typeSync=await supabase.rpc("admin_sync_uin_card_type_v87",{p_target_id:targetId,p_type_id:itemKind});
     if(typeSync.error)return NextResponse.json({error:typeSync.error.message},{status:500});
     if(cardHierarchy){const hierarchySave=await supabase.rpc("admin_save_card_hierarchy_v81",{p_target_id:targetId,p_parent_target_id:cardHierarchy.parentTargetId||null,p_sort_order:Number(cardHierarchy.sortOrder||0),p_section_title:String(cardHierarchy.sectionTitle||"")||null});if(hierarchySave.error)return NextResponse.json({error:hierarchySave.error.message},{status:500});}

@@ -1,4 +1,5 @@
 import {GET as searchSource} from "@/app/api/favorites/search/route";
+import {normalizeReferenceLinks} from "@/utils/referenceLinks";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
@@ -65,8 +66,12 @@ export async function POST(request: NextRequest) {
     if (!title) return NextResponse.json({ error: "Konunun adı gerekli." }, { status: 400 });
     if (mode === "verified" && (!PROVIDERS.has(provider) || !externalId)) return NextResponse.json({ error: "Doğrulanmış kaynak bilgisi eksik." }, { status: 400 });
 
-    const sourceUrl = mode === "verified" ? clean(raw.sourceUrl) : clean(body.referenceUrl);
-    const sourceMetadata = mode === "verified" && raw.metadata && typeof raw.metadata === "object" ? raw.metadata as Record<string, unknown> : { description: clean(body.description, 1000), submission: "manual" };
+const submittedLinks=body.referenceLinks===undefined?(clean(body.referenceUrl)?[{label:"Kaynak",url:clean(body.referenceUrl)}]:[]):body.referenceLinks;
+    if(!Array.isArray(submittedLinks)||submittedLinks.length>20)return NextResponse.json({error:"En fazla 20 kaynak bağlantısı ekleyebilirsin."},{status:400});
+    for(const row of submittedLinks){if(!row||typeof row!=="object")return NextResponse.json({error:"Kaynak bağlantısı geçersiz."},{status:400});const link=row as Record<string,unknown>;const label=clean(link.label,81);const url=clean(link.url);if(!label&&!url)continue;if(!url||label.length>80)return NextResponse.json({error:"Kaynak adını ve bağlantısını kontrol et."},{status:400});try{if(!["http:","https:"].includes(new URL(url).protocol))throw new Error();}catch{return NextResponse.json({error:"Kaynak bağlantılarını kontrol et."},{status:400});}}
+    const referenceLinks=normalizeReferenceLinks(submittedLinks);
+    const sourceUrl = mode === "verified" ? clean(raw.sourceUrl) : referenceLinks[0]?.url||clean(body.referenceUrl);
+    const sourceMetadata = mode === "verified" && raw.metadata && typeof raw.metadata === "object" ? raw.metadata as Record<string, unknown> : { description: clean(body.description, 1000), submission: "manual", ...(referenceLinks.length?{reference_links:referenceLinks}: {}) };
     const metadata = { ...sourceMetadata };
     const {data:duplicate,error:duplicateError}=await supabase.rpc("find_uin_duplicate_v73",{p_title:title,p_kind:kind,p_creator:mode==="verified"?clean(raw.creatorName||raw.subtitle,240):clean(body.creatorName,240)});
     if(duplicateError)return NextResponse.json({error:"Kart kontrol edilemedi."},{status:500});
@@ -96,13 +101,15 @@ export async function POST(request: NextRequest) {
     if(adminRole){
       const {data:targetId,error:createError}=await supabase.rpc(kind==="club"?"admin_create_club_card_v75":"admin_create_uin_card_v59",{p_seed_type_id:seedTypeId,p_type_id:contentTypeId,p_title:title,p_creator_name:clean(body.creatorName,240)||null,p_cover_url:clean(body.coverUrl)||null,p_description:clean(body.description,1000)||null,p_reference_url:sourceUrl||null,...(kind==="club"?{p_profile:body.clubProfile||{}}:{})});
       if(createError)return NextResponse.json({error:createError.message},{status:400});
+      const sourceSave=await supabase.rpc("admin_save_uin_card_reference_links_v93",{p_target_id:targetId,p_links:referenceLinks});
+      if(sourceSave.error)return NextResponse.json({error:sourceSave.error.message},{status:500});
       return NextResponse.json({canonicalTargetId:targetId,status:"active",...(kind==="club"?{redirectUrl:`/clubs/${targetId}`}:{})});
     }
     const { data: catalogItemId, error: suggestionError } = await supabase.rpc("suggest_seed_catalog_item", {
       p_seed_type_id: seedTypeId, p_item_kind: ["book","movie","series","game","artist","place","podcast"].includes(kind)?itemKind(kind):"generic", p_canonical_title: title,
       p_creator_name: clean(body.creatorName,240)||null,
       p_original_title: null, p_release_year: null, p_cover_url: clean(body.coverUrl)||null,
-      p_language_code: "tr", p_metadata: { ...metadata, content_type_id:contentTypeId, ...(sourceUrl ? { reference_url: sourceUrl } : {}) },
+      p_language_code: "tr", p_metadata: { ...metadata, content_type_id:contentTypeId, ...(sourceUrl ? { reference_url: sourceUrl } : {}), ...(referenceLinks.length ? { reference_links: referenceLinks } : {}) },
     });
     if (suggestionError || typeof catalogItemId !== "string") return NextResponse.json({ error: suggestionError?.message || "Konu eklenemedi." }, { status: 500 });
     return NextResponse.json({ catalogItemId, status: "pending" });
