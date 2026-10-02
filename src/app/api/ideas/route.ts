@@ -52,9 +52,8 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Konu eklemek için giriş yapmalısın." }, { status: 401 });
 
     const {data:adminRole}=await supabase.rpc("get_admin_role");
-    if(kind==="club"&&!adminRole)return NextResponse.json({error:"Spor kulübü kartlarını yalnızca admin ekleyebilir. Mevcut kartlardan seçim yapabilirsin."},{status:403});
     let raw = body.item && typeof body.item === "object" ? body.item as Record<string, unknown> : {};
-    if(mode==="manual"&&!adminRole)return NextResponse.json({error:"Yeni kartı kaynakta arayıp bulunan sonuçlardan seçmelisin."},{status:403});
+    if(mode==="manual"&&!adminRole&&kind!=="club")return NextResponse.json({error:"Yeni kartı kaynakta arayıp bulunan sonuçlardan seçmelisin."},{status:403});
     if(mode==="verified"){
       const url=new URL("/api/favorites/search",request.url);url.searchParams.set("kind",kind);url.searchParams.set("q",clean(raw.title,240));
       const checked=await searchSource(new NextRequest(url));const payload=await checked.json();
