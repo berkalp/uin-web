@@ -214,7 +214,7 @@ const KIND_HINTS: Record<Exclude<Kind, "artist" | "series" | "watch" | "game" | 
   activity: ["activity", "recreation", "aktivite", "etkinlik"],
 };
 
-async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" | "watch" | "game" | "podcast">): Promise<SearchItem[]> {
+async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" | "watch" | "game" | "podcast">, entityFilter=""): Promise<SearchItem[]> {
   const all: Array<Record<string, unknown>> = [];
 
   for (const language of ["tr", "en"]) {
@@ -239,7 +239,8 @@ async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" |
   }
 
   const seen = new Set<string>();
-  const hints = KIND_HINTS[kind];
+  const customHints=entityFilter.split(/[,;|/]/).map(value=>value.trim().toLocaleLowerCase("tr-TR")).filter(Boolean);
+  const hints = customHints.length?customHints:KIND_HINTS[kind];
 
   const filtered = all.filter((row) => {
     const id = text(row.id);
@@ -249,7 +250,7 @@ async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" |
     const description = `${text(row.description) ?? ""} ${text(row.label) ?? ""}`.toLocaleLowerCase("tr-TR");
     if(kind==="place")return possiblePlace(text(row.label)||"",text(row.description)||"");
     if(kind==="sport")return possibleSport(text(row.label)||"",text(row.description)||"");
-    if (kind === "activity" || kind === "hobby") return true;
+    if ((kind === "activity" || kind === "hobby")&&!customHints.length) return true;
     return hints.some((hint) => description.includes(hint.toLocaleLowerCase("tr-TR")));
   });
 
@@ -311,6 +312,8 @@ async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" |
 export async function GET(request: NextRequest) {
   const kindRaw = request.nextUrl.searchParams.get("kind")?.trim() as Kind | undefined;
   const query = request.nextUrl.searchParams.get("q")?.trim() || "";
+  const provider=(request.nextUrl.searchParams.get("provider")||"auto").trim();
+  const entity=(request.nextUrl.searchParams.get("entity")||"").trim().slice(0,120);
 
   if (!kindRaw || !ALLOWED.has(kindRaw)) {
     return NextResponse.json({ error: "Geçersiz tür." }, { status: 400 });
@@ -321,8 +324,14 @@ export async function GET(request: NextRequest) {
 
   try {
     let items: SearchItem[];
-
-    if (kindRaw === "artist") items = await spotify(query);
+    if(!["auto","wikidata","google_books","spotify","tvmaze","igdb","manual"].includes(provider))return NextResponse.json({error:"Geçersiz arama kaynağı."},{status:400});
+    if(provider==="manual")items=[];
+    else if(provider==="wikidata")items=await wikidata(query,(["artist","series","watch","game","podcast"].includes(kindRaw)?"activity":kindRaw) as Exclude<Kind,"artist"|"series"|"watch"|"game"|"podcast">,entity);
+    else if(provider==="google_books")items=await googleBooks(query);
+    else if(provider==="spotify")items=await spotify(query,kindRaw==="podcast"||entity.toLocaleLowerCase("tr-TR").includes("podcast")?"podcast":undefined);
+    else if(provider==="tvmaze")items=await tvmaze(query);
+    else if(provider==="igdb")items=await igdb(query);
+    else if (kindRaw === "artist") items = await spotify(query);
     else if (kindRaw === "podcast") items = await spotify(query, "podcast");
     else if (kindRaw === "book") {try{items=await googleBooks(query);if(!items.length)items=await wikidata(query,"book")}catch{items=await wikidata(query,"book")}}
     else if (kindRaw === "series") items = await tvmaze(query);

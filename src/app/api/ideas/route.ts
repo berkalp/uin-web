@@ -52,10 +52,13 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Konu eklemek için giriş yapmalısın." }, { status: 401 });
 
     const {data:adminRole}=await supabase.rpc("get_admin_role");
+    const contentTypeId=clean(body.contentTypeId,100);
+    let configuredProvider=clean(body.searchProvider,40)||"auto",configuredEntity=clean(body.searchEntity,120),configuredManualFallback=false;
+    if(contentTypeId){const lookup=await supabase.from("uin_content_types").select("base_kind,active,ui_labels").eq("id",contentTypeId).maybeSingle();const labels=lookup.data?.ui_labels&&typeof lookup.data.ui_labels==="object"?lookup.data.ui_labels as Record<string,unknown>:{};if(lookup.error||!lookup.data?.active||lookup.data.base_kind!==kind)return NextResponse.json({error:"İçerik türü geçersiz veya kullanıma kapalı."},{status:400});configuredProvider=clean(labels.search_provider,40)||"auto";configuredEntity=clean(labels.search_entity,120);configuredManualFallback=labels.manual_fallback==="true";}
     let raw = body.item && typeof body.item === "object" ? body.item as Record<string, unknown> : {};
-    if(mode==="manual"&&!adminRole&&kind!=="club")return NextResponse.json({error:"Yeni kartı kaynakta arayıp bulunan sonuçlardan seçmelisin."},{status:403});
+    if(mode==="manual"&&!adminRole&&kind!=="club"&&configuredProvider!=="manual"&&!configuredManualFallback)return NextResponse.json({error:"Bu içerik türünde kullanıcı önerisine izin verilmiyor."},{status:403});
     if(mode==="verified"){
-      const url=new URL("/api/favorites/search",request.url);url.searchParams.set("kind",kind);url.searchParams.set("q",clean(raw.title,240));
+      const url=new URL("/api/favorites/search",request.url);url.searchParams.set("kind",kind);url.searchParams.set("q",clean(raw.title,240));url.searchParams.set("provider",configuredProvider);url.searchParams.set("entity",configuredEntity);
       const checked=await searchSource(new NextRequest(url));const payload=await checked.json();
       const match=checked.ok&&Array.isArray(payload.items)?payload.items.find((item:Record<string,unknown>)=>item.provider===raw.provider&&item.externalId===raw.externalId):null;
       if(!match)return NextResponse.json({error:"Kart kaynaktan doğrulanamadı. Yeniden arayıp sonuçlardan seç."},{status:422});raw=match;
@@ -70,6 +73,7 @@ const submittedLinks=body.referenceLinks===undefined?(clean(body.referenceUrl)?[
     for(const row of submittedLinks){if(!row||typeof row!=="object")return NextResponse.json({error:"Kaynak bağlantısı geçersiz."},{status:400});const link=row as Record<string,unknown>;const label=clean(link.label,81);const url=clean(link.url);if(!label&&!url)continue;if(!url||label.length>80)return NextResponse.json({error:"Kaynak adını ve bağlantısını kontrol et."},{status:400});try{if(!["http:","https:"].includes(new URL(url).protocol))throw new Error();}catch{return NextResponse.json({error:"Kaynak bağlantılarını kontrol et."},{status:400});}}
     const referenceLinks=normalizeReferenceLinks(submittedLinks);
     const sourceUrl = mode === "verified" ? clean(raw.sourceUrl) : referenceLinks[0]?.url||clean(body.referenceUrl);
+    if(mode==="manual"&&!adminRole&&kind!=="club"&&!sourceUrl)return NextResponse.json({error:"Öneriyi doğrulayabilmemiz için kaynak bağlantısı gerekli."},{status:400});
     const sourceMetadata = mode === "verified" && raw.metadata && typeof raw.metadata === "object" ? raw.metadata as Record<string, unknown> : { description: clean(body.description, 1000), submission: "manual", ...(referenceLinks.length?{reference_links:referenceLinks}: {}) };
     const metadata = { ...sourceMetadata };
     const {data:duplicate,error:duplicateError}=await supabase.rpc("find_uin_duplicate_v73",{p_title:title,p_kind:kind,p_creator:mode==="verified"?clean(raw.creatorName||raw.subtitle,240):clean(body.creatorName,240)});
@@ -94,11 +98,11 @@ const submittedLinks=body.referenceLinks===undefined?(clean(body.referenceUrl)?[
     }
 
     for(const value of [clean(body.coverUrl),sourceUrl]){if(value){try{if(!["http:","https:"].includes(new URL(value).protocol))throw new Error();}catch{return NextResponse.json({error:"Geçerli bir görsel veya kaynak bağlantısı gir."},{status:400});}}}
-    const contentTypeId=clean(body.contentTypeId,100)||kind;
-    const {data:contentType,error:typeError}=await supabase.from("uin_content_types").select("id,base_kind,active").eq("id",contentTypeId).maybeSingle();
+    const selectedContentTypeId=contentTypeId||kind;
+    const {data:contentType,error:typeError}=await supabase.from("uin_content_types").select("id,base_kind,active").eq("id",selectedContentTypeId).maybeSingle();
     if(typeError||!contentType?.active||contentType.base_kind!==kind)return NextResponse.json({error:"Geçerli bir içerik türü seç."},{status:400});
     if(adminRole){
-      const {data:targetId,error:createError}=await supabase.rpc(kind==="club"?"admin_create_club_card_v75":"admin_create_uin_card_v59",{p_seed_type_id:seedTypeId,p_type_id:contentTypeId,p_title:title,p_creator_name:clean(body.creatorName,240)||null,p_cover_url:clean(body.coverUrl)||null,p_description:clean(body.description,1000)||null,p_reference_url:sourceUrl||null,...(kind==="club"?{p_profile:body.clubProfile||{}}:{})});
+      const {data:targetId,error:createError}=await supabase.rpc(kind==="club"?"admin_create_club_card_v75":"admin_create_uin_card_v59",{p_seed_type_id:seedTypeId,p_type_id:selectedContentTypeId,p_title:title,p_creator_name:clean(body.creatorName,240)||null,p_cover_url:clean(body.coverUrl)||null,p_description:clean(body.description,1000)||null,p_reference_url:sourceUrl||null,...(kind==="club"?{p_profile:body.clubProfile||{}}:{})});
       if(createError)return NextResponse.json({error:createError.message},{status:400});
       const sourceSave=await supabase.rpc("admin_save_uin_card_reference_links_v93",{p_target_id:targetId,p_links:referenceLinks});
       if(sourceSave.error)return NextResponse.json({error:sourceSave.error.message},{status:500});
@@ -108,7 +112,7 @@ const submittedLinks=body.referenceLinks===undefined?(clean(body.referenceUrl)?[
       p_seed_type_id: seedTypeId, p_item_kind: ["book","movie","series","game","artist","place","podcast"].includes(kind)?itemKind(kind):"generic", p_canonical_title: title,
       p_creator_name: clean(body.creatorName,240)||null,
       p_original_title: null, p_release_year: null, p_cover_url: clean(body.coverUrl)||null,
-      p_language_code: "tr", p_metadata: { ...metadata, content_type_id:contentTypeId, ...(sourceUrl ? { reference_url: sourceUrl } : {}), ...(referenceLinks.length ? { reference_links: referenceLinks } : {}) },
+      p_language_code: "tr", p_metadata: { ...metadata, content_type_id:selectedContentTypeId, ...(sourceUrl ? { reference_url: sourceUrl } : {}), ...(referenceLinks.length ? { reference_links: referenceLinks } : {}) },
     });
     if (suggestionError || typeof catalogItemId !== "string") return NextResponse.json({ error: suggestionError?.message || "Konu eklenemedi." }, { status: 500 });
     return NextResponse.json({ catalogItemId, status: "pending" });
