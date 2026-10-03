@@ -12,7 +12,11 @@ export async function POST(request:NextRequest){
     const supabase=await requestClient(request);const {data:role}=await supabase.rpc("get_admin_role");
     if(!role)return NextResponse.json({error:"Bu işlem için admin yetkisi gerekir."},{status:403});
     if(action==="delete"){
-      const {error}=await supabase.rpc("admin_hide_uin_card_v53",{p_target_id:targetId});
+      if(!catalogItemId)return NextResponse.json({error:"Silinecek kütüphane kaydı bulunamadı."},{status:400});
+      const linked=await supabase.from("seeds").select("id",{count:"exact",head:true}).eq("catalog_item_id",catalogItemId);
+      if(linked.error)return NextResponse.json({error:linked.error.message},{status:500});
+      if((linked.count||0)>0)return NextResponse.json({error:"Bu kartta kullanıcı niyeti veya deneyimi var. Kullanıcı kayıtlarını korumak için kart silinmedi."},{status:409});
+      const {error}=await supabase.rpc("admin_delete_seed_catalog_item",{p_catalog_item_id:catalogItemId});
       if(error)return NextResponse.json({error:error.message},{status:500});
       return NextResponse.json({deleted:true});
     }
