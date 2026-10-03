@@ -12,10 +12,9 @@ export async function POST(request:NextRequest){
     const supabase=await requestClient(request);const {data:role}=await supabase.rpc("get_admin_role");
     if(!role)return NextResponse.json({error:"Bu işlem için admin yetkisi gerekir."},{status:403});
     if(action==="delete"){
-      if(!catalogItemId)return NextResponse.json({error:"Silinecek kütüphane kaydı bulunamadı."},{status:400});
-      const {error}=await supabase.rpc("admin_remove_empty_uin_card_v100",{p_target_id:targetId,p_catalog_item_id:catalogItemId});
-      if(error)return NextResponse.json({error:error.message},{status:error.code==="23503"?409:500});
-      return NextResponse.json({deleted:true});
+      const {data,error}=await supabase.rpc("admin_hard_delete_uin_card_v102",{p_target_id:targetId});
+      if(error)return NextResponse.json({error:error.message},{status:error.code==="42501"?403:error.code==="P0002"?404:500});
+      return NextResponse.json({deleted:true,result:data});
     }
     const title=typeof body.title==="string"?body.title.trim():"";const itemKind=typeof body.itemKind==="string"?body.itemKind:"";
     const legacyReference=typeof body.referenceUrl==="string"?body.referenceUrl.trim():"";
