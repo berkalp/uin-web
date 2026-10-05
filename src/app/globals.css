@@ -120,7 +120,7 @@ body {
     padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
   }
 }
-/* A perfect 10 follows the rating badge wherever a UIN card is rendered. */
+/* Any UIN or IMDb score from 9.0 to 10.0 highlights the whole card. */
 .uin-perfect-card:has(.uin-perfect-score) {
   border: 3px solid #facc15 !important;
   box-shadow: 0 0 0 3px rgb(250 204 21 / 20%), 0 18px 40px -18px rgb(245 158 11 / 80%) !important;
