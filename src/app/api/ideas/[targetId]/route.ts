@@ -19,7 +19,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(!/^[0-9a-f-]{36}$/i.test(targetId))return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const supabase=await requestClient(request);
   if(request.nextUrl.searchParams.get("summary")==="1"){
-    const [profile,summary,rating,social,relations,hierarchy]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v106",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_hierarchy_v81",{p_target_ids:[targetId]})]);
+    const [profile,summary,rating,social,relations,hierarchy]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v107",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_hierarchy_v81",{p_target_ids:[targetId]})]);
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
     if(profile.error||summary.error||rating.error||!row?.title)return NextResponse.json({error:"Kart yüklenemedi."},{status:404});
     const stats=(summary.data||[])[0];let typeId=String(stats?.type_id||row.metadata?.content_type_id||"");
@@ -82,7 +82,18 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     const status=String(row.plan_status||row.status||"").toLocaleLowerCase("tr-TR");
     return !["cancelled","canceled","completed"].includes(status)&&String(row.end_date||row.start_date||"").slice(0,10)>=today;
   });
-  const finalPeople=people.map(person=>{
+  const engagedPeople=new Map<string,Record<string,unknown>>(people.map(person=>[String(person.user_id),person]));
+  for(const event of currentEvents){
+    const eventTitle=String(event.event_title||event.subtitle||`${context.title||card.title} etkinliği`).trim();
+    const members=[...((event.participants||[]) as Array<Record<string,unknown>>)];
+    if(event.owner_user_id&&!members.some(member=>String(member.user_id)===String(event.owner_user_id)))members.unshift({user_id:event.owner_user_id,full_name:event.owner_name,avatar_url:event.owner_avatar_url||null,role:"owner"});
+    for(const member of members){
+      const userId=String(member.user_id||"");
+      if(!userId||engagedPeople.has(userId))continue;
+      engagedPeople.set(userId,{...member,id:`event:${event.intent_id}:${userId}`,user_id:userId,source_kind:"event",source_id:event.intent_id,source_target_id:targetId,is_current:true,start_date:event.start_date,end_date:event.end_date,target_date:event.start_date,location:event.location||null,viewing_context:event.viewing_context||null,together_allowed:false,together_code:"event_participant",together_reason:`${eventTitle} etkinliğine katılıyor.`});
+    }
+  }
+  const finalPeople=[...engagedPeople.values()].map(person=>{
     if(!viewerId||person.user_id===viewerId)return person;
     const shared=currentEvents.find(event=>{
       const memberIds=new Set([String(event.owner_user_id||""),...((event.participants||[]) as Array<Record<string,unknown>>).map(member=>String(member.user_id||""))]);
