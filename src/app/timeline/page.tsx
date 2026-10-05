@@ -4463,7 +4463,7 @@ const {
         className="relative min-w-0"
       >
         <article
-          className="uin-perfect-card uin-layout-card relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
+          className="uin-timeline-card-shell relative z-10 flex min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
         >
         <input
           id={planDetailToggleId}
