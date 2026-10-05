@@ -3,7 +3,7 @@ import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
 
 export default function TimelineLibraryCardFace({title,category,status,coverUrl,href,location,dateLabel,dnaTitles=[],metrics,targetId,action}:{title:string;category:string;status:string;coverUrl?:string|null;href?:string;location?:string|null;dateLabel?:string|null;dnaTitles?:string[];metrics?:ReactNode;targetId?:string|null;action?:ReactNode}){
-  return <div className="uin-timeline-card-frame overflow-hidden rounded-[26px] peer-checked:hidden">
+  return <div className="peer-checked:hidden">
     <PersonalLibraryCard
       title={title}
       coverUrl={coverUrl}
