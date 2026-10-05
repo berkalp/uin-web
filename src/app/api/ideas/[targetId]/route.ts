@@ -36,9 +36,18 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0}),
     supabase.auth.getUser(),
   ]);
-  const card=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
-  if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const context=(contextResult.data||{}) as Record<string,unknown>;
+  const commonCard=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
+  const card=commonCard||(typeof context.title==="string"&&context.title.trim()?{
+    canonical_target_id:targetId,
+    title:context.title,
+    subtitle:typeof context.creator_name==="string"?context.creator_name:null,
+    cover_url:typeof context.cover_url==="string"?context.cover_url:null,
+    catalog_item_id:typeof context.catalog_item_id==="string"?context.catalog_item_id:null,
+    metadata:context.metadata&&typeof context.metadata==="object"?context.metadata:{},
+    own_seed_id:null,
+  }:null);
+  if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const viewerId=authResult.data.user?.id||null;
   if(peopleResult.error||reviewResult.error||eventResult.error)return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
   async function allPeople(first:Array<Record<string,unknown>>,group:string){const rows=[...first];while(rows.length<Number(rows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:group,p_limit:100,p_offset:rows.length});if(page.error)throw new Error(page.error.message);const next=page.data as Array<Record<string,unknown>>;if(!next.length)break;rows.push(...next)}return rows}
