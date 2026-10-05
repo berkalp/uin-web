@@ -192,8 +192,6 @@ body {
 }
 
 html[data-uin-card-layout="compact"] .uin-layout-card {
-  height: 420px !important;
-  max-height: 420px !important;
   min-height: 420px !important;
 }
 
@@ -223,7 +221,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
   html[data-uin-card-layout="square"] .uin-layout-card {
     aspect-ratio: 1 / 1;
     height: auto !important;
-    max-height: none !important;
     min-height: 0 !important;
   }
 
@@ -287,8 +284,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
 
 html:not([data-uin-card-layout]) .uin-layout-card,
 html[data-uin-card-layout="large"] .uin-layout-card {
-  height: 620px !important;
-  max-height: 620px !important;
   min-height: 620px !important;
 }
 
