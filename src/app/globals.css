@@ -148,8 +148,18 @@ body {
    My List, Events, friends and public profile card collections. */
 .uin-card-grid,
 .uin-profile-grid {
-  align-items: start;
+  align-items: stretch;
   grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.uin-card-grid > * {
+  min-width: 0;
+  height: 100%;
+}
+
+.uin-card-grid > .uin-layout-card,
+.uin-card-grid > * > .uin-layout-card {
+  height: 100%;
 }
 
 @media (min-width: 640px) {
@@ -192,7 +202,7 @@ body {
 }
 
 html[data-uin-card-layout="compact"] .uin-layout-card {
-  min-height: 420px !important;
+  min-height: 510px !important;
 }
 
 /* Keep type scale consistent across every shared card surface. */
@@ -212,74 +222,23 @@ html[data-uin-card-layout="compact"] .uin-layout-card h3 {
   font-size: 1rem !important;
 }
 
-html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
-  margin: 0.5rem;
-  padding: 0.55rem;
-}
-
 @media (min-width: 640px) {
   html[data-uin-card-layout="square"] .uin-layout-card {
-    aspect-ratio: 1 / 1;
-    height: auto !important;
-    min-height: 0 !important;
+    min-height: 510px !important;
   }
 
-  html[data-uin-card-layout="square"] .uin-layout-card-spacer {
-    min-height: 0 !important;
-  }
-
+  html[data-uin-card-layout="compact"] .uin-layout-card-panel,
   html[data-uin-card-layout="square"] .uin-layout-card-panel {
-    margin: 0.35rem !important;
-    padding: 0.45rem !important;
+    margin: 0.5rem !important;
+    padding: 0.6rem !important;
   }
 
+  html[data-uin-card-layout="compact"] .uin-layout-card h2,
+  html[data-uin-card-layout="compact"] .uin-layout-card h3,
   html[data-uin-card-layout="square"] .uin-layout-card h2,
   html[data-uin-card-layout="square"] .uin-layout-card h3 {
-    font-size: 0.72rem !important;
-    line-height: 1.2 !important;
+    font-size: 0.875rem !important;
   }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-header {
-    padding: 0.4rem !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-badge,
-  html[data-uin-card-layout="square"] .uin-layout-card-header .rounded-full {
-    padding: 0.28rem 0.42rem !important;
-    font-size: 0.52rem !important;
-    line-height: 1.05 !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-details {
-    margin-top: 0.3rem !important;
-    font-size: 0.58rem !important;
-    line-height: 1.15 !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-details button {
-    min-height: 38px !important;
-    padding: 0.2rem !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-details button span {
-    margin-top: 0 !important;
-    font-size: 0.52rem !important;
-    line-height: 1.05 !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-actions {
-    margin-top: 0.3rem !important;
-    gap: 0.25rem !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-actions button,
-  html[data-uin-card-layout="square"] .uin-layout-card-actions a {
-    min-height: 36px !important;
-    padding: 0.25rem !important;
-    font-size: 0.55rem !important;
-    line-height: 1.05 !important;
-  }
-
 }
 
 html:not([data-uin-card-layout]) .uin-layout-card,

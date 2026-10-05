@@ -4460,9 +4460,9 @@ const {
     return (
       <div
         key={`plan-${plan.id}`}
-        className="relative min-w-0"
+        className="relative h-full min-w-0"
       >
-        <article className="uin-timeline-card-shell relative z-10 min-w-0">
+        <article className="uin-timeline-card-shell relative z-10 flex h-full min-w-0 flex-col">
         <input
           id={planDetailToggleId}
           type="checkbox"
