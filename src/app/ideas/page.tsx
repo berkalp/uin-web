@@ -33,7 +33,7 @@ async function IdeasCatalogue(){
   const [placementPages,ownSeedPages,summaryResult,ratingResult,socialResult,coverResult,hierarchyResult]=await Promise.all([
     Promise.all(Array.from({length:Math.ceil(targetIds.length/200)},(_,page)=>supabase.from("seed_catalog_items").select("id,canonical_target_id,item_kind,metadata").in("canonical_target_id",targetIds.slice(page*200,(page+1)*200)))),
     Promise.all(Array.from({length:Math.ceil(ownSeedIds.length/200)},(_,page)=>supabase.from("seeds").select("id,status").in("id",ownSeedIds.slice(page*200,(page+1)*200)))),
-    supabase.rpc("get_uin_card_summary_v81",{p_target_ids:targetIds}),
+    supabase.rpc("get_uin_card_summary_v106",{p_target_ids:targetIds}),
     supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:targetIds}),
     supabase.rpc("get_uin_card_social_v87",{p_target_ids:targetIds}),
     supabase.rpc("get_uin_cover_positions_v62",{p_target_ids:targetIds}),

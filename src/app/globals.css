@@ -133,10 +133,11 @@ body {
   width: max-content;
   transform: translateX(-50%);
   color: #fde047;
-  content: "★  ★  ★  ★  ★";
+  content: "★★★★★";
   font-size: 14px;
   line-height: 1;
-  letter-spacing: .5rem;
+  letter-spacing: .35rem;
+  white-space: nowrap;
   pointer-events: none;
   filter: drop-shadow(0 1px 2px rgb(120 53 15 / 80%));
 }
