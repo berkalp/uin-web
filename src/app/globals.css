@@ -199,6 +199,18 @@ html[data-uin-card-layout="compact"] .uin-layout-card {
   height: 560px;
 }
 
+/* Keep type scale consistent across every shared card surface. */
+.uin-layout-card-panel h2,
+.uin-layout-card-panel h3 {
+  font-size: 1rem !important;
+  line-height: 1.2 !important;
+}
+
+.uin-layout-card-badge {
+  font-size: 0.65rem !important;
+  line-height: 1.15 !important;
+}
+
 html[data-uin-card-layout="compact"] .uin-timeline-card-shell {
   height: 420px;
 }
@@ -221,7 +233,18 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
   }
 
   html[data-uin-card-layout="square"] .uin-timeline-card-shell {
+    aspect-ratio: 1 / 1;
     height: auto;
+    min-height: 0;
+  }
+
+  /* Timeline cards have a shell around the reusable library card. Give the
+     ratio to the shell only so nested h-full elements cannot stretch the row. */
+  html[data-uin-card-layout="square"] .uin-timeline-card-shell .uin-layout-card {
+    aspect-ratio: auto;
+    height: 100% !important;
+    max-height: 100%;
+    min-height: 0 !important;
   }
 
   html[data-uin-card-layout="square"] .uin-layout-card-spacer {
@@ -235,8 +258,19 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
 
   html[data-uin-card-layout="square"] .uin-layout-card h2,
   html[data-uin-card-layout="square"] .uin-layout-card h3 {
-    font-size: 0.78rem !important;
+    font-size: 0.72rem !important;
     line-height: 1.2 !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-layout-card-header {
+    padding: 0.4rem !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-layout-card-badge,
+  html[data-uin-card-layout="square"] .uin-layout-card-header .rounded-full {
+    padding: 0.28rem 0.42rem !important;
+    font-size: 0.52rem !important;
+    line-height: 1.05 !important;
   }
 
   html[data-uin-card-layout="square"] .uin-layout-card-details {
@@ -269,9 +303,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
     line-height: 1.05 !important;
   }
 
-  html[data-uin-card-layout="square"] .uin-layout-card > div.relative.z-10.flex {
-    padding: 0.45rem !important;
-  }
 }
 
 html:not([data-uin-card-layout]) .uin-layout-card,
