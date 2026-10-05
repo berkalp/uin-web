@@ -3535,7 +3535,24 @@ const {
   );
 
   const plannedIntentEntries = timelineEntries.filter(
-    (entry) => getEntryView(entry) === "planned"
+    (entry): entry is IntentTimelineEntry =>
+      entry.kind === "intent" && getEntryView(entry) === "planned"
+  );
+
+  // Listem > Planlananlar is the user's complete current event set. Forming
+  // plans used to be omitted here even though Discover > Yürüttüklerim showed
+  // them, which made the two counters disagree.
+  const currentPlanEntries = timelineEntries.filter(
+    (entry): entry is PlanTimelineEntry => {
+      if (entry.kind !== "plan") return false;
+      const view = getEntryView(entry);
+      return (
+        view === "forming" ||
+        view === "participating" ||
+        view === "planned" ||
+        view === "action_required"
+      );
+    }
   );
 
   const allMyIntentItems = [
@@ -3561,20 +3578,20 @@ const {
 
     ...plannedIntentEntries.map((entry) => ({
       kind: "planned" as const,
-      key:
-        entry.kind === "plan"
-          ? `planned-${entry.plan.id}`
-          : `planned-${entry.intent.id}`,
+      key: `planned-${entry.intent.id}`,
       entry,
       sortDate: getTimelineEntrySortDate(entry),
-      targetDate:
-        entry.kind === "plan"
-          ? entry.plan.scheduled_start ?? entry.plan.window_start
-          : entry.intent.start_date,
-      createdDate:
-        entry.kind === "plan"
-          ? entry.plan.created_at
-          : entry.intent.created_at,
+      targetDate: entry.intent.start_date,
+      createdDate: entry.intent.created_at,
+    })),
+
+    ...currentPlanEntries.map((entry) => ({
+      kind: "planned" as const,
+      key: `current-plan-${entry.plan.id}`,
+      entry,
+      sortDate: getTimelineEntrySortDate(entry),
+      targetDate: entry.plan.scheduled_start ?? entry.plan.window_start,
+      createdDate: entry.plan.created_at,
     })),
   ].sort(
     (first, second) =>

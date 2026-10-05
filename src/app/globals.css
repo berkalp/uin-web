@@ -177,16 +177,16 @@ body {
   }
 
   html[data-uin-card-layout="square"] .uin-card-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
   }
 
   html:not([data-uin-card-layout]) .uin-profile-grid,
-  html[data-uin-card-layout="large"] .uin-profile-grid,
-  html[data-uin-card-layout="square"] .uin-profile-grid {
+  html[data-uin-card-layout="large"] .uin-profile-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 
-  html[data-uin-card-layout="compact"] .uin-profile-grid {
+  html[data-uin-card-layout="compact"] .uin-profile-grid,
+  html[data-uin-card-layout="square"] .uin-profile-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }
 }
@@ -209,6 +209,22 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
   html[data-uin-card-layout="square"] .uin-layout-card {
     aspect-ratio: 1 / 1;
     min-height: 0 !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-layout-card-panel {
+    margin: 0.5rem !important;
+    padding: 0.6rem !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-layout-card h2,
+  html[data-uin-card-layout="square"] .uin-layout-card h3 {
+    font-size: 1rem !important;
+    line-height: 1.2 !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-layout-card-details,
+  html[data-uin-card-layout="square"] .uin-layout-card-actions {
+    display: none !important;
   }
 }
 
