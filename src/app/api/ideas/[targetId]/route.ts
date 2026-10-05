@@ -75,6 +75,22 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     for(const person of (event.participants||[]) as Array<Record<string,unknown>>)members.set(String(person.user_id),person);
     for(const person of eventPeople.filter(person=>person.resource_id===resourceIds[index]))members.set(String(person.user_id),{...person,role:person.user_id===event.owner_user_id?"owner":"participant"});
     return{...event,viewing_context:clubContext?.events?.find(item=>item.intent_id===event.intent_id)?.context||null,participants:[...members.values()],event_title:page?.activity?.title||null,plan_status:page?.activity?.status||null};
+  }) as Array<Record<string,unknown>>;
+  const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul"}).format(new Date());
+  const currentEvents=enrichedEvents.filter(event=>{
+    const row=event as Record<string,unknown>;
+    const status=String(row.plan_status||row.status||"").toLocaleLowerCase("tr-TR");
+    return !["cancelled","canceled","completed"].includes(status)&&String(row.end_date||row.start_date||"").slice(0,10)>=today;
+  });
+  const finalPeople=people.map(person=>{
+    if(!viewerId||person.user_id===viewerId)return person;
+    const shared=currentEvents.find(event=>{
+      const memberIds=new Set([String(event.owner_user_id||""),...((event.participants||[]) as Array<Record<string,unknown>>).map(member=>String(member.user_id||""))]);
+      return memberIds.has(viewerId)&&memberIds.has(String(person.user_id));
+    });
+    if(!shared)return person;
+    const sharedTitle=String(shared.event_title||shared.subtitle||`${context.title||card.title} etkinliği`).trim();
+    return{...person,together_allowed:false,together_code:"same_event",together_reason:`${sharedTitle} etkinliğinde birliktesiniz.`,shared_event:{intent_id:shared.intent_id,plan_id:shared.plan_id||null,resource_id:shared.resource_id||null,title:sharedTitle,start_date:shared.start_date,end_date:shared.end_date,location:shared.location||null}};
   });
   const reviews=doneRows.map(row=>({...row,seed_id:row.seed_id||row.source_id||row.user_id,body:row.experience_text,comment_count:0}));
   const ownIntentResult=viewerId?await supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId}):null;
@@ -89,5 +105,5 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const ownIntentDraft=ownRow?.status==="active"?{start_date:ownRow.start_date,end_date:ownRow.end_date,timing_precision:ownRow.timing_precision,date_options:ownRow.date_options,location_id:ownRow.location_id,notes:ownRow.notes,visibility:ownRow.visibility,collaboration_mode:ownRow.collaboration_mode}:ownPerson?{start_date:ownPerson.start_date,end_date:ownPerson.end_date,timing_precision:ownPerson.timing_precision,date_options:ownPerson.date_options,location_id:ownPerson.location_id,notes:ownPerson.notes,visibility:ownPerson.visibility||"everyone",collaboration_mode:"everyone"}:null;
   const [socialResult,relationsResult]=await Promise.all([supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]})]);
   if(socialResult.error||relationsResult.error)return NextResponse.json({error:"Kartın puan, takipçi ve bağlantı bilgileri yüklenemedi."},{status:500});
-  return NextResponse.json({ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],viewerId,hasOwnPersonalIntent,people,events:enrichedEvents,reviews,ownDetail});
+  return NextResponse.json({ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
 }
