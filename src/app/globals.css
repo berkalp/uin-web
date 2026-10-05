@@ -126,15 +126,14 @@ body {
   box-shadow: 0 0 0 3px rgb(250 204 21 / 20%), 0 18px 40px -18px rgb(245 158 11 / 80%) !important;
 }
 
-.uin-perfect-card:has(.uin-perfect-score)::before,
-.uin-perfect-card:has(.uin-perfect-score)::after {
+.uin-perfect-card:has(.uin-perfect-score)::before {
   position: absolute;
   left: 50%;
   z-index: 30;
   width: max-content;
   transform: translateX(-50%);
   color: #fde047;
-  content: "★  ★  ★";
+  content: "★  ★  ★  ★  ★";
   font-size: 14px;
   line-height: 1;
   letter-spacing: .5rem;
@@ -143,12 +142,13 @@ body {
 }
 
 .uin-perfect-card:has(.uin-perfect-score)::before { top: 4px; }
-.uin-perfect-card:has(.uin-perfect-score)::after { bottom: 4px; }
+.uin-perfect-card:has(.uin-perfect-score)::after { content: none !important; }
 
 /* Shared web card sizing. The picker stores one preference for Library,
    My List, Events, friends and public profile card collections. */
 .uin-card-grid,
 .uin-profile-grid {
+  align-items: start;
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
@@ -233,17 +233,24 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
   }
 
   html[data-uin-card-layout="square"] .uin-timeline-card-shell {
-    aspect-ratio: 1 / 1;
-    height: auto;
-    min-height: 0;
+    align-self: start;
+    aspect-ratio: auto;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible;
+    background: transparent;
   }
 
-  /* Timeline cards have a shell around the reusable library card. Give the
-     ratio to the shell only so nested h-full elements cannot stretch the row. */
+  /* In My List, the reusable card is wrapped by a detail-toggle shell. The
+     card owns the square ratio; the shell must follow its content height. */
+  html[data-uin-card-layout="square"] .uin-timeline-card-shell > div {
+    height: auto !important;
+  }
+
   html[data-uin-card-layout="square"] .uin-timeline-card-shell .uin-layout-card {
-    aspect-ratio: auto;
-    height: 100% !important;
-    max-height: 100%;
+    aspect-ratio: 1 / 1;
+    height: auto !important;
+    max-height: none;
     min-height: 0 !important;
   }
 
