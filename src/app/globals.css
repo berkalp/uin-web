@@ -195,10 +195,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card {
   min-height: 420px !important;
 }
 
-.uin-timeline-card-shell {
-  height: 560px;
-}
-
 /* Keep type scale consistent across every shared card surface. */
 .uin-layout-card-panel h2,
 .uin-layout-card-panel h3 {
@@ -209,10 +205,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card {
 .uin-layout-card-badge {
   font-size: 0.65rem !important;
   line-height: 1.15 !important;
-}
-
-html[data-uin-card-layout="compact"] .uin-timeline-card-shell {
-  height: 420px;
 }
 
 html[data-uin-card-layout="compact"] .uin-layout-card h2,
@@ -229,28 +221,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
   html[data-uin-card-layout="square"] .uin-layout-card {
     aspect-ratio: 1 / 1;
     height: auto !important;
-    min-height: 0 !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-timeline-card-shell {
-    align-self: start;
-    aspect-ratio: auto;
-    height: auto !important;
-    min-height: 0 !important;
-    overflow: visible;
-    background: transparent;
-  }
-
-  /* In My List, the reusable card is wrapped by a detail-toggle shell. The
-     card owns the square ratio; the shell must follow its content height. */
-  html[data-uin-card-layout="square"] .uin-timeline-card-shell > div {
-    height: auto !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-timeline-card-shell .uin-layout-card {
-    aspect-ratio: 1 / 1;
-    height: auto !important;
-    max-height: none;
     min-height: 0 !important;
   }
 
@@ -315,11 +285,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
 html:not([data-uin-card-layout]) .uin-layout-card,
 html[data-uin-card-layout="large"] .uin-layout-card {
   min-height: 620px !important;
-}
-
-html:not([data-uin-card-layout]) .uin-timeline-card-shell,
-html[data-uin-card-layout="large"] .uin-timeline-card-shell {
-  height: 620px;
 }
 
 html[data-uin-card-layout="compact"] .uin-profile-card {

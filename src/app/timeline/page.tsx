@@ -4462,9 +4462,7 @@ const {
         key={`plan-${plan.id}`}
         className="relative min-w-0"
       >
-        <article
-          className="uin-timeline-card-shell relative z-10 flex min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
-        >
+        <article className="uin-timeline-card-shell relative z-10 min-w-0">
         <input
           id={planDetailToggleId}
           type="checkbox"
