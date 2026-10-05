@@ -1,4 +1,5 @@
 import AppNavigation from "@/components/navigation/AppNavigation";
+import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -56,7 +57,7 @@ function PersonCard({
     .join(", ");
 
   return (
-    <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+    <article className="uin-profile-card rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-4">
         {row.other_avatar_url ? (
           <img
@@ -184,7 +185,8 @@ export default async function FriendsPage() {
             Arkadaşlık karşılıklıdır. Arkadaşlara özel görünürlükte kullanılır; takip etmek ise ayrı ve tek yönlüdür.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <WebCardLayoutPicker className="mr-auto"/>
             <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
               {friends.length} arkadaş
             </span>
@@ -217,7 +219,7 @@ export default async function FriendsPage() {
                 Gelen arkadaşlık istekleri
               </h2>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="uin-profile-grid mt-5 grid gap-4">
                 {incoming.map(
                   (row) => (
                     <PersonCard
@@ -245,7 +247,7 @@ export default async function FriendsPage() {
                 Arkadaşların
               </h2>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="uin-profile-grid mt-5 grid gap-4">
                 {friends.map(
                   (row) => (
                     <PersonCard
@@ -275,7 +277,7 @@ export default async function FriendsPage() {
                 Gönderilen istekler
               </h2>
 
-              <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
+              <div className="uin-profile-grid mt-5 grid gap-4">
                 {outgoing.map(
                   (row) => (
                     <PersonCard

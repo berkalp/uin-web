@@ -144,3 +144,83 @@ body {
 
 .uin-perfect-card:has(.uin-perfect-score)::before { top: 4px; }
 .uin-perfect-card:has(.uin-perfect-score)::after { bottom: 4px; }
+
+/* Shared web card sizing. The picker stores one preference for Library,
+   My List, Events, friends and public profile card collections. */
+.uin-card-grid,
+.uin-profile-grid {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+@media (min-width: 640px) {
+  html:not([data-uin-card-layout]) .uin-card-grid,
+  html[data-uin-card-layout="large"] .uin-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-uin-card-layout="compact"] .uin-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-uin-card-layout="compact"] .uin-profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  html[data-uin-card-layout="compact"] .uin-card-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html:not([data-uin-card-layout]) .uin-profile-grid,
+  html[data-uin-card-layout="large"] .uin-profile-grid,
+  html[data-uin-card-layout="square"] .uin-profile-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-uin-card-layout="compact"] .uin-profile-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+html[data-uin-card-layout="compact"] .uin-layout-card {
+  min-height: 420px !important;
+}
+
+html[data-uin-card-layout="compact"] .uin-layout-card h2,
+html[data-uin-card-layout="compact"] .uin-layout-card h3 {
+  font-size: 1rem !important;
+}
+
+html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
+  margin: 0.5rem;
+  padding: 0.55rem;
+}
+
+@media (min-width: 640px) {
+  html[data-uin-card-layout="square"] .uin-layout-card {
+    aspect-ratio: 1 / 1;
+    min-height: 0 !important;
+  }
+}
+
+html:not([data-uin-card-layout]) .uin-layout-card,
+html[data-uin-card-layout="large"] .uin-layout-card {
+  min-height: 620px !important;
+}
+
+html[data-uin-card-layout="compact"] .uin-profile-card {
+  padding: 1rem;
+}
+
+html[data-uin-card-layout="large"] .uin-profile-card {
+  min-height: 170px;
+}

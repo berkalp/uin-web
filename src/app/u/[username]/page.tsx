@@ -1,4 +1,5 @@
 import Link from "next/link";
+import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import { notFound } from "next/navigation";
 
 import ManagedMinorPublicProfile, {
@@ -1860,6 +1861,8 @@ export default async function PublicProfilePage({
         })}
       </section>
 
+
+        <div className="mt-8 flex justify-end"><WebCardLayoutPicker/></div>
 
         {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">

@@ -146,7 +146,7 @@ export default function SeedDashboard({
       <>
         {completedSeeds.length > 0 ? (
           <>
-            <section className="mt-6 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <section className="mt-6 uin-card-grid grid items-stretch gap-5">
               {visibleSeeds.map((seed) => (
                 <SeedCard
                   key={seed.seed_id}
@@ -269,7 +269,7 @@ export default function SeedDashboard({
 
       {filteredIntentions.length > 0 ? (
         <>
-          <section className="mt-5 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="mt-5 uin-card-grid grid items-stretch gap-5">
             {visibleSeeds.map((seed) => (
               <SeedCard
                 key={seed.seed_id}

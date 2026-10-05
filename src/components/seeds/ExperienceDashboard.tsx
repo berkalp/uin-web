@@ -4,6 +4,7 @@ import {buildExperienceEntries} from "@/utils/experienceEntries";
 
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
+import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import { useEffect, useMemo, useState } from "react";
 
@@ -217,7 +218,7 @@ export default function ExperienceDashboard({
 
       {filteredEntries.length > 0 ? (
         <>
-          <section className="mt-6 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-5 flex justify-end"><WebCardLayoutPicker/></div><section className="uin-card-grid mt-3 grid items-stretch gap-5">
             {visibleEntries.map(
               (entry) =>
                 entry.kind ===

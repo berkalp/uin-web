@@ -1,4 +1,5 @@
 import MyCardFilters from "@/components/timeline/MyCardFilters";
+import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import MyPersonalIntentCard from "@/components/seeds/MyPersonalIntentCard";
 import {getExperienceTotals} from "@/utils/experienceEntries";
 import MySeedsContent, {loadMySeedsData} from "@/components/seeds/MySeedsContent";
@@ -5095,7 +5096,7 @@ const {
           family={profileFamily}
         />
 
-        <header className="mt-7"><h1 className="text-3xl font-black text-slate-950">Listem</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, planların ve yaşadıkların tek yerde.</p></header>
+        <header className="mt-7 flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-black text-slate-950">Listem</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, planların ve yaşadıkların tek yerde.</p></div><WebCardLayoutPicker/></header>
         <section aria-label="Listemi filtrele" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
             {id:"wanted",label:"Niyetlerim",count:personalIntentSeeds.length+currentIndependentIntents.length},
@@ -5151,7 +5152,7 @@ const {
             </div>
 
             {visibleMyIntentItems.length > 0 ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="uin-card-grid grid gap-5">
                 {visibleMyIntentItems.map((item) => {
                   if (item.kind === "personal") {
                     if(item.commonIntent)return <MyPersonalIntentCard key={item.key} intent={item.commonIntent}/>;
@@ -5284,7 +5285,7 @@ const {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="uin-card-grid grid gap-5">
                   {visibleIntentEntries.map(
                     renderTimelineEntry
                   )}
@@ -5339,7 +5340,7 @@ const {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="uin-card-grid grid gap-5">
                 {selectedView ===
                   "expired" &&
                   expiredActivityResult.error && (
@@ -5469,7 +5470,7 @@ const {
               </Link>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 uin-card-grid grid gap-5">
               {recentCompletedItems.map((entry) => (
                 <div
                   key={`completed-${entry.kind}-${
@@ -5498,7 +5499,7 @@ const {
                   </p>
                 </div>
 
-                {(pastPersonalSeeds.length>0||pastIndependentIntents.length>0)&&<div className="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{pastPersonalSeeds.map(seed=><SeedCard key={seed.seed_id} seed={seed} isAuthenticated editable/>)}{pastIndependentIntents.map(intent=><MyPersonalIntentCard key={intent.id} intent={intent}/>)}</div>}
+                {(pastPersonalSeeds.length>0||pastIndependentIntents.length>0)&&<div className="mb-5 uin-card-grid grid gap-4">{pastPersonalSeeds.map(seed=><SeedCard key={seed.seed_id} seed={seed} isAuthenticated editable/>)}{pastIndependentIntents.map(intent=><MyPersonalIntentCard key={intent.id} intent={intent}/>)}</div>}
                 <TimelinePagedRow
                   pageSize={4}
                   ariaLabel="Süresi dolanlar ve iptal edilenler sayfaları"
@@ -5602,7 +5603,7 @@ const {
                   </div>
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="mt-5 uin-card-grid grid gap-5">
                   {recentExpiredCancelledItems.map((historyItem) =>
                     historyItem.kind === "timeline" ? (
                       <div key={historyItem.key} className="min-w-0">

@@ -1,4 +1,5 @@
 import AppNavigation from "@/components/navigation/AppNavigation";
+import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import Link from "next/link";
 import {
   redirect,
@@ -1834,6 +1835,8 @@ export default async function DiscoverPage({
                   })}
                 </div>
 
+              {view === "cards" && <WebCardLayoutPicker/>}
+
               <DiscoverQuickFilters
                 lifecycle={lifecycle}
                 scope={scope}
@@ -1856,7 +1859,7 @@ export default async function DiscoverPage({
 
             {(view === "cards" ? mixedDiscoverItems.length : results.length) > 0 ? (
               view === "cards" ? (
-              <section className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <section className="uin-card-grid mt-5 grid gap-5">
                 {mixedDiscoverItems.map(
                   (entry) => {
                     const intent = entry.item;

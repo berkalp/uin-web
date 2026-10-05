@@ -326,7 +326,7 @@ export default function TimelineGrowingSeeds({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 uin-card-grid grid items-stretch gap-5">
         {visibleSeeds.map((seed) => {
           const clock = clocks[seed.seed_id] ?? fallbackClock;
 

@@ -254,7 +254,7 @@ export default function PublicSeedsPanel({
 
       {visibleSeeds.length > 0 ? (
       <>
-        <div className="mt-6 grid grid-cols-1 items-stretch gap-5 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="uin-card-grid mt-6 grid items-stretch gap-5">
           {visibleSeeds.map((seed) => {
             const filterIndex = filteredSeeds.findIndex(
               (item) => item.seed_id === seed.seed_id

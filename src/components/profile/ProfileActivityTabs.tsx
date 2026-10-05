@@ -354,7 +354,7 @@ export default function ProfileActivityTabs({
 
       {filteredCards.length > 0 ? (
         <>
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="uin-card-grid mt-5 grid gap-5">
             {visibleCards.map((intent) => (
               <DiscoverIntentCard
                 key={`${eyebrow}-${activeTab}-${cardKey(intent)}`}
