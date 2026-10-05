@@ -197,6 +197,24 @@ html[data-uin-card-layout="compact"] .uin-layout-card {
   min-height: 420px !important;
 }
 
+/* Timeline's front face gets its own bounded frame. Async metrics can change
+   their intrinsic size, but they must never make one planned card taller. */
+.uin-timeline-card-frame {
+  height: 620px;
+  contain: layout paint;
+}
+
+.uin-timeline-card-frame > .uin-layout-card {
+  width: 100%;
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 100% !important;
+}
+
+html[data-uin-card-layout="compact"] .uin-timeline-card-frame {
+  height: 420px;
+}
+
 /* Keep type scale consistent across every shared card surface. */
 .uin-layout-card-panel h2,
 .uin-layout-card-panel h3 {
@@ -225,6 +243,18 @@ html[data-uin-card-layout="compact"] .uin-layout-card > div:last-of-type {
     height: auto !important;
     max-height: none !important;
     min-height: 0 !important;
+  }
+
+  html[data-uin-card-layout="square"] .uin-timeline-card-frame {
+    aspect-ratio: 1 / 1;
+    height: auto;
+  }
+
+  html[data-uin-card-layout="square"] .uin-timeline-card-frame > .uin-layout-card {
+    aspect-ratio: auto;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 100% !important;
   }
 
   html[data-uin-card-layout="square"] .uin-layout-card-spacer {
