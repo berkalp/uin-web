@@ -9,7 +9,7 @@ export default function PersonalLibraryCard({title,subtitle,coverUrl,coverPositi
     <div className="pointer-events-none absolute inset-0 bg-slate-950/25"/>
     <div className="uin-layout-card-header relative z-10 flex items-start justify-between gap-2 p-3"><span className="uin-layout-card-badge rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-emerald-800 shadow-sm">{icon} {badge}</span><span className="flex flex-col items-end gap-1.5">{cornerMeta?<span>{cornerMeta}</span>:onOpen?<button type="button" onClick={onOpen} aria-label={`${title} kartını aç`} className="grid h-9 w-9 place-items-center rounded-full bg-white/95 text-sm shadow">👁</button>:href?<Link href={href} aria-label={`${title} kartını aç`} className="grid h-9 w-9 place-items-center rounded-full bg-white/95 text-sm shadow">👁</Link>:null}{topActionHref?<Link href={topActionHref} className="uin-layout-card-badge rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-emerald-800 shadow-sm hover:bg-emerald-50">{topActionLabel}</Link>:null}</span></div>
     <div className="uin-layout-card-spacer min-h-[190px] flex-1"/>
-    <div className="uin-layout-card-panel relative z-10 m-3 rounded-[20px] border border-white/15 bg-slate-950/85 p-3 text-white shadow-xl backdrop-blur-md">
+    <div className="uin-layout-card-panel relative z-10 m-3 rounded-[20px] border border-white/15 bg-slate-950/95 p-3 text-white shadow-xl">
       {onOpen?<button type="button" onClick={onOpen} className="block w-full text-left">{heading}</button>:href?<Link href={href} className="block">{heading}</Link>:heading}
       {summary&&<div className="uin-layout-card-details mt-3 text-xs text-white/80">{summary}</div>}
       {metrics&&<div className="uin-layout-card-details mt-3">{metrics}</div>}
