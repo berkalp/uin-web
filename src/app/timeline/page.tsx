@@ -4340,12 +4340,6 @@ const {
       sourceIntentHref,
     } = getPlanIntentLineage(plan);
 
-    const showIntentLineage = Boolean(
-      currentUserSourceIntent &&
-        sourceIntentHref &&
-        (plan.status === "forming" || plan.status === "planned")
-    );
-
     const cancellationActorProfile = plan.cancelled_by
       ? (plan.plan_members ?? [])
           .map((member) => getFirst(member.profiles))
@@ -4466,31 +4460,10 @@ const {
     return (
       <div
         key={`plan-${plan.id}`}
-        className={`relative min-w-0 ${showIntentLineage ? "pb-14" : ""}`}
+        className="relative min-w-0"
       >
-        {showIntentLineage && currentUserSourceIntent && sourceIntentHref && (
-          <Link
-            href={sourceIntentHref}
-            className="absolute inset-x-3 bottom-0 z-0 flex h-[74px] items-end justify-between gap-3 rounded-[22px] border border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 px-4 pb-2.5 pt-6 transition hover:border-emerald-300 hover:from-emerald-100 hover:to-green-50"
-          >
-            <div className="min-w-0">
-              <p className="text-[9px] font-black uppercase tracking-[0.14em] text-emerald-700">
-                {sourceCount > 1
-                  ? `${sourceCount} Intents matched → 1 Activity`
-                  : "Your Intent → this Activity"}
-              </p>
-              <p className="mt-0.5 truncate text-[11px] font-black text-gray-900">
-                Your Intent · {currentUserSourceActivity?.name ?? canonicalActivityName}
-              </p>
-            </div>
-            <span className="shrink-0 rounded-full bg-white/80 px-2.5 py-1 text-[10px] font-black text-emerald-800 shadow-sm">
-              Source ↗
-            </span>
-          </Link>
-        )}
-
         <article
-          className="relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
+          className="uin-perfect-card uin-layout-card relative z-10 flex h-[560px] min-w-0 flex-col overflow-hidden rounded-[26px] bg-slate-950"
         >
         <input
           id={planDetailToggleId}
