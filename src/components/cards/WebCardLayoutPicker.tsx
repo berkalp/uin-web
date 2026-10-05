@@ -6,7 +6,7 @@ export type WebCardLayout = "compact" | "square" | "large";
 const STORAGE_KEY = "uin:web-card-layout:v1";
 const EVENT_NAME = "uin:web-card-layout-change";
 const OPTIONS: Array<{ value: WebCardLayout; label: string; icon: string }> = [
-  { value: "compact", label: "Küçük kartlar", icon: "▦" },
+  { value: "compact", label: "Dikdörtgen kartlar", icon: "▯" },
   { value: "square", label: "Kare kartlar", icon: "□" },
   { value: "large", label: "Büyük kartlar", icon: "▤" },
 ];
