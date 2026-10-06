@@ -7,7 +7,7 @@ const normalized=(value:string)=>value.toLocaleLowerCase('tr-TR').normalize('NFD
 async function openLibraryDetails(id:string){
  if(!/^OL\d+W$/.test(id))throw Error('Geçersiz Open Library kaydı.');
  const work=await bookJson(`https://openlibrary.org/works/${encodeURIComponent(id)}.json`);
- let rows=await searchOpenLibraryBooks(`key:${id}`);
+ let rows=await searchOpenLibraryBooks(`key:/works/${id}`);
  let row=rows.find((candidate:Record<string,unknown>)=>String(candidate.key).replace(/^\/works\//,'')===id);
  if(!row&&work?.title){rows=await searchOpenLibraryBooks(String(work.title));row=rows.find((candidate:Record<string,unknown>)=>String(candidate.key).replace(/^\/works\//,'')===id)}
  return openLibraryBookDetails(row||{key:`/works/${id}`,title:work?.title},work);

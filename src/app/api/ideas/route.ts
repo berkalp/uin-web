@@ -61,7 +61,13 @@ export async function POST(request: NextRequest) {
     if(mode==="verified"){
       const url=new URL("/api/favorites/search",request.url);url.searchParams.set("kind",kind);url.searchParams.set("q",clean(raw.title,240));url.searchParams.set("provider",configuredProvider);url.searchParams.set("entity",configuredEntity);
       const checked=await searchSource(new NextRequest(url));const payload=await checked.json();
-      const match=checked.ok&&Array.isArray(payload.items)?payload.items.find((item:Record<string,unknown>)=>item.provider===raw.provider&&item.externalId===raw.externalId):null;
+      let match=checked.ok&&Array.isArray(payload.items)?payload.items.find((item:Record<string,unknown>)=>item.provider===raw.provider&&item.externalId===raw.externalId):null;
+      const rawProvider=clean(raw.provider,40),rawExternalId=clean(raw.externalId,240);
+      if(!match&&kind==="book"&&rawProvider==="open_library"&&/^OL\d+W$/.test(rawExternalId)){
+        const idUrl=new URL("/api/favorites/search",request.url);idUrl.searchParams.set("kind","book");idUrl.searchParams.set("q",`key:/works/${rawExternalId}`);idUrl.searchParams.set("provider","open_library");
+        const checkedById=await searchSource(new NextRequest(idUrl));const idPayload=await checkedById.json();
+        match=checkedById.ok&&Array.isArray(idPayload.items)?idPayload.items.find((item:Record<string,unknown>)=>item.provider==="open_library"&&item.externalId===rawExternalId):null;
+      }
       if(!match)return NextResponse.json({error:"Kart kaynaktan doğrulanamadı. Yeniden arayıp sonuçlardan seç."},{status:422});raw=match;
     }
     const provider = clean(raw.provider, 40); const externalId = clean(raw.externalId, 240);
