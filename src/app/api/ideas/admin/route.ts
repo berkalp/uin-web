@@ -52,6 +52,13 @@ export async function POST(request:NextRequest){
       const relationSave=await supabase.rpc("admin_replace_uin_card_relations_v87",{p_target_id:targetId,p_relations:body.cardRelations});
       if(relationSave.error)return NextResponse.json({error:relationSave.error.message},{status:500});
     }
+    if(Object.prototype.hasOwnProperty.call(body,"cardLineage")){
+      const lineage=body.cardLineage as {upperTargetIds?:unknown;lowerTargetIds?:unknown}|null;
+      const upperTargetIds=lineage?.upperTargetIds,lowerTargetIds=lineage?.lowerTargetIds;
+      if(!Array.isArray(upperTargetIds)||!Array.isArray(lowerTargetIds)||upperTargetIds.some(id=>typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id))||lowerTargetIds.some(id=>typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id)))return NextResponse.json({error:"Üst ve alt kart bağlantılarını kontrol et."},{status:400});
+      const lineageSave=await supabase.rpc("admin_replace_uin_card_lineage_v111",{p_target_id:targetId,p_upper_target_ids:upperTargetIds,p_lower_target_ids:lowerTargetIds});
+      if(lineageSave.error)return NextResponse.json({error:lineageSave.error.message},{status:500});
+    }
     return NextResponse.json({updated:true});
   }catch(cause){return NextResponse.json({error:cause instanceof Error?cause.message:"İşlem tamamlanamadı."},{status:500})}
 }
