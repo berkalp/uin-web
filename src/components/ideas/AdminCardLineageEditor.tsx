@@ -12,13 +12,13 @@ export type AdminCardLinkOption={
 
 function normalize(value:string){return value.toLocaleLowerCase("tr-TR").trim()}
 
-function CardPicker({label,help,query,setQuery,selectedIds,setSelectedIds,options}:{label:string;help:string;query:string;setQuery:(value:string)=>void;selectedIds:string[];setSelectedIds:(ids:string[])=>void;options:AdminCardLinkOption[]}){
+function CardPicker({label,help,query,setQuery,selectedIds,setSelectedIds,blockedIds,options}:{label:string;help:string;query:string;setQuery:(value:string)=>void;selectedIds:string[];setSelectedIds:(ids:string[])=>void;blockedIds:string[];options:AdminCardLinkOption[]}){
   const selected=selectedIds.map(id=>options.find(option=>option.id===id)).filter((option):option is AdminCardLinkOption=>Boolean(option));
   const matches=useMemo(()=>{
     const needle=normalize(query);
     if(needle.length<2)return [];
-    return options.filter(option=>!selectedIds.includes(option.id)&&normalize(`${option.title} ${option.subtitle||""} ${option.typeLabel}`).includes(needle)).slice(0,30);
-  },[options,query,selectedIds]);
+    return options.filter(option=>!selectedIds.includes(option.id)&&!blockedIds.includes(option.id)&&normalize(`${option.title} ${option.subtitle||""} ${option.typeLabel}`).includes(needle)).slice(0,30);
+  },[blockedIds,options,query,selectedIds]);
   return <div className="rounded-xl border border-emerald-200 bg-white/80 p-3">
     <p className="text-sm font-black text-emerald-950">{label}</p>
     <p className="mt-1 text-xs text-emerald-800">{help}</p>
@@ -34,8 +34,8 @@ export default function AdminCardLineageEditor({options,upperIds,onUpperIdsChang
   const [lowerQuery,setLowerQuery]=useState("");
   return <fieldset className="grid gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
     <legend className="px-2 text-sm font-black text-emerald-950">Üst kart – alt kart bağlantıları</legend>
-    <p className="text-xs text-emerald-900">Bir karta birden fazla üst ve alt kart bağlayabilirsin. Film, kitap, albüm, sanatçı ve diğer tüm kart türleri birlikte kullanılabilir.</p>
-    <CardPicker label="Üst / kaynak kartlar" help="Bu kartın dayandığı veya ait olduğu kartları seç." query={upperQuery} setQuery={setUpperQuery} selectedIds={upperIds} setSelectedIds={onUpperIdsChange} options={options}/>
-    <CardPicker label="Alt / türetilen kartlar" help="Bu karttan çıkan uyarlama, kitap, albüm veya diğer kartları seç." query={lowerQuery} setQuery={setLowerQuery} selectedIds={lowerIds} setSelectedIds={onLowerIdsChange} options={options}/>
+    <p className="text-xs font-semibold text-emerald-900">Bağlantıyı yalnızca bir kartta kurman yeterli. Karşı kartta otomatik olarak ters rolde görünür; aynı bağlantıyı yeniden ekleme.</p>
+    <CardPicker label="Üst / kaynak kartlar" help="Bu kartın dayandığı kartları seç. Örneğin film için kaynak kitabı buraya ekle; kitabın ekranında film otomatik olarak alt kart görünür." query={upperQuery} setQuery={setUpperQuery} selectedIds={upperIds} setSelectedIds={onUpperIdsChange} blockedIds={lowerIds} options={options}/>
+    <CardPicker label="Alt / türetilen kartlar" help="Bu karttan çıkan kartları seç. Örneğin kitap için filmleri buraya ekle; filmlerin ekranında kitap otomatik olarak üst kart görünür." query={lowerQuery} setQuery={setLowerQuery} selectedIds={lowerIds} setSelectedIds={onLowerIdsChange} blockedIds={upperIds} options={options}/>
   </fieldset>
 }
