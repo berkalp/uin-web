@@ -14,6 +14,7 @@ import CardRatingBadge from "@/components/cards/CardRatingBadge";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import ReferenceLinksEditor from "@/components/ideas/ReferenceLinksEditor";
 import {referenceLinksFromMetadata,type ReferenceLink} from "@/utils/referenceLinks";
+import {BOOK_LISTS,type BookListId} from "@/utils/bookListMetadata";
 
 const LazyFallback=()=> <div className="mt-4 min-h-32 animate-pulse rounded-2xl bg-slate-100" aria-label="İçerik yükleniyor"/>;
 const GameDetails=dynamic(()=>import("@/components/media/GameDetails"),{ssr:false,loading:LazyFallback});
@@ -26,7 +27,8 @@ const TopicCardModal=dynamic(()=>import("@/components/ideas/TopicCardModal"),{ss
 
 type ContentType={id:string;label:string;icon:string;base_kind:Kind;active:boolean;ui_labels?:CardLabels|null};
 type Kind = "artist"|"book"|"movie"|"series"|"game"|"place"|"director"|"actor"|"writer"|"comedian"|"theatre_artist"|"athlete"|"club"|"sport"|"hobby"|"activity";
-type Sort = "alphabetical"|"imdbTop100"|"imdbTop250"|"wanting"|"done"|"active";
+type BookSort = `book:${BookListId}`;
+type Sort = "alphabetical"|"imdbTop100"|"imdbTop250"|BookSort|"wanting"|"done"|"active";
 type SeedType = { id:string; name:string; slug:string; icon:string };
 type AdminActivityOption={id:string;name:string;category_name?:string|null};
 type Internal = { catalogItemId:string; canonicalTargetId:string|null; title:string; subtitle:string|null; coverUrl:string|null; seedTypeIcon:string|null; itemKind?:string|null };
@@ -75,7 +77,9 @@ function showsCreator(typeId:string|undefined|null,baseKind:Kind){
   return !/(festival|concert|konser)/.test(id)&&["artist","book","movie","series","game","director","actor","writer"].includes(baseKind);
 }
 function eventCount(item:Catalogue){return Number(item.active_event_count??item.social_intent_count??0)}
-function compareCards(a:Catalogue,b:Catalogue,sort:Sort){const alphabetical=commonIntentTitle(a.title).localeCompare(commonIntentTitle(b.title),"tr");if(sort==="imdbTop100"||sort==="imdbTop250")return Number(a.imdb_rank||251)-Number(b.imdb_rank||251)||alphabetical;if(sort==="wanting")return Number(b.intent_people_count||0)-Number(a.intent_people_count||0)||alphabetical;if(sort==="done")return Number(b.experience_people_count||0)-Number(a.experience_people_count||0)||alphabetical;if(sort==="active")return eventCount(b)-eventCount(a)||alphabetical;return alphabetical}
+function bookListForSort(sort:Sort):BookListId|null{return sort.startsWith("book:")?sort.slice(5) as BookListId:null}
+function bookRank(item:Catalogue,list:BookListId){return Number((item as Catalogue&{book_list_ranks?:Partial<Record<BookListId,number>>}).book_list_ranks?.[list]||0)}
+function compareCards(a:Catalogue,b:Catalogue,sort:Sort){const alphabetical=commonIntentTitle(a.title).localeCompare(commonIntentTitle(b.title),"tr");const bookList=bookListForSort(sort);if(bookList)return (bookRank(a,bookList)||101)-(bookRank(b,bookList)||101)||alphabetical;if(sort==="imdbTop100"||sort==="imdbTop250")return Number(a.imdb_rank||251)-Number(b.imdb_rank||251)||alphabetical;if(sort==="wanting")return Number(b.intent_people_count||0)-Number(a.intent_people_count||0)||alphabetical;if(sort==="done")return Number(b.experience_people_count||0)-Number(a.experience_people_count||0)||alphabetical;if(sort==="active")return eventCount(b)-eventCount(a)||alphabetical;return alphabetical}
 
 const CARDS_PER_PAGE=20;
 function paginate<T>(items:T[],page:number){const pages=Math.max(1,Math.ceil(items.length/CARDS_PER_PAGE));const currentPage=Math.min(Math.max(1,page),pages);return {items:items.slice((currentPage-1)*CARDS_PER_PAGE,currentPage*CARDS_PER_PAGE),page:currentPage,pages}}
@@ -133,14 +137,15 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const currentType=contentTypes.find(type=>type.id===kind);const searchProvider=currentType?.ui_labels?.search_provider||"auto";const searchEntity=currentType?.ui_labels?.search_entity||"";const manualFallback=currentType?.ui_labels?.manual_fallback==="true";
   const seedType=useMemo(()=>words?seedTypes.find(row=>words.seed.test(`${row.slug} ${row.name}`.toLocaleLowerCase("tr-TR")))||seedTypes[0]:null,[seedTypes,words?.seed]);
   const [page,setPage]=useState(1);const [placeList,setPlaceList]=useState<Place[]>([]),[placeLoading,setPlaceLoading]=useState(true),[placeError,setPlaceError]=useState(""),[geoRetry,setGeoRetry]=useState(0),[cityFilter,setCityFilter]=useState(params.get("city")||""),[countryFilter,setCountryFilter]=useState(""),[sort,setSort]=useState<Sort>("wanting");
-  useEffect(()=>{if((sort==="imdbTop100"||sort==="imdbTop250")&&effectiveKind!=="movie"){setSort("wanting");setPage(1)}},[effectiveKind,sort]);
+  useEffect(()=>{if(((sort==="imdbTop100"||sort==="imdbTop250")&&effectiveKind!=="movie")||(bookListForSort(sort)&&effectiveKind!=="book")){setSort("wanting");setPage(1)}},[effectiveKind,sort]);
   useEffect(()=>{const c=new AbortController();setPlaceLoading(placeList.length===0);setPlaceError("");void fetch("/api/places/catalogue",{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setPlaceList(d.places||[])}).catch(e=>{if(e.name!=="AbortError")setPlaceError(e.message)}).finally(()=>{if(!c.signal.aborted)setPlaceLoading(false)});return()=>c.abort()},[geoRetry]);
   useEffect(()=>{const c=new AbortController();setClubError("");void fetch("/api/clubs/catalogue",{signal:c.signal}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error);setClubList(d.clubs||[])}).catch(e=>{if(e.name!=="AbortError")setClubError(e.message)}).finally(()=>{if(!c.signal.aborted)setClubLoading(false)});return()=>c.abort()},[geoRetry]);
   const clubIndex=new Map(clubList.map(c=>[c.target_id,c]));
   const placeIndex=new Map(placeList.map(p=>[p.id,p]));
   const selectedPlaceTargetId=cityFilter?(placeList.find(p=>p.cityId===cityFilter&&["Şehir","İl"].includes(p.kind))?.id||placeList.find(p=>p.id===cityFilter)?.id||""):countryFilter?(placeList.find(p=>p.countryId===countryFilter&&p.kind==="Ülke")?.id||""):"";
   function sortCatalogue(a:Catalogue,b:Catalogue){if(selectedPlaceTargetId){const pinned=Number(b.canonical_target_id===selectedPlaceTargetId)-Number(a.canonical_target_id===selectedPlaceTargetId);if(pinned)return pinned}return compareCards(a,b,sort)}
-  const catalogueWithClubTotals=catalogue;
+  const selectedBookList=bookListForSort(sort);
+  const catalogueWithClubTotals=selectedBookList?catalogue.filter(item=>bookRank(item,selectedBookList)>0):catalogue;
   const kindCounts=new Map(kinds.map(item=>[item.id,catalogueWithClubTotals.filter(card=>matches(card,item.id)).length]));
   const orderedKinds=kinds.map((item,index)=>({item,index})).sort((a,b)=>(kindCounts.get(b.item.id)??0)-(kindCounts.get(a.item.id)??0)||a.index-b.index).map(entry=>entry.item);
   async function refreshCatalogue(){
@@ -197,6 +202,7 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const suggestionPage=paginate(suggestions,page);
   const resultPage=paginate(results,page);
   const sortOptions:Array<{id:Sort;label:string}>=[...(effectiveKind==="movie"?[{id:"imdbTop100" as const,label:"IMDb Top 100 · 1’den 100’e"},{id:"imdbTop250" as const,label:"IMDb Top 250 · 1’den 250’ye"}]:[]),{id:"wanting",label:`${words?.wanting||"İsteyenler"} · çoktan aza`},{id:"done",label:`${words?.doers||"Deneyimleyenler"} · çoktan aza`},{id:"active",label:"Aktif etkinlikler · çoktan aza"},{id:"alphabetical",label:"Alfabetik · A’dan Z’ye"}];
+  if(effectiveKind==="book")sortOptions.unshift(...BOOK_LISTS.map(list=>({id:`book:${list.id}` as BookSort,label:`${list.label} · 1’den 100’e`})));
   function changePage(next:number){setPage(next);document.getElementById("uin-card-results")?.scrollIntoView({block:"start",behavior:"smooth"})}
   function openAdd(){if(effectiveKind==="club"||searchProvider==="manual"){openSuggestion();return}if(query.trim().length<2){setMessage("Doğrulanmış kaynaklarda aramak için en az 2 karakter yaz.");return}void search()}
   function openSuggestion(){if(!current)return;setAdminDirectManual(false);setManualType(current.id);setManual(true);setMessage("")}
