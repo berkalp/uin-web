@@ -1,13 +1,16 @@
 export const BOOK_LISTS = [
-  {id:"most_read",label:"En çok okunan 100"},
-  {id:"classics",label:"Klasikler 100"},
-  {id:"science_fiction_fantasy",label:"Bilimkurgu & Fantastik 100"},
-  {id:"mystery_thriller",label:"Polisiye & Gerilim 100"},
-  {id:"turkish_literature",label:"Türk Edebiyatı 100"},
+  {id:"most_read",label:"En çok okunan 100",size:100},
+  {id:"classics",label:"Klasikler 100",size:100},
+  {id:"science_fiction_fantasy",label:"Bilimkurgu & Fantastik 100",size:100},
+  {id:"mystery_thriller",label:"Polisiye & Gerilim 100",size:100},
+  {id:"turkish_literature",label:"Türk Edebiyatı 100",size:100},
+  {id:"pulitzer_fiction_30",label:"Pulitzer Kurgu · Son 30 yıl",size:30},
+  {id:"nobel_literature_30",label:"Nobel Edebiyat Yazarları · Son 30 yıl",size:30},
 ] as const;
 
 export type BookListId=(typeof BOOK_LISTS)[number]["id"];
-export type BookListMetadata={bookLists:BookListId[];bookListRanks:Partial<Record<BookListId,number>>};
+export type BookAward={id:string;label:string;year:number;scope:"book"|"author";recipient?:string;sourceUrl?:string};
+export type BookListMetadata={bookLists:BookListId[];bookListRanks:Partial<Record<BookListId,number>>;bookAwards:BookAward[]};
 
 export function readBookListMetadata(value:unknown):BookListMetadata{
   const metadata=value&&typeof value==="object"?value as Record<string,unknown>:{};
@@ -16,5 +19,11 @@ export function readBookListMetadata(value:unknown):BookListMetadata{
   const rawRanks=metadata.book_list_ranks&&typeof metadata.book_list_ranks==="object"?metadata.book_list_ranks as Record<string,unknown>:{};
   const bookListRanks:Partial<Record<BookListId,number>>={};
   for(const id of bookLists){const rank=Number(rawRanks[id]);if(Number.isInteger(rank)&&rank>0&&rank<=100)bookListRanks[id]=rank}
-  return {bookLists,bookListRanks};
+  const bookAwards=Array.isArray(metadata.book_awards)?metadata.book_awards.flatMap((value):BookAward[]=>{
+    if(!value||typeof value!=="object")return [];
+    const award=value as Record<string,unknown>;const year=Number(award.year);const scope=award.scope;
+    if(typeof award.id!=="string"||typeof award.label!=="string"||!Number.isInteger(year)||(scope!=="book"&&scope!=="author"))return [];
+    return [{id:award.id,label:award.label,year,scope,recipient:typeof award.recipient==="string"?award.recipient:undefined,sourceUrl:typeof award.source_url==="string"?award.source_url:undefined}];
+  }):[];
+  return {bookLists,bookListRanks,bookAwards};
 }
