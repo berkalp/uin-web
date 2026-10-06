@@ -4,6 +4,29 @@ export const bookPlain=(value:unknown)=>typeof value==='string'?value.replace(/<
 export function bookUrl(value:unknown){if(typeof value!=='string')return undefined;try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href.replace(/^http:/,'https:'):undefined}catch{return undefined}}
 const strings=(v:unknown):string[]=>Array.isArray(v)?v.filter(x=>typeof x==='string'):[];
 const language=(v:string)=>({tr:'Türkçe',en:'İngilizce',de:'Almanca',fr:'Fransızca',es:'İspanyolca',it:'İtalyanca'} as Record<string,string>)[v]||v;
+export function openLibraryBookDetails(row:Row,work?:Row):BookDetails{
+ const id=bookPlain(row.key).replace(/^\/works\//,'')||bookPlain(work?.key).replace(/^\/works\//,'');
+ const authors=strings(row.author_name);const isbns=strings(row.isbn);const subjects=strings(row.subject).slice(0,20);
+ const cover=typeof row.cover_i==='number'?`https://covers.openlibrary.org/b/id/${row.cover_i}-L.jpg`:undefined;
+ const description=bookPlain(typeof work?.description==='object'?work.description?.value:work?.description)||bookPlain(row.first_sentence);
+ const rating=typeof row.ratings_average==='number'?`${row.ratings_average.toFixed(1)}/5${typeof row.ratings_count==='number'?` · ${row.ratings_count} değerlendirme`:''}`:'';
+ const facts:[string,string][]=[['Yazar',authors.join(' · ')],['İlk yayın yılı',typeof row.first_publish_year==='number'?String(row.first_publish_year):''],['Yayınevleri',strings(row.publisher).slice(0,8).join(' · ')],['Ortalama sayfa sayısı',typeof row.number_of_pages_median==='number'?String(row.number_of_pages_median):''],['Diller',strings(row.language).slice(0,8).map(language).join(' · ')],['Konular',subjects.join(' · ')],['ISBN-13',isbns.filter(x=>/^\d{13}$/.test(x)).slice(0,4).join(' · ')],['ISBN-10',isbns.filter(x=>/^[\dX]{10}$/i.test(x)).slice(0,4).join(' · ')],['Open Library puanı',rating]];
+ const sourceUrl=`https://openlibrary.org/works/${encodeURIComponent(id)}`;
+ return {title:bookPlain(row.title)||bookPlain(work?.title),subtitle:bookPlain(row.subtitle),summary:description,image:cover,source:'Open Library',sourceUrl,facts:facts.filter(x=>x[1]),links:[{label:'Open Library’de görüntüle',url:sourceUrl}],notice:'İlk yayın yılı eser düzeyindedir; ISBN, yayınevi, dil ve sayfa bilgileri farklı baskılardan derlenebilir.'};
+}
+export async function searchOpenLibraryBooks(query:string){
+ const fields='key,title,subtitle,author_name,first_publish_year,cover_i,language,isbn,publisher,subject,ratings_average,ratings_count,edition_count,edition_key,number_of_pages_median,first_sentence';
+ const d=await bookJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&lang=tr&limit=18&fields=${encodeURIComponent(fields)}`);
+ const rows=(Array.isArray(d.docs)?d.docs:[]).filter((row:Row)=>/^\/works\/OL\d+W$/.test(String(row?.key||''))&&bookPlain(row.title));
+ const normalize=(value:string)=>value.toLocaleLowerCase('tr-TR').normalize('NFD').replace(/\p{M}/gu,'').replace(/ı/g,'i').replace(/[^\p{L}\p{N}]/gu,'');
+ const merged=new Map<string,Row>();
+ for(const row of rows){
+  const key=`${normalize(bookPlain(row.title))}|${normalize(strings(row.author_name).join(' '))}`;const current=merged.get(key);if(!current){merged.set(key,row);continue}
+  const currentYear=typeof current.first_publish_year==='number'?current.first_publish_year:Number.MAX_SAFE_INTEGER;const rowYear=typeof row.first_publish_year==='number'?row.first_publish_year:Number.MAX_SAFE_INTEGER;const canonical=rowYear<currentYear?row:current;const visual=typeof current.cover_i==='number'?current:row;
+  merged.set(key,{...canonical,cover_i:visual.cover_i,isbn:Array.from(new Set([...strings(current.isbn),...strings(row.isbn)])),edition_key:Array.from(new Set([...strings(current.edition_key),...strings(row.edition_key)])),publisher:Array.from(new Set([...strings(current.publisher),...strings(row.publisher)])),language:Array.from(new Set([...strings(current.language),...strings(row.language)])),subject:Array.from(new Set([...strings(current.subject),...strings(row.subject)])),merged_open_library_work_ids:Array.from(new Set([String(current.key).replace(/^\/works\//,''),String(row.key).replace(/^\/works\//,'')]))});
+ }
+ return Array.from(merged.values());
+}
 export function googleBookDetails(row:Row):BookDetails{
  const v=row.volumeInfo||{},a=row.accessInfo||{},s=row.saleInfo||{};
  const image=Object.values({large:v.imageLinks?.large,medium:v.imageLinks?.medium,small:v.imageLinks?.small,thumbnail:v.imageLinks?.thumbnail}).map(bookUrl).find(Boolean);

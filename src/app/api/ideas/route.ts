@@ -5,7 +5,7 @@ import { createClient } from "@/utils/supabase/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 async function requestClient(request:NextRequest){const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];return token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):createClient()}
 
-const PROVIDERS = new Set(["spotify", "google_books", "tvmaze", "igdb", "wikidata"]);
+const PROVIDERS = new Set(["spotify", "open_library", "google_books", "tvmaze", "igdb", "wikidata"]);
 const KINDS = new Set(["artist", "book", "movie", "series", "watch", "game", "place", "director", "actor", "writer", "comedian", "theatre_artist", "athlete", "club", "sport", "hobby", "activity", "podcast"]);
 function clean(value: unknown, max = 2000) { return typeof value === "string" ? value.trim().slice(0, max) : ""; }
 function itemKind(kind: string, metadata?: Record<string, unknown>) { if (kind === "watch") return metadata?.uin_item_kind === "series" ? "series" : "movie"; return kind; }

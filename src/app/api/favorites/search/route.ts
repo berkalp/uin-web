@@ -1,5 +1,5 @@
 import {eligiblePlace,placeSearchClasses,possiblePlace} from "@/utils/placeSearchEligibility";
-﻿import {googleBookDetails} from "@/utils/bookDetails";
+﻿import {openLibraryBookDetails,searchOpenLibraryBooks} from "@/utils/bookDetails";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createClient } from "@/utils/supabase/server";
@@ -103,58 +103,23 @@ async function igdb(query: string): Promise<SearchItem[]> {
   }).slice(0, 18);
 }
 
-async function googleBooks(query: string): Promise<SearchItem[]> {
-  const url = new URL("https://www.googleapis.com/books/v1/volumes");
-  url.searchParams.set("q", query);
-  url.searchParams.set("printType", "books");
-  url.searchParams.set("orderBy", "relevance");
-  url.searchParams.set("maxResults", "18");
-  const apiKey = process.env.GOOGLE_BOOKS_API_KEY?.trim();
-  if (apiKey) url.searchParams.set("key", apiKey);
-
-  const response = await fetch(url, { headers: { Accept: "application/json" }, cache: "no-store" });
-  if (!response.ok) throw new Error("Kitap arama servisi şu anda yanıt vermiyor.");
-  const payload = await response.json() as { items?: unknown[] };
-
-  return (Array.isArray(payload.items) ? payload.items : []).flatMap((raw) => {
-    if (!raw || typeof raw !== "object") return [];
-    const row = raw as Record<string, unknown>;
-    const id = text(row.id);
-    const info = row.volumeInfo && typeof row.volumeInfo === "object"
-      ? row.volumeInfo as Record<string, unknown>
-      : {};
-    const title = text(info.title);
-    if (!id || !title) return [];
-    const authors = Array.isArray(info.authors)
-      ? info.authors.filter((value): value is string => typeof value === "string")
-      : [];
-    const imageLinks = info.imageLinks && typeof info.imageLinks === "object"
-      ? info.imageLinks as Record<string, unknown>
-      : {};
-
-    return [{
-      provider: "google_books",
+async function openLibraryBooks(query: string): Promise<SearchItem[]> {
+  const rows = await searchOpenLibraryBooks(query);
+  return rows.map((row:Record<string,unknown>) => {
+    const id = String(row.key).replace(/^\/works\//, "");
+    const authors = Array.isArray(row.author_name) ? row.author_name.filter((value:unknown):value is string=>typeof value==="string") : [];
+    const isbns = Array.isArray(row.isbn) ? row.isbn.filter((value:unknown):value is string=>typeof value==="string") : [];
+    const details = openLibraryBookDetails(row);
+    return {
+      provider: "open_library",
       externalId: id,
-      title,
-      subtitle: text(info.subtitle),
+      title: String(row.title),
+      subtitle: text(row.subtitle),
       creatorName: authors.length ? authors.join(", ") : null,
-      coverUrl: https(imageLinks.thumbnail) || https(imageLinks.smallThumbnail),
-      sourceUrl: https(info.canonicalVolumeLink) || https(info.infoLink),
-      metadata: {
-        book_details: googleBookDetails(row),
-        google_books_id: id,
-        uin_item_kind: "book",
-        page_count: info.pageCount,
-        isbn: info.industryIdentifiers,
-        categories: info.categories,
-        preview_url: https(info.previewLink),
-        authors,
-        description: text(info.description),
-        publisher: text(info.publisher),
-        published_date: text(info.publishedDate),
-        language: text(info.language),
-      },
-    }];
+      coverUrl: typeof row.cover_i === "number" ? `https://covers.openlibrary.org/b/id/${row.cover_i}-L.jpg` : null,
+      sourceUrl: `https://openlibrary.org/works/${encodeURIComponent(id)}`,
+      metadata: {book_details:details,open_library_work_id:id,open_library_edition_id:Array.isArray(row.edition_key)?row.edition_key[0]:null,uin_item_kind:"book",authors,first_publish_year:row.first_publish_year,page_count:row.number_of_pages_median,isbn_13:isbns.find((value:string)=>/^\d{13}$/.test(value))||null,isbn_10:isbns.find((value:string)=>/^[\dX]{10}$/i.test(value))||null,categories:Array.isArray(row.subject)?row.subject.slice(0,30):[],publishers:Array.isArray(row.publisher)?row.publisher.slice(0,10):[],languages:Array.isArray(row.language)?row.language:[],average_rating:row.ratings_average,ratings_count:row.ratings_count},
+    };
   });
 }
 
@@ -324,16 +289,16 @@ export async function GET(request: NextRequest) {
 
   try {
     let items: SearchItem[];
-    if(!["auto","wikidata","google_books","spotify","tvmaze","igdb","manual"].includes(provider))return NextResponse.json({error:"Geçersiz arama kaynağı."},{status:400});
+    if(!["auto","wikidata","open_library","google_books","spotify","tvmaze","igdb","manual"].includes(provider))return NextResponse.json({error:"Geçersiz arama kaynağı."},{status:400});
     if(provider==="manual")items=[];
     else if(provider==="wikidata")items=await wikidata(query,(["artist","series","watch","game","podcast"].includes(kindRaw)?"activity":kindRaw) as Exclude<Kind,"artist"|"series"|"watch"|"game"|"podcast">,entity);
-    else if(provider==="google_books")items=await googleBooks(query);
+    else if(provider==="open_library"||provider==="google_books")items=await openLibraryBooks(query);
     else if(provider==="spotify")items=await spotify(query,kindRaw==="podcast"||entity.toLocaleLowerCase("tr-TR").includes("podcast")?"podcast":undefined);
     else if(provider==="tvmaze")items=await tvmaze(query);
     else if(provider==="igdb")items=await igdb(query);
     else if (kindRaw === "artist") items = await spotify(query);
     else if (kindRaw === "podcast") items = await spotify(query, "podcast");
-    else if (kindRaw === "book") {try{items=await googleBooks(query);if(!items.length)items=await wikidata(query,"book")}catch{items=await wikidata(query,"book")}}
+    else if (kindRaw === "book") {try{items=await openLibraryBooks(query);if(!items.length)items=await wikidata(query,"book")}catch{items=await wikidata(query,"book")}}
     else if (kindRaw === "series") items = await tvmaze(query);
     else if (kindRaw === "watch") {
       const [seriesResult, movieResult] = await Promise.allSettled([

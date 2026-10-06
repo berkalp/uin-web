@@ -1,5 +1,5 @@
 export type Kind = "artist"|"book"|"movie"|"series"|"game"|"place"|"director"|"actor"|"writer"|"comedian"|"theatre_artist"|"athlete"|"club"|"sport"|"hobby"|"activity";
-export type SearchProvider="auto"|"wikidata"|"google_books"|"spotify"|"tvmaze"|"igdb"|"manual";
+export type SearchProvider="auto"|"wikidata"|"open_library"|"google_books"|"spotify"|"tvmaze"|"igdb"|"manual";
 export type CardLabels=Partial<Record<"want"|"done"|"wanting"|"doers"|"event"|"action"|"question",string>> & {search_provider?:SearchProvider;search_entity?:string;manual_fallback?:"true"|"false"};
 function language(kind:Kind){
   if(kind==="movie"||kind==="series"||kind==="director"||kind==="actor")return{want:"İzlemek istiyorum",done:"İzledim",question:`Hangi ${kind==="series"?"diziyi":"filmi"} arıyorsun?`,seed:/watch|izle/,categories:["Kültür ve Etkinlikler"]};
