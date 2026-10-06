@@ -8,6 +8,8 @@ function visibleSubtitle(typeId:string,baseKind:string|undefined){
   return !/(festival|concert|konser)/.test(normalized)&&["artist","book","movie","series","game","director","actor","writer"].includes(baseKind||"");
 }
 
+type CardRelation={target_id:string;related_target_id:string;direction:"in"|"out";relation_type:string;sort_order:number;section_title:string|null;title:string};
+
 async function requestClient(request:NextRequest){
   const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
   if(!token)return createClient();
@@ -18,6 +20,21 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const {targetId}=await params;
   if(!/^[0-9a-f-]{36}$/i.test(targetId))return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const supabase=await requestClient(request);
+  async function expandDisplayRelations(value:unknown){
+    const direct=(Array.isArray(value)?value:[]) as CardRelation[];
+    const sourceIds=[...new Set(direct.filter(row=>row.relation_type==="source_material"&&row.direction==="out").map(row=>row.related_target_id))];
+    if(sourceIds.length===0)return direct;
+    const peersResult=await supabase.rpc("get_uin_card_relations_v87",{p_target_ids:sourceIds});
+    if(peersResult.error)return direct;
+    const seen=new Set(direct.map(row=>row.related_target_id));
+    const peers:CardRelation[]=[];
+    for(const row of (peersResult.data||[]) as CardRelation[]){
+      if(row.relation_type!=="source_material"||row.direction!=="in"||row.related_target_id===targetId||seen.has(row.related_target_id))continue;
+      seen.add(row.related_target_id);
+      peers.push({...row,relation_type:"related",section_title:"Aynı kaynağa bağlı eserler",sort_order:peers.length});
+    }
+    return [...direct,...peers];
+  }
   if(request.nextUrl.searchParams.get("summary")==="1"){
     const [profile,summary,rating,social,relations,hierarchy]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v107",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_hierarchy_v81",{p_target_ids:[targetId]})]);
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
@@ -26,7 +43,8 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
     const type=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
     const ratingStats=(rating.data||[])[0];
-    return NextResponse.json({contentType:type.data,communityCounts:[Number(stats?.wanting||0),Number(stats?.done||0),Number(stats?.active||0)],averageRating:ratingStats?.average_rating==null?null:Number(ratingStats.average_rating),ratingCount:Number(ratingStats?.rating_count||0),viewerRating:ratingStats?.viewer_rating==null?null:Number(ratingStats.viewer_rating),social:(social.data||[])[0]||null,relations:relations.data||[],hierarchy:(hierarchy.data||[])[0]||null,card:{title:row.title,subtitle:visibleSubtitle(typeId,type.data?.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null,metadata:row.metadata||{}},people:[],reviews:[],events:[]});
+    const displayRelations=await expandDisplayRelations(relations.data);
+    return NextResponse.json({contentType:type.data,communityCounts:[Number(stats?.wanting||0),Number(stats?.done||0),Number(stats?.active||0)],averageRating:ratingStats?.average_rating==null?null:Number(ratingStats.average_rating),ratingCount:Number(ratingStats?.rating_count||0),viewerRating:ratingStats?.viewer_rating==null?null:Number(ratingStats.viewer_rating),social:(social.data||[])[0]||null,relations:relations.data||[],displayRelations,hierarchy:(hierarchy.data||[])[0]||null,card:{title:row.title,subtitle:visibleSubtitle(typeId,type.data?.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null,metadata:row.metadata||{}},people:[],reviews:[],events:[]});
   }
   const [cardResult,contextResult,peopleResult,eventResult,reviewResult,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
@@ -116,5 +134,6 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const ownIntentDraft=ownRow?.status==="active"?{start_date:ownRow.start_date,end_date:ownRow.end_date,timing_precision:ownRow.timing_precision,date_options:ownRow.date_options,location_id:ownRow.location_id,notes:ownRow.notes,visibility:ownRow.visibility,collaboration_mode:ownRow.collaboration_mode}:ownPerson?{start_date:ownPerson.start_date,end_date:ownPerson.end_date,timing_precision:ownPerson.timing_precision,date_options:ownPerson.date_options,location_id:ownPerson.location_id,notes:ownPerson.notes,visibility:ownPerson.visibility||"everyone",collaboration_mode:"everyone"}:null;
   const [socialResult,relationsResult,activityOptionsResult]=await Promise.all([supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_activity_options_v106",{p_target_id:targetId})]);
   if(socialResult.error||relationsResult.error||activityOptionsResult.error)return NextResponse.json({error:"Kartın puan, takipçi ve bağlantı bilgileri yüklenemedi."},{status:500});
-  return NextResponse.json({ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],activityOptions:activityOptionsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
+  const displayRelations=await expandDisplayRelations(relationsResult.data);
+  return NextResponse.json({ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],displayRelations,activityOptions:activityOptionsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
 }
