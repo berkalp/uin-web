@@ -33,10 +33,12 @@ async function IdeasCatalogue(){
   const ownSeedIds=[...new Set(topics.map(item=>item.own_seed_id).filter((id):id is string=>Boolean(id)))];
   const summaryPromise=(async()=>{
     const data:Array<Record<string,unknown>>=[];
-    for(let offset=0;offset<targetIds.length;offset+=100){
-      const page=await supabase.rpc("get_uin_card_summary_v107",{p_target_ids:targetIds.slice(offset,offset+100)});
-      if(page.error)return {data,error:page.error};
-      data.push(...((page.data||[]) as Array<Record<string,unknown>>));
+    const batches=Array.from({length:Math.ceil(targetIds.length/100)},(_,index)=>targetIds.slice(index*100,(index+1)*100));
+    for(let offset=0;offset<batches.length;offset+=3){
+      const pages=await Promise.all(batches.slice(offset,offset+3).map(ids=>supabase.rpc("get_uin_card_summary_v107",{p_target_ids:ids})));
+      const failed=pages.find(page=>page.error);
+      if(failed?.error)return {data,error:failed.error};
+      data.push(...pages.flatMap(page=>(page.data||[]) as Array<Record<string,unknown>>));
     }
     return {data,error:null};
   })();
