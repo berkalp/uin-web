@@ -123,7 +123,7 @@ function TopicPreviewCard({item,isAdmin,onOpen,onEdit,onCancel,contentTypes,club
   </article>;
 }
 
-export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,contentTypes:initialContentTypes,isAdmin=false,addingOnly=false}:{addingOnly?:boolean;contentTypes:ContentType[];seedTypes:SeedType[];catalogue:Catalogue[];isAdmin?:boolean}){
+export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,contentTypes:initialContentTypes,categoryCounts={},isAdmin=false,addingOnly=false}:{addingOnly?:boolean;contentTypes:ContentType[];seedTypes:SeedType[];catalogue:Catalogue[];categoryCounts?:Record<string,number>;isAdmin?:boolean}){
   const [contentTypes,setContentTypes]=useState(initialContentTypes);
   useEffect(()=>setContentTypes(initialContentTypes),[initialContentTypes]);
   const kinds=contentTypes.filter(type=>type.active).map(type=>({id:type.id as Kind,label:type.label,icon:type.icon,placeholder:`${type.label} ara`}));
@@ -166,7 +166,7 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
     if(baseKind==="place"){const place=placeIndex.get(item.canonical_target_id);return Boolean(place&&["Şehir","İl","Ülke"].includes(place.kind))}
     return true;
   });
-  const kindCounts=new Map(kinds.map(item=>[item.id,browseableCatalogue.filter(card=>matches(card,item.id)).length]));
+  const kindCounts=new Map(kinds.map(item=>[item.id,categoryCounts[item.id]??browseableCatalogue.filter(card=>matches(card,item.id)).length]));
   const hierarchyCountsLoading=clubLoading||placeLoading;
   const orderedKinds=kinds.map((item,index)=>({item,index})).sort((a,b)=>(kindCounts.get(b.item.id)??0)-(kindCounts.get(a.item.id)??0)||a.index-b.index).map(entry=>entry.item);
   async function refreshCatalogue(){

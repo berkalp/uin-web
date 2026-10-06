@@ -13,11 +13,12 @@ type CataloguePlacement = { id:string; canonical_target_id:string|null; item_kin
 
 async function IdeasCatalogue(){
   const supabase=await createClient();
-  const [topicResult,seedTypeResult,adminResult,typeResult]=await Promise.all([
+  const [topicResult,seedTypeResult,adminResult,typeResult,countResult]=await Promise.all([
     supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
     supabase.from("uin_content_types").select("*").order("position").order("label"),
+    supabase.rpc("get_uin_content_type_counts_v120"),
   ]);
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   let topicError=topicResult.error;
@@ -68,7 +69,8 @@ async function IdeasCatalogue(){
   const enrichedCatalogue=catalogue.map(item=>{const metadata=placements.get(item.canonical_target_id)?.metadata;const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);return {...item,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards}});
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
-  return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} isAdmin={Boolean(adminResult.data)}/>;
+  const categoryCounts=Object.fromEntries(((countResult.data||[]) as Array<{content_type_id:string;count:number}>).map(row=>[row.content_type_id,Number(row.count||0)]));
+  return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 
 function CatalogueFallback(){return <div className="mt-6 space-y-4" aria-label="Kütüphane yükleniyor"><div className="h-44 animate-pulse rounded-[30px] bg-white"/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{Array.from({length:6},(_,index)=><div key={index} className="h-96 animate-pulse rounded-[26px] bg-white"/>)}</div></div>}
