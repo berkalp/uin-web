@@ -1,11 +1,11 @@
 export const BOOK_LISTS = [
-  {id:"most_read",label:"En çok okunan 100",size:100},
-  {id:"classics",label:"Klasikler 100",size:100},
-  {id:"science_fiction_fantasy",label:"Bilimkurgu & Fantastik 100",size:100},
-  {id:"mystery_thriller",label:"Polisiye & Gerilim 100",size:100},
-  {id:"turkish_literature",label:"Türk Edebiyatı 100",size:100},
-  {id:"pulitzer_fiction_30",label:"Pulitzer Kurgu · Son 30 yıl",size:30},
-  {id:"nobel_literature_30",label:"Nobel Edebiyat Yazarları · Son 30 yıl",size:30},
+  {id:"most_read",label:"En çok okunan 100",rangeLabel:"1’den 100’e"},
+  {id:"classics",label:"Klasikler 100",rangeLabel:"1’den 100’e"},
+  {id:"science_fiction_fantasy",label:"Bilimkurgu & Fantastik 100",rangeLabel:"1’den 100’e"},
+  {id:"mystery_thriller",label:"Polisiye & Gerilim 100",rangeLabel:"1’den 100’e"},
+  {id:"turkish_literature",label:"Türk Edebiyatı 100",rangeLabel:"1’den 100’e"},
+  {id:"pulitzer_fiction_30",label:"Pulitzer Kurgu · Son 30 yıl",rangeLabel:"1’den 30’a"},
+  {id:"nobel_literature_30",label:"Nobel Edebiyat Yazarları · Son 30 yıl",rangeLabel:"1’den 30’a"},
 ] as const;
 
 export type BookListId=(typeof BOOK_LISTS)[number]["id"];
