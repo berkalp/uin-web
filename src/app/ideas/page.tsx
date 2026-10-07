@@ -21,7 +21,7 @@ async function IdeasCatalogue(){
     supabase.rpc("get_uin_content_type_counts_v120"),
   ]);
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
-  let topicError=topicResult.error;
+  const topicError=topicResult.error;
   for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=600){
     const pages=await Promise.all(Array.from({length:3},(_,index)=>supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:offset+(index*200),p_target_id:null})));
     let reachedEnd=false;
@@ -86,3 +86,4 @@ export default function IdeasPage(){
     </div>
   </main>;
 }
+
