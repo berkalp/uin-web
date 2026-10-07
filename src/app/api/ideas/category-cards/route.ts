@@ -11,7 +11,7 @@ export async function GET(request:NextRequest){
   const type=typeResult.data as ContentType|null;
   if(typeResult.error||!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
   if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:{"Cache-Control":"private, no-store"}});
-  let itemQuery=db.from("seed_catalog_items").select("id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,metadata").eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).limit(200);
+  let itemQuery=db.from("seed_catalog_items").select("id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,metadata").eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).limit(40);
   if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
   else itemQuery=itemQuery.contains("metadata",{content_type_id:type.id});
   const itemResult=await itemQuery;
@@ -19,7 +19,7 @@ export async function GET(request:NextRequest){
   const items=(itemResult.data||[]) as Array<Row>;
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
   if(!ids.length)return NextResponse.json({catalogue:[]},{headers:{"Cache-Control":"private, no-store"}});
-  const cardPages=await Promise.all(Array.from({length:Math.ceil(ids.length/20)},(_,page)=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids.slice(page*20,(page+1)*20)})));
+  const cardPages=await Promise.all(Array.from({length:Math.ceil(ids.length/10)},(_,page)=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids.slice(page*10,(page+1)*10)})));
   const cardRows=cardPages.filter(page=>!page.error).flatMap(page=>(page.data||[]) as Row[]);
   const [summaryResult,ratingResult,socialResult,coverResult,hierarchyResult]=await Promise.all([
     db.rpc("get_uin_card_summary_v107",{p_target_ids:ids}),

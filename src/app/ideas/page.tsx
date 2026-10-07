@@ -14,14 +14,14 @@ type CataloguePlacement = { id:string; canonical_target_id:string|null; item_kin
 async function IdeasCatalogue(){
   const supabase=await createClient();
   const [initialTopicResult,seedTypeResult,adminResult,typeResult,countResult]=await Promise.all([
-    supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
+    supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:40,p_offset:0,p_target_id:null}),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
     supabase.from("uin_content_types").select("*").order("position").order("label"),
     supabase.rpc("get_global_place_counts_v122"),
   ]);
   let topicResult=initialTopicResult;
-  if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
+  if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:40,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   const topicError=topicResult.error;
   const seedTypes=(seedTypeResult.data??[]) as SeedType[];
