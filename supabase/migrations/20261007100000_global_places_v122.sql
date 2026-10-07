@@ -1,6 +1,8 @@
 begin;
 set local lock_timeout='30s';
 set local statement_timeout='15min';
+lock table public.seed_catalog_items in share row exclusive mode;
+alter table public.seed_catalog_items disable trigger guard_uin_card_insert_v73;
 
 create temporary table global_place_source_v122(
   external_id text primary key,title text not null,subtitle text,kind text not null,
@@ -81,14 +83,13 @@ where status='active' and metadata->>'global_place_catalogue'='true';
 do $catalogue$
 declare
   definition text;
-  old_filter text := 'where (coalesce((t.editorial_metadata->>''admin_hidden'')::boolean,false)=false or (exists(select 1 from public.seed_catalog_items library_item where library_item.canonical_target_id=t.id and library_item.status=''active'') and exists(select 1 from public.seeds library_seed where library_seed.canonical_target_id=t.id and library_seed.status in (''active'',''completed'')))) and (p_target_id is null or t.id=p_target_id)';
-  new_filter text;
+  order_marker text := 'order by coalesce(socials.updated_at,seed.updated_at,t.updated_at) desc,t.id limit';
+  place_filter text := 'and (p_target_id is not null or nullif(btrim(coalesce(p_query,'''')),'''') is not null or not exists(select 1 from public.seed_catalog_items bulk_place where bulk_place.canonical_target_id=t.id and bulk_place.status=''active'' and bulk_place.metadata->>''global_place_catalogue''=''true'' and bulk_place.metadata->>''global_place_kind''=''city''))';
 begin
   definition:=pg_get_functiondef('public.get_uin_catalogue_v64(text,integer,integer,uuid)'::regprocedure);
-  new_filter:=old_filter||' and (p_target_id is not null or nullif(btrim(coalesce(p_query,'''')),'''') is not null or not exists(select 1 from public.seed_catalog_items bulk_place where bulk_place.canonical_target_id=t.id and bulk_place.status=''active'' and bulk_place.metadata->>''global_place_catalogue''=''true'' and bulk_place.metadata->>''global_place_kind''=''city''))';
-  if position(new_filter in definition)=0 then
-    if position(old_filter in definition)=0 then raise exception 'Catalogue visibility definition changed'; end if;
-    execute replace(definition,old_filter,new_filter);
+  if position(place_filter in definition)=0 then
+    if position(order_marker in definition)=0 then raise exception 'Catalogue ordering definition changed'; end if;
+    execute replace(definition,order_marker,place_filter||E'\n  '||order_marker);
   end if;
 end;
 $catalogue$;
@@ -105,4 +106,5 @@ $$;
 revoke all on function public.get_global_place_counts_v122() from public;
 grant execute on function public.get_global_place_counts_v122() to anon,authenticated;
 notify pgrst,'reload schema';
+alter table public.seed_catalog_items enable trigger guard_uin_card_insert_v73;
 commit;
