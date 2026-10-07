@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient} from "@/utils/supabase/server";
+import {placeCoverUrls,type PlaceCoverNode} from "@/utils/placeCovers";
 
 export async function GET(request:NextRequest){
   try{
@@ -31,7 +32,8 @@ export async function GET(request:NextRequest){
       const longitude=Number(row.metadata?.longitude??row.metadata?.lng??row.metadata?.lon);
       if(row.canonical_target_id&&Number.isFinite(latitude)&&Number.isFinite(longitude))coordinates.set(row.canonical_target_id,{latitude,longitude});
     }
-    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,...coordinates.get(String(row.canonical_target_id||""))}});
+    const coverUrls=await placeCoverUrls(nodes as PlaceCoverNode[]);
+    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>,id=String(row.canonical_target_id||"");return {...row,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,...coordinates.get(id)}});
     return NextResponse.json({countries:countriesResult.data||[],nodes,cards},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
   }catch(error){
     const message=error&&typeof error==="object"&&"message" in error?String(error.message):"Yer hiyerarşisi yüklenemedi.";
