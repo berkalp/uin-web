@@ -50,8 +50,22 @@ export async function GET(request:NextRequest){
       includeCards&&coordinateTargetIds.length?db.from("seed_catalog_items").select("canonical_target_id,metadata").in("canonical_target_id",coordinateTargetIds):Promise.resolve({data:[],error:null}),
       includeCards&&targetIds.length?db.rpc("get_uin_card_social_v87",{p_target_ids:targetIds}):Promise.resolve({data:[],error:null}),
     ]);
-    if(cardsResult.error)throw cardsResult.error;
-    if(socialResult.error)throw socialResult.error;
+    let cardRows=(cardsResult.data||[]) as Record<string,unknown>[];
+    if(cardsResult.error&&includeCards){
+      cardRows=[];
+      for(let offset=0;offset<targetIds.length;offset+=15){
+        const batch=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:targetIds.slice(offset,offset+15)});
+        if(!batch.error)cardRows.push(...((batch.data||[]) as Record<string,unknown>[]));
+      }
+    }
+    let socialRows=(socialResult.data||[]) as Record<string,unknown>[];
+    if(socialResult.error&&includeCards){
+      socialRows=[];
+      for(let offset=0;offset<targetIds.length;offset+=20){
+        const batch=await db.rpc("get_uin_card_social_v87",{p_target_ids:targetIds.slice(offset,offset+20)});
+        if(!batch.error)socialRows.push(...((batch.data||[]) as Record<string,unknown>[]));
+      }
+    }
     const coordinates=new Map<string,{latitude:number;longitude:number}>();
     if(!placementResult.error)for(const value of placementResult.data||[]){
       const row=value as {canonical_target_id?:string;metadata?:Record<string,unknown>|null};
@@ -59,7 +73,7 @@ export async function GET(request:NextRequest){
       const longitude=Number(row.metadata?.longitude??row.metadata?.lng??row.metadata?.lon);
       if(row.canonical_target_id&&Number.isFinite(latitude)&&Number.isFinite(longitude))coordinates.set(row.canonical_target_id,{latitude,longitude});
     }
-    const social=new Map<string,Record<string,unknown>>((socialResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return[String(row.target_id||""),row]}));
+    const social=new Map<string,Record<string,unknown>>(socialRows.map(row=>[String(row.target_id||""),row]));
     function resolvedCoordinates(id:string,seen=new Set<string>()):{latitude:number;longitude:number}|undefined{
       if(!id||seen.has(id))return undefined;
       const own=coordinates.get(id);if(own)return own;
@@ -67,7 +81,15 @@ export async function GET(request:NextRequest){
       return parent?resolvedCoordinates(parent,seen):undefined;
     }
     const coverUrls=await placeCoverUrls(nodes as PlaceCoverNode[]);
-    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>,id=String(row.canonical_target_id||""),node=nodeById.get(id),stats=social.get(id);return {...row,parent_target_id:row.parent_target_id||node?.parent_target_id||null,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),...resolvedCoordinates(id)}});
+    if(includeCards&&cardRows.length<targetIds.length){
+      const existingIds=new Set(cardRows.map(row=>String(row.canonical_target_id||"")));
+      for(const value of nodes as Record<string,unknown>[]){
+        const id=String(value.target_id||"");
+        if(!id||existingIds.has(id))continue;
+        cardRows.push({canonical_target_id:id,catalog_item_id:null,title:String(value.title||"Yer"),subtitle:value.scope==="district"?"ilçesi":String(value.scope||"Yer"),catalog_cover_url:null,cover_url:null,item_kind:"place",seed_type_slug:"place",seed_type_name:"Yer",canonical_kind:"place",intent_people_count:0,experience_people_count:0,active_event_count:0,completed_event_count:0,expired_event_count:0,cancelled_event_count:0,parent_target_id:value.parent_target_id||null,child_count:Number(value.child_count||0)});
+      }
+    }
+    const cards=cardRows.map(row=>{const id=String(row.canonical_target_id||""),node=nodeById.get(id),stats=social.get(id);return {...row,parent_target_id:row.parent_target_id||node?.parent_target_id||null,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),...resolvedCoordinates(id)}});
     return NextResponse.json({countries,nodes,cards},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
   }catch(error){
     const message=error&&typeof error==="object"&&"message" in error?String(error.message):"Yer hiyerarşisi yüklenemedi.";

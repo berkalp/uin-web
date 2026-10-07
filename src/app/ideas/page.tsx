@@ -24,17 +24,6 @@ async function IdeasCatalogue(){
   if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   const topicError=topicResult.error;
-  for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=600){
-    const pages=await Promise.all(Array.from({length:3},(_,index)=>supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:offset+(index*200),p_target_id:null})));
-    let reachedEnd=false;
-    for(const page of pages){
-      if(page.error){reachedEnd=true;break}
-      const rows=(page.data??[]) as DiscoverPersonalIntent[];
-      topics.push(...rows);
-      if(rows.length<200){reachedEnd=true;break}
-    }
-    if(reachedEnd)break;
-  }
   const seedTypes=(seedTypeResult.data??[]) as SeedType[];
   const targetIds=topics.map(item=>item.canonical_target_id);
   const ownSeedIds=[...new Set(topics.map(item=>item.own_seed_id).filter((id):id is string=>Boolean(id)))];
