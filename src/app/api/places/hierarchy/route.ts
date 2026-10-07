@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient} from "@/utils/supabase/server";
 import {placeCoverUrls,type PlaceCoverNode} from "@/utils/placeCovers";
+import {COUNTRY_POPULATIONS} from "@/data/countryPopulations";
 
 export async function GET(request:NextRequest){
   try{
@@ -13,16 +14,13 @@ export async function GET(request:NextRequest){
     const limit=Math.max(1,Math.min(Number(params.get("limit")||500)||500,500));
     const includeCountries=params.get("include_countries")==="1";
     const includeCards=params.get("include_cards")!=="0"&&Boolean(city||district||country==="TR");
-    const [countriesResult,levelResult,countryPopulationResult]=await Promise.all([
+    const [countriesResult,levelResult]=await Promise.all([
       includeCountries?db.rpc("get_uin_place_countries_v123"):Promise.resolve({data:[],error:null}),
       db.rpc("get_uin_place_level_v123",{p_country_code:country,p_city_target_id:city,p_district_target_id:district,p_query:query,p_limit:limit,p_offset:0}),
-      includeCountries?db.from("seed_catalog_items").select("canonical_target_id,metadata").eq("status","active").eq("item_kind","place").eq("metadata->>global_place_kind","country").limit(400):Promise.resolve({data:[],error:null}),
     ]);
     if(countriesResult.error)throw countriesResult.error;
     if(levelResult.error)throw levelResult.error;
-    const populations=new Map<string,number>();
-    if(!countryPopulationResult.error)for(const value of countryPopulationResult.data||[]){const row=value as {metadata?:Record<string,unknown>|null};const countryCode=String(row.metadata?.country_code||"").toUpperCase(),population=Number(row.metadata?.population);if(countryCode&&Number.isFinite(population))populations.set(countryCode,population)}
-    const countries=(countriesResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,population:populations.get(String(row.country_code||"").toUpperCase())||0}}).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>Number(b.population||0)-Number(a.population||0)||String(a.country_name||"").localeCompare(String(b.country_name||""),"tr-TR"));
+    const countries=(countriesResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,population:COUNTRY_POPULATIONS[String(row.country_code||"").toUpperCase()]||0}}).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>Number(b.population||0)-Number(a.population||0)||String(a.country_name||"").localeCompare(String(b.country_name||""),"tr-TR"));
     const nodes=Array.isArray(levelResult.data)?levelResult.data:[];
     const nodeById=new Map(nodes.map((node:{target_id?:string;parent_target_id?:string|null})=>[String(node.target_id||""),node]));
     const targetIds=nodes.map((node:{target_id?:string})=>node.target_id).filter(Boolean) as string[];
