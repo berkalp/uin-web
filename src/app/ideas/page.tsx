@@ -63,8 +63,15 @@ async function IdeasCatalogue(){
   const enrichedCatalogue=catalogue.map(item=>{const metadata=placements.get(item.canonical_target_id)?.metadata;const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);return {...item,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards}});
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
-  const categoryCounts=enrichedCatalogue.reduce<Record<string,number>>((counts,item)=>{const id=item.content_type_id||item.item_kind;if(id)counts[id]=(counts[id]||0)+1;return counts},{});
-  categoryCounts.place=Number((countResult.data as {cities?:number}|null)?.cities||categoryCounts.place||0);
+  const categoryCountEntries=await Promise.all(((typeResult.data||[]) as Array<{id:string;base_kind:string;active:boolean}>).filter(type=>type.active).map(async type=>{
+    if(type.base_kind==="place")return [type.id,Number((countResult.data as {cities?:number}|null)?.cities||0)] as const;
+    let query=supabase.from("seed_catalog_items").select("id",{count:"exact",head:true}).eq("status","active").not("canonical_target_id","is",null);
+    if(type.id===type.base_kind)query=type.base_kind==="series"?query.in("item_kind",["series","video"]):query.eq("item_kind",type.base_kind);
+    else query=query.contains("metadata",{content_type_id:type.id});
+    const result=await query;
+    return [type.id,result.error?0:Number(result.count||0)] as const;
+  }));
+  const categoryCounts=Object.fromEntries(categoryCountEntries) as Record<string,number>;
   return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 
