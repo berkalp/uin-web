@@ -21,8 +21,8 @@ export async function GET(request:NextRequest){
     if(countriesResult.error)throw countriesResult.error;
     if(levelResult.error)throw levelResult.error;
     const populations=new Map<string,number>();
-    if(!countryPopulationResult.error)for(const value of countryPopulationResult.data||[]){const row=value as {canonical_target_id?:string;metadata?:Record<string,unknown>|null};const population=Number(row.metadata?.population);if(row.canonical_target_id&&Number.isFinite(population))populations.set(row.canonical_target_id,population)}
-    const countries=(countriesResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,population:populations.get(String(row.target_id||""))||0}}).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>Number(b.population||0)-Number(a.population||0)||String(a.country_name||"").localeCompare(String(b.country_name||""),"tr-TR"));
+    if(!countryPopulationResult.error)for(const value of countryPopulationResult.data||[]){const row=value as {metadata?:Record<string,unknown>|null};const countryCode=String(row.metadata?.country_code||"").toUpperCase(),population=Number(row.metadata?.population);if(countryCode&&Number.isFinite(population))populations.set(countryCode,population)}
+    const countries=(countriesResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,population:populations.get(String(row.country_code||"").toUpperCase())||0}}).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>Number(b.population||0)-Number(a.population||0)||String(a.country_name||"").localeCompare(String(b.country_name||""),"tr-TR"));
     const nodes=Array.isArray(levelResult.data)?levelResult.data:[];
     const nodeById=new Map(nodes.map((node:{target_id?:string;parent_target_id?:string|null})=>[String(node.target_id||""),node]));
     const targetIds=nodes.map((node:{target_id?:string})=>node.target_id).filter(Boolean) as string[];
