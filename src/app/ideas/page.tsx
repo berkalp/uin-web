@@ -64,7 +64,7 @@ async function IdeasCatalogue(){
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
   const categoryCounts=enrichedCatalogue.reduce<Record<string,number>>((counts,item)=>{const id=item.content_type_id||item.item_kind;if(id)counts[id]=(counts[id]||0)+1;return counts},{});
-  categoryCounts.place=(categoryCounts.place||0)+Number((countResult.data as {cities?:number}|null)?.cities||0);
+  categoryCounts.place=Number((countResult.data as {cities?:number}|null)?.cities||categoryCounts.place||0);
   return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 

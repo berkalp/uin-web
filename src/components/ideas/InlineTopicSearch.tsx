@@ -141,7 +141,8 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const router=useRouter();
   const [catalogue,setCatalogue]=useState(initialCatalogue);
   useEffect(()=>{if(initialCatalogue.length)setCatalogue(initialCatalogue)},[initialCatalogue]);
-  useEffect(()=>{if(addingOnly)return;const controller=new AbortController();void fetch("/api/ideas/picker",{cache:"no-store",signal:controller.signal,headers:{"Cache-Control":"no-cache"}}).then(async response=>{const body=await response.json() as {catalogue?:Catalogue[]};if(response.ok&&body.catalogue?.length)setCatalogue(body.catalogue)}).catch(()=>{});return()=>controller.abort()},[addingOnly]);
+  const [liveCategoryCounts,setLiveCategoryCounts]=useState<Record<string,number>>({});
+  useEffect(()=>{if(addingOnly)return;const controller=new AbortController();void fetch("/api/ideas/category-counts",{cache:"no-store",signal:controller.signal,headers:{"Cache-Control":"no-cache"}}).then(async response=>{const body=await response.json() as {categoryCounts?:Record<string,number>};if(response.ok&&body.categoryCounts)setLiveCategoryCounts(body.categoryCounts)}).catch(()=>{});return()=>controller.abort()},[addingOnly]);
   const [placeBrowseIds,setPlaceBrowseIds]=useState<Set<string>>(new Set());
   const [activePlaceDistrictId,setActivePlaceDistrictId]=useState("");
   const params=useSearchParams();
@@ -172,14 +173,20 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
     if(baseKind==="place"){const place=placeIndex.get(item.canonical_target_id);return Boolean(place&&["Şehir","İl","Ülke"].includes(place.kind))}
     return true;
   });
-  const kindCounts=new Map(kinds.map(item=>{const live=browseableCatalogue.filter(card=>matches(card,item.id)).length,reported=Number(categoryCounts[item.id]||0);return[item.id,Math.max(reported,live)]}));
+  const kindCounts=new Map(kinds.map(item=>{const live=browseableCatalogue.filter(card=>matches(card,item.id)).length,reported=Number(liveCategoryCounts[item.id]??categoryCounts[item.id]??0);return[item.id,Math.max(reported,live)]}));
   const orderedKinds=kinds.map((item,index)=>({item,index})).sort((a,b)=>(kindCounts.get(b.item.id)??0)-(kindCounts.get(a.item.id)??0)||a.index-b.index).map(entry=>entry.item);
   const categoryTotal=orderedKinds.reduce((sum,item)=>sum+(kindCounts.get(item.id)??0),0);
+  async function loadCategoryCatalogue(next:Kind){
+    const response=await fetch(`/api/ideas/category-cards?kind=${encodeURIComponent(next)}`,{cache:"no-store",headers:{"Cache-Control":"no-cache"}});
+    const body=await response.json() as {catalogue?:Catalogue[];error?:string};
+    if(!response.ok)throw new Error(body.error||"Kategori kartları yüklenemedi.");
+    const incoming=body.catalogue||[];
+    setCatalogue(current=>{const incomingIds=new Set(incoming.map(card=>card.canonical_target_id));return [...incoming,...current.filter(card=>!incomingIds.has(card.canonical_target_id))]});
+  }
   async function refreshCatalogue(){
     try{
-      const response=await fetch("/api/ideas/picker",{cache:"no-store"});
-      const body=await response.json() as {catalogue?:Catalogue[]};
-      if(response.ok&&body.catalogue)setCatalogue(body.catalogue);
+      const currentType=contentTypes.find(type=>type.id===kind);
+      if(kind!=="all"&&currentType?.base_kind!=="place")await loadCategoryCatalogue(kind as Kind);
     }finally{
       router.refresh();
       setGeoRetry(n=>n+1);
@@ -191,7 +198,7 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const selectedType=contentTypes.find(type=>type.id===(selected?.contentTypeId||catalogue.find(item=>item.canonical_target_id===selected?.canonicalTargetId)?.content_type_id||selected?.itemKind));
   const selectedWords=cardWords(selectedType?.base_kind||selected?.itemKind||"activity",selectedType?.ui_labels);
   function reset(next:Kind|"all"){setSportFilter("");setLeagueFilter("");setDivisionFilter("");setCityFilter("");setCountryFilter("");setPage(1);setKind(next);setQuery("");setInternal([]);setExternal([]);setSelected(null);setSearched(false);setManual(false);setAdminDirectManual(false);setArtistAdding(false);setPreviewArtist(null);setPreviewBook(null);setPreviewGame(null);setMessage("")}
-  function chooseCategory(next:Kind|"all"){reset(next);setCategoryLanding(false)}
+  function chooseCategory(next:Kind|"all"){reset(next);setCategoryLanding(false);const nextType=contentTypes.find(type=>type.id===next);if(next!=="all"&&nextType?.base_kind!=="place"){setBusy(true);void loadCategoryCatalogue(next as Kind).catch(error=>setMessage(error instanceof Error?error.message:"Kategori kartları yüklenemedi.")).finally(()=>setBusy(false))}}
   function returnToCategories(){reset("all");setCategoryLanding(true)}
   function openCard(item:Catalogue,initialView:Selected["initialView"]="overview"){setSelected({catalogItemId:item.catalog_item_id||"",canonicalTargetId:item.canonical_target_id,title:commonIntentTitle(item.title),subtitle:item.subtitle,coverUrl:item.catalog_cover_url||item.cover_url,itemKind:contentTypes.find(type=>type.id===(item.content_type_id||cardKind(item)))?.base_kind||cardKind(item),contentTypeId:item.content_type_id||cardKind(item),aggregateWanting:Number(item.intent_people_count||0),aggregateDone:Number(item.experience_people_count||0),aggregateActive:eventCount(item),initialView})}
   function openPlace(p:Place){const card=catalogue.find(c=>c.canonical_target_id===p.id);if(card)openCard(card)}
