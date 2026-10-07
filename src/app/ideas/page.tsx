@@ -18,7 +18,7 @@ async function IdeasCatalogue(){
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
     supabase.from("uin_content_types").select("*").order("position").order("label"),
-    supabase.rpc("get_global_place_counts_v122"),
+    supabase.rpc("get_uin_category_counts_v129"),
   ]);
   let topicResult=initialTopicResult;
   if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:40,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
@@ -31,7 +31,7 @@ async function IdeasCatalogue(){
     const data:Array<Record<string,unknown>>=[];
     const batches=Array.from({length:Math.ceil(targetIds.length/100)},(_,index)=>targetIds.slice(index*100,(index+1)*100));
     for(let offset=0;offset<batches.length;offset+=3){
-      const pages=await Promise.all(batches.slice(offset,offset+3).map(ids=>supabase.rpc("get_uin_card_summary_v107",{p_target_ids:ids})));
+      const pages=await Promise.all(batches.slice(offset,offset+3).map(ids=>supabase.rpc("get_uin_card_summary_v129",{p_target_ids:ids})));
       const failed=pages.find(page=>page.error);
       if(failed?.error)return {data,error:failed.error};
       data.push(...pages.flatMap(page=>(page.data||[]) as Array<Record<string,unknown>>));
@@ -63,15 +63,7 @@ async function IdeasCatalogue(){
   const enrichedCatalogue=catalogue.map(item=>{const metadata=placements.get(item.canonical_target_id)?.metadata;const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);return {...item,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards}});
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
-  const categoryCountEntries=await Promise.all(((typeResult.data||[]) as Array<{id:string;base_kind:string;active:boolean}>).filter(type=>type.active).map(async type=>{
-    if(type.base_kind==="place")return [type.id,Number((countResult.data as {cities?:number}|null)?.cities||0)] as const;
-    let query=supabase.from("seed_catalog_items").select("id",{count:"exact",head:true}).eq("status","active").not("canonical_target_id","is",null);
-    if(type.id===type.base_kind)query=type.base_kind==="series"?query.in("item_kind",["series","video"]):query.eq("item_kind",type.base_kind);
-    else query=query.contains("metadata",{content_type_id:type.id});
-    const result=await query;
-    return [type.id,result.error?0:Number(result.count||0)] as const;
-  }));
-  const categoryCounts=Object.fromEntries(categoryCountEntries) as Record<string,number>;
+  const categoryCounts=(!countResult.error&&countResult.data&&typeof countResult.data==="object"?countResult.data:{}) as Record<string,number>;
   return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 

@@ -131,6 +131,7 @@ export type SeedRecord = {
 };
 
 export type PublicSeedRecord = {
+  canonical_target_id?: string | null;
   seed_id: string;
   seed_type_name: string;
   seed_type_slug: string;

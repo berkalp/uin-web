@@ -22,7 +22,7 @@ export async function GET(request:NextRequest){
   const cardPages=await Promise.all(Array.from({length:Math.ceil(ids.length/10)},(_,page)=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids.slice(page*10,(page+1)*10)})));
   const cardRows=cardPages.filter(page=>!page.error).flatMap(page=>(page.data||[]) as Row[]);
   const [summaryResult,ratingResult,socialResult,coverResult,hierarchyResult]=await Promise.all([
-    db.rpc("get_uin_card_summary_v107",{p_target_ids:ids}),
+    db.rpc("get_uin_card_summary_v129",{p_target_ids:ids}),
     db.rpc("get_uin_card_ratings_v85",{p_target_ids:ids}),
     db.rpc("get_uin_card_social_v87",{p_target_ids:ids}),
     db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids}),

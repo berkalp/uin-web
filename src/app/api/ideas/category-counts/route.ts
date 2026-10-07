@@ -5,6 +5,10 @@ type ContentType={id:string;base_kind:string;active:boolean};
 
 export async function GET(){
   const db=await createClient();
+  const canonical=await db.rpc("get_uin_category_counts_v129");
+  if(!canonical.error&&canonical.data&&typeof canonical.data==="object"){
+    return NextResponse.json({categoryCounts:canonical.data},{headers:{"Cache-Control":"private, no-store"}});
+  }
   const [typesResult,placeResult]=await Promise.all([
     db.from("uin_content_types").select("*").order("position").order("label"),
     db.rpc("get_global_place_counts_v122"),

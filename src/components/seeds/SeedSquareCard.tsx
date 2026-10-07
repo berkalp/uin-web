@@ -8,7 +8,7 @@ import type { PublicSeedRecord } from "@/utils/seeds";
 export default function SeedSquareCard({ seed }: { seed: PublicSeedRecord; isAuthenticated: boolean; isOwner: boolean }) {
   const words = targetLanguage(seed.seed_type_slug);
   const done = seed.status === "completed";
-  const href = `/seeds/${seed.seed_id}`;
+  const href = seed.canonical_target_id ? `/ideas?targetId=${encodeURIComponent(seed.canonical_target_id)}` : `/seeds/${seed.seed_id}`;
   return <UinCard title={seed.title} subtitle={seed.subtitle} coverUrl={seed.cover_url} href={href}
     category={words.action} icon={words.icon} badge={done ? "DENEYİM" : "ORTAK HEDEF"} tone={done ? "experience" : "target"}
     secondary={<TargetHighlight seedId={seed.seed_id} />}>
