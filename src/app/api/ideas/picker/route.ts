@@ -8,14 +8,14 @@ type SeedType={id:string;name:string;slug:string;icon:string};
 type CataloguePlacement={id:string;canonical_target_id:string|null;item_kind:string;metadata:Record<string,unknown>|null};
 export async function GET(){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)return NextResponse.json({error:'Kart eklemek için giriş yap.'},{status:401});
   const [topicResult,seedTypeResult,adminResult]=await Promise.all([
-    supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
+    supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
   ]);
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   let topicError=topicResult.error;
   for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=200){
-    const page=await supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:offset,p_target_id:null});
+    const page=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:offset,p_target_id:null});
     topicError=page.error;
     if(topicError)break;
     const rows=(page.data??[]) as DiscoverPersonalIntent[];

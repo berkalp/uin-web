@@ -14,16 +14,16 @@ type CataloguePlacement = { id:string; canonical_target_id:string|null; item_kin
 async function IdeasCatalogue(){
   const supabase=await createClient();
   const [topicResult,seedTypeResult,adminResult,typeResult,countResult]=await Promise.all([
-    supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
+    supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
     supabase.from("uin_content_types").select("*").order("position").order("label"),
-    supabase.rpc("get_uin_content_type_counts_v120"),
+    supabase.rpc("get_global_place_counts_v122"),
   ]);
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   const topicError=topicResult.error;
   for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=600){
-    const pages=await Promise.all(Array.from({length:3},(_,index)=>supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:offset+(index*200),p_target_id:null})));
+    const pages=await Promise.all(Array.from({length:3},(_,index)=>supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:offset+(index*200),p_target_id:null})));
     let reachedEnd=false;
     for(const page of pages){
       if(page.error){reachedEnd=true;break}
@@ -72,7 +72,8 @@ async function IdeasCatalogue(){
   const enrichedCatalogue=catalogue.map(item=>{const metadata=placements.get(item.canonical_target_id)?.metadata;const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);return {...item,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards}});
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
-  const categoryCounts=Object.fromEntries(((countResult.data||[]) as Array<{content_type_id:string;count:number}>).map(row=>[row.content_type_id,Number(row.count||0)]));
+  const categoryCounts=enrichedCatalogue.reduce<Record<string,number>>((counts,item)=>{const id=item.content_type_id||item.item_kind;if(id)counts[id]=(counts[id]||0)+1;return counts},{});
+  categoryCounts.place=(categoryCounts.place||0)+Number((countResult.data as {cities?:number}|null)?.cities||0);
   return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 

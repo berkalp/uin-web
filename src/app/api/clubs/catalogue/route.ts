@@ -17,7 +17,7 @@ export async function GET() {
     };
 
     for (let offset = 0; ; offset += 200) {
-      const result = await db.rpc('get_uin_catalogue_v64', {
+      const result = await db.rpc('get_uin_catalogue_fast_v122', {
         p_query: null,
         p_limit: 200,
         p_offset: offset,
