@@ -81,8 +81,13 @@ with covers(district,lat,lon) as (values
  ('Sultanbeyli',40.9670242,29.2671314),('Sultangazi',41.1043344,28.8614367),('Tuzla',40.8161732,29.3034194),
  ('Ümraniye',41.0256362,29.0963049),('Üsküdar',41.0265498,29.0151321),('Zeytinburnu',40.9898653,28.9037467)
 )
-update public.canonical_targets target set editorial_cover_url=coalesce(target.editorial_cover_url,
-  'https://staticmap.openstreetmap.de/staticmap.php?center='||covers.lat||','||covers.lon||'&zoom=12&size=900x600&maptype=mapnik&markers='||covers.lat||','||covers.lon||',red-pushpin'),updated_at=now()
+update public.canonical_targets target set editorial_cover_url=case
+  when nullif(btrim(target.editorial_cover_url),'') is null
+    or target.editorial_cover_url like 'https://staticmap.openstreetmap.de/%'
+  then 'https://tile.openstreetmap.org/12/'
+    ||floor((covers.lon+180)/360*4096)::integer||'/'
+    ||floor((1-ln(tan(radians(covers.lat))+1/cos(radians(covers.lat)))/pi())/2*4096)::integer||'.png'
+  else target.editorial_cover_url end,updated_at=now()
 from public.uin_place_nodes_v123 node join covers on covers.district=node.district
 where node.scope='district' and node.city='İstanbul' and target.id=node.canonical_target_id;
 
