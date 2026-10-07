@@ -22,13 +22,18 @@ async function IdeasCatalogue(){
   ]);
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   let topicError=topicResult.error;
-  for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=200){
-    const page=await supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:offset,p_target_id:null});
-    topicError=page.error;
+  for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=1000){
+    const pages=await Promise.all(Array.from({length:5},(_,index)=>supabase.rpc("get_uin_catalogue_v64",{p_query:null,p_limit:200,p_offset:offset+(index*200),p_target_id:null})));
+    const failed=pages.find(page=>page.error);
+    topicError=failed?.error??null;
     if(topicError)break;
-    const rows=(page.data??[]) as DiscoverPersonalIntent[];
-    topics.push(...rows);
-    if(rows.length<200)break;
+    let reachedEnd=false;
+    for(const page of pages){
+      const rows=(page.data??[]) as DiscoverPersonalIntent[];
+      topics.push(...rows);
+      if(rows.length<200){reachedEnd=true;break}
+    }
+    if(reachedEnd)break;
   }
   const seedTypes=(seedTypeResult.data??[]) as SeedType[];
   const targetIds=topics.map(item=>item.canonical_target_id);
