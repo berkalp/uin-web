@@ -10,19 +10,11 @@ language sql stable security definer set search_path=public,pg_temp as $$
   with local_counts as materialized (
     select country_code,count(*)::bigint city_count
     from public.uin_place_nodes_v123 where scope='city' group by country_code
-  ), global_counts as materialized (
-    select item.metadata->>'country_code' country_code,count(*)::bigint city_count
-    from public.seed_catalog_items item
-    where item.status='active' and item.metadata->>'global_place_catalogue'='true'
-      and item.metadata->>'global_place_kind'='city'
-    group by item.metadata->>'country_code'
   )
   select node.country_code,node.country_name,node.canonical_target_id,
-    case when node.country_code='TR' then coalesce(local_counts.city_count,0)
-      else coalesce(global_counts.city_count,0) end
+    coalesce(local_counts.city_count,0)
   from public.uin_place_nodes_v123 node
   left join local_counts using(country_code)
-  left join global_counts using(country_code)
   where node.scope='country'
   order by public.canonical_normalize_v31(node.country_name),node.country_code;
 $$;
