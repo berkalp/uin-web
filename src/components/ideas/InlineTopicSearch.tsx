@@ -140,6 +140,8 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   async function saveType(){setBusy(true);setMessage("");try{const savedType:ContentType={id:typeId,label:typeLabel,icon:typeIcon,base_kind:typeBase,active:typeActive,ui_labels:{...typeLabels}};const response=await fetch("/api/ideas/types",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(savedType)});const body=await response.json();if(!response.ok)throw new Error(body.error);setContentTypes(current=>current.some(type=>type.id===typeId)?current.map(type=>type.id===typeId?savedType:type):[...current,savedType]);setManageTypes(false);refreshCatalogue()}catch(error){setMessage(error instanceof Error?error.message:"Tür kaydedilemedi.")}finally{setBusy(false)}}
   const router=useRouter();
   const [catalogue,setCatalogue]=useState(initialCatalogue);
+  useEffect(()=>{if(initialCatalogue.length)setCatalogue(initialCatalogue)},[initialCatalogue]);
+  useEffect(()=>{if(initialCatalogue.length||addingOnly)return;const controller=new AbortController();void fetch("/api/ideas/picker",{cache:"no-store",signal:controller.signal,headers:{"Cache-Control":"no-cache"}}).then(async response=>{const body=await response.json() as {catalogue?:Catalogue[]};if(response.ok&&body.catalogue?.length)setCatalogue(body.catalogue)}).catch(()=>{});return()=>controller.abort()},[addingOnly,initialCatalogue.length]);
   const [placeBrowseIds,setPlaceBrowseIds]=useState<Set<string>>(new Set());
   const [activePlaceDistrictId,setActivePlaceDistrictId]=useState("");
   const params=useSearchParams();
@@ -170,7 +172,7 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
     if(baseKind==="place"){const place=placeIndex.get(item.canonical_target_id);return Boolean(place&&["Şehir","İl","Ülke"].includes(place.kind))}
     return true;
   });
-  const kindCounts=new Map(kinds.map(item=>[item.id,categoryCounts[item.id]??browseableCatalogue.filter(card=>matches(card,item.id)).length]));
+  const kindCounts=new Map(kinds.map(item=>{const live=browseableCatalogue.filter(card=>matches(card,item.id)).length,reported=Number(categoryCounts[item.id]||0);return[item.id,reported>0?reported:live]}));
   const orderedKinds=kinds.map((item,index)=>({item,index})).sort((a,b)=>(kindCounts.get(b.item.id)??0)-(kindCounts.get(a.item.id)??0)||a.index-b.index).map(entry=>entry.item);
   const categoryTotal=orderedKinds.reduce((sum,item)=>sum+(kindCounts.get(item.id)??0),0);
   async function refreshCatalogue(){

@@ -7,11 +7,13 @@ import {readSeriesListMetadata} from '@/utils/seriesListMetadata';
 type SeedType={id:string;name:string;slug:string;icon:string};
 type CataloguePlacement={id:string;canonical_target_id:string|null;item_kind:string;metadata:Record<string,unknown>|null};
 export async function GET(){const supabase=await createClient();const {data:{user}}=await supabase.auth.getUser();if(!user)return NextResponse.json({error:'Kart eklemek için giriş yap.'},{status:401});
-  const [topicResult,seedTypeResult,adminResult]=await Promise.all([
+  const [initialTopicResult,seedTypeResult,adminResult]=await Promise.all([
     supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null}),
     supabase.rpc("get_active_seed_types"),
     supabase.rpc("get_admin_role"),
   ]);
+  let topicResult=initialTopicResult;
+  if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:200,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   let topicError=topicResult.error;
   for(let offset=topics.length;!topicError&&offset>0&&offset%200===0;offset+=200){
