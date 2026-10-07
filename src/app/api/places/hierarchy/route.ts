@@ -19,9 +19,20 @@ export async function GET(request:NextRequest){
     if(levelResult.error)throw levelResult.error;
     const nodes=Array.isArray(levelResult.data)?levelResult.data:[];
     const targetIds=nodes.map((node:{target_id?:string})=>node.target_id).filter(Boolean);
-    const cardsResult=includeCards&&targetIds.length?await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:targetIds}):{data:[],error:null};
+    const [cardsResult,placementResult]=await Promise.all([
+      includeCards&&targetIds.length?db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:targetIds}):Promise.resolve({data:[],error:null}),
+      includeCards&&targetIds.length?db.from("seed_catalog_items").select("canonical_target_id,metadata").in("canonical_target_id",targetIds):Promise.resolve({data:[],error:null}),
+    ]);
     if(cardsResult.error)throw cardsResult.error;
-    return NextResponse.json({countries:countriesResult.data||[],nodes,cards:cardsResult.data||[]},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
+    const coordinates=new Map<string,{latitude:number;longitude:number}>();
+    if(!placementResult.error)for(const value of placementResult.data||[]){
+      const row=value as {canonical_target_id?:string;metadata?:Record<string,unknown>|null};
+      const latitude=Number(row.metadata?.latitude??row.metadata?.lat);
+      const longitude=Number(row.metadata?.longitude??row.metadata?.lng??row.metadata?.lon);
+      if(row.canonical_target_id&&Number.isFinite(latitude)&&Number.isFinite(longitude))coordinates.set(row.canonical_target_id,{latitude,longitude});
+    }
+    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>;return {...row,...coordinates.get(String(row.canonical_target_id||""))}});
+    return NextResponse.json({countries:countriesResult.data||[],nodes,cards},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
   }catch(error){
     const message=error&&typeof error==="object"&&"message" in error?String(error.message):"Yer hiyerarşisi yüklenemedi.";
     return NextResponse.json({error:message},{status:502});
