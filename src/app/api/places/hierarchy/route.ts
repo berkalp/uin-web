@@ -19,6 +19,7 @@ export async function GET(request:NextRequest){
     if(countriesResult.error)throw countriesResult.error;
     if(levelResult.error)throw levelResult.error;
     const nodes=Array.isArray(levelResult.data)?levelResult.data:[];
+    const nodeById=new Map(nodes.map((node:{target_id?:string;parent_target_id?:string|null})=>[String(node.target_id||""),node]));
     const targetIds=nodes.map((node:{target_id?:string})=>node.target_id).filter(Boolean);
     const [cardsResult,placementResult]=await Promise.all([
       includeCards&&targetIds.length?db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:targetIds}):Promise.resolve({data:[],error:null}),
@@ -33,7 +34,7 @@ export async function GET(request:NextRequest){
       if(row.canonical_target_id&&Number.isFinite(latitude)&&Number.isFinite(longitude))coordinates.set(row.canonical_target_id,{latitude,longitude});
     }
     const coverUrls=await placeCoverUrls(nodes as PlaceCoverNode[]);
-    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>,id=String(row.canonical_target_id||"");return {...row,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,...coordinates.get(id)}});
+    const cards=(cardsResult.data||[]).map((value:unknown)=>{const row=value as Record<string,unknown>,id=String(row.canonical_target_id||""),node=nodeById.get(id);return {...row,parent_target_id:row.parent_target_id||node?.parent_target_id||null,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,...coordinates.get(id)}});
     return NextResponse.json({countries:countriesResult.data||[],nodes,cards},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
   }catch(error){
     const message=error&&typeof error==="object"&&"message" in error?String(error.message):"Yer hiyerarşisi yüklenemedi.";
