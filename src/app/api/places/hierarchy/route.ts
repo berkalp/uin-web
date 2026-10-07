@@ -7,6 +7,8 @@ import cityPopulationCatalogue from "@/data/cityPopulationCatalogue.json";
 const CITY_POPULATIONS=cityPopulationCatalogue.bySource as Record<string,number>;
 const CITIES_BY_COUNTRY=cityPopulationCatalogue.citiesByCountry as Record<string,string[]>;
 const TURKEY_CITY_POPULATIONS=cityPopulationCatalogue.turkeyByTitle as Record<string,number>;
+const cityNameKey=(value:string)=>value.normalize("NFKD").replace(/[\u0300-\u036f]/g,"").replace(/ı/g,"i").toLocaleLowerCase("tr-TR");
+const TURKEY_CITY_POPULATIONS_NORMALIZED=Object.fromEntries(Object.entries(TURKEY_CITY_POPULATIONS).map(([title,population])=>[cityNameKey(title),population]));
 
 export async function GET(request:NextRequest){
   try{
@@ -38,7 +40,7 @@ export async function GET(request:NextRequest){
       const parentTargetId=String((countriesResult.data||[]).find((value:Record<string,unknown>)=>String(value.country_code||"")===country)?.target_id||"")||null;
       nodes=sourceKeys.map(sourceKey=>{const row=bySource.get(sourceKey);return row?{target_id:row.canonical_target_id,title:row.canonical_title,scope:"city",parent_target_id:parentTargetId,source_key:sourceKey,child_count:0,population:CITY_POPULATIONS[sourceKey]||0}:null}).filter(Boolean);
     }else if(!city&&!district){
-      nodes=nodes.map((value:Record<string,unknown>)=>({...value,population:country==="TR"?(TURKEY_CITY_POPULATIONS[String(value.title||"")]||0):(CITY_POPULATIONS[String(value.source_key||"")]||0)})).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>citySort==="population_asc"?Number(a.population||0)-Number(b.population||0):Number(b.population||0)-Number(a.population||0));
+      nodes=nodes.map((value:Record<string,unknown>)=>({...value,population:country==="TR"?(TURKEY_CITY_POPULATIONS_NORMALIZED[cityNameKey(String(value.title||""))]||0):(CITY_POPULATIONS[String(value.source_key||"")]||0)})).sort((a:Record<string,unknown>,b:Record<string,unknown>)=>citySort==="population_asc"?Number(a.population||0)-Number(b.population||0):Number(b.population||0)-Number(a.population||0));
     }
     const nodeById=new Map(nodes.map((node:{target_id?:string;parent_target_id?:string|null})=>[String(node.target_id||""),node]));
     const targetIds=nodes.map((node:{target_id?:string})=>node.target_id).filter(Boolean) as string[];
