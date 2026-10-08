@@ -27,14 +27,15 @@ export async function GET() {
   const plannedResources = new Set([...(plans.data ?? []).map((row) => row.id), ...(intents.data ?? []).map((row) => row.id)]);
   const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))];
   const plansByTarget = sourceRows.filter((row) => row.resource_id && plannedResources.has(row.resource_id));
+  const countTypes = (entries: Array<[string | null | undefined, string | null | undefined]>) => [...new Map(entries.filter((entry): entry is [string, string | null | undefined] => Boolean(entry[0]))).values()].reduce<Record<string, number>>((counts, type) => { const id = type || "activity"; counts[id] = (counts[id] || 0) + 1; return counts; }, {});
   return NextResponse.json({
     wishes: unique([...seedRows.filter((row) => row.status === "active").map((row) => row.canonical_target_id), ...personalRows.map((row) => row.target_id)]),
     plans: unique(plansByTarget.map((row) => row.target_id)),
     experiences: unique(seedRows.filter((row) => row.status === "completed").map((row) => row.canonical_target_id)),
     counts: {
-      wishes: personalRows.reduce<Record<string, number>>((counts, row) => { const id = row.type_id || "activity"; counts[id] = (counts[id] || 0) + 1; return counts; }, {}),
-      plans: plansByTarget.reduce<Record<string, number>>((counts, row) => { const id = row.type_id || "activity"; counts[id] = (counts[id] || 0) + 1; return counts; }, {}),
-      experiences: seedRows.filter((row) => row.status === "completed").reduce<Record<string, number>>((counts, row) => { const id = presentationType.get(row.seed_id) || "activity"; counts[id] = (counts[id] || 0) + 1; return counts; }, {}),
+      wishes: countTypes([...seedRows.filter((row) => row.status === "active").map((row) => [row.canonical_target_id, presentationType.get(row.seed_id)] as [string | null | undefined, string | null | undefined]), ...personalRows.map((row) => [row.target_id, row.type_id] as [string | null | undefined, string | null | undefined])]),
+      plans: countTypes(plansByTarget.map((row) => [row.target_id, row.type_id])),
+      experiences: countTypes(seedRows.filter((row) => row.status === "completed").map((row) => [row.canonical_target_id, presentationType.get(row.seed_id)])),
     },
   }, { headers: { "Cache-Control": "private, no-store" } });
 }
