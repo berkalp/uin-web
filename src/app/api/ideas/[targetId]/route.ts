@@ -51,14 +51,17 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   // The v81 readers follow the full card hierarchy (including legacy aliases),
   // so every modal uses the same descendant set as the catalogue summary.
   const identityTargetIds=[targetId];
-  const [cardResult,contextResult,peopleResults,eventResults,reviewResults,authResult]=await Promise.all([
+  const [cardResult,contextResult,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
     supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v81",{p_target_id:id,p_group:"intent",p_limit:100,p_offset:0}))),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_events_v81",{p_target_id:id}))),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v81",{p_target_id:id,p_group:"experience",p_limit:100,p_offset:0}))),
     supabase.auth.getUser(),
   ]);
+  // Run the hierarchy readers one after another. Executing three recursive
+  // readers concurrently can exhaust the database statement budget on large
+  // place trees and intermittently return a timeout.
+  const peopleResults=[await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0})];
+  const reviewResults=[await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0})];
+  const eventResults=[await supabase.rpc("get_uin_card_events_v81",{p_target_id:targetId})];
   const context=(contextResult.data||{}) as Record<string,unknown>;
   const commonCard=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
   const card=commonCard||(typeof context.title==="string"&&context.title.trim()?{
