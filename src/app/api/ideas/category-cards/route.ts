@@ -20,13 +20,15 @@ export async function GET(request:NextRequest){
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
   if(!ids.length)return NextResponse.json({catalogue:[]},{headers:{"Cache-Control":"private, no-store"}});
   const cardPages=await Promise.all(Array.from({length:Math.ceil(ids.length/10)},(_,page)=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids.slice(page*10,(page+1)*10)})));
-  const cardRows=cardPages.filter(page=>!page.error).flatMap(page=>(page.data||[]) as Row[]);
+  if(cardPages.some(page=>page.error))return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi."},{status:500});
+  const cardRows=cardPages.flatMap(page=>(page.data||[]) as Row[]);
   const [ratingResult,socialResult,coverResult,hierarchyResult]=await Promise.all([
     db.rpc("get_uin_card_ratings_v85",{p_target_ids:ids}),
     db.rpc("get_uin_card_social_v87",{p_target_ids:ids}),
     db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids}),
     db.rpc("get_uin_card_hierarchy_v81",{p_target_ids:ids}),
   ]);
+  if([ratingResult,socialResult,coverResult,hierarchyResult].some(result=>result.error))return NextResponse.json({error:"Kategori kartı ayrıntıları yüklenemedi."},{status:500});
   const itemByTarget=new Map(items.map(item=>[String(item.canonical_target_id||""),item]));
   const ratings=new Map(((ratingResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const social=new Map(((socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
