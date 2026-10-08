@@ -174,7 +174,8 @@ test("place admin edits rehydrate the stored hierarchy before saving", () => {
   assert.match(client, /const fallbackPlaceKind=geo\?\.adminKind\|\|browseAdminPlaceKind\(geo\?\.kind\|\|""\)/);
   assert.match(client, /const placeHierarchy=adminPlaceHierarchyFrom\(metadata,fallbackPlaceKind,fallbackPlaceParent\)/);
   assert.match(client, /setAdminPlaceKind\(placeHierarchy\.kind\);setAdminParent\(placeHierarchy\.parentTargetId\)/);
-  assert.match(client, /const adminKind=browseAdminPlaceKind\(node\.scope\);return\{[^}]*adminKind/);
+  assert.match(client, /const adminKind=browseAdminPlaceKind\(node\.scope\)/);
+  assert.match(client, /const parentTargetId=node\.parent_target_id\|\|\(node\.scope==="district"\?selection\.cityTargetId:""\)/);
   assert.match(client, /disabled=\{busy\|\|adminLoading\|\|!adminTitle\.trim\(\)/);
   assert.match(client, /UUID_PATTERN\.test\(hierarchy\.parent_target_id\)/);
   assert.match(client, /UUID_PATTERN\.test\(hierarchy\.parent_target_id\)\?hierarchy\.parent_target_id:fallbackParentTargetId/);
