@@ -75,8 +75,8 @@ function browseAdminPlaceKind(scope:string){return scope==="city"?"Şehir":scope
 function adminPlaceHierarchyFrom(metadata:AdminCardMetadata,fallbackKind:string,fallbackParentTargetId:string){
   const hierarchy=metadata.place_hierarchy;
   if(!hierarchy||typeof hierarchy!=="object"||Array.isArray(hierarchy))return{kind:fallbackKind,parentTargetId:fallbackParentTargetId};
-  const kind=typeof hierarchy.kind==="string"&&ADMIN_PLACE_KINDS.has(hierarchy.kind)?hierarchy.kind:"";
-  const parentTargetId=typeof hierarchy.parent_target_id==="string"&&UUID_PATTERN.test(hierarchy.parent_target_id)?hierarchy.parent_target_id:"";
+  const kind=typeof hierarchy.kind==="string"&&ADMIN_PLACE_KINDS.has(hierarchy.kind)?hierarchy.kind:fallbackKind;
+  const parentTargetId=typeof hierarchy.parent_target_id==="string"&&UUID_PATTERN.test(hierarchy.parent_target_id)?hierarchy.parent_target_id:fallbackParentTargetId;
   return{kind,parentTargetId};
 }
 const ACTIVITY_CATEGORY_LABELS:Record<string,string>={"Business Activity":"İş ve Üretim","Community & Volunteering":"Topluluk ve Gönüllülük","Creative Activity":"Yaratıcı Aktiviteler","Culture & Events":"Kültür ve Etkinlikler","Family & Parenting":"Aile ve Ebeveynlik","Food & Drink":"Yeme ve İçme","Games & Play":"Oyun ve Eğlence","Health & Wellbeing":"Sağlık ve İyi Yaşam","Learning Activity":"Öğrenme","Outdoor & Nature":"Açık Hava ve Doğa","Personal Growth":"Kişisel Gelişim","Social Activity":"Sosyal Aktiviteler","Sport Activity":"Spor","Travel Activity":"Seyahat"};
