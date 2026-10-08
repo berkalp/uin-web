@@ -40,6 +40,8 @@ test("global Library search works without preloading the entire catalogue", () =
 
   assert.doesNotMatch(route, /query\.length\s*<\s*2\s*\|\|\s*!seedTypeId/);
   assert.match(route, /p_seed_type_id:\s*seedTypeId\s*\|\|\s*null/);
+  assert.match(route, /if\s*\(catalogue\.error\)[^\n]*status:\s*503/);
+  assert.match(route, /if\s*\(missingIds\.length\)[^\n]*status:\s*503/);
   assert.match(client, /fetch\(`\/api\/ideas\?q=\$\{encodeURIComponent\(query\.trim\(\)\)\}`/);
   assert.match(client, /Kütüphanenin tamamını aynı anda yüklemek yerine/);
 });

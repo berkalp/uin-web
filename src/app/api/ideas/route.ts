@@ -29,16 +29,17 @@ export async function GET(request: NextRequest) {
   if (items.length) {
     const ids = items.map(row => clean(row.catalogItemId, 80)).filter(Boolean);
     const catalogue = ids.length ? await supabase.from("seed_catalog_items").select("id,item_kind,metadata").in("id", ids) : { data: [], error: null };
-    if (!catalogue.error) {
-      const kinds = new Map((catalogue.data ?? []).map(row => [row.id, { itemKind: row.item_kind, metadata: row.metadata as Record<string, unknown> | null }]));
-      items = items.map(row => ({ ...row, itemKind: kinds.get(clean(row.catalogItemId, 80))?.itemKind || null }));
-      if (requestedKind && KINDS.has(requestedKind)) items = items.filter(row => {
-          const stored = clean(row.itemKind, 40).toLocaleLowerCase("tr-TR");
-          if (requestedKind === "series") return stored === "series" || stored === "video";
-          if (requestedKind === "movie") return stored === "movie";
-          return !stored || stored === requestedKind;
-        });
-    }
+    if (catalogue.error) return NextResponse.json({ error: "Kart türleri yüklenemedi." }, { status: 503 });
+    const kinds = new Map((catalogue.data ?? []).map(row => [row.id, { itemKind: row.item_kind, metadata: row.metadata as Record<string, unknown> | null }]));
+    const missingIds = [...new Set(ids)].filter(id => !kinds.has(id));
+    if (missingIds.length) return NextResponse.json({ error: "Bazı kart türleri çözümlenemedi." }, { status: 503 });
+    items = items.map(row => ({ ...row, itemKind: kinds.get(clean(row.catalogItemId, 80))?.itemKind || null }));
+    if (requestedKind && KINDS.has(requestedKind)) items = items.filter(row => {
+        const stored = clean(row.itemKind, 40).toLocaleLowerCase("tr-TR");
+        if (requestedKind === "series") return stored === "series" || stored === "video";
+        if (requestedKind === "movie") return stored === "movie";
+        return stored === requestedKind;
+      });
   }
   return NextResponse.json({ items });
 }
