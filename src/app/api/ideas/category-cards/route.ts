@@ -40,7 +40,7 @@ export async function GET(request:NextRequest){
   // it returns every requested target except admin-hidden cards for non-admins.
   // All four projections depend only on the placement ids. Running them in
   // parallel removes the old visibility -> counters -> enrichment waterfall.
-  const [initialVisibilityResult,initialCardsResult,socialResult,hierarchyResult]=await Promise.all([
+  const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
     db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids}),
     db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
     // get_uin_card_social_v87 already includes the rating projection. Calling
@@ -76,15 +76,22 @@ export async function GET(request:NextRequest){
     console.error("category cards missing summary metrics",{kind,invalidMetricIds});
     return NextResponse.json({error:"Bazı kategori kartlarının sayaçları eksik geldi. Lütfen tekrar dene."},{status:503});
   }
-  if([socialResult,hierarchyResult].some(result=>result.error)){
-    console.error("category card enrichment unavailable",{kind,social:socialResult.error,hierarchy:hierarchyResult.error});
-    return NextResponse.json({error:"Kategori kartı ayrıntıları yüklenemedi."},{status:503});
-  }
+  // Ratings/followers and parent edges decorate the cards, but neither owns
+  // the canonical counters. Retry each projection independently so a brief
+  // timeout in one does not repeat the other. If the retry still fails, keep
+  // serving the verified catalogue summaries with empty enrichment instead of
+  // turning a healthy category into a 503 (or inventing counter values).
+  const [socialResult,hierarchyResult]=await Promise.all([
+    initialSocialResult.error?db.rpc("get_uin_card_social_v87",{p_target_ids:ids}):Promise.resolve(initialSocialResult),
+    initialHierarchyResult.error?db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:ids}):Promise.resolve(initialHierarchyResult),
+  ]);
+  if(socialResult.error)console.warn("category card social enrichment unavailable",{kind,error:socialResult.error});
+  if(hierarchyResult.error)console.warn("category card hierarchy enrichment unavailable",{kind,error:hierarchyResult.error});
   const itemByTarget=new Map<string,Row>();
   items.forEach(item=>{const id=String(item.canonical_target_id||"");if(id&&!itemByTarget.has(id))itemByTarget.set(id,item)});
-  const social=new Map(((socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
+  const social=new Map(((socialResult.error?[]:socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const covers=new Map(visibilityRows.map(row=>[String(row.target_id||""),Number(row.cover_position_y||50)]));
-  const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
+  const hierarchy=new Map(((hierarchyResult.error?[]:hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
     const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),stats=social.get(id),tree=hierarchy.get(id);
     const imdb=readImdbMetadata(item);const book=readBookListMetadata(item);const series=readSeriesListMetadata(item);

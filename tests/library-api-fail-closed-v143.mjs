@@ -35,7 +35,7 @@ test("category cards reuse social enrichment and throttle repeat catalogue loads
   const route = read("src/app/api/ideas/category-cards/route.ts");
   const client = read("src/components/ideas/InlineTopicSearch.tsx");
 
-  const parallelStart = route.indexOf("const [initialVisibilityResult,initialCardsResult,socialResult,hierarchyResult]=await Promise.all([");
+  const parallelStart = route.indexOf("const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([");
   const retryStart = route.indexOf("let visibilityResult=initialVisibilityResult");
   assert.ok(parallelStart >= 0 && retryStart > parallelStart, "all placement-id projections must start in one parallel batch");
   const initialBatch = route.slice(parallelStart, retryStart);
@@ -46,8 +46,14 @@ test("category cards reuse social enrichment and throttle repeat catalogue loads
   assert.doesNotMatch(initialBatch, /p_target_ids:visibleIds/);
   assert.match(route, /let visibilityResult=initialVisibilityResult;\s*if\(visibilityResult\.error\)visibilityResult=await db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:ids\}\)/);
   assert.match(route, /let cardsResult=initialCardsResult;\s*if\(cardsResult\.error\)cardsResult=await db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:ids\}\)/);
+  assert.match(route, /const \[socialResult,hierarchyResult\]=await Promise\.all\(\[/);
+  assert.match(route, /initialSocialResult\.error\?db\.rpc\("get_uin_card_social_v87",\{p_target_ids:ids\}\):Promise\.resolve\(initialSocialResult\)/);
+  assert.match(route, /initialHierarchyResult\.error\?db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:ids\}\):Promise\.resolve\(initialHierarchyResult\)/);
+  assert.match(route, /socialResult\.error\?\[\]:socialResult\.data\|\|\[\]/);
+  assert.match(route, /hierarchyResult\.error\?\[\]:hierarchyResult\.data\|\|\[\]/);
+  assert.doesNotMatch(route, /Kategori kartı ayrıntıları yüklenemedi/);
   assert.doesNotMatch(route, /db\.rpc\("get_uin_card_ratings_v85"/);
-  assert.match(route, /const social=new Map\(\(\(socialResult\.data\|\|\[\]\)/);
+  assert.match(route, /const social=new Map\(\(\(socialResult\.error\?\[\]:socialResult\.data\|\|\[\]\)/);
   assert.match(route, /average_rating:stats\?\.average_rating==null\?null:Number\(stats\.average_rating\)/);
 assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"\}/);
   assert.match(route, /return NextResponse\.json\(\{catalogue\},\{headers:cacheHeaders\}\)/);
