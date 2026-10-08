@@ -82,7 +82,8 @@ export async function GET(request:NextRequest){
       seen.add(id);const parent=String(nodeById.get(id)?.parent_target_id||"");
       return parent?resolvedCoordinates(parent,seen):undefined;
     }
-    const coverUrls=await placeCoverUrls(nodes as PlaceCoverNode[]);
+    const existingCoverIds=new Set(cardRows.filter(row=>row.catalog_cover_url||row.cover_url).map(row=>String(row.canonical_target_id||"")));
+    const coverUrls=await placeCoverUrls((nodes as PlaceCoverNode[]).filter(node=>!existingCoverIds.has(node.target_id)));
     if(includeCards&&cardRows.length<targetIds.length){
       const existingIds=new Set(cardRows.map(row=>String(row.canonical_target_id||"")));
       for(const value of nodes as Record<string,unknown>[]){
