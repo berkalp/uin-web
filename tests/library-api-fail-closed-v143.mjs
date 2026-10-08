@@ -49,10 +49,21 @@ test("global Library search works without preloading the entire catalogue", () =
 test("personal child cards bypass Library-only hierarchy hiding", () => {
   const source = read("src/components/ideas/InlineTopicSearch.tsx");
 
-  assert.match(source, /scope==="library"&&effectiveKind!=="place"&&item\.parent_target_id/);
+  assert.match(source, /scope==="library"&&effectiveKind!=="place"&&hasSameCategoryParent\(item\)/);
   assert.match(source, /scope==="library"&&cardKind\(item\)==="club"/);
   assert.match(source, /scope==="library"&&\(kind==="all"\|\|Boolean\(categoryCardsError\)\)\?\[\]/);
   assert.match(source, /!matches\(card,next\)/);
+});
+
+test("cross-category source relations do not hide browseable cards", () => {
+  const source = read("src/components/ideas/InlineTopicSearch.tsx");
+  const route = read("src/app/api/ideas/category-cards/route.ts");
+
+  assert.match(source, /hasSameCategoryParent=.*parent\.content_type_id\|\|cardKind\(parent\).*item\.content_type_id\|\|cardKind\(item\)/);
+  assert.doesNotMatch(source, /if\(item\.parent_target_id\)return false/);
+  assert.match(route, /content_type_id:placementType/);
+  assert.match(route, /parentItem&&parentPlacementType===placementType\?rawParentId:null/);
+  assert.doesNotMatch(route, /content_type_id:String\([^\n]*card\.content_type_id/);
 });
 
 test("unresolved category counts render as loading or unavailable, never fake zero", () => {
