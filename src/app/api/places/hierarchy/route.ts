@@ -49,7 +49,7 @@ export async function GET(request:NextRequest){
       includeCards&&targetIds.length?db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:targetIds}):Promise.resolve({data:[],error:null}),
       includeCards&&coordinateTargetIds.length?db.from("seed_catalog_items").select("canonical_target_id,metadata").in("canonical_target_id",coordinateTargetIds):Promise.resolve({data:[],error:null}),
       includeCards&&targetIds.length?db.rpc("get_uin_card_social_v87",{p_target_ids:targetIds}):Promise.resolve({data:[],error:null}),
-      includeCards&&targetIds.length?(async()=>{const data:Record<string,unknown>[]=[];for(let offset=0;offset<targetIds.length;offset+=10){const page=await db.rpc("get_uin_card_summary_v129",{p_target_ids:targetIds.slice(offset,offset+10)});if(page.error)return{data,error:page.error};data.push(...((page.data||[]) as Record<string,unknown>[]))}return{data,error:null}})():Promise.resolve({data:[],error:null}),
+      includeCards&&targetIds.length?(async()=>{const batches=Array.from({length:Math.ceil(targetIds.length/10)},(_,index)=>targetIds.slice(index*10,(index+1)*10));const pages=await Promise.all(batches.map(ids=>db.rpc("get_uin_card_summary_v129",{p_target_ids:ids})));const failed=pages.find(page=>page.error);return failed?.error?{data:[],error:failed.error}:{data:pages.flatMap(page=>(page.data||[]) as Record<string,unknown>[]),error:null}})():Promise.resolve({data:[],error:null}),
     ]);
     let cardRows=(cardsResult.data||[]) as Record<string,unknown>[];
     if(cardsResult.error&&includeCards){
