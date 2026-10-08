@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
 type SeedRow = { seed_id?: string | null; canonical_target_id?: string | null; status?: string | null };
@@ -6,7 +6,7 @@ type PersonalRow = { target_id?: string | null; type_id?: string | null };
 type SourceRow = { resource_id?: string | null; target_id?: string | null; type_id?: string | null };
 type Row = Record<string, unknown>;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
@@ -32,7 +32,8 @@ export async function GET() {
   const wishes = unique([...seedRows.filter((row) => row.status === "active").map((row) => row.canonical_target_id), ...personalRows.map((row) => row.target_id)]);
   const planTargets = unique(plansByTarget.map((row) => row.target_id));
   const experiences = unique(seedRows.filter((row) => row.status === "completed").map((row) => row.canonical_target_id));
-  const targetIds = unique([...wishes, ...planTargets, ...experiences]);
+  const includeCards = request.nextUrl.searchParams.get("cards") === "1";
+  const targetIds = includeCards ? unique([...wishes, ...planTargets, ...experiences]) : [];
   const chunks = <T,>(values: T[], size: number) => Array.from({ length: Math.ceil(values.length / size) }, (_, page) => values.slice(page * size, (page + 1) * size));
   const itemPages = targetIds.length ? await Promise.all(chunks(targetIds, 40).map((ids) => db.from("seed_catalog_items").select("id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,metadata").in("canonical_target_id", ids).eq("status", "active"))) : [];
   const items = itemPages.filter((page) => !page.error).flatMap((page) => (page.data || []) as Row[]);

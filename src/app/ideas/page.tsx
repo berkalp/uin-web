@@ -21,7 +21,7 @@ async function IdeasCatalogue(){
     supabase.rpc("get_uin_category_counts_v129"),
   ]);
   let topicResult=initialTopicResult;
-  if(!topicResult.error&&!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:40,p_offset:0,p_target_id:null});if(!retry.error&&(retry.data??[]).length)topicResult=retry}
+  if(topicResult.error||!(topicResult.data??[]).length){const retry=await supabase.rpc("get_uin_catalogue_fast_v122",{p_query:null,p_limit:40,p_offset:0,p_target_id:null});if(!retry.error)topicResult=retry}
   const topics=[...((topicResult.data??[]) as DiscoverPersonalIntent[])];
   const topicError=topicResult.error;
   const seedTypes=(seedTypeResult.data??[]) as SeedType[];
@@ -64,7 +64,7 @@ async function IdeasCatalogue(){
   // Ratings, social totals, hierarchy and placement metadata enrich cards but
   // must not take the entire Library offline when one auxiliary query fails.
   const categoryCounts=(!countResult.error&&countResult.data&&typeof countResult.data==="object"?countResult.data:{}) as Record<string,number>;
-  return topicError||typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
+  return typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={topicError?[]:enrichedCatalogue} categoryCounts={categoryCounts} isAdmin={Boolean(adminResult.data)}/>;
 }
 
 function CatalogueFallback(){return <div className="mt-6 space-y-4" aria-label="Kütüphane yükleniyor"><div className="h-44 animate-pulse rounded-[30px] bg-white"/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{Array.from({length:6},(_,index)=><div key={index} className="h-96 animate-pulse rounded-[26px] bg-white"/>)}</div></div>}
