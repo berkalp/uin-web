@@ -164,3 +164,18 @@ test("card details parallelize bounded readers and preserve canonical aggregates
   assert.doesNotMatch(modal, /count:(?:people\.filter|reviews\.length|events\.filter)/);
   assert.doesNotMatch(modal, /communityCounts\?\.\[[012]\]\|\|0/);
 });
+
+test("place admin edits rehydrate the stored hierarchy before saving", () => {
+  const client = read("src/components/ideas/InlineTopicSearch.tsx");
+  const route = read("src/app/api/ideas/admin/route.ts");
+
+  assert.match(client, /place_hierarchy\?:AdminPlaceHierarchy\|null/);
+  assert.match(client, /function browseAdminPlaceKind\(scope:string\)/);
+  assert.match(client, /const fallbackPlaceKind=geo\?\.adminKind\|\|browseAdminPlaceKind\(geo\?\.kind\|\|""\)/);
+  assert.match(client, /const placeHierarchy=adminPlaceHierarchyFrom\(metadata,fallbackPlaceKind,fallbackPlaceParent\)/);
+  assert.match(client, /setAdminPlaceKind\(placeHierarchy\.kind\);setAdminParent\(placeHierarchy\.parentTargetId\)/);
+  assert.match(client, /const adminKind=browseAdminPlaceKind\(node\.scope\);return\{[^}]*adminKind/);
+  assert.match(client, /disabled=\{busy\|\|adminLoading\|\|!adminTitle\.trim\(\)/);
+  assert.match(client, /UUID_PATTERN\.test\(hierarchy\.parent_target_id\)/);
+  assert.match(route, /placeHierarchy\?\.parentTargetId&&!\['İlçe','Yer'\]\.includes\(String\(placeHierarchy\.kind\)\)/);
+});

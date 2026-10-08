@@ -6,6 +6,7 @@ import {readSeriesListMetadata} from "@/utils/seriesListMetadata";
 
 type ContentType={id:string;base_kind:string;active:boolean};
 type Row=Record<string,unknown>;
+const CATEGORY_PLACEMENT_SELECT="id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,content_type_id:metadata->>content_type_id,imdb_top_250_rank:metadata->>imdb_top_250_rank,imdb_top_100_rank:metadata->>imdb_top_100_rank,imdb_rating:metadata->>imdb_rating,book_lists:metadata->book_lists,book_list_ranks:metadata->book_list_ranks,book_awards:metadata->book_awards,series_lists:metadata->series_lists,series_list_ranks:metadata->series_list_ranks,series_awards:metadata->series_awards";
 
 export async function GET(request:NextRequest){
   const db=await createClient();
@@ -18,7 +19,10 @@ export async function GET(request:NextRequest){
   const pageSize=500;
   const items:Row[]=[];
   for(let offset=0;;offset+=pageSize){
-    let itemQuery=db.from("seed_catalog_items").select("id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,metadata").eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).order("id",{ascending:false}).range(offset,offset+pageSize-1);
+    // Category cards use only these ranking/award keys. Pulling the complete
+    // metadata object transfers large ISBN, subject and catalogue payloads that
+    // never reach the response (over 1 MB for the current book category).
+    let itemQuery=db.from("seed_catalog_items").select(CATEGORY_PLACEMENT_SELECT).eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).order("id",{ascending:false}).range(offset,offset+pageSize-1);
     if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
     else itemQuery=itemQuery.contains("metadata",{content_type_id:type.id});
     const itemResult=await itemQuery;
@@ -83,11 +87,11 @@ export async function GET(request:NextRequest){
   const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
     const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),stats=social.get(id),tree=hierarchy.get(id);
-    const metadata=item?.metadata;const imdb=readImdbMetadata(metadata);const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);
-    const placementType=String((item?.metadata as Row|undefined)?.content_type_id||type.id);
+    const imdb=readImdbMetadata(item);const book=readBookListMetadata(item);const series=readSeriesListMetadata(item);
+    const placementType=String(item?.content_type_id||type.id);
     const rawParentId=String(tree?.parent_target_id||"");
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
-    const parentPlacementType=parentItem?String((parentItem.metadata as Row|undefined)?.content_type_id||type.id):"";
+    const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
     return {...card,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards};
   });
