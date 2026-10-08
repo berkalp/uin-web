@@ -1,7 +1,7 @@
 "use client";
 import {clubMatches,type ClubCard} from "@/utils/clubHierarchy";
 
-import { useEffect,useMemo, useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
 import dynamic from "next/dynamic";
 import {resolveUinCardWords as cardWords,type CardLabels} from "@/utils/uinCardLanguage";
 import {useSearchParams,useRouter} from "next/navigation";
@@ -194,18 +194,21 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const [categoryCardsLoading,setCategoryCardsLoading]=useState(false);
   const [categoryCardsError,setCategoryCardsError]=useState("");
   const [categoryCardsRetry,setCategoryCardsRetry]=useState(0);
-  async function loadCategoryCatalogue(next:Kind,signal?:AbortSignal){
-    const response=await fetch(`/api/ideas/category-cards?kind=${encodeURIComponent(next)}`,{cache:"no-store",headers:{"Cache-Control":"no-cache"},signal});
+  const categoryLoadedAt=useRef<Record<string,number>>({});
+  async function loadCategoryCatalogue(next:Kind,signal?:AbortSignal,force=false){
+    if(!force&&Date.now()-Number(categoryLoadedAt.current[next]||0)<60_000)return;
+    const response=await fetch(`/api/ideas/category-cards?kind=${encodeURIComponent(next)}`,{cache:force?"no-store":"default",signal});
     const body=await response.json() as {catalogue?:Catalogue[];error?:string};
     if(!response.ok)throw new Error(body.error||"Kategori kartları yüklenemedi.");
     const incoming=body.catalogue||[];
+    categoryLoadedAt.current[next]=Date.now();
     setCatalogue(current=>{const incomingIds=new Set(incoming.map(card=>card.canonical_target_id));return [...incoming,...current.filter(card=>!incomingIds.has(card.canonical_target_id)&&!matches(card,next))]});
   }
   useEffect(()=>{const type=contentTypes.find(item=>item.id===kind);if(addingOnly||categoryLanding||scope!=="library"||kind==="all"||type?.base_kind==="place")return;const controller=new AbortController();const load=async()=>{setCategoryCardsLoading(true);setCategoryCardsError("");try{await loadCategoryCatalogue(kind as Kind,controller.signal)}catch(cause){if(!controller.signal.aborted){setCatalogue(current=>current.filter(card=>!matches(card,kind as Kind)));setCategoryCardsError(cause instanceof Error?cause.message:"Kategori kartları yüklenemedi.")}}finally{if(!controller.signal.aborted)setCategoryCardsLoading(false)}};void load();return()=>controller.abort()},[addingOnly,categoryLanding,scope,kind,categoryCardsRetry,contentTypes]);
   async function refreshCatalogue(){
     try{
       const currentType=contentTypes.find(type=>type.id===kind);
-      if(scope==="library"&&kind!=="all"&&currentType?.base_kind!=="place")await loadCategoryCatalogue(kind as Kind);
+      if(scope==="library"&&kind!=="all"&&currentType?.base_kind!=="place")await loadCategoryCatalogue(kind as Kind,undefined,true);
       else if(scope!=="library")setScopeRetry(value=>value+1);
     }finally{
       router.refresh();

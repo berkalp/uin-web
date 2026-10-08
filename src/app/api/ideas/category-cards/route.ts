@@ -13,7 +13,8 @@ export async function GET(request:NextRequest){
   const typeResult=await db.from("uin_content_types").select("id,base_kind,active").eq("id",kind).maybeSingle();
   const type=typeResult.data as ContentType|null;
   if(typeResult.error||!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
-  if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:{"Cache-Control":"private, no-store"}});
+  const cacheHeaders={"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"};
+  if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   const pageSize=500;
   const items:Row[]=[];
   for(let offset=0;;offset+=pageSize){
@@ -30,10 +31,20 @@ export async function GET(request:NextRequest){
     if(page.length<pageSize)break;
   }
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
-  if(!ids.length)return NextResponse.json({catalogue:[]},{headers:{"Cache-Control":"private, no-store"}});
+  if(!ids.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   // This existing security-definer RPC is the canonical visibility projection:
   // it returns every requested target except admin-hidden cards for non-admins.
-  let visibilityResult=await db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids});
+  // All four projections depend only on the placement ids. Running them in
+  // parallel removes the old visibility -> counters -> enrichment waterfall.
+  const [initialVisibilityResult,initialCardsResult,socialResult,hierarchyResult]=await Promise.all([
+    db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids}),
+    db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
+    // get_uin_card_social_v87 already includes the rating projection. Calling
+    // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
+    db.rpc("get_uin_card_social_v87",{p_target_ids:ids}),
+    db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:ids}),
+  ]);
+  let visibilityResult=initialVisibilityResult;
   if(visibilityResult.error)visibilityResult=await db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids});
   if(visibilityResult.error){
     console.error("category card visibility unavailable",{kind,error:visibilityResult.error});
@@ -42,8 +53,8 @@ export async function GET(request:NextRequest){
   const visibilityRows=(visibilityResult.data||[]) as Row[];
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
-  let cardsResult=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:visibleIds});
-  if(cardsResult.error)cardsResult=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:visibleIds});
+  let cardsResult=initialCardsResult;
+  if(cardsResult.error)cardsResult=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids});
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
@@ -61,30 +72,24 @@ export async function GET(request:NextRequest){
     console.error("category cards missing summary metrics",{kind,invalidMetricIds});
     return NextResponse.json({error:"Bazı kategori kartlarının sayaçları eksik geldi. Lütfen tekrar dene."},{status:503});
   }
-  const [ratingResult,socialResult,hierarchyResult]=await Promise.all([
-    db.rpc("get_uin_card_ratings_v85",{p_target_ids:visibleIds}),
-    db.rpc("get_uin_card_social_v87",{p_target_ids:visibleIds}),
-    db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:visibleIds}),
-  ]);
-  if([ratingResult,socialResult,hierarchyResult].some(result=>result.error)){
-    console.error("category card enrichment unavailable",{kind,rating:ratingResult.error,social:socialResult.error,hierarchy:hierarchyResult.error});
+  if([socialResult,hierarchyResult].some(result=>result.error)){
+    console.error("category card enrichment unavailable",{kind,social:socialResult.error,hierarchy:hierarchyResult.error});
     return NextResponse.json({error:"Kategori kartı ayrıntıları yüklenemedi."},{status:503});
   }
   const itemByTarget=new Map<string,Row>();
   items.forEach(item=>{const id=String(item.canonical_target_id||"");if(id&&!itemByTarget.has(id))itemByTarget.set(id,item)});
-  const ratings=new Map(((ratingResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const social=new Map(((socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const covers=new Map(visibilityRows.map(row=>[String(row.target_id||""),Number(row.cover_position_y||50)]));
   const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
-    const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),rating=ratings.get(id),stats=social.get(id),tree=hierarchy.get(id);
+    const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),stats=social.get(id),tree=hierarchy.get(id);
     const metadata=item?.metadata;const imdb=readImdbMetadata(metadata);const book=readBookListMetadata(metadata);const series=readSeriesListMetadata(metadata);
     const placementType=String((item?.metadata as Row|undefined)?.content_type_id||type.id);
     const rawParentId=String(tree?.parent_target_id||"");
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String((parentItem.metadata as Row|undefined)?.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:rating?.average_rating==null?null:Number(rating.average_rating),rating_count:Number(rating?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards};
+    return {...card,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards};
   });
-  return NextResponse.json({catalogue},{headers:{"Cache-Control":"private, no-store"}});
+  return NextResponse.json({catalogue},{headers:cacheHeaders});
 }

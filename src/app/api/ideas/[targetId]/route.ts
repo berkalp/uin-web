@@ -64,9 +64,13 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   // The v81 readers follow the full card hierarchy (including legacy aliases),
   // so every modal uses the same descendant set as the catalogue summary.
   const identityTargetIds=[targetId];
-  const [cardResult,contextResult,authResult]=await Promise.all([
-    supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
+  const [cardResult,contextResult,hierarchyResult,authResult]=await Promise.all([
+    // The catalogue projection is the canonical card read model. Besides being
+    // substantially faster than the legacy direct-only reader, it carries the
+    // same hierarchy totals that are rendered on the Library card.
+    supabase.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:[targetId]}),
     supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),
+    supabase.rpc("get_place_hierarchy_v74",{p_target_ids:[targetId]}),
     supabase.auth.getUser(),
   ]);
   if(cardResult.error||contextResult.error){
@@ -75,19 +79,15 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   }
   const context=(contextResult.data||{}) as Record<string,unknown>;
   const commonCard=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
-  const card=commonCard||(typeof context.title==="string"&&context.title.trim()?{
-    canonical_target_id:targetId,
-    title:context.title,
-    subtitle:typeof context.creator_name==="string"?context.creator_name:null,
-    cover_url:typeof context.cover_url==="string"?context.cover_url:null,
-    catalog_item_id:typeof context.catalog_item_id==="string"?context.catalog_item_id:null,
-    metadata:context.metadata&&typeof context.metadata==="object"?context.metadata:{},
-    own_seed_id:null,
-  }:null);
-  if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
+  if(!commonCard)return NextResponse.json({error:"Kartın Kütüphane kaydı bulunamadı."},{status:404});
+  if(["intent_people_count","experience_people_count","active_event_count"].some(field=>commonCard[field]==null||!Number.isFinite(Number(commonCard[field])))){
+    console.error("card detail metrics missing",{targetId,card:commonCard});
+    return NextResponse.json({error:"Kart sayaçları eksik geldi. Lütfen tekrar dene."},{status:503});
+  }
+  const card=commonCard;
   const viewerId=authResult.data.user?.id||null;
   const metadata={...((card.metadata||{}) as object),...((context.metadata||{}) as object)} as Record<string,unknown>;
-  let typeId=typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
+  let typeId=typeof card.content_type_id==="string"?card.content_type_id:typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
   if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
 
   // Start all independent, lightweight card requests while the hierarchy
@@ -104,14 +104,23 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const typeResult=await typePromise;
   if(typeResult.error)return NextResponse.json({error:"Kart kategorisi yüklenemedi. Lütfen tekrar dene."},{status:503});
 
-  // Large place trees still run recursive readers one after another so they
-  // do not compete for the database statement budget. Ordinary cards have no
-  // such tree, so reading wishes, experiences and events concurrently removes
-  // several seconds from every book/media/game modal.
+  // Country cards can fan out over a very large place tree, so keep their
+  // recursive readers sequential to protect the database statement budget.
+  // An older place without hierarchy metadata also takes this safe path.
+  // City, district and individual-place closures are now bounded by the v143
+  // read model and are safe to fetch concurrently with ordinary cards.
+  if(typeResult.data?.base_kind==="place"&&hierarchyResult.error){
+    console.error("card place hierarchy unavailable",{targetId,error:hierarchyResult.error});
+    return NextResponse.json({error:"Yer kartının bağlantıları yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  const hierarchyRow=((hierarchyResult.data||[]) as Array<{place_hierarchy?:Record<string,unknown>|null}>)[0];
+  const placeKind=String(hierarchyRow?.place_hierarchy?.kind||"").trim().toLocaleLowerCase("tr-TR");
+  const boundedPlaceKinds=["il","şehir","city","ilçe","district","yer","place"];
+  const mustSerializePlaceReaders=typeResult.data?.base_kind==="place"&&!boundedPlaceKinds.includes(placeKind);
   const readPeople=()=>supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0});
   const readReviews=()=>supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0});
   const readEvents=()=>supabase.rpc("get_uin_card_events_v81",{p_target_id:targetId});
-  const [peoplePage,reviewPage,eventPage]=typeResult.data?.base_kind==="place"
+  const [peoplePage,reviewPage,eventPage]=mustSerializePlaceReaders
     ? [await readPeople(),await readReviews(),await readEvents()]
     : await Promise.all([readPeople(),readReviews(),readEvents()]);
   const peopleResults=[peoplePage],reviewResults=[reviewPage],eventResults=[eventPage];
@@ -172,5 +181,5 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const ownIntentDraft=ownRow?.status==="active"?{start_date:ownRow.start_date,end_date:ownRow.end_date,timing_precision:ownRow.timing_precision,date_options:ownRow.date_options,location_id:ownRow.location_id,notes:ownRow.notes,visibility:ownRow.visibility,collaboration_mode:ownRow.collaboration_mode}:ownPerson?{start_date:ownPerson.start_date,end_date:ownPerson.end_date,timing_precision:ownPerson.timing_precision,date_options:ownPerson.date_options,location_id:ownPerson.location_id,notes:ownPerson.notes,visibility:ownPerson.visibility||"everyone",collaboration_mode:"everyone"}:null;
   if(socialResult.error||relationsResult.error||activityOptionsResult.error)return NextResponse.json({error:"Kartın puan, takipçi ve bağlantı bilgileri yüklenemedi."},{status:500});
   const displayRelations=await expandDisplayRelations(relationsResult.data);
-  return NextResponse.json({canonicalTargetId:targetId,ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],displayRelations,activityOptions:activityOptionsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
+  return NextResponse.json({canonicalTargetId:targetId,ownWish,ownIntentDraft,contentType:typeResult.data,communityCounts:[Number(card.intent_people_count||0),Number(card.experience_people_count||0),Number(card.active_event_count??card.social_intent_count??0)],card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],displayRelations,activityOptions:activityOptionsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
 }
