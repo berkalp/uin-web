@@ -38,16 +38,25 @@ export async function GET(request: NextRequest) {
   const itemPages = targetIds.length ? await Promise.all(chunks(targetIds, 40).map((ids) => db.from("seed_catalog_items").select("id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,metadata").in("canonical_target_id", ids).eq("status", "active"))) : [];
   if (itemPages.some((page) => page.error)) return NextResponse.json({ error: "Kişisel kart kapsamları yüklenemedi." }, { status: 500 });
   const items = itemPages.flatMap((page) => (page.data || []) as Row[]);
-  const cardPages = targetIds.length ? await Promise.all(chunks(targetIds, 10).map((ids) => db.rpc("get_uin_catalogue_for_targets_v123", { p_target_ids: ids }))) : [];
-  if (cardPages.some((page) => page.error)) return NextResponse.json({ error: "Kişisel kart sayaçları yüklenemedi." }, { status: 500 });
-  const cardRows = cardPages.flatMap((page) => (page.data || []) as Row[]);
+  const cardRows: Row[] = [];
+  for (const ids of chunks(targetIds, 4)) {
+    let loaded = false;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const page = await db.rpc("get_uin_catalogue_for_targets_v123", { p_target_ids: ids });
+      if (!page.error) {
+        cardRows.push(...((page.data || []) as Row[]));
+        loaded = true;
+        break;
+      }
+    }
+    if (!loaded) return NextResponse.json({ error: "Kişisel kart sayaçları yüklenemedi. Lütfen tekrar dene." }, { status: 503 });
+  }
   const [ratingResult, socialResult, coverResult, hierarchyResult] = targetIds.length ? await Promise.all([
     db.rpc("get_uin_card_ratings_v85", { p_target_ids: targetIds }),
     db.rpc("get_uin_card_social_v87", { p_target_ids: targetIds }),
     db.rpc("get_uin_cover_positions_v62", { p_target_ids: targetIds }),
     db.rpc("get_uin_card_hierarchy_v81", { p_target_ids: targetIds }),
   ]) : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
-  if ([ratingResult, socialResult, coverResult, hierarchyResult].some((result) => result.error)) return NextResponse.json({ error: "Kişisel kart ayrıntıları yüklenemedi." }, { status: 500 });
   const itemByTarget = new Map(items.map((item) => [String(item.canonical_target_id || ""), item]));
   const cardByTarget = new Map(cardRows.map((card) => [String(card.canonical_target_id || ""), card]));
   const ratings = new Map(((ratingResult.data || []) as Row[]).map((row) => [String(row.target_id || ""), row]));
