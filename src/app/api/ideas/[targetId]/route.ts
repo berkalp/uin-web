@@ -75,7 +75,10 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   }:null);
   if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const viewerId=authResult.data.user?.id||null;
-  if(peopleResults.some(result=>result.error)||reviewResults.some(result=>result.error)||eventResults.some(result=>result.error))return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
+  if(peopleResults.some(result=>result.error)||reviewResults.some(result=>result.error)||eventResults.some(result=>result.error)){
+    console.error("card modal reader error",{people:peopleResults[0]?.error,reviews:reviewResults[0]?.error,events:eventResults[0]?.error});
+    return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
+  }
   async function allPeople(group:string,firstPages:typeof peopleResults){const rows:Array<Record<string,unknown>>=[];for(let index=0;index<identityTargetIds.length;index++){const pageRows=[...((firstPages[index].data||[]) as Array<Record<string,unknown>>)];while(pageRows.length<Number(pageRows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:identityTargetIds[index],p_group:group,p_limit:100,p_offset:pageRows.length});if(page.error)throw new Error(page.error.message);const next=(page.data||[]) as Array<Record<string,unknown>>;if(!next.length)break;pageRows.push(...next)}rows.push(...pageRows)}return [...new Map(rows.map(row=>[String(row.user_id||row.source_id||row.id),row])).values()]}
   const [wantRows,doneRows]=await Promise.all([allPeople("intent",peopleResults),allPeople("experience",reviewResults)]);
   const permissionRequests=viewerId?[...new Map(wantRows.filter(row=>row.user_id!==viewerId).map(row=>{const sourceTarget=String(row.source_target_id||targetId);const recipient=String(row.user_id);return[`${sourceTarget}:${recipient}`,{target_id:sourceTarget,recipient_id:recipient}]})).values()]:[];
