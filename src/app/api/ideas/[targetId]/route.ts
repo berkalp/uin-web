@@ -48,15 +48,15 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     const displayRelations=await expandDisplayRelations(relations.data);
     return NextResponse.json({canonicalTargetId:targetId,contentType:type.data,communityCounts:[Number(stats?.wanting||0),Number(stats?.done||0),Number(stats?.active||0)],averageRating:ratingStats?.average_rating==null?null:Number(ratingStats.average_rating),ratingCount:Number(ratingStats?.rating_count||0),viewerRating:ratingStats?.viewer_rating==null?null:Number(ratingStats.viewer_rating),social:(social.data||[])[0]||null,relations:relations.data||[],displayRelations,hierarchy:null,card:{title:row.title,subtitle:visibleSubtitle(typeId,type.data?.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null,metadata:row.metadata||{}},people:[],reviews:[],events:[]});
   }
-  const identityResult=await supabase.rpc("get_uin_card_identity_targets_v129",{p_target_id:targetId});
-  const identityTargetIds=[...new Set(((identityResult.data||[]) as Array<{target_id?:string}>).map(row=>row.target_id).filter((id):id is string=>Boolean(id)))];
-  if(!identityTargetIds.length)identityTargetIds.push(targetId);
+  // The v81 readers follow the full card hierarchy (including legacy aliases),
+  // so every modal uses the same descendant set as the catalogue summary.
+  const identityTargetIds=[targetId];
   const [cardResult,contextResult,peopleResults,eventResults,reviewResults,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
     supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v80",{p_target_id:id,p_group:"intent",p_limit:100,p_offset:0}))),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_events_v80",{p_target_id:id}))),
-    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v80",{p_target_id:id,p_group:"experience",p_limit:100,p_offset:0}))),
+    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v81",{p_target_id:id,p_group:"intent",p_limit:100,p_offset:0}))),
+    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_events_v81",{p_target_id:id}))),
+    Promise.all(identityTargetIds.map(id=>supabase.rpc("get_uin_card_people_v81",{p_target_id:id,p_group:"experience",p_limit:100,p_offset:0}))),
     supabase.auth.getUser(),
   ]);
   const context=(contextResult.data||{}) as Record<string,unknown>;
@@ -73,7 +73,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const viewerId=authResult.data.user?.id||null;
   if(peopleResults.some(result=>result.error)||reviewResults.some(result=>result.error)||eventResults.some(result=>result.error))return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
-  async function allPeople(group:string,firstPages:typeof peopleResults){const rows:Array<Record<string,unknown>>=[];for(let index=0;index<identityTargetIds.length;index++){const pageRows=[...((firstPages[index].data||[]) as Array<Record<string,unknown>>)];while(pageRows.length<Number(pageRows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v80",{p_target_id:identityTargetIds[index],p_group:group,p_limit:100,p_offset:pageRows.length});if(page.error)throw new Error(page.error.message);const next=(page.data||[]) as Array<Record<string,unknown>>;if(!next.length)break;pageRows.push(...next)}rows.push(...pageRows)}return [...new Map(rows.map(row=>[String(row.user_id||row.source_id||row.id),row])).values()]}
+  async function allPeople(group:string,firstPages:typeof peopleResults){const rows:Array<Record<string,unknown>>=[];for(let index=0;index<identityTargetIds.length;index++){const pageRows=[...((firstPages[index].data||[]) as Array<Record<string,unknown>>)];while(pageRows.length<Number(pageRows[0]?.total_count||0)){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:identityTargetIds[index],p_group:group,p_limit:100,p_offset:pageRows.length});if(page.error)throw new Error(page.error.message);const next=(page.data||[]) as Array<Record<string,unknown>>;if(!next.length)break;pageRows.push(...next)}rows.push(...pageRows)}return [...new Map(rows.map(row=>[String(row.user_id||row.source_id||row.id),row])).values()]}
   const [wantRows,doneRows]=await Promise.all([allPeople("intent",peopleResults),allPeople("experience",reviewResults)]);
   const permissionRequests=viewerId?[...new Map(wantRows.filter(row=>row.user_id!==viewerId).map(row=>{const sourceTarget=String(row.source_target_id||targetId);const recipient=String(row.user_id);return[`${sourceTarget}:${recipient}`,{target_id:sourceTarget,recipient_id:recipient}]})).values()]:[];
   const permissionResult=permissionRequests.length?await supabase.rpc("get_uin_together_permissions_v83",{p_requests:permissionRequests}):{data:[],error:null};
@@ -105,18 +105,9 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     const status=String(row.plan_status||row.status||"").toLocaleLowerCase("tr-TR");
     return !["cancelled","canceled","completed"].includes(status)&&String(row.end_date||row.start_date||"").slice(0,10)>=today;
   });
-  const engagedPeople=new Map<string,Record<string,unknown>>(people.map(person=>[String(person.user_id),person]));
-  for(const event of currentEvents){
-    const eventTitle=String(event.event_title||event.subtitle||`${context.title||card.title} etkinliği`).trim();
-    const members=[...((event.participants||[]) as Array<Record<string,unknown>>)];
-    if(event.owner_user_id&&!members.some(member=>String(member.user_id)===String(event.owner_user_id)))members.unshift({user_id:event.owner_user_id,full_name:event.owner_name,avatar_url:event.owner_avatar_url||null,role:"owner"});
-    for(const member of members){
-      const userId=String(member.user_id||"");
-      if(!userId||engagedPeople.has(userId))continue;
-      engagedPeople.set(userId,{...member,id:`event:${event.intent_id}:${userId}`,user_id:userId,source_kind:"event",source_id:event.intent_id,source_target_id:targetId,is_current:true,start_date:event.start_date,end_date:event.end_date,target_date:event.start_date,location:event.location||null,viewing_context:event.viewing_context||null,together_allowed:false,together_code:"event_participant",together_reason:`${eventTitle} etkinliğine katılıyor.`});
-    }
-  }
-  const finalPeople=[...engagedPeople.values()].map(person=>{
+  // Event attendance is shown in the event section. It must not inflate the
+  // general-wish list or create duplicate people rows.
+  const finalPeople=people.map(person=>{
     if(!viewerId||person.user_id===viewerId)return person;
     const shared=currentEvents.find(event=>{
       const memberIds=new Set([String(event.owner_user_id||""),...((event.participants||[]) as Array<Record<string,unknown>>).map(member=>String(member.user_id||""))]);

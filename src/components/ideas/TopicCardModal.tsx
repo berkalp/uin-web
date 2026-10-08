@@ -93,13 +93,12 @@ export default function TopicCardModal({selected,places,onOpenPlace,hierarchyChi
   const profile=(card?.metadata?.club_profile||{}) as ClubProfile;
   const teamCard=clubCards.find(c=>c.target_id===selected.canonicalTargetId);const rootClub=isClub&&!teamCard?.parent_target_id;const teams=clubCards.filter(c=>c.parent_target_id===selected.canonicalTargetId);
   const generalInfo=isClub?(info||profile.history?.trim()||""):info;
-  const useCardAggregate=isPlace&&selected.aggregateWanting!==undefined&&selected.aggregateDone!==undefined&&selected.aggregateActive!==undefined;
   const teamProfile=teamCard?.parent_target_id?(profile.teams||[])[0]:undefined;
   const teamFacts:{label:string;value:string;href?:string;isMap?:boolean}[]=teamCard?.parent_target_id?[{label:"Branş",value:teamCard.sport},{label:"Grup",value:teamCard.division},{label:"Lig",value:teamCard.league},{label:"Sezon",value:teamCard.season},{label:"Stadyum / salon",value:teamProfile?.venue||""},{label:"Harita",value:teamProfile?.map_url?"Konumu görüntüle":"Bağlantı eklenmemiş",href:teamProfile?.map_url,isMap:true}].filter(fact=>Boolean(fact.value)):[];
   const metricItems=[
-    {id:"want" as const,label:wantingLabel,count:rootClub||useCardAggregate?selected.aggregateWanting||0:people.filter(person=>person.is_current!==false).length,tone:"emerald"},
-    {id:"done" as const,label:doersLabel,count:rootClub||useCardAggregate?selected.aggregateDone||0:reviews.length,tone:"purple"},
-    {id:"events" as const,label:"Aktif etkinlikler",count:rootClub||useCardAggregate?selected.aggregateActive||0:events.filter(event=>eventState(event).active).length,tone:"violet"},
+    {id:"want" as const,label:wantingLabel,count:people.filter(person=>person.is_current!==false).length,tone:"emerald"},
+    {id:"done" as const,label:doersLabel,count:reviews.length,tone:"purple"},
+    {id:"events" as const,label:"Aktif etkinlikler",count:events.filter(event=>eventState(event).active).length,tone:"violet"},
   ];
   const assistantMetrics=<div className="grid grid-cols-3 gap-2">{metricItems.map(item=><button type="button" key={item.id} aria-pressed={view===item.id} onClick={()=>setView(view===item.id?"overview":item.id)} className={`rounded-2xl border px-3 py-4 text-left transition ${view===item.id?item.tone==="emerald"?"border-emerald-400 bg-emerald-50":"border-violet-400 bg-violet-50":"border-violet-100 bg-white/80 hover:border-violet-300 hover:bg-violet-50"}`}><span className="block text-xs font-black uppercase tracking-wide text-gray-500">{item.label}</span><span className="mt-1 block text-2xl font-black">{item.count}</span>{item.id==="want"&&people.some(person=>person.is_current===false)&&<span className="mt-1 block text-[10px] text-slate-500">{people.filter(person=>person.is_current===false).length} geçmiş istek</span>}{item.id==="events"&&<span className="mt-1 block text-[10px] text-slate-500">{events.filter(event=>eventState(event).label==="Tamamlandı").length} tamamlandı · {events.filter(event=>eventState(event).label==="Tarihi geçti").length} tarihi geçti · {events.filter(event=>eventState(event).label==="İptal edildi").length} iptal</span>}</button>)}</div>;
   const assistantBlock=<TopicAiAssistant cacheKey={selected.canonicalTargetId} title={card?.title||selected.title} kind={contentType.label} context={generalInfo}>{assistantMetrics}</TopicAiAssistant>;
@@ -198,6 +197,6 @@ function WantingTable({people,events,viewerId,title,targetTitle,contentType,onSe
 
 export function WantingList(props:Parameters<typeof WantingTable>[0]){
  const current=props.people.filter(person=>person.is_current!==false);
- const history=props.people.filter(person=>person.is_current===false||wantingEvents(person,props.events).some(event=>!eventState(event).active));
+ const history=props.people.filter(person=>person.is_current===false);
  return <><WantingTable {...props} people={current} events={props.events.filter(event=>eventState(event).active)}/>{history.length>0&&<details className="mx-5 mb-7 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 md:mx-7"><summary className="cursor-pointer px-4 py-4 text-sm font-bold text-slate-600">Geçmiş istekler · {history.length}</summary><WantingTable {...props} allowProposal={false} title="Tarihi geçmiş istekler" people={history} events={props.events.filter(event=>!eventState(event).active)}/></details>}</>;
 }
