@@ -54,3 +54,12 @@ test("personal child cards bypass Library-only hierarchy hiding", () => {
   assert.match(source, /scope==="library"&&\(kind==="all"\|\|Boolean\(categoryCardsError\)\)\?\[\]/);
   assert.match(source, /!matches\(card,next\)/);
 });
+
+test("unresolved category counts render as loading or unavailable, never fake zero", () => {
+  const source = read("src/components/ideas/InlineTopicSearch.tsx");
+
+  assert.match(source, /categoryCountsLoading/);
+  assert.match(source, /id==="library"&&!hasCategoryCounts\?\(categoryCountsLoading\?"…":"—"\)/);
+  assert.match(source, /hasCategoryCounts\?categoryTotal:categoryCountsLoading\?"…":"—"/);
+  assert.match(source, /hasCategoryCounts\?count:categoryCountsLoading\?"…":"—"/);
+});
