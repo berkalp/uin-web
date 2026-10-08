@@ -30,7 +30,7 @@ export default function TimelineHeader({ email, personal, managedProfiles, unrea
           <Link href="/ideas" aria-label="Kütüphane" className="mr-auto flex h-14 items-center rounded-2xl px-1.5 transition hover:bg-gray-50"><img src="/uin-logo.png" alt="uin? logo" className="h-12 w-auto"/></Link>
           <div className="hidden items-center gap-2 md:flex">
             <PrimaryNavLink href="/ideas"><HomeIcon/><span>Kütüphane</span></PrimaryNavLink>
-            <PrimaryNavLink href="/timeline"><SeedIcon/><span>Listem</span></PrimaryNavLink>
+            <PrimaryNavLink href="/ideas?scope=wishes"><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
             <PrimaryNavLink href="/discover"><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
             <PrimaryNavLink href="/friends"><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
           </div>
@@ -43,7 +43,7 @@ export default function TimelineHeader({ email, personal, managedProfiles, unrea
     <div className="h-20" aria-hidden="true" />
     <nav aria-label="Mobil navigasyon" className="uin-mobile-nav fixed inset-x-0 bottom-0 z-[100] grid grid-cols-4 gap-1 border-t border-gray-200 bg-white/95 px-3 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur-xl md:hidden">
       <PrimaryNavLink href="/ideas" mobile><HomeIcon/><span>Kütüphane</span></PrimaryNavLink>
-      <PrimaryNavLink href="/timeline" mobile><SeedIcon/><span>Listem</span></PrimaryNavLink>
+      <PrimaryNavLink href="/ideas?scope=wishes" mobile><SeedIcon/><span>Niyetlerim</span></PrimaryNavLink>
       <PrimaryNavLink href="/discover" mobile><DiscoverIcon/><span>Etkinlikler</span></PrimaryNavLink>
       <PrimaryNavLink href="/friends" mobile><FriendsIcon/><span>Arkadaşlar</span></PrimaryNavLink>
     </nav>
