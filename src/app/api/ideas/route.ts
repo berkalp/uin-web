@@ -14,29 +14,30 @@ export async function GET(request: NextRequest) {
   const query = clean(request.nextUrl.searchParams.get("q"), 240);
   const seedTypeId = clean(request.nextUrl.searchParams.get("seedTypeId"), 80);
   const requestedKind = clean(request.nextUrl.searchParams.get("kind"), 40);
-  if (query.length < 2 || !seedTypeId) return NextResponse.json({ items: [] });
+  if (query.length < 2) return NextResponse.json({ items: [] });
   const supabase = await requestClient(request);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Konu aramak için giriş yapmalısın." }, { status: 401 });
-  let { data, error } = await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: seedTypeId, p_limit: 12 });
-  if (!error && (!data || data.length === 0)) {
+  let { data, error } = await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: seedTypeId || null, p_limit: 24 });
+  if (seedTypeId && !error && (!data || data.length === 0)) {
     const fallback = await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: null, p_limit: 12 });
     data = fallback.data;
     error = fallback.error;
   }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   let items = (data ?? []) as Array<Record<string, unknown>>;
-  if (requestedKind && KINDS.has(requestedKind) && items.length) {
+  if (items.length) {
     const ids = items.map(row => clean(row.catalogItemId, 80)).filter(Boolean);
     const catalogue = ids.length ? await supabase.from("seed_catalog_items").select("id,item_kind,metadata").in("id", ids) : { data: [], error: null };
     if (!catalogue.error) {
       const kinds = new Map((catalogue.data ?? []).map(row => [row.id, { itemKind: row.item_kind, metadata: row.metadata as Record<string, unknown> | null }]));
-      items = items.map(row => ({ ...row, itemKind: kinds.get(clean(row.catalogItemId, 80))?.itemKind || null })).filter(row => {
-        const stored = clean(row.itemKind, 40).toLocaleLowerCase("tr-TR");
-        if (requestedKind === "series") return stored === "series" || stored === "video";
-        if (requestedKind === "movie") return stored === "movie";
-        return !stored || stored === requestedKind;
-      });
+      items = items.map(row => ({ ...row, itemKind: kinds.get(clean(row.catalogItemId, 80))?.itemKind || null }));
+      if (requestedKind && KINDS.has(requestedKind)) items = items.filter(row => {
+          const stored = clean(row.itemKind, 40).toLocaleLowerCase("tr-TR");
+          if (requestedKind === "series") return stored === "series" || stored === "video";
+          if (requestedKind === "movie") return stored === "movie";
+          return !stored || stored === requestedKind;
+        });
     }
   }
   return NextResponse.json({ items });

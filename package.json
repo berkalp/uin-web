@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:card-read-model": "node --test tests/library-api-fail-closed-v143.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",
