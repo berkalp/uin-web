@@ -26,6 +26,6 @@ export async function POST(request:NextRequest){
  const {data:role}=await supabase.rpc("get_admin_role");
  if(!role)return NextResponse.json({error:"Bu işlem için admin yetkisi gerekir."},{status:403});
  const {error}=await supabase.rpc("admin_replace_uin_card_activity_permissions_v114",{p_target_id:body.targetId,p_activity_ids:body.activityIds,p_category_ids:body.categoryIds});
- if(error)return NextResponse.json({error:error.message},{status:500});
+ if(error)return NextResponse.json({error:`Etkinlik izinleri kaydedilemedi: ${error.message}`},{status:500});
  return NextResponse.json({updated:true});
 }

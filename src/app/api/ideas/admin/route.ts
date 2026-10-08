@@ -49,13 +49,13 @@ export async function POST(request:NextRequest){
     let clubHierarchy=body.clubHierarchy;const clubType=await supabase.from('uin_content_types').select('base_kind').eq('id',itemKind).maybeSingle();if(clubType.error)return NextResponse.json({error:'İçerik türü yüklenemedi.'},{status:500});const creatorAllowed=!/(festival|concert|konser)/i.test(itemKind)&&['artist','book','movie','series','game','director','actor','writer'].includes(clubType.data?.base_kind||'');if(clubType.data?.base_kind==='club'&&!clubHierarchy){const h=await supabase.rpc('get_club_hierarchy_v75');if(h.error)return NextResponse.json({error:'Takım bağlantısı yüklenemedi.'},{status:500});clubHierarchy=(h.data||[]).find((r:{target_id:string})=>r.target_id===targetId)||{};}
     const saveStyle=Object.prototype.hasOwnProperty.call(body,'cardStyle');if(saveStyle&&body.cardStyle!==null&&!validCardStyle(body.cardStyle))return NextResponse.json({error:'Kart renklerini kontrol et.'},{status:400});
     const {error}=await supabase.rpc(clubHierarchy&&saveStyle?"admin_save_coloured_club_v76":clubHierarchy?"admin_save_club_card_v75":placeHierarchy?"admin_save_place_card_v74":"admin_save_uin_card_v62",{...(clubHierarchy&&saveStyle?{p_card_style:body.cardStyle}:{}),...(clubHierarchy?{p_hierarchy:clubHierarchy}:{}),...(placeHierarchy?{p_place_kind:placeHierarchy.kind,p_parent_target_id:placeHierarchy.parentTargetId||null}:{}),p_target_id:targetId,p_title:title,p_type_id:itemKind,p_creator_name:creatorAllowed?field("creatorName"):"",p_cover_url:field("coverUrl"),p_description:field("description"),p_reference_url:referenceLinks[0]?.url||field("referenceUrl"),p_profile:profile||{},p_cover_position_y:coverPosition});
-    if(error)return NextResponse.json({error:error.message},{status:500});
-    if(placeCoordinates){const coordinateSave=await supabase.rpc("admin_save_place_coordinates_v128",{p_target_id:targetId,p_latitude:latitude,p_longitude:longitude});if(coordinateSave.error)return NextResponse.json({error:coordinateSave.error.message},{status:500});}
+    if(error)return NextResponse.json({error:`Kart bilgileri kaydedilemedi: ${error.message}`},{status:500});
+    if(placeCoordinates){const coordinateSave=await supabase.rpc("admin_save_place_coordinates_v128",{p_target_id:targetId,p_latitude:latitude,p_longitude:longitude});if(coordinateSave.error)return NextResponse.json({error:`Konum kaydedilemedi: ${coordinateSave.error.message}`},{status:500});}
     const sourceSave=await supabase.rpc("admin_save_uin_card_reference_links_v93",{p_target_id:targetId,p_links:referenceLinks});
-    if(sourceSave.error)return NextResponse.json({error:sourceSave.error.message},{status:500});
+    if(sourceSave.error)return NextResponse.json({error:`Kaynak bağlantıları kaydedilemedi: ${sourceSave.error.message}`},{status:500});
     const typeSync=await supabase.rpc("admin_sync_uin_card_type_v87",{p_target_id:targetId,p_type_id:itemKind});
-    if(typeSync.error)return NextResponse.json({error:typeSync.error.message},{status:500});
-    if(cardHierarchy){const hierarchySave=await supabase.rpc("admin_save_card_hierarchy_v81",{p_target_id:targetId,p_parent_target_id:cardHierarchy.parentTargetId||null,p_sort_order:Number(cardHierarchy.sortOrder||0),p_section_title:String(cardHierarchy.sectionTitle||"")||null});if(hierarchySave.error)return NextResponse.json({error:hierarchySave.error.message},{status:500});}
+    if(typeSync.error)return NextResponse.json({error:`İçerik türü kaydedilemedi: ${typeSync.error.message}`},{status:500});
+    if(cardHierarchy){const hierarchySave=await supabase.rpc("admin_save_card_hierarchy_v81",{p_target_id:targetId,p_parent_target_id:cardHierarchy.parentTargetId||null,p_sort_order:Number(cardHierarchy.sortOrder||0),p_section_title:String(cardHierarchy.sectionTitle||"")||null});if(hierarchySave.error)return NextResponse.json({error:`Kart hiyerarşisi kaydedilemedi: ${hierarchySave.error.message}`},{status:500});}
     if(Object.prototype.hasOwnProperty.call(body,"cardRelations")){
       if(!Array.isArray(body.cardRelations))return NextResponse.json({error:"Bağlı kart listesi geçersiz."},{status:400});
       const relationSave=await supabase.rpc("admin_replace_uin_card_relations_v87",{p_target_id:targetId,p_relations:body.cardRelations});
@@ -66,7 +66,7 @@ export async function POST(request:NextRequest){
       const upperTargetIds=lineage?.upperTargetIds,lowerTargetIds=lineage?.lowerTargetIds;
       if(!Array.isArray(upperTargetIds)||!Array.isArray(lowerTargetIds)||upperTargetIds.some(id=>typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id))||lowerTargetIds.some(id=>typeof id!=="string"||!/^[0-9a-f-]{36}$/i.test(id)))return NextResponse.json({error:"Üst ve alt kart bağlantılarını kontrol et."},{status:400});
       const lineageSave=await supabase.rpc("admin_replace_uin_card_lineage_v111",{p_target_id:targetId,p_upper_target_ids:upperTargetIds,p_lower_target_ids:lowerTargetIds});
-      if(lineageSave.error)return NextResponse.json({error:lineageSave.error.message},{status:500});
+      if(lineageSave.error)return NextResponse.json({error:`Kart bağlantıları kaydedilemedi: ${lineageSave.error.message}`},{status:500});
     }
     return NextResponse.json({updated:true});
   }catch(cause){return NextResponse.json({error:cause instanceof Error?cause.message:"İşlem tamamlanamadı."},{status:500})}
