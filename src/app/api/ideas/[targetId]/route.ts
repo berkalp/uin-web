@@ -93,17 +93,15 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const typeResult=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
   const people:Array<Record<string,unknown>>=wantRows.map(row=>{const sourceTarget=String(row.source_target_id||targetId);const permission=permissions.get(`${sourceTarget}:${row.user_id}`);return{...row,has_completed_experience:doneRows.some(done=>done.user_id===row.user_id),viewing_context:clubContext?.personal?.find(person=>person.user_id===row.user_id)?.context||metadata.legacy_viewing_context||null,is_current:true,id:row.source_id||row.user_id,start_date:row.start_date??row.target_date,end_date:row.end_date??row.target_date,together_allowed:Boolean(permission?.allowed),together_reason:typeof permission?.reason==="string"?permission.reason:null,together_code:typeof permission?.code==="string"?permission.code:null}});
   const events=[...new Map(eventResults.flatMap(result=>(result.data||[]) as Array<Record<string,unknown>>).map(event=>[String(event.resource_id||event.plan_id||event.intent_id),event])).values()];
-  const eventDetails=await Promise.all(events.map(event=>supabase.rpc("get_activity_detail_page",{p_resource_id:typeof event.plan_id==="string"?event.plan_id:event.intent_id as string})));
   const resourceIds=events.map(event=>String(event.plan_id||event.intent_id));
   const eventPeopleResult=resourceIds.length?await supabase.rpc("get_visible_activity_people_batch",{p_resource_ids:resourceIds}):{data:[],error:null};
   if(eventPeopleResult.error)return NextResponse.json({error:"Etkinlik katılımcıları yüklenemedi."},{status:500});
   const eventPeople=(eventPeopleResult.data||[]) as Array<Record<string,unknown>>;
   const enrichedEvents=events.map((event,index)=>{
-    const page=eventDetails[index]?.data as {activity?:{title?:string|null;status?:string|null}}|null;
     const members=new Map<string,Record<string,unknown>>();
     for(const person of (event.participants||[]) as Array<Record<string,unknown>>)members.set(String(person.user_id),person);
     for(const person of eventPeople.filter(person=>person.resource_id===resourceIds[index]))members.set(String(person.user_id),{...person,role:person.user_id===event.owner_user_id?"owner":"participant"});
-    return{...event,viewing_context:clubContext?.events?.find(item=>item.intent_id===event.intent_id)?.context||null,participants:[...members.values()],event_title:page?.activity?.title||null,plan_status:page?.activity?.status||null};
+    return{...event,viewing_context:clubContext?.events?.find(item=>item.intent_id===event.intent_id)?.context||null,participants:[...members.values()],event_title:typeof event.subtitle==="string"?event.subtitle:null};
   }) as Array<Record<string,unknown>>;
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul"}).format(new Date());
   const currentEvents=enrichedEvents.filter(event=>{
