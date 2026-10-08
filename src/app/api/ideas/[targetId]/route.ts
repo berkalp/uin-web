@@ -73,12 +73,6 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     console.error("card detail header unavailable",{card:cardResult.error,context:contextResult.error});
     return NextResponse.json({error:"Kart ayrıntıları yüklenemedi. Lütfen tekrar dene."},{status:503});
   }
-  // Run the hierarchy readers one after another. Executing three recursive
-  // readers concurrently can exhaust the database statement budget on large
-  // place trees and intermittently return a timeout.
-  const peopleResults=[await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0})];
-  const reviewResults=[await supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0})];
-  const eventResults=[await supabase.rpc("get_uin_card_events_v81",{p_target_id:targetId})];
   const context=(contextResult.data||{}) as Record<string,unknown>;
   const commonCard=((cardResult.data||[]) as Array<Record<string,unknown>>)[0];
   const card=commonCard||(typeof context.title==="string"&&context.title.trim()?{
@@ -92,6 +86,35 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   }:null);
   if(!card)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
   const viewerId=authResult.data.user?.id||null;
+  const metadata={...((card.metadata||{}) as object),...((context.metadata||{}) as object)} as Record<string,unknown>;
+  let typeId=typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
+  if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
+
+  // Start all independent, lightweight card requests while the hierarchy
+  // lists are being read. Previously these requests formed another serial
+  // waterfall after the three list readers had completed.
+  const typePromise=supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
+  const backgroundPromise=Promise.all([
+    supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId}),
+    viewerId?supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId}):Promise.resolve({data:null,error:null}),
+    supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),
+    supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),
+    supabase.rpc("get_uin_card_activity_options_v114",{p_target_id:targetId}),
+  ]);
+  const typeResult=await typePromise;
+  if(typeResult.error)return NextResponse.json({error:"Kart kategorisi yüklenemedi. Lütfen tekrar dene."},{status:503});
+
+  // Large place trees still run recursive readers one after another so they
+  // do not compete for the database statement budget. Ordinary cards have no
+  // such tree, so reading wishes, experiences and events concurrently removes
+  // several seconds from every book/media/game modal.
+  const readPeople=()=>supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0});
+  const readReviews=()=>supabase.rpc("get_uin_card_people_v81",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0});
+  const readEvents=()=>supabase.rpc("get_uin_card_events_v81",{p_target_id:targetId});
+  const [peoplePage,reviewPage,eventPage]=typeResult.data?.base_kind==="place"
+    ? [await readPeople(),await readReviews(),await readEvents()]
+    : await Promise.all([readPeople(),readReviews(),readEvents()]);
+  const peopleResults=[peoplePage],reviewResults=[reviewPage],eventResults=[eventPage];
   if(peopleResults.some(result=>result.error)||reviewResults.some(result=>result.error)||eventResults.some(result=>result.error)){
     console.error("card modal reader error",{people:peopleResults[0]?.error,reviews:reviewResults[0]?.error,events:eventResults[0]?.error});
     return NextResponse.json({error:"Kartın listeleri yüklenemedi."},{status:500});
@@ -102,14 +125,10 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const permissionResult=permissionRequests.length?await supabase.rpc("get_uin_together_permissions_v83",{p_requests:permissionRequests}):{data:[],error:null};
   if(permissionResult.error)return NextResponse.json({error:"Birlikte yapma izinleri yüklenemedi."},{status:500});
   const permissions=new Map(((permissionResult.data||[]) as Array<Record<string,unknown>>).map(row=>[`${row.target_id}:${row.recipient_id}`,row]));
-  const clubResult=await supabase.rpc("get_uin_club_context_v60",{p_target_id:targetId});
-  if(clubResult.error)return NextResponse.json({error:"Kart bağlamı yüklenemedi. Lütfen tekrar dene."},{status:503});
+  const [clubResult,ownIntentResult,socialResult,relationsResult,activityOptionsResult]=await backgroundPromise;
+  const clubError=clubResult.error;
+  if(clubError)return NextResponse.json({error:"Kart bağlamı yüklenemedi. Lütfen tekrar dene."},{status:503});
   const clubContext=clubResult.data as {personal?:Array<{user_id:string;context:object}>;events?:Array<{intent_id:string;context:object}>}|null;
-  const metadata={...((card.metadata||{}) as object),...((context.metadata||{}) as object)} as Record<string,unknown>;
-  let typeId=typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
-  if(!typeId){const catalog=await supabase.from("seed_catalog_items").select("item_kind").eq("canonical_target_id",targetId).order("updated_at",{ascending:false}).limit(1);typeId=catalog.data?.[0]?.item_kind||"activity";if(typeId==="video")typeId="series";}
-  const typeResult=await supabase.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("id",typeId).maybeSingle();
-  if(typeResult.error)return NextResponse.json({error:"Kart kategorisi yüklenemedi. Lütfen tekrar dene."},{status:503});
   const people:Array<Record<string,unknown>>=wantRows.map(row=>{const sourceTarget=String(row.source_target_id||targetId);const permission=permissions.get(`${sourceTarget}:${row.user_id}`);return{...row,has_completed_experience:doneRows.some(done=>done.user_id===row.user_id),viewing_context:clubContext?.personal?.find(person=>person.user_id===row.user_id)?.context||metadata.legacy_viewing_context||null,is_current:true,id:row.source_id||row.user_id,start_date:row.start_date??row.target_date,end_date:row.end_date??row.target_date,together_allowed:Boolean(permission?.allowed),together_reason:typeof permission?.reason==="string"?permission.reason:null,together_code:typeof permission?.code==="string"?permission.code:null}});
   const events=[...new Map(eventResults.flatMap(result=>(result.data||[]) as Array<Record<string,unknown>>).map(event=>[String(event.resource_id||event.plan_id||event.intent_id),event])).values()];
   const resourceIds=events.map(event=>String(event.plan_id||event.intent_id));
@@ -141,7 +160,6 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     return{...person,together_allowed:false,together_code:"same_event",together_reason:`${sharedTitle} etkinliğinde birliktesiniz.`,shared_event:{intent_id:shared.intent_id,plan_id:shared.plan_id||null,resource_id:shared.resource_id||null,title:sharedTitle,start_date:shared.start_date,end_date:shared.end_date,location:shared.location||null}};
   });
   const reviews=doneRows.map(row=>({...row,seed_id:row.seed_id||row.source_id||row.user_id,body:row.experience_text,comment_count:0}));
-  const ownIntentResult=viewerId?await supabase.rpc("get_my_common_personal_intent_v39",{p_target_id:targetId}):null;
   if(ownIntentResult?.error)return NextResponse.json({error:"İsteğin yüklenemedi."},{status:500});
   const ownPerson=people.find(person=>person.user_id===viewerId&&person.is_current!==false);
   const hasOwnPersonalIntent=Boolean(ownIntentResult?.data)||Boolean(ownPerson);
@@ -152,7 +170,6 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const ownRow=ownIntentResult?.data as Record<string,unknown>|null;const ownLoc=ownRow?.location_id?await supabase.from("locations").select("district,city,country_name").eq("id",String(ownRow.location_id)).maybeSingle():null;
   const ownWish=ownRow?.status==="active"?{user_id:viewerId,start_date:ownRow.start_date,end_date:ownRow.end_date,timing_precision:ownRow.timing_precision,date_options:ownRow.date_options,location:ownPerson?.location||[ownLoc?.data?.district,ownLoc?.data?.city,ownLoc?.data?.country_name].filter(Boolean).join(", ")||null,viewing_context:(clubResult.data as {own_context?:object}|null)?.own_context}:ownPerson?{user_id:viewerId,start_date:ownPerson.start_date,end_date:ownPerson.end_date,timing_precision:ownPerson.timing_precision,date_options:ownPerson.date_options,location:ownPerson.location,viewing_context:ownPerson.viewing_context}:null;
   const ownIntentDraft=ownRow?.status==="active"?{start_date:ownRow.start_date,end_date:ownRow.end_date,timing_precision:ownRow.timing_precision,date_options:ownRow.date_options,location_id:ownRow.location_id,notes:ownRow.notes,visibility:ownRow.visibility,collaboration_mode:ownRow.collaboration_mode}:ownPerson?{start_date:ownPerson.start_date,end_date:ownPerson.end_date,timing_precision:ownPerson.timing_precision,date_options:ownPerson.date_options,location_id:ownPerson.location_id,notes:ownPerson.notes,visibility:ownPerson.visibility||"everyone",collaboration_mode:"everyone"}:null;
-  const [socialResult,relationsResult,activityOptionsResult]=await Promise.all([supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_activity_options_v114",{p_target_id:targetId})]);
   if(socialResult.error||relationsResult.error||activityOptionsResult.error)return NextResponse.json({error:"Kartın puan, takipçi ve bağlantı bilgileri yüklenemedi."},{status:500});
   const displayRelations=await expandDisplayRelations(relationsResult.data);
   return NextResponse.json({canonicalTargetId:targetId,ownWish,ownIntentDraft,contentType:typeResult.data,card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeResult.data?.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata:{...((card.metadata||{}) as object),...((context.metadata||{}) as object)},catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social:(socialResult.data||[])[0]||null,relations:relationsResult.data||[],displayRelations,activityOptions:activityOptionsResult.data||[],viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
