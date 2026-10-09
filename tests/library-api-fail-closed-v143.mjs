@@ -68,6 +68,10 @@ assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, 
 test("personal scopes use canonical direct membership and keep the light read light", () => {
   const source = read("src/app/api/ideas/scopes/route.ts");
   assert.match(source, /resolve_uin_card_targets_v143/);
+  assert.match(source, /get_my_uin_active_plan_topics_v153/);
+  assert.doesNotMatch(source, /get_my_uin_active_plan_topics_v152/);
+  assert.match(source, /personal_event:/);
+  assert.match(source, /personal_start_date:/);
   assert.match(source, /type_id/);
   assert.match(source, /missingIds/);
   assert.match(source, /if\s*\(missingIds\.length\)/);

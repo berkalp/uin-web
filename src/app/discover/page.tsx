@@ -213,19 +213,19 @@ const COMMUNITY_SCOPE_OPTIONS = [
 const SCOPE_OPTIONS = [
   {
     value: "all",
-    label: "Herkes",
+    label: "Keşfet",
   },
   {
     value: "mine",
-    label: "Yürüttüklerim",
+    label: "Düzenlediklerim",
   },
   {
-    value: "friends",
-    label: "Arkadaşlarım",
+    value: "joined",
+    label: "Katıldıklarım",
   },
   {
-    value: "others",
-    label: "Diğer kişiler",
+    value: "invited",
+    label: "Davetler",
   },
 ] as const;
 
@@ -656,7 +656,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: scope,
+        p_scope: "all",
         p_limit: limit,
         p_offset: offset,
       });
@@ -672,7 +672,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: scope,
+        p_scope: "all",
         p_limit: limit,
         p_offset: offset,
       });
@@ -687,7 +687,7 @@ export default async function DiscoverPage({
       p_start_date: startDate || null,
       p_end_date: endDate || null,
       p_lifecycle: requestedLifecycle,
-      p_scope: scope,
+      p_scope: "all",
       p_limit: limit,
       p_offset: offset,
     });
@@ -968,7 +968,24 @@ export default async function DiscoverPage({
           eligibility
         );
       }
-    );
+    ).filter((intent) => {
+      if (scope === "mine") {
+        return intent.owner_user_id === user.id;
+      }
+
+      if (scope === "joined") {
+        return (
+          intent.viewer_is_member === true &&
+          intent.owner_user_id !== user.id
+        );
+      }
+
+      if (scope === "invited") {
+        return intent.viewer_invitation_status === "pending";
+      }
+
+      return true;
+    });
 
   const visibleIntentIds =
     Array.from(
@@ -979,6 +996,33 @@ export default async function DiscoverPage({
         )
       )
     );
+
+  const activeScopeRows = rawResults.filter(
+    (intent) =>
+      ["open", "future", "forming", "planned"].includes(
+        intent.lifecycle_status
+      ) &&
+      intent.intent_status !== "completed" &&
+      intent.intent_status !== "cancelled" &&
+      !intent.completed_at &&
+      !intent.cancelled_at &&
+      !intent.expired_at
+  );
+
+  const scopeCounts = {
+    all: toCount(rawResults[0]?.total_count),
+    mine: activeScopeRows.filter(
+      (intent) => intent.owner_user_id === user.id
+    ).length,
+    joined: activeScopeRows.filter(
+      (intent) =>
+        intent.viewer_is_member === true &&
+        intent.owner_user_id !== user.id
+    ).length,
+    invited: activeScopeRows.filter(
+      (intent) => intent.viewer_invitation_status === "pending"
+    ).length,
+  };
 
   const commonTargetIntentIds = Array.from(
     new Set([
@@ -1391,7 +1435,7 @@ export default async function DiscoverPage({
     IntentLinkRpcRow[] =
     [];
 
-  let intentCommunityRows:
+  const intentCommunityRows:
     ReturnType<
       typeof parseIntentCommunityRows
     > = [];
@@ -1464,9 +1508,11 @@ export default async function DiscoverPage({
   );
 
   const totalCount =
-    toCount(
-      rawResults[0]?.total_count
-    );
+    scope === "all"
+      ? toCount(
+          rawResults[0]?.total_count
+        )
+      : results.length;
 
   const visibleResultCount =
     results.length;
@@ -1590,24 +1636,7 @@ export default async function DiscoverPage({
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
       <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
       <div className="mx-auto max-w-[1320px]">
-        <header className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">
-                ETKİNLİK KEŞFİ
-              </p>
-
-              <h1 className="mt-2 text-3xl font-bold text-gray-950">
-                Etkinlikleri Keşfet
-              </h1>
-
-              <p className="mt-2 max-w-4xl text-sm leading-6 text-gray-500">
-                Tarihi, konumu, yürütücüsü ve katılım bilgileri belirlenmiş etkinlikleri keşfet.
-              </p>
-            </div>
-
-          </div>
-        </header>
+        <DiscoverQuickFilters lifecycle={lifecycle} scope={scope} communityScope={communityScope} communityId={communityId} followedCommunities={followedCommunities.map(community=>({id:community.id,name:community.name}))} lifecycleOptions={LIFECYCLE_OPTIONS} scopeOptions={SCOPE_OPTIONS} communityScopeOptions={COMMUNITY_SCOPE_OPTIONS} counts={scopeCounts}/>
 
         <form action="/discover" method="get" className="mt-4 flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
           <span className="grid w-10 shrink-0 place-items-center text-xl text-gray-400" aria-hidden="true">⌕</span>
@@ -1837,23 +1866,6 @@ export default async function DiscoverPage({
 
               {view === "cards" && <WebCardLayoutPicker/>}
 
-              <DiscoverQuickFilters
-                lifecycle={lifecycle}
-                scope={scope}
-                communityScope={communityScope}
-                communityId={communityId}
-                followedCommunities={
-                  followedCommunities.map(
-                    (community) => ({
-                      id: community.id,
-                      name: community.name,
-                    })
-                  )
-                }
-                lifecycleOptions={LIFECYCLE_OPTIONS}
-                scopeOptions={SCOPE_OPTIONS}
-                communityScopeOptions={COMMUNITY_SCOPE_OPTIONS}
-              />
               </div>
             </section>
 
