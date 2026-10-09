@@ -108,7 +108,8 @@ test("personal child cards bypass Library-only hierarchy hiding", () => {
 
   assert.match(source, /scope==="library"&&effectiveKind!=="place"&&hasSameCategoryParent\(item\)/);
   assert.match(source, /scope==="library"&&cardKind\(item\)==="club"/);
-  assert.match(source, /scope==="library"&&\(kind==="all"\|\|Boolean\(categoryCardsError\)\)\?\[\]/);
+  assert.match(source, /scope==="library"&&kind==="all"\?\[\]/);
+  assert.doesNotMatch(source, /kind==="all"\|\|Boolean\(categoryCardsError\)/);
   assert.match(source, /!matches\(card,next\)/);
 });
 
@@ -128,8 +129,8 @@ test("unresolved category counts render as loading or unavailable, never fake ze
 
   assert.match(source, /categoryCountsLoading/);
   assert.match(source, /id==="library"&&!hasCategoryCounts\?\(categoryCountsLoading\?"…":"—"\)/);
-  assert.match(source, /hasCategoryCounts\?categoryTotal:categoryCountsLoading\?"…":"—"/);
-  assert.match(source, /hasCategoryCounts\?count:categoryCountsLoading\?"…":"—"/);
+  assert.match(source, /hasScopeCounts\?categoryTotal:scopeCountsLoading\?"…":"—"/);
+  assert.match(source, /hasScopeCounts\?count:scopeCountsLoading\?"…":"—"/);
 });
 
 test("public category counts are cached and do not block the Ideas SSR shell", () => {
