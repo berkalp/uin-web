@@ -22,7 +22,7 @@ test("common-card counters use the same visible rows as their detail lists", asy
     assert.equal(Number(detail.card.social_intent_count), detail.events.filter((event) => event.event_state === "active").length);
     assert.ok(detail.people.length >= target.minPeople, `${target.title} should expose multiple user scenarios`);
     assert.equal(new Set(detail.people.map((person) => person.user_id)).size, detail.people.length);
-    assert.ok(detail.people.every((person) => person.source_kind === "seed" || person.source_kind === "personal"));
+    assert.ok(detail.people.every((person) => ["seed", "personal", "social"].includes(person.source_kind)));
   }
 });
 
