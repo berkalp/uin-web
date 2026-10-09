@@ -27,7 +27,7 @@ test("personal catalogue scopes follow the local browser session", () => {
 test("personal counts expose unknown and error states without discarding good data", () => {
   assert.match(client, /useState<ScopeData\|null>\(null\)/);
   assert.match(client, /id!=="library"&&!scopeData\?\(scopeLoading\?"…":"—"\):scopeCount\(id\)/);
-  assert.match(client, /scopeLoading&&!scopeData/);
+  assert.match(client, /const personalCardsPending=[^;]*\(!scopeData\|\|!personalCardsReady\)/);
 
   const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");
   const fetchEnd = client.indexOf("useEffect(()=>{if(addingOnly||viewerId!==null)return;", fetchStart);
@@ -41,6 +41,51 @@ test("personal counts expose unknown and error states without discarding good da
     "a refresh error must preserve the last successful personal payload",
   );
   assert.doesNotMatch(client, /!\(scope!=="library"&&scopeError\)/);
+});
+
+test("personal card readiness belongs to the requested scope and kind", () => {
+  assert.match(client, /const \[scopeDataKey,setScopeDataKey\]=useState<string\|null>\(null\)/);
+  assert.match(client, /const requestedPersonalCardKey=scope!=="library"&&!categoryLanding\?`\$\{scope\}:\$\{kind\}`:null/);
+  assert.match(client, /scopeDataKey===requestedPersonalCardKey/);
+
+  const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");
+  const fetchEnd = client.indexOf("useEffect(()=>{if(addingOnly||viewerId!==null)return;", fetchStart);
+  assert.ok(fetchStart >= 0 && fetchEnd > fetchStart, "personal fetch effect must stay identifiable");
+  const personalFetch = client.slice(fetchStart, fetchEnd);
+  assert.match(personalFetch, /const requestCardKey=includeCards\?`\$\{scope\}:\$\{kind\}`:null/);
+  assert.match(personalFetch, /setScopeData\(body\);setScopeDataKey\(requestCardKey\)/);
+  assert.doesNotMatch(
+    personalFetch.slice(personalFetch.indexOf("catch(cause)")),
+    /setScopeDataKey/,
+    "a failed refresh of the current key must preserve its last-good payload key",
+  );
+
+  assert.match(client, /const currentScopeError=scopeErrorKey===scopeRequestKey\?scopeError:""/);
+  assert.match(client, /scope!=="library"&&\(!scopeData\|\|!personalCardsReady\)\?\(personalCardsPending\?"…":"—"\)/);
+  assert.match(client, /!categoryLanding&&!\(scope!=="library"&&\(!scopeData\|\|!personalCardsReady\)\)/);
+});
+
+test("switching A to B to A never treats B's shared payload as ready for A", () => {
+  let scopeDataKey = null;
+  const accept = (scope, kind, includeCards = true) => {
+    scopeDataKey = includeCards ? `${scope}:${kind}` : null;
+  };
+  const ready = (scope, kind) => scopeDataKey === `${scope}:${kind}`;
+
+  accept("wishes", "movie");
+  assert.equal(ready("wishes", "movie"), true);
+  accept("wishes", "book");
+  assert.equal(ready("wishes", "movie"), false);
+  assert.equal(ready("wishes", "book"), true);
+
+  // Navigating back happens before the movie response is accepted.
+  assert.equal(ready("wishes", "movie"), false);
+  accept("wishes", "movie");
+  assert.equal(ready("wishes", "movie"), true);
+
+  // A counts-only response cannot make any card key ready.
+  accept("wishes", "movie", false);
+  assert.equal(ready("wishes", "movie"), false);
 });
 
 test("library category errors keep last-good cards and library total is informational", () => {
