@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 
-import { createClient } from "@/utils/supabase/server";
+import { requireAdmin } from "@/utils/admin";
 
 function text(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -89,6 +89,7 @@ function validateMetadata(metadata: Record<string, string | number | null>): str
 export async function reviewSeedCatalogueItem(
   formData: FormData
 ): Promise<void> {
+  const { supabase } = await requireAdmin();
   const returnTo = safeReturnTo(formData);
   const catalogItemId = text(formData, "catalog_item_id");
   const action = text(formData, "review_action");
@@ -98,7 +99,6 @@ export async function reviewSeedCatalogueItem(
     redirect(withNotice(returnTo, "error", "Catalogue review request is invalid."));
   }
 
-  const supabase = await createClient();
   const { error } = await supabase.rpc("admin_review_seed_catalog_item", {
     p_catalog_item_id: catalogItemId,
     p_action: action,
@@ -115,6 +115,7 @@ export async function reviewSeedCatalogueItem(
 export async function deleteSeedCatalogueItem(
   formData: FormData
 ): Promise<void> {
+  const { supabase } = await requireAdmin();
   const returnTo = safeReturnTo(formData);
   const catalogItemId = text(formData, "catalog_item_id");
 
@@ -122,7 +123,6 @@ export async function deleteSeedCatalogueItem(
     redirect(withNotice(returnTo, "error", "Silinecek kütüphane kaydı bulunamadı."));
   }
 
-  const supabase = await createClient();
   const { error } = await supabase.rpc("admin_delete_seed_catalog_item", {
     p_catalog_item_id: catalogItemId,
   });
@@ -137,6 +137,7 @@ export async function deleteSeedCatalogueItem(
 export async function updateSeedCatalogueItem(
   formData: FormData
 ): Promise<void> {
+  const { supabase } = await requireAdmin();
   const returnTo = safeReturnTo(formData);
   const catalogItemId = text(formData, "catalog_item_id");
   const canonicalTitle = text(formData, "canonical_title");
@@ -175,7 +176,6 @@ export async function updateSeedCatalogueItem(
     redirect(withNotice(returnTo, "error", metadataError));
   }
 
-  const supabase = await createClient();
   const { error } = await supabase.rpc("admin_update_seed_catalog_item_v3", {
     p_catalog_item_id: catalogItemId,
     p_canonical_title: canonicalTitle,
@@ -205,6 +205,7 @@ export async function updateSeedCatalogueItem(
 export async function createSeedCatalogueItem(
   formData: FormData
 ): Promise<void> {
+  const { supabase } = await requireAdmin();
   const returnTo = safeReturnTo(formData);
   const seedTypeId = text(formData, "seed_type_id");
   const itemKind = text(formData, "item_kind") || "generic";
@@ -254,7 +255,6 @@ export async function createSeedCatalogueItem(
     redirect(withNotice(returnTo, "error", metadataError));
   }
 
-  const supabase = await createClient();
   const { data, error } = await supabase.rpc("admin_create_seed_catalog_item_v3", {
     p_seed_type_id: seedTypeId,
     p_item_kind: itemKind,

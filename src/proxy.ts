@@ -35,6 +35,52 @@ export async function proxy(
       request,
     });
 
+  const pathname =
+    request.nextUrl.pathname;
+
+  if (pathname === "/communities" || pathname.startsWith("/communities/")) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/ideas";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  if (
+    pathname === "/admin/communities" ||
+    pathname.startsWith("/admin/communities/") ||
+    pathname === "/admin/community-sports" ||
+    pathname.startsWith("/admin/community-sports/")
+  ) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/admin";
+    redirectUrl.search = "";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  const isAuthRoute =
+    pathname.startsWith(
+      "/auth/"
+    );
+
+  const isRestrictedPage =
+    pathname ===
+    "/account-restricted";
+
+  if (isAuthRoute || isRestrictedPage) {
+    return response;
+  }
+
+  const hasAuthSession = request.cookies
+    .getAll()
+    .some(
+      ({ name }) =>
+        name.startsWith("sb-") && name.includes("-auth-token")
+    );
+
+  if (!hasAuthSession) {
+    return response;
+  }
+
   const supabase =
     createServerClient(
       process.env
@@ -85,37 +131,6 @@ export async function proxy(
       }
     );
 
-  const pathname =
-    request.nextUrl.pathname;
-
-  if (pathname === "/communities" || pathname.startsWith("/communities/")) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/ideas";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  if (
-    pathname === "/admin/communities" ||
-    pathname.startsWith("/admin/communities/") ||
-    pathname === "/admin/community-sports" ||
-    pathname.startsWith("/admin/community-sports/")
-  ) {
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/admin";
-    redirectUrl.search = "";
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  const isAuthRoute =
-    pathname.startsWith(
-      "/auth/"
-    );
-
-  const isRestrictedPage =
-    pathname ===
-    "/account-restricted";
-
   const {
     data: claimsData,
     error: claimsError,
@@ -142,11 +157,7 @@ export async function proxy(
       ? claimsData.claims.sub
       : null;
 
-  if (
-    !userId ||
-    isAuthRoute ||
-    isRestrictedPage
-  ) {
+  if (!userId) {
     return response;
   }
 
@@ -174,7 +185,21 @@ export async function proxy(
       }
     );
 
-    return response;
+    const redirectUrl =
+      request.nextUrl.clone();
+
+    redirectUrl.pathname =
+      "/account-restricted";
+
+    redirectUrl.search =
+      "?verification=unavailable";
+
+    return copyResponseCookies(
+      response,
+      NextResponse.redirect(
+        redirectUrl
+      )
+    );
   }
 
   if (

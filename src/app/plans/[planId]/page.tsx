@@ -2,7 +2,9 @@ import {
   notFound,
   redirect,
 } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import { createClient } from "../../../utils/supabase/server";
 import type { ReturnSearchParams } from "../../../utils/returnNavigation";
 
@@ -26,6 +28,12 @@ type PlanRedirectData = {
   planned_at: string | null;
 };
 
+function isValidUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export default async function PlanRedirectPage({
   params,
   searchParams,
@@ -33,12 +41,43 @@ export default async function PlanRedirectPage({
   const { planId } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
 
+  if (!isValidUuid(planId)) {
+    notFound();
+  }
+
+  const forwardedParams = new URLSearchParams();
+
+  for (const key of ["from", "returnTo", "returnLabel"]) {
+    const value = resolvedSearchParams[key];
+    const firstValue = Array.isArray(value) ? value[0] : value;
+    if (firstValue) {
+      forwardedParams.set(key, firstValue);
+    }
+  }
+
+  const query = forwardedParams.toString();
+  const retryPath = `/plans/${encodeURIComponent(planId)}`;
+  const retryHref = query ? `${retryPath}?${query}` : retryPath;
+
   const supabase =
     await createClient();
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Plan redirect session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Plan şu anda yüklenemedi"
+        retryHref={retryHref}
+        backHref="/timeline"
+        backLabel="Niyetlere dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -58,17 +97,23 @@ export default async function PlanRedirectPage({
     .eq("id", planId)
     .maybeSingle();
 
-  if (
-    error ||
-    !data
-  ) {
-    if (error) {
-      console.error(
-        "Plan redirect query failed:",
-        error
-      );
-    }
+  if (error) {
+    console.error(
+      "Plan redirect query failed:",
+      error
+    );
 
+    return (
+      <PageDataUnavailable
+        title="Plan şu anda yüklenemedi"
+        retryHref={retryHref}
+        backHref="/timeline"
+        backLabel="Niyetlere dön"
+      />
+    );
+  }
+
+  if (!data) {
     notFound();
   }
 
@@ -88,16 +133,5 @@ export default async function PlanRedirectPage({
   const targetPath = activityRoomExists
     ? `/plans/${plan.id}/activity`
     : `/plans/${plan.id}/planning`;
-  const forwardedParams = new URLSearchParams();
-
-  for (const key of ["from", "returnTo", "returnLabel"]) {
-    const value = resolvedSearchParams[key];
-    const firstValue = Array.isArray(value) ? value[0] : value;
-    if (firstValue) {
-      forwardedParams.set(key, firstValue);
-    }
-  }
-
-  const query = forwardedParams.toString();
   redirect(query ? `${targetPath}?${query}` : targetPath);
 }

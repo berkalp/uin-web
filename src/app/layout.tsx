@@ -34,10 +34,18 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const requestedLocale =
     cookieStore.get("uin_locale")?.value ?? null;
+  const hasAuthSession = cookieStore
+    .getAll()
+    .some(
+      ({ name }) =>
+        name.startsWith("sb-") && name.includes("-auth-token")
+    );
 
   const [translationBundle, viewerContext] = await Promise.all([
     getAppTranslationBundle(requestedLocale),
-    getViewerContext().catch(() => ({ user: null, adminRole: null })),
+    hasAuthSession
+      ? getViewerContext().catch(() => ({ user: null, adminRole: null }))
+      : Promise.resolve({ user: null, adminRole: null }),
   ]);
   const adminRole = viewerContext.adminRole;
 
@@ -61,7 +69,7 @@ export default async function RootLayout({
           }}
         />
 
-        <ReminderToastListener />
+        <ReminderToastListener enabled={Boolean(viewerContext.user)} />
 
         {children}
 

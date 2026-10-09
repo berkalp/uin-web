@@ -1,3 +1,4 @@
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import IntentForm from "@/components/onboarding/IntentForm";
 import type { SeedGrowthCandidate, SeedGrowthContext } from "@/utils/seeds";
 import { createClient } from "@/utils/supabase/server";
@@ -29,6 +30,23 @@ function isValidUuid(value: string) {
   );
 }
 
+function getRetryHref(
+  searchParams: Record<string, string | string[] | undefined>,
+) {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (Array.isArray(value)) {
+      for (const item of value) query.append(key, item);
+    } else if (value !== undefined) {
+      query.set(key, value);
+    }
+  }
+
+  const suffix = query.toString();
+  return suffix ? `/onboarding?${suffix}` : "/onboarding";
+}
+
 export default async function OnboardingPage({
   searchParams,
 }: {
@@ -37,35 +55,57 @@ export default async function OnboardingPage({
   const resolvedSearchParams = await searchParams;
   const requestedSeedId = getParam(resolvedSearchParams, "seed");
   const requestedTargetId = getParam(resolvedSearchParams, "target");
+  const retryHref = getRetryHref(resolvedSearchParams);
+  const shouldLoadTarget = Boolean(
+    requestedTargetId && isValidUuid(requestedTargetId),
+  );
+  const shouldLoadSeed = Boolean(
+    requestedSeedId && isValidUuid(requestedSeedId),
+  );
+  const supabase =
+    shouldLoadTarget || shouldLoadSeed ? await createClient() : null;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Niyet başlangıç bilgileri şu anda yüklenemedi"
+      retryHref={retryHref}
+      backHref="/ideas"
+      backLabel="Kütüphaneye dön"
+    />
+  );
 
   let seedContext: SeedGrowthContext | null = null;
   let seedCandidates: SeedGrowthCandidate[] = [];
   let targetContext: CommonTargetContext | null = null;
 
-  if (requestedTargetId && isValidUuid(requestedTargetId)) {
-    const supabase = await createClient();
-    const result = await supabase.rpc("get_common_target_create_context_v38", { p_target_id: requestedTargetId });
-    if (!result.error) targetContext = result.data as CommonTargetContext | null;
+  if (shouldLoadTarget && supabase) {
+    const result = await supabase.rpc("get_common_target_create_context_v38", {
+      p_target_id: requestedTargetId,
+    });
+
+    if (result.error) {
+      console.error("Common target create context query failed:", result.error);
+      return unavailable;
+    }
+
+    targetContext = result.data as CommonTargetContext | null;
   }
 
-  if (requestedSeedId && isValidUuid(requestedSeedId)) {
-    const supabase = await createClient();
+  if (shouldLoadSeed && supabase) {
     const [contextResult, candidatesResult] = await Promise.all([
       supabase.rpc("get_my_seed_growth_context", { p_seed_id: requestedSeedId }),
       supabase.rpc("get_my_seed_growth_candidates", { p_primary_seed_id: requestedSeedId }),
     ]);
 
-    if (contextResult.error) {
-      console.warn("Seed growth context could not be loaded:", contextResult.error.message);
-    } else {
-      seedContext = ((contextResult.data ?? []) as SeedGrowthContext[])[0] ?? null;
+    if (contextResult.error || candidatesResult.error) {
+      console.error("Seed growth context queries failed:", {
+        context: contextResult.error,
+        candidates: candidatesResult.error,
+      });
+      return unavailable;
     }
 
-    if (candidatesResult.error) {
-      console.warn("Seed growth candidates could not be loaded:", candidatesResult.error.message);
-    } else {
-      seedCandidates = (candidatesResult.data ?? []) as SeedGrowthCandidate[];
-    }
+    seedContext = ((contextResult.data ?? []) as SeedGrowthContext[])[0] ?? null;
+    seedCandidates = (candidatesResult.data ?? []) as SeedGrowthCandidate[];
   }
 
   return (

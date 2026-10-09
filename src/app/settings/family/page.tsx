@@ -86,27 +86,10 @@ export default async function FamilySettingsPage() {
       FamilyCenterData;
 
   const publicFamilyData =
-    (
-      publicFamilyResponse.data ??
-      {
-        self: {
-          user_id:
-            familyData.self.user_id,
-          full_name:
-            familyData.self.full_name,
-          username:
-            familyData.self.username,
-          age_state:
-            familyData.self.age_state,
-          can_invite_relationship:
-            false,
-        },
-        managed_children: [],
-        accepted_relationships: [],
-        incoming_invitations: [],
-        outgoing_invitations: [],
-      }
-    ) as PublicFamilySettingsData;
+    publicFamilyResponse.error ||
+    !publicFamilyResponse.data
+      ? null
+      : publicFamilyResponse.data as PublicFamilySettingsData;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -140,11 +123,25 @@ export default async function FamilySettingsPage() {
         {!familyData.self
           .is_managed_minor && (
           <div className="mt-8">
-            <PublicFamilyManager
-              initialData={
-                publicFamilyData
-              }
-            />
+            {publicFamilyData ? (
+              <PublicFamilyManager
+                initialData={
+                  publicFamilyData
+                }
+              />
+            ) : (
+              <section role="alert" className="rounded-3xl border border-amber-200 bg-white p-6 shadow-sm">
+                <h2 className="text-xl font-bold text-gray-950">
+                  Herkese açık aile ilişkileri yüklenemedi
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-amber-800">
+                  Mevcut ilişkileri ve davetleri eksik göstermemek için bu bölüm geçici olarak gizlendi.
+                </p>
+                <Link href="/settings/family" className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white">
+                  Yeniden dene
+                </Link>
+              </section>
+            )}
           </div>
         )}
       </div>

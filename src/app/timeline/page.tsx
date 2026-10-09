@@ -2129,6 +2129,7 @@ export default async function TimelinePage({
     );
   }
 
+  const pageRenderedAt = new Date();
   const today = new Intl.DateTimeFormat(
     "en-CA",
     {
@@ -2137,7 +2138,7 @@ export default async function TimelinePage({
       month: "2-digit",
       day: "2-digit",
     }
-  ).format(new Date());
+  ).format(pageRenderedAt);
 
   const [
     ownedIntentResult,
@@ -2343,6 +2344,15 @@ export default async function TimelinePage({
   }
 
   if (
+    directMessageCountResult.error
+  ) {
+    console.error(
+      "Direct message count query failed:",
+      directMessageCountResult.error
+    );
+  }
+
+  if (
     managedProfilesResult.error
   ) {
     console.error(
@@ -2425,17 +2435,23 @@ export default async function TimelinePage({
         )
     ).length;
 
+  const parsedNotificationCount =
+    Number(notificationCountResult.data);
   const unreadNotificationCount =
-    Number(
-      notificationCountResult.data ??
-      0
-    );
+    notificationCountResult.error ||
+    notificationCountResult.data == null ||
+    !Number.isFinite(parsedNotificationCount)
+      ? null
+      : Math.max(0, parsedNotificationCount);
 
+  const parsedDirectMessageCount =
+    Number(directMessageCountResult.data);
   const unreadDirectMessageCount =
-    Number(
-      directMessageCountResult.data ??
-      0
-    );
+    directMessageCountResult.error ||
+    directMessageCountResult.data == null ||
+    !Number.isFinite(parsedDirectMessageCount)
+      ? null
+      : Math.max(0, parsedDirectMessageCount);
 
   const receivedIntentInvitations =
     (
@@ -2643,9 +2659,11 @@ export default async function TimelinePage({
     adminResult.data ===
       true;
 
-  const activeMatchCount = Array.isArray(activeMatchCountResult.data)
-    ? activeMatchCountResult.data.length
-    : 0;
+  const activeMatchCount =
+    activeMatchCountResult.error ||
+    !Array.isArray(activeMatchCountResult.data)
+      ? null
+      : activeMatchCountResult.data.length;
 
 
   const timelineSeeds = sortProfileItems(
@@ -2794,7 +2812,7 @@ export default async function TimelinePage({
     intentResolutionResult.data ?? []
   ) as IntentJoinResolutionRow[];
 
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const sevenDaysAgo = pageRenderedAt.getTime() - 7 * 24 * 60 * 60 * 1000;
   const intentResolutionItems: IntentResolutionItem[] = resolutionRows
     .filter((row) => {
       if (row.status === "pending") return true;
@@ -2958,11 +2976,11 @@ const {
       )
     );
 
-  let intentLinkRows:
+  const intentLinkRows:
     IntentLinkRpcRow[] =
     [];
 
-  let intentCommunityRows:
+  const intentCommunityRows:
     IntentCommunityContext[] =
     [];
 
@@ -3000,19 +3018,54 @@ const {
     ...visibleIntentIds,
     ...presentationPlanIds,
   ]));
-  const eventPresentationEntries = await Promise.all(
-    eventPresentationResources.map(async (resourceId) => {
-      const { data, error } = await supabase.rpc("get_uin_event_presentation_v86", {
-        p_resource_id: resourceId,
-      });
-      if (error) {
-        console.warn("Timeline event presentation is temporarily unavailable:", error.message);
-        return [resourceId, null] as const;
-      }
-      return [resourceId, (data && typeof data === "object" && !Array.isArray(data) ? data : null) as EventPresentation | null] as const;
-    })
+  const eventPresentationBatches = Array.from(
+    { length: Math.ceil(eventPresentationResources.length / 100) },
+    (_, index) => eventPresentationResources.slice(index * 100, (index + 1) * 100)
   );
-  const eventPresentationByResourceId = new Map(eventPresentationEntries);
+  const eventPresentationBatchResponses = await Promise.all(
+    eventPresentationBatches.map((resourceIds) =>
+      supabase.rpc("get_uin_event_presentations_v150", {
+        p_resource_ids: resourceIds,
+      })
+    )
+  );
+  const eventPresentationByResourceId = new Map<string, EventPresentation | null>();
+
+  for (let index = 0; index < eventPresentationBatchResponses.length; index += 1) {
+    const response = eventPresentationBatchResponses[index];
+    const resourceIds = eventPresentationBatches[index] ?? [];
+
+    if (response.error) {
+      console.warn(
+        "Timeline event presentation batch is temporarily unavailable; using the exact fallback:",
+        response.error.message
+      );
+      const fallbackResponses = await Promise.all(
+        resourceIds.map(async (resourceId) => ({
+          resourceId,
+          result: await supabase.rpc("get_uin_event_presentation_v86", {
+            p_resource_id: resourceId,
+          }),
+        }))
+      );
+      for (const { resourceId, result } of fallbackResponses) {
+        eventPresentationByResourceId.set(
+          resourceId,
+          !result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)
+            ? (result.data as EventPresentation)
+            : null
+        );
+      }
+      continue;
+    }
+
+    for (const row of (response.data ?? []) as Array<{
+      resource_id: string;
+      presentation: EventPresentation | null;
+    }>) {
+      eventPresentationByResourceId.set(row.resource_id, row.presentation);
+    }
+  }
 
   for (
     let startIndex = 0;
@@ -3277,8 +3330,12 @@ const {
       );
 
   const messageCenterUnreadCount =
-    unreadDirectMessageCount +
-    unreadRoomMessageCount;
+    unreadDirectMessageCount === null ||
+    conversationSummaryResult.error ||
+    planResult.error
+      ? null
+      : unreadDirectMessageCount +
+        unreadRoomMessageCount;
 
   const conversationSummaryByPlanId =
     new Map<
@@ -3402,10 +3459,16 @@ const {
     );
 
   const inboxCount =
-    incomingRequestCount +
-    pendingIntentInvitationCount +
-    pendingJoinRequestCount +
-    pendingManagedProfileActionCount;
+    requestResult.error ||
+    intentInvitationResult.error ||
+    joinRequestResult.error ||
+    ownedIntentResult.error ||
+    managedProfilesResult.error
+      ? null
+      : incomingRequestCount +
+        pendingIntentInvitationCount +
+        pendingJoinRequestCount +
+        pendingManagedProfileActionCount;
 
   const viewCounts: Record<
     TimelineView,
@@ -3599,7 +3662,7 @@ const {
       new Date(second.sortDate).getTime()
   );
 
-  const mineToday = new Date();
+  const mineToday = new Date(pageRenderedAt);
   mineToday.setHours(0, 0, 0, 0);
 
   const mine30Days = new Date(mineToday);
@@ -4182,7 +4245,7 @@ const {
     const daysUntilOutcomeUnknown = Number.isFinite(outcomeUnknownAt)
       ? Math.max(
           0,
-          Math.ceil((outcomeUnknownAt - Date.now()) / (24 * 60 * 60 * 1000))
+          Math.ceil((outcomeUnknownAt - pageRenderedAt.getTime()) / (24 * 60 * 60 * 1000))
         )
       : null;
 

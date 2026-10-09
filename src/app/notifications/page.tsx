@@ -280,7 +280,9 @@ export default async function NotificationsPage({
         <div className="flex flex-wrap items-center justify-end gap-4">
 
 
-          <MarkAllNotificationsReadButton disabled={unreadCount === 0} />
+          {!error && (
+            <MarkAllNotificationsReadButton disabled={unreadCount === 0} />
+          )}
         </div>
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
@@ -297,27 +299,34 @@ export default async function NotificationsPage({
             gelişmeler burada görünür. Oda konuşmalarını Mesajlar bölümünde bulabilirsin.
           </p>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white">
-              {unreadCount} okunmamış
-            </span>
-
-            <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {totalCount} toplam
-            </span>
-
-            {totalCount > 0 && (
-              <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-                Sayfa {Math.min(requestedPage, pageCount)} / {pageCount}
+          {!error && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white">
+                {unreadCount} okunmamış
               </span>
-            )}
-          </div>
+
+              <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
+                {totalCount} toplam
+              </span>
+
+              {totalCount > 0 && (
+                <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
+                  Sayfa {Math.min(requestedPage, pageCount)} / {pageCount}
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-semibold text-red-800">Bildirimler yüklenemedi.</p>
-            <p className="mt-2 text-sm text-red-700">{error.message}</p>
+            <p className="mt-2 text-sm text-red-700">
+              Kayıtların eksik görünmemesi için listeyi göstermiyoruz. Lütfen yeniden dene.
+            </p>
+            <Link href={pageHref(requestedPage)} className="mt-4 inline-flex rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">
+              Yeniden dene
+            </Link>
           </div>
         )}
 

@@ -74,15 +74,16 @@ function PersonCard({
         )}
 
         <div className="min-w-0 flex-1">
-          <Link
-            href={`/u/${encodeURIComponent(
-              row.other_username ??
-                ""
-            )}`}
-            className="font-bold text-gray-950 transition hover:text-green-700"
-          >
-            {name}
-          </Link>
+          {row.other_username ? (
+            <Link
+              href={`/u/${encodeURIComponent(row.other_username)}`}
+              className="font-bold text-gray-950 transition hover:text-green-700"
+            >
+              {name}
+            </Link>
+          ) : (
+            <p className="font-bold text-gray-950">{name}</p>
+          )}
 
           {row.other_username && (
             <p className="mt-1 text-sm text-gray-500">
@@ -187,23 +188,30 @@ export default async function FriendsPage() {
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <WebCardLayoutPicker className="mr-auto"/>
-            <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-              {friends.length} arkadaş
-            </span>
+            {!error && (
+              <>
+                <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
+                  {friends.length} arkadaş
+                </span>
 
-            <span className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-              {incoming.length} gelen istek
-            </span>
+                <span className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
+                  {incoming.length} gelen istek
+                </span>
 
-            <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {outgoing.length} gönderilen
-            </span>
+                <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
+                  {outgoing.length} gönderilen
+                </span>
+              </>
+            )}
           </div>
         </header>
 
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
-            {error.message}
+            <p className="font-semibold">Arkadaşlık listesi şu anda yüklenemedi.</p>
+            <Link href="/friends" className="mt-3 inline-flex rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">
+              Yeniden dene
+            </Link>
           </div>
         )}
 

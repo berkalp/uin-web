@@ -325,6 +325,29 @@ function RequestStatusBadge({
   );
 }
 
+function RequestsUnavailable() {
+  return (
+    <main className="min-h-screen bg-gray-50 px-6 py-10">
+      <div className="mx-auto max-w-3xl">
+        <Link href="/timeline" aria-label="UIN Timeline" className="inline-flex">
+          <img src="/uin-logo.png" alt="uin? logo" className="h-12 w-auto" />
+        </Link>
+        <section role="alert" className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-950">
+            Niyet istekleri yüklenemedi
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-red-700">
+            İsteklerini eksik veya boş göstermemek için liste geçici olarak gizlendi.
+          </p>
+          <Link href="/requests" className="mt-5 inline-flex rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white">
+            Yeniden dene
+          </Link>
+        </section>
+      </div>
+    </main>
+  );
+}
+
 export default async function RequestsPage() {
   const supabase =
     await createClient();
@@ -366,6 +389,8 @@ export default async function RequestsPage() {
       "Requests query failed:",
       requestError
     );
+
+    return <RequestsUnavailable />;
   }
 
   const requests =
@@ -412,6 +437,8 @@ export default async function RequestsPage() {
   let participations:
     RequestParticipation[] = [];
 
+  let relatedDataFailed = false;
+
   if (profileIds.length > 0) {
     const {
       data: profileData,
@@ -431,6 +458,7 @@ export default async function RequestsPage() {
         "Request profiles query failed:",
         profileError
       );
+      relatedDataFailed = true;
     }
 
     profiles =
@@ -470,6 +498,7 @@ export default async function RequestsPage() {
         "Request intents query failed:",
         intentError
       );
+      relatedDataFailed = true;
     }
 
     intents =
@@ -508,12 +537,17 @@ export default async function RequestsPage() {
         "Request participation query failed:",
         participationError
       );
+      relatedDataFailed = true;
     }
 
     participations =
       (
         participationData ?? []
       ) as RequestParticipation[];
+  }
+
+  if (relatedDataFailed) {
+    return <RequestsUnavailable />;
   }
 
   const profileById =

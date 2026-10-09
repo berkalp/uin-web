@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import DirectConversationThread from "@/components/messages/DirectConversationThread";
 import type {
   DirectConversationDetail,
@@ -12,19 +14,40 @@ type ConversationPageProps = {
   params: Promise<Record<string, string>>;
 };
 
+function isValidUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export default async function ConversationPage({ params }: ConversationPageProps) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/");
-
   const resolvedParams = await params;
   const conversationId =
     resolvedParams.conversationId || Object.values(resolvedParams)[0];
 
-  if (!conversationId) notFound();
+  if (!conversationId || !isValidUuid(conversationId)) notFound();
+
+  const retryHref = `/messages/${encodeURIComponent(conversationId)}`;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Mesajlaşma şu anda yüklenemedi"
+      retryHref={retryHref}
+      backHref="/messages"
+      backLabel="Mesajlara dön"
+    />
+  );
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Direct conversation session query failed:", userError);
+    return unavailable;
+  }
+
+  if (!user) redirect("/");
 
   const [detailResponse, messagesResponse] = await Promise.all([
     supabase.rpc("get_direct_conversation_detail", {
@@ -37,11 +60,18 @@ export default async function ConversationPage({ params }: ConversationPageProps
   ]);
 
   if (detailResponse.error || messagesResponse.error) {
+    if (
+      detailResponse.error?.code === "P0002" ||
+      messagesResponse.error?.code === "P0002"
+    ) {
+      notFound();
+    }
+
     console.error("Direct conversation load failed:", {
       detail: detailResponse.error,
       messages: messagesResponse.error,
     });
-    notFound();
+    return unavailable;
   }
 
   const detail =

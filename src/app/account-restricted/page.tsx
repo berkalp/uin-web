@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/utils/supabase/server";
@@ -91,33 +92,52 @@ export default async function AccountRestrictedPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
       <div className="w-full max-w-2xl">
-        <section className="overflow-hidden rounded-3xl border border-red-200 bg-white shadow-sm">
-          <div className="border-b border-red-100 bg-red-50 px-6 py-8 md:px-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-600 text-2xl font-bold text-white">
-              !
+        <section className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${restriction ? "border-red-200" : "border-amber-200"}`}>
+          {restriction ? (
+            <div className="border-b border-red-100 bg-red-50 px-6 py-8 md:px-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-600 text-2xl font-bold text-white">
+                !
+              </div>
+
+              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-red-700">
+                Hesap kısıtlandı
+              </p>
+
+              <h1 className="mt-2 text-3xl font-bold text-gray-950 md:text-4xl">
+                UIN erişimin şu anda kısıtlı
+              </h1>
+
+              <p className="mt-4 max-w-xl text-sm leading-7 text-gray-600">
+                Bu kısıtlama aktif olduğu sürece hesabınla UIN&apos;e erişemezsin.
+              </p>
             </div>
+          ) : (
+            <div className="border-b border-amber-100 bg-amber-50 px-6 py-8 md:px-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500 text-2xl font-bold text-white">
+                ?
+              </div>
 
-            <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-red-700">
-              Account Restricted
-            </p>
+              <p className="mt-6 text-xs font-semibold uppercase tracking-wide text-amber-800">
+                Güvenlik kontrolü tamamlanamadı
+              </p>
 
-            <h1 className="mt-2 text-3xl font-bold text-gray-950 md:text-4xl">
-              Access to UIN is currently restricted
-            </h1>
+              <h1 className="mt-2 text-3xl font-bold text-gray-950 md:text-4xl">
+                Hesap durumu doğrulanamadı
+              </h1>
 
-            <p className="mt-4 max-w-xl text-sm leading-7 text-gray-600">
-              Your account cannot access
-              UIN while this restriction
-              is active.
-            </p>
-          </div>
+              <p className="mt-4 max-w-xl text-sm leading-7 text-gray-600">
+                Oturumun açık, ancak hesap durumu servisine şu anda ulaşılamıyor.
+                Erişim durumun hakkında yanlış bilgi göstermemek için devam etmeden önce yeniden doğrulama gerekiyor.
+              </p>
+            </div>
+          )}
 
           <div className="p-6 md:p-8">
             {restriction ? (
               <>
                 <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
                   <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                    Restriction Reason
+                    Kısıtlama nedeni
                   </p>
 
                   <p className="mt-3 whitespace-pre-wrap text-base leading-7 text-gray-800">
@@ -128,7 +148,7 @@ export default async function AccountRestrictedPage() {
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl border border-gray-200 bg-white p-5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Started
+                      Başlangıç
                     </p>
 
                     <p className="mt-3 font-semibold text-gray-900">
@@ -141,7 +161,7 @@ export default async function AccountRestrictedPage() {
 
                   <div className="rounded-2xl border border-gray-200 bg-white p-5">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Ends
+                      Bitiş
                     </p>
 
                     <p className="mt-3 font-semibold text-gray-900">
@@ -149,30 +169,32 @@ export default async function AccountRestrictedPage() {
                         ? `${formatDateTime(
                             restriction.ends_at
                           )} TRT`
-                        : "Indefinite"}
+                        : "Süresiz"}
                     </p>
                   </div>
                 </div>
 
                 <p className="mt-5 text-sm leading-6 text-gray-500">
-                  An indefinite restriction
-                  remains active until it is
-                  reviewed and revoked by an
-                  authorized UIN administrator.
+                  Süresiz bir kısıtlama, yetkili bir UIN yöneticisi inceleyip
+                  kaldırana kadar aktif kalır.
                 </p>
               </>
             ) : (
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
                 <p className="font-semibold text-amber-900">
-                  Restriction details could
-                  not be loaded.
+                  Hesap durumun henüz doğrulanamadı.
                 </p>
 
                 <p className="mt-2 text-sm leading-6 text-amber-800">
-                  Your account session is
-                  active, but the restriction
-                  service returned an error.
+                  Bu geçici bir bağlantı sorunu olabilir. Biraz sonra yeniden deneyebilirsin.
                 </p>
+
+                <Link
+                  href="/account-restricted"
+                  className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-amber-800"
+                >
+                  Yeniden dene
+                </Link>
               </div>
             )}
 
@@ -180,12 +202,12 @@ export default async function AccountRestrictedPage() {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-gray-900">
-                    Signed in account
+                    Oturumdaki hesap
                   </p>
 
                   <p className="mt-1 text-sm text-gray-500">
                     {user.email ??
-                      "Email unavailable"}
+                      "E-posta bilgisi kullanılamıyor"}
                   </p>
                 </div>
 
@@ -194,7 +216,7 @@ export default async function AccountRestrictedPage() {
                     type="submit"
                     className="w-full rounded-xl bg-gray-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 sm:w-auto"
                   >
-                    Sign Out
+                    Çıkış yap
                   </button>
                 </form>
               </div>
@@ -202,11 +224,11 @@ export default async function AccountRestrictedPage() {
           </div>
         </section>
 
-        <p className="mt-5 text-center text-xs text-gray-400">
-          Restriction ID:{" "}
-          {restriction?.restriction_id ??
-            "Unavailable"}
-        </p>
+        {restriction && (
+          <p className="mt-5 text-center text-xs text-gray-400">
+            Kısıtlama kimliği: {restriction.restriction_id}
+          </p>
+        )}
       </div>
     </main>
   );

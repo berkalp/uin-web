@@ -28,6 +28,7 @@ type RoomConversationListProps = {
   currentUserId: string;
   summaries: RoomConversationSummary[];
   plans: RoomConversationPlan[];
+  loadFailed?: boolean;
   page?: number;
   directPage?: number;
 };
@@ -85,6 +86,7 @@ export default function RoomConversationList({
   currentUserId,
   summaries,
   plans,
+  loadFailed = false,
   page = 1,
   directPage = 1,
 }: RoomConversationListProps) {
@@ -144,13 +146,23 @@ export default function RoomConversationList({
           </p>
         </div>
 
-        <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-bold text-green-700">
-          {unreadTotal} okunmamış
+        <span className={`rounded-full px-4 py-2 text-sm font-bold ${loadFailed ? "bg-amber-50 text-amber-700" : "bg-green-50 text-green-700"}`}>
+          {loadFailed ? "Okunmamış sayısı yüklenemedi" : `${unreadTotal} okunmamış`}
         </span>
       </div>
 
       <div className="mt-4 space-y-3">
-        {conversations.length === 0 && (
+        {loadFailed && (
+          <div role="alert" className="rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center text-amber-900 shadow-sm">
+            <p className="font-bold">Oda konuşmaları şu anda yüklenemedi</p>
+            <p className="mt-2 text-sm">Eksik konuşmaları boş liste gibi göstermiyoruz.</p>
+            <Link href={pageHref(page)} className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white">
+              Yeniden dene
+            </Link>
+          </div>
+        )}
+
+        {!loadFailed && conversations.length === 0 && (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
             <p className="font-bold text-gray-900">Henüz oda sohbeti yok</p>
             <p className="mt-2 text-sm text-gray-500">
@@ -159,7 +171,7 @@ export default function RoomConversationList({
           </div>
         )}
 
-        {visibleConversations.map(({ summary, plan }) => {
+        {!loadFailed && visibleConversations.map(({ summary, plan }) => {
           const phase = currentRoomPhase(plan);
           const unread = toNumber(summary.unread_count);
           const roomLabel = phase === "planning" ? "Niyet Odası" : "Aktivite Odası";

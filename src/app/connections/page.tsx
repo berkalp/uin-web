@@ -27,22 +27,26 @@ const VIEW_META: Record<
     label: string;
     rowType: ConnectionRow["connection_type"];
     description: string;
+    emptyTitle: string;
   }
 > = {
   followers: {
-    label: "Followers",
+    label: "Takipçiler",
     rowType: "follower",
-    description: "People who follow your UIN profile.",
+    description: "UIN profilini takip eden kişiler.",
+    emptyTitle: "Henüz takipçin yok",
   },
   following: {
-    label: "Following",
+    label: "Takip ettiklerin",
     rowType: "following",
-    description: "People whose UIN profiles you follow.",
+    description: "UIN profillerini takip ettiğin kişiler.",
+    emptyTitle: "Henüz kimseyi takip etmiyorsun",
   },
   friends: {
-    label: "Friends",
+    label: "Arkadaşlar",
     rowType: "friend",
-    description: "Your accepted mutual UIN connections.",
+    description: "Karşılıklı olarak kabul edilmiş UIN bağlantıların.",
+    emptyTitle: "Henüz arkadaşın yok",
   },
 };
 
@@ -65,7 +69,7 @@ function getInitial(value: string) {
 }
 
 function PersonCard({ row }: { row: ConnectionRow }) {
-  const name = row.full_name || row.username || "UIN member";
+  const name = row.full_name || row.username || "UIN üyesi";
   const location = [row.city, row.country].filter(Boolean).join(", ");
 
   const content = (
@@ -155,7 +159,7 @@ export default async function ConnectionsPage({
 
         <header className="mt-6 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
-            Connections
+            Bağlantılar
           </p>
 
           <h1 className="mt-2 text-3xl font-black text-gray-950 md:text-4xl">
@@ -167,7 +171,7 @@ export default async function ConnectionsPage({
           </p>
 
           <nav
-            aria-label="Connection lists"
+            aria-label="Bağlantı listeleri"
             className="mt-6 inline-flex flex-wrap gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-1.5"
           >
             {(Object.keys(VIEW_META) as ConnectionView[]).map((view) => {
@@ -189,7 +193,7 @@ export default async function ConnectionsPage({
                       active ? "bg-white/15 text-white" : "bg-white text-gray-500"
                     }`}
                   >
-                    {counts[view]}
+                    {error ? "—" : counts[view]}
                   </span>
                 </Link>
               );
@@ -199,7 +203,10 @@ export default async function ConnectionsPage({
 
         {error ? (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-800">
-            Connection list could not be loaded.
+            Bağlantı listesi şu anda yüklenemedi. Eksik kayıt göstermemek için listeyi gizledik.
+            <Link href={`/connections?view=${selectedView}`} className="ml-3 inline-flex rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white">
+              Yeniden dene
+            </Link>
           </div>
         ) : selectedRows.length > 0 ? (
           <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -213,10 +220,10 @@ export default async function ConnectionsPage({
         ) : (
           <section className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center">
             <p className="text-lg font-black text-gray-950">
-              No {VIEW_META[selectedView].label.toLowerCase()} yet
+              {VIEW_META[selectedView].emptyTitle}
             </p>
             <p className="mt-2 text-sm text-gray-500">
-              This list will appear here when there are connections to show.
+              Yeni bağlantılar oluştuğunda bu listede görünecek.
             </p>
           </section>
         )}

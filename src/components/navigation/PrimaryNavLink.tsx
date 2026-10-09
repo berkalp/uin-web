@@ -8,6 +8,9 @@ const sections: Record<string, string[]> = {
   "/ideas": ["/ideas", "/clubs", "/catalog"],
   "/timeline": ["/timeline", "/seeds", "/together"],
   "/discover": ["/discover", "/activities", "/plans", "/intents", "/intent-drafts", "/onboarding"],
+  "/inbox": ["/inbox", "/join-requests", "/invitations"],
+  "/messages": ["/messages", "/collaboration-chat", "/collaboration-suggestions"],
+  "/matches": ["/matches"],
   "/friends": ["/friends", "/connections"],
 };
 

@@ -30,7 +30,7 @@ function BellIcon() {
 export default function NotificationBellButton({
   initialUnreadCount,
 }: {
-  initialUnreadCount: number;
+  initialUnreadCount: number | null;
 }) {
   const [count, setCount] = useState(initialUnreadCount);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,8 +48,8 @@ export default function NotificationBellButton({
         return;
       }
 
-      const nextCount = Number(data ?? 0);
-      setCount(Number.isFinite(nextCount) ? nextCount : 0);
+      const nextCount = Number(data);
+      setCount(data != null && Number.isFinite(nextCount) ? Math.max(0, nextCount) : null);
     }
 
     function scheduleRefresh() {
@@ -121,7 +121,9 @@ export default function NotificationBellButton({
       href="/notifications"
       title="Bildirimler"
       aria-label={
-        count > 0
+        count == null
+          ? "Bildirimler, okunmamış sayısı şu anda bilinmiyor"
+          : count > 0
           ? `Bildirimler, ${count} okunmamış`
           : "Bildirimler"
       }
@@ -129,7 +131,11 @@ export default function NotificationBellButton({
     >
       <BellIcon />
 
-      {count > 0 && (
+      {count == null ? (
+        <span className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[10px] font-black text-amber-800 ring-2 ring-white" title="Bildirim sayısı yüklenemedi">
+          ?
+        </span>
+      ) : count > 0 && (
         <span className="absolute right-1 top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-gray-950 px-1 text-[10px] font-black leading-none text-white ring-2 ring-white">
           {formatBadge(count)}
         </span>

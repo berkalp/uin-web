@@ -94,15 +94,22 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   const activeRoomSummaries = roomSummaries.filter((summary) =>
     openPlanIds.has(summary.plan_id)
   );
-  const roomUnread = activeRoomSummaries.reduce(
-    (total, summary) => total + toNumber(summary.unread_count),
-    0
-  );
-  const directUnread = directConversations.reduce(
-    (total, conversation) => total + toNumber(conversation.unread_count),
-    0
-  );
-  const totalUnread = roomUnread + directUnread;
+  const roomLoadFailed = Boolean(roomResult.error || planLoadFailed);
+  const roomUnread = roomLoadFailed
+    ? null
+    : activeRoomSummaries.reduce(
+        (total, summary) => total + toNumber(summary.unread_count),
+        0
+      );
+  const directUnread = directResult.error
+    ? null
+    : directConversations.reduce(
+        (total, conversation) => total + toNumber(conversation.unread_count),
+        0
+      );
+  const totalUnread = roomUnread === null || directUnread === null
+    ? null
+    : roomUnread + directUnread;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -138,21 +145,16 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
             </div>
 
             <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-bold text-white">
-              {totalUnread} okunmamış
+              {totalUnread === null ? "Okunmamış sayısı yüklenemedi" : `${totalUnread} okunmamış`}
             </span>
           </div>
         </header>
-
-        {planLoadFailed && (
-          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            Bazı Oda konuşmaları yüklenemedi.
-          </div>
-        )}
 
         <RoomConversationList
           currentUserId={user.id}
           summaries={activeRoomSummaries}
           plans={openPlans}
+          loadFailed={roomLoadFailed}
           page={roomPage}
           directPage={directPage}
         />

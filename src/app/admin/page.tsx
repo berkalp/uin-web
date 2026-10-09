@@ -318,6 +318,9 @@ export default async function AdminDashboardPage() {
         summaryData ?? []
       ) as AdminDashboardSummary[]
     )[0] ?? null;
+  const summaryUnavailable = Boolean(
+    summaryError || !summary
+  );
 
   const totalUsers =
     toNumber(
@@ -434,7 +437,7 @@ export default async function AdminDashboardPage() {
                   {formatNumber(seedItemsNeedingAttention)} Seed Library item{seedItemsNeedingAttention === 1 ? "" : "s"} need attention
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
-                  {formatNumber(pendingSeedSuggestions)} suggestion{pendingSeedSuggestions === 1 ? "" : "s"} waiting Â· {formatNumber(reportedSeedSubjects)} reported subject{reportedSeedSubjects === 1 ? "" : "s"}
+                  {formatNumber(pendingSeedSuggestions)} suggestion{pendingSeedSuggestions === 1 ? "" : "s"} waiting · {formatNumber(reportedSeedSubjects)} reported subject{reportedSeedSubjects === 1 ? "" : "s"}
                 </p>
               </div>
               <Link
@@ -447,7 +450,7 @@ export default async function AdminDashboardPage() {
           </section>
         )}
 
-        {summaryError && (
+        {summaryUnavailable && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Dashboard statistics could
@@ -456,13 +459,13 @@ export default async function AdminDashboardPage() {
 
             <p className="mt-2 text-sm text-red-700">
               The admin route is available,
-              but the summary function
-              returned an error.
+              but the summary function did
+              not return usable data.
             </p>
           </div>
         )}
 
-        <section className="mt-8">
+        {!summaryUnavailable && <section className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-600">
             Platform Overview
           </p>
@@ -528,7 +531,7 @@ export default async function AdminDashboardPage() {
               tone="gray"
             />
           </div>
-        </section>
+        </section>}
 
         <section className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-600">

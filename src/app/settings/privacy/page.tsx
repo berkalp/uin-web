@@ -39,14 +39,14 @@ export default async function PrivacySettingsPage() {
     ) as UserDiscoveryControlRow[];
 
   const ignoredCount =
-    controls.filter(
+    error ? null : controls.filter(
       (item) =>
         item.control_type ===
         "ignore"
     ).length;
 
   const blockedCount =
-    controls.filter(
+    error ? null : controls.filter(
       (item) =>
         item.control_type ===
         "block"
@@ -84,7 +84,7 @@ export default async function PrivacySettingsPage() {
               </h2>
 
               <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-amber-700 shadow-sm">
-                {ignoredCount}
+                {ignoredCount ?? "—"}
               </span>
             </div>
 
@@ -100,7 +100,7 @@ export default async function PrivacySettingsPage() {
               </h2>
 
               <span className="rounded-full bg-white px-3 py-1 text-sm font-black text-red-700 shadow-sm">
-                {blockedCount}
+                {blockedCount ?? "—"}
               </span>
             </div>
 
@@ -114,12 +114,16 @@ export default async function PrivacySettingsPage() {
           {error ? (
             <div className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
               <p className="font-black text-red-900">
-                Privacy controls could not be loaded.
+                Gizlilik tercihlerin yüklenemedi.
               </p>
 
               <p className="mt-2 text-sm text-red-700">
-                {error.message}
+                Mevcut engelleme ve yok sayma listen hakkında eksik bilgi göstermemek için bu bölüm geçici olarak gizlendi.
               </p>
+
+              <Link href="/settings/privacy" className="mt-4 inline-flex rounded-xl bg-red-700 px-4 py-2.5 text-sm font-semibold text-white">
+                Yeniden dene
+              </Link>
             </div>
           ) : (
             <UserDiscoveryControlsManager

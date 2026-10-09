@@ -15,7 +15,6 @@ import DiscoverIntentCard, {
 import DiscoverMapView, {
   type DiscoverMapPoint,
 } from "@/components/discover/DiscoverMapView";
-import DiscoverPersonalIntentCard, { type DiscoverPersonalIntent } from "@/components/discover/DiscoverPersonalIntentCard";
 import {
   parseCommunityOptions,
   parseIntentCommunityRows,
@@ -167,14 +166,9 @@ type DiscoverSearchParams =
 const PAGE_SIZE = 20;
 const MAP_BATCH_LIMIT = 60;
 const MAP_MAX_RESULTS = 240;
+const ELIGIBILITY_SCAN_BATCH_SIZE = 60;
 
 type DiscoverView = "cards" | "map" | "split";
-
-type DiscoverKind = "all" | "personal" | "social";
-
-function getDiscoverKind(value: string): DiscoverKind {
-  return value === "personal" || value === "social" ? value : "all";
-}
 
 const LIFECYCLE_OPTIONS = [
   {
@@ -369,6 +363,61 @@ function toCount(
     : 0;
 }
 
+function toKnownCount(
+  value:
+    | number
+    | string
+    | null
+    | undefined
+) {
+  if (
+    value === null ||
+    value === undefined
+  ) {
+    return null;
+  }
+
+  const parsedValue =
+    typeof value === "number"
+      ? value
+      : Number(value);
+
+  return Number.isFinite(
+    parsedValue
+  ) && parsedValue >= 0
+    ? parsedValue
+    : null;
+}
+
+function matchesEligibilityFilter(
+  intent: DiscoverIntentRow,
+  eligibility: EligibilityFilter
+) {
+  if (eligibility === "all") {
+    return true;
+  }
+
+  if (eligibility === "eligible") {
+    return intent.viewer_is_eligible === true;
+  }
+
+  return intent.participant_eligibility === eligibility;
+}
+
+function isActiveDiscoverResult(intent: DiscoverIntentRow) {
+  return (
+    ["open", "future", "forming", "planned"].includes(
+      intent.lifecycle_status
+    ) &&
+    intent.intent_status !== "completed" &&
+    intent.intent_status !== "cancelled" &&
+    intent.lifecycle_status !== "completed" &&
+    !intent.completed_at &&
+    !intent.cancelled_at &&
+    !intent.expired_at
+  );
+}
+
 function buildDiscoverHref({
   query,
   categoryId,
@@ -533,7 +582,7 @@ export default async function DiscoverPage({
       "q"
     ).trim();
 
-  const kind: DiscoverKind = "social";
+  const kind = "social" as const;
 
   const categoryId =
     getParam(
@@ -610,8 +659,18 @@ export default async function DiscoverPage({
       )
     );
 
-  const resultLimit = view === "cards" ? PAGE_SIZE : MAP_BATCH_LIMIT;
-  const resultOffset = view === "cards" ? (page - 1) * PAGE_SIZE : 0;
+  const needsEligibilityScan =
+    view === "cards" &&
+    eligibility !== "all";
+  const resultLimit = view === "cards"
+    ? needsEligibilityScan
+      ? ELIGIBILITY_SCAN_BATCH_SIZE
+      : PAGE_SIZE
+    : MAP_BATCH_LIMIT;
+  const resultOffset =
+    view === "cards" && !needsEligibilityScan
+      ? (page - 1) * PAGE_SIZE
+      : 0;
 
   const hasAdvancedSearch =
     Boolean(
@@ -642,6 +701,7 @@ export default async function DiscoverPage({
   if (!user) {
     redirect("/");
   }
+  const viewerId = user.id;
 
   function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string) {
     const requestedLifecycle = lifecycleOverride ?? lifecycle;
@@ -656,7 +716,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: "all",
+        p_scope: scope,
         p_limit: limit,
         p_offset: offset,
       });
@@ -672,7 +732,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: "all",
+        p_scope: scope,
         p_limit: limit,
         p_offset: offset,
       });
@@ -687,7 +747,7 @@ export default async function DiscoverPage({
       p_start_date: startDate || null,
       p_end_date: endDate || null,
       p_lifecycle: requestedLifecycle,
-      p_scope: "all",
+      p_scope: scope,
       p_limit: limit,
       p_offset: offset,
     });
@@ -699,7 +759,6 @@ export default async function DiscoverPage({
     followedCommunityResponse,
     searchResponse,
     archiveResponse,
-    personalResponse,
   ] =
     await Promise.all([
       supabase.rpc(
@@ -712,28 +771,7 @@ export default async function DiscoverPage({
 
       runDiscoverSearch(resultLimit, resultOffset),
       runDiscoverSearch(80, 0, "history"),
-      supabase.rpc("get_common_intent_cards_v38", {
-        p_query: query || null,
-        p_limit: 100,
-        p_offset: 0,
-        p_target_id: null,
-      }),
     ]);
-
-  const personalResults = (
-    (personalResponse.data ?? []) as Array<
-      DiscoverPersonalIntent & {
-        status?: string | null;
-        completed_at?: string | null;
-        done?: boolean | null;
-      }
-    >
-  ).filter(
-    (item) =>
-      item.status !== "completed" &&
-      !item.completed_at &&
-      item.done !== true
-  );
 
   if (
     filterResponse.error
@@ -796,10 +834,6 @@ export default async function DiscoverPage({
       searchRows.push(...((batchResponse.data ?? []) as DiscoverIntentRow[]));
     }
   }
-
-  const deduplicatedSearchRows = Array.from(
-    new Map(searchRows.map((row) => [row.intent_id, row])).values()
-  );
 
   const archivedResults = Array.from(
     new Map(
@@ -867,125 +901,226 @@ export default async function DiscoverPage({
     ) ??
     null;
 
-  const rawResults = deduplicatedSearchRows;
-
-  const rawIntentIds =
-    Array.from(
-      new Set(
-        rawResults.map(
-          (intent) =>
-            intent.intent_id
-        )
-      )
-    );
-
-  const intentEligibilityResponse =
-    rawIntentIds.length > 0
-      ? await supabase.rpc(
-          "get_visible_intent_participant_eligibility",
-          {
-            p_intent_ids:
-              rawIntentIds,
-          }
-        )
-      : {
-          data: [],
-          error: null,
-        };
+  const rawResultByIntentId = new Map(
+    searchRows.map((row) => [row.intent_id, row])
+  );
+  const enrichedResultByIntentId = new Map<string, DiscoverIntentRow>();
+  let eligibilityScanError: { message?: string } | null = null;
+  let rawSearchTotal = toKnownCount(searchRows[0]?.total_count);
 
   if (
-    intentEligibilityResponse.error
+    rawSearchTotal === null &&
+    resultOffset === 0 &&
+    !searchResponse.error &&
+    searchRows.length === 0
   ) {
-    console.error(
-      "Intent participant eligibility query failed:",
-      intentEligibilityResponse.error
-    );
+    rawSearchTotal = 0;
   }
 
-  const eligibilityByIntentId =
-    new Map(
-      ((
-        intentEligibilityResponse.data ??
-        []
-      ) as IntentEligibilityContextRow[]).map((row) => [
+  let rawRowsScanned = searchRows.length;
+  let rawSearchExhausted =
+    !searchResponse.error &&
+    (searchRows.length < resultLimit ||
+      (rawSearchTotal !== null && rawRowsScanned >= rawSearchTotal));
+
+  async function enrichEligibilityRows(rows: DiscoverIntentRow[]) {
+    const intentIds = Array.from(
+      new Set(rows.map((intent) => intent.intent_id))
+    );
+    const response = intentIds.length > 0
+      ? await supabase.rpc(
+          "get_visible_intent_participant_eligibility",
+          { p_intent_ids: intentIds }
+        )
+      : { data: [], error: null };
+
+    if (response.error) {
+      return {
+        data: [] as DiscoverIntentRow[],
+        error: response.error,
+      };
+    }
+
+    const eligibilityByIntentId = new Map(
+      ((response.data ?? []) as IntentEligibilityContextRow[]).map((row) => [
         row.intent_id,
         {
-          participantEligibility:
-            normalizeParticipantEligibility(
-              row.participant_eligibility
-            ),
-          viewerIsEligible:
-            row.viewer_is_eligible ===
-            true,
+          participantEligibility: normalizeParticipantEligibility(
+            row.participant_eligibility
+          ),
+          viewerIsEligible: row.viewer_is_eligible === true,
         },
       ])
     );
+    const missingEligibility = intentIds.some(
+      (intentId) => !eligibilityByIntentId.has(intentId)
+    );
 
-  const enrichedResults =
-    rawResults.map((intent) => {
-      const context =
-        eligibilityByIntentId.get(
-          intent.intent_id
-        );
-
-      const participantEligibility =
-        context
-          ?.participantEligibility ??
-        normalizeParticipantEligibility(
-          intent.participant_eligibility
-        );
-
+    if (missingEligibility) {
       return {
-        ...intent,
-        participant_eligibility:
-          participantEligibility,
-        viewer_is_eligible:
-          context?.viewerIsEligible ??
-          intent.viewer_is_member ??
-          false,
+        data: [] as DiscoverIntentRow[],
+        error: {
+          message: "Bazı etkinliklerin katılım uygunluğu doğrulanamadı. Lütfen yeniden dene.",
+        },
       };
-    });
+    }
 
-  const eligibleResults =
-    enrichedResults.filter(
-      (intent) => {
-        if (eligibility === "all") {
-          return true;
+    return {
+      data: rows.map((intent) => {
+        const context = eligibilityByIntentId.get(intent.intent_id);
+
+        return {
+          ...intent,
+          participant_eligibility:
+            context?.participantEligibility ??
+            normalizeParticipantEligibility(intent.participant_eligibility),
+          viewer_is_eligible:
+            context?.viewerIsEligible ??
+            intent.viewer_is_member ??
+            false,
+        };
+      }),
+      error: null,
+    };
+  }
+
+  function getMatchingResults() {
+    return Array.from(enrichedResultByIntentId.values())
+      .filter((intent) => matchesEligibilityFilter(intent, eligibility))
+      .filter((intent) => {
+        if (scope === "mine") {
+          return intent.owner_user_id === viewerId;
         }
 
-        if (
-          eligibility ===
-          "eligible"
-        ) {
+        if (scope === "joined") {
           return (
-            intent.viewer_is_eligible ===
-            true
+            intent.viewer_is_member === true &&
+            intent.owner_user_id !== viewerId
           );
         }
 
-        return (
-          intent.participant_eligibility ===
-          eligibility
-        );
-      }
-    ).filter((intent) => {
-      if (scope === "mine") {
-        return intent.owner_user_id === user.id;
-      }
+        if (scope === "invited") {
+          return intent.viewer_invitation_status === "pending";
+        }
 
-      if (scope === "joined") {
-        return (
-          intent.viewer_is_member === true &&
-          intent.owner_user_id !== user.id
-        );
-      }
+        return true;
+      })
+      .filter(isActiveDiscoverResult);
+  }
 
-      if (scope === "invited") {
-        return intent.viewer_invitation_status === "pending";
-      }
+  const initialEligibilityResult = await enrichEligibilityRows(
+    Array.from(rawResultByIntentId.values())
+  );
 
-      return true;
-    });
+  if (initialEligibilityResult.error) {
+    eligibilityScanError = initialEligibilityResult.error;
+  } else {
+    for (const intent of initialEligibilityResult.data) {
+      enrichedResultByIntentId.set(intent.intent_id, intent);
+    }
+  }
+
+  let matchingResults = getMatchingResults();
+  const eligibilityLookaheadTarget = page * PAGE_SIZE + 1;
+
+  while (
+    needsEligibilityScan &&
+    !eligibilityScanError &&
+    !rawSearchExhausted &&
+    matchingResults.length < eligibilityLookaheadTarget
+  ) {
+    const batchResponse = await runDiscoverSearch(
+      ELIGIBILITY_SCAN_BATCH_SIZE,
+      rawRowsScanned
+    );
+
+    if (batchResponse.error) {
+      eligibilityScanError = batchResponse.error;
+      break;
+    }
+
+    const batchRows = (batchResponse.data ?? []) as DiscoverIntentRow[];
+    if (batchRows.length === 0) {
+      rawSearchExhausted = true;
+      break;
+    }
+
+    rawRowsScanned += batchRows.length;
+    rawSearchTotal =
+      rawSearchTotal ??
+      toKnownCount(batchRows[0]?.total_count);
+    rawSearchExhausted =
+      batchRows.length < ELIGIBILITY_SCAN_BATCH_SIZE ||
+      (rawSearchTotal !== null && rawRowsScanned >= rawSearchTotal);
+
+    const uniqueBatchRows = batchRows.filter(
+      (intent) => !rawResultByIntentId.has(intent.intent_id)
+    );
+    for (const intent of uniqueBatchRows) {
+      rawResultByIntentId.set(intent.intent_id, intent);
+    }
+
+    const batchEligibilityResult = await enrichEligibilityRows(uniqueBatchRows);
+    if (batchEligibilityResult.error) {
+      eligibilityScanError = batchEligibilityResult.error;
+      break;
+    }
+
+    for (const intent of batchEligibilityResult.data) {
+      enrichedResultByIntentId.set(intent.intent_id, intent);
+    }
+    matchingResults = getMatchingResults();
+  }
+
+  if (eligibilityScanError) {
+    console.error(
+      "Intent participant eligibility scan failed:",
+      eligibilityScanError
+    );
+  }
+
+  const eligibilityPageStart = (page - 1) * PAGE_SIZE;
+  if (
+    needsEligibilityScan &&
+    rawSearchExhausted &&
+    !eligibilityScanError &&
+    page > 1 &&
+    eligibilityPageStart >= matchingResults.length
+  ) {
+    const lastPage = Math.max(
+      Math.ceil(matchingResults.length / PAGE_SIZE),
+      1
+    );
+    redirect(
+      buildDiscoverHref({
+        query,
+        categoryId,
+        activityId,
+        sportId,
+        communityId,
+        communityScope,
+        locationId,
+        startDate,
+        endDate,
+        lifecycle,
+        scope,
+        eligibility,
+        view,
+        page: lastPage,
+      })
+    );
+  }
+
+  const hasEligibilityLookahead =
+    needsEligibilityScan &&
+    matchingResults.length > page * PAGE_SIZE;
+  const eligibleResults = needsEligibilityScan
+    ? matchingResults.slice(
+        eligibilityPageStart,
+        eligibilityPageStart + PAGE_SIZE
+      )
+    : matchingResults;
+  const rawResults = Array.from(rawResultByIntentId.values());
 
   const visibleIntentIds =
     Array.from(
@@ -997,31 +1132,16 @@ export default async function DiscoverPage({
       )
     );
 
-  const activeScopeRows = rawResults.filter(
-    (intent) =>
-      ["open", "future", "forming", "planned"].includes(
-        intent.lifecycle_status
-      ) &&
-      intent.intent_status !== "completed" &&
-      intent.intent_status !== "cancelled" &&
-      !intent.completed_at &&
-      !intent.cancelled_at &&
-      !intent.expired_at
-  );
-
+  const selectedScopeTotal = eligibility === "all"
+    ? rawSearchTotal
+    : rawSearchExhausted && !eligibilityScanError
+      ? matchingResults.length
+      : null;
   const scopeCounts = {
-    all: toCount(rawResults[0]?.total_count),
-    mine: activeScopeRows.filter(
-      (intent) => intent.owner_user_id === user.id
-    ).length,
-    joined: activeScopeRows.filter(
-      (intent) =>
-        intent.viewer_is_member === true &&
-        intent.owner_user_id !== user.id
-    ).length,
-    invited: activeScopeRows.filter(
-      (intent) => intent.viewer_invitation_status === "pending"
-    ).length,
+    all: scope === "all" ? selectedScopeTotal : null,
+    mine: scope === "mine" ? selectedScopeTotal : null,
+    joined: scope === "joined" ? selectedScopeTotal : null,
+    invited: scope === "invited" ? selectedScopeTotal : null,
   };
 
   const commonTargetIntentIds = Array.from(
@@ -1057,23 +1177,60 @@ export default async function DiscoverPage({
     ])
   );
 
-  const eventPresentationEntries = await Promise.all(
-    commonTargetIntentIds.map(async (intentId) => {
-      const { data, error } = await supabase.rpc(
-        "get_uin_event_presentation_v86",
-        { p_resource_id: intentId }
-      );
-      if (error) {
-        console.warn("Canonical event presentation is temporarily unavailable:", error.message);
-        return [intentId, null] as const;
-      }
-      const displayTitle = data && typeof data === "object" && !Array.isArray(data)
-        ? (data as { displayTitle?: unknown }).displayTitle
-        : null;
-      return [intentId, typeof displayTitle === "string" ? displayTitle : null] as const;
-    })
+  const presentationBatches = Array.from(
+    { length: Math.ceil(commonTargetIntentIds.length / 100) },
+    (_, index) => commonTargetIntentIds.slice(index * 100, (index + 1) * 100)
   );
-  const eventDisplayTitleByIntentId = new Map(eventPresentationEntries);
+  const presentationBatchResponses = await Promise.all(
+    presentationBatches.map((resourceIds) =>
+      supabase.rpc("get_uin_event_presentations_v150", {
+        p_resource_ids: resourceIds,
+      })
+    )
+  );
+  const eventDisplayTitleByIntentId = new Map<string, string | null>();
+
+  for (let index = 0; index < presentationBatchResponses.length; index += 1) {
+    const response = presentationBatchResponses[index];
+    const resourceIds = presentationBatches[index] ?? [];
+
+    if (response.error) {
+      console.warn(
+        "Canonical event presentation batch is temporarily unavailable; using the exact fallback:",
+        response.error.message
+      );
+      const fallbackResponses = await Promise.all(
+        resourceIds.map(async (intentId) => ({
+          intentId,
+          result: await supabase.rpc("get_uin_event_presentation_v86", {
+            p_resource_id: intentId,
+          }),
+        }))
+      );
+      for (const { intentId, result } of fallbackResponses) {
+        const displayTitle =
+          !result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)
+            ? (result.data as { displayTitle?: unknown }).displayTitle
+            : null;
+        eventDisplayTitleByIntentId.set(
+          intentId,
+          typeof displayTitle === "string" ? displayTitle : null
+        );
+      }
+      continue;
+    }
+
+    for (const row of (response.data ?? []) as Array<{
+      resource_id: string;
+      presentation: { displayTitle?: unknown } | null;
+    }>) {
+      const displayTitle = row.presentation?.displayTitle;
+      eventDisplayTitleByIntentId.set(
+        row.resource_id,
+        typeof displayTitle === "string" ? displayTitle : null
+      );
+    }
+  }
   const {
     data: reactionContextData,
     error: reactionContextError,
@@ -1097,18 +1254,7 @@ export default async function DiscoverPage({
     ])
   );
 
-  const results = eligibleResults
-    .filter(
-      (intent) =>
-        ["open", "future", "forming", "planned"].includes(intent.lifecycle_status) &&
-        intent.intent_status !== "completed" &&
-        intent.intent_status !== "cancelled" &&
-        intent.lifecycle_status !== "completed" &&
-        !intent.completed_at &&
-        !intent.cancelled_at &&
-        !intent.expired_at
-    )
-    .map((intent) => ({
+  const results = eligibleResults.map((intent) => ({
       ...intent,
       reaction_context:
         reactionContextByIntentId.get(intent.intent_id) ?? null,
@@ -1508,30 +1654,24 @@ export default async function DiscoverPage({
   );
 
   const totalCount =
-    scope === "all"
-      ? toCount(
-          rawResults[0]?.total_count
-        )
-      : results.length;
+    selectedScopeTotal;
 
   const visibleResultCount =
     results.length;
 
-  const totalPages =
-    Math.max(
-      Math.ceil(
-        totalCount /
-          PAGE_SIZE
-      ),
-      1
-    );
+  const totalPages = totalCount === null
+    ? null
+    : Math.max(
+        Math.ceil(totalCount / PAGE_SIZE),
+        1
+      );
 
   const hasPrevious =
     page > 1;
 
-  const hasNext =
-    page <
-    totalPages;
+  const hasNext = needsEligibilityScan
+    ? hasEligibilityLookahead
+    : totalPages !== null && page < totalPages;
 
   const lifecycleLabel =
     LIFECYCLE_OPTIONS.find(
@@ -1668,7 +1808,7 @@ export default async function DiscoverPage({
 
         {(filterResponse.error ||
           searchResponse.error ||
-          intentEligibilityResponse.error ||
+          eligibilityScanError ||
           discoverMapContextError ||
           mapBatchError) && (
           <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
@@ -1679,7 +1819,7 @@ export default async function DiscoverPage({
 
             <p className="mt-2 text-sm text-red-700">
               {searchResponse.error?.message ??
-                intentEligibilityResponse.error?.message ??
+                eligibilityScanError?.message ??
                 discoverMapContextError?.message ??
                 mapBatchError?.message ??
                 filterResponse.error?.message}
@@ -1687,12 +1827,8 @@ export default async function DiscoverPage({
           </section>
         )}
 
-        {kind !== "social" && personalResponse.error && (
-          <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">Kişisel Niyet araması yüklenemedi: {personalResponse.error.message}</section>
-        )}
-
         {(!searchResponse.error &&
-              !intentEligibilityResponse.error &&
+              !eligibilityScanError &&
               !discoverMapContextError &&
               !mapBatchError) && (
           <>
@@ -1769,15 +1905,17 @@ export default async function DiscoverPage({
                 {eligibility !==
                   "all" &&
                   rawResults.length >
-                    visibleResultCount && (
+                    matchingResults.length && (
                   <p className="mt-2 text-sm text-gray-500">
                     Seçilen katılım koşullarına uymayan etkinlikler bu sayfada gösterilmez.
                   </p>
                 )}
 
-                {view === "cards" && totalCount > 0 && (
+                {view === "cards" &&
+                  (visibleResultCount > 0 || hasPrevious) && (
                   <p className="mt-2 text-sm text-gray-500">
-                    Sayfa {page} / {totalPages}
+                    Sayfa {page}
+                    {totalPages === null ? "" : ` / ${totalPages}`}
                   </p>
                 )}
               </div>
@@ -1898,7 +2036,7 @@ export default async function DiscoverPage({
                           sport_name: sportCoverContextByIntentId.get(intent.intent_id)?.sport_name || intent.sport_name,
                         }}
                         currentUserId={
-                          user.id
+                          viewerId
                         }
                         commonTarget={
                           commonTargetByIntentId.get(intent.intent_id) ?? null
@@ -1998,7 +2136,7 @@ export default async function DiscoverPage({
                 <DiscoverMapView
                   points={mapPoints}
                   mode={view}
-                  currentUserId={user.id}
+                  currentUserId={viewerId}
                 />
               )
             ) : (
@@ -2029,8 +2167,7 @@ export default async function DiscoverPage({
               </section>
             )}
 
-            {view === "cards" && totalPages >
-              1 && (
+            {view === "cards" && (hasPrevious || hasNext) && (
               <nav
                 aria-label="Etkinlik sonuç sayfaları"
                 className="mt-8 flex items-center justify-center gap-3"
@@ -2066,10 +2203,8 @@ export default async function DiscoverPage({
                 )}
 
                 <span className="rounded-xl bg-gray-950 px-4 py-3 text-sm font-bold text-white">
-                  {page} /{" "}
-                  {
-                    totalPages
-                  }
+                  Sayfa {page}
+                  {totalPages === null ? "" : ` / ${totalPages}`}
                 </span>
 
                 {hasNext ? (
@@ -2104,7 +2239,18 @@ export default async function DiscoverPage({
               </nav>
             )}
 
-            {view === "cards" && archivedResults.length > 0 && (
+            {view === "cards" && archiveResponse.error && (
+              <section role="alert" className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                <p className="font-semibold text-amber-900">
+                  İptal olan ve süresi geçen etkinlikler şu anda yüklenemedi.
+                </p>
+                <p className="mt-2 text-sm text-amber-800">
+                  Eksik bir arşiv göstermemek için bu bölüm gizlendi. Sayfayı yenileyerek yeniden deneyebilirsin.
+                </p>
+              </section>
+            )}
+
+            {view === "cards" && !archiveResponse.error && archivedResults.length > 0 && (
               <details className="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-black text-gray-900 marker:hidden md:px-6">
                   <span>
@@ -2118,7 +2264,7 @@ export default async function DiscoverPage({
                     <DiscoverIntentCard
                       key={intent.intent_id}
                       intent={intent}
-                      currentUserId={user.id}
+                      currentUserId={viewerId}
                       commonTarget={
                         commonTargetByIntentId.get(intent.intent_id) ?? null
                       }

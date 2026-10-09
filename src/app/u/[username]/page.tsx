@@ -411,10 +411,37 @@ function emptyDiscoverFields(): Pick<
   };
 }
 
+function ProfileDataUnavailable({ retryHref }: { retryHref: string }) {
+  return (
+    <main className="min-h-screen bg-gray-50 px-4 py-10 md:px-6">
+      <section role="alert" className="mx-auto max-w-xl rounded-3xl border border-amber-200 bg-white p-8 text-center shadow-sm">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-amber-700">
+          Profil geçici olarak kullanılamıyor
+        </p>
+        <h1 className="mt-3 text-2xl font-black text-gray-950">
+          Gizlilik bilgileri doğrulanamadı
+        </h1>
+        <p className="mt-3 text-sm leading-7 text-gray-600">
+          Eksik veya yanlış görünürlükle veri göstermemek için bu profili şu anda açmıyoruz.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href={retryHref} className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white">
+            Yeniden dene
+          </Link>
+          <Link href="/ideas" className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700">
+            Kütüphaneye dön
+          </Link>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export default async function PublicProfilePage({
   params,
 }: PublicProfilePageProps) {
   const { username } = await params;
+  const retryHref = `/u/${username}`;
   const supabase = await createClient();
 
   const [{ data, error }, viewerResult] = await Promise.all([
@@ -424,8 +451,12 @@ export default async function PublicProfilePage({
     supabase.auth.getUser(),
   ]);
 
-  if (error || !data) {
+  if (error) {
     console.error("Public profile query failed:", error);
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
+  if (!data) {
     notFound();
   }
 
@@ -448,6 +479,7 @@ export default async function PublicProfilePage({
       "Profile hidden resource query failed:",
       hiddenResourceError
     );
+    return <ProfileDataUnavailable retryHref={retryHref} />;
   }
 
   const hiddenResources =
@@ -499,6 +531,7 @@ export default async function PublicProfilePage({
 
   if (minorContextError) {
     console.error("Managed minor profile context query failed:", minorContextError);
+    return <ProfileDataUnavailable retryHref={retryHref} />;
   }
 
   const minorContext = (
@@ -521,6 +554,7 @@ export default async function PublicProfilePage({
 
     if (guardianError) {
       console.error("Public guardian query failed:", guardianError);
+      return <ProfileDataUnavailable retryHref={retryHref} />;
     }
 
     return (
@@ -1499,23 +1533,60 @@ export default async function PublicProfilePage({
     )
   );
 
-  const profilePresentationEntries = await Promise.all(
-    profileResourceIds.map(async (resourceId) => {
-      const { data, error } = await supabase.rpc(
-        "get_uin_event_presentation_v86",
-        { p_resource_id: resourceId }
-      );
-      if (error) {
-        console.warn("Profile event presentation is temporarily unavailable:", error.message);
-        return [resourceId, null] as const;
-      }
-      const displayTitle = data && typeof data === "object" && !Array.isArray(data)
-        ? (data as { displayTitle?: unknown }).displayTitle
-        : null;
-      return [resourceId, typeof displayTitle === "string" ? displayTitle : null] as const;
-    })
+  const profilePresentationBatches = Array.from(
+    { length: Math.ceil(profileResourceIds.length / 100) },
+    (_, index) => profileResourceIds.slice(index * 100, (index + 1) * 100)
   );
-  const profileDisplayTitleByResourceId = new Map(profilePresentationEntries);
+  const profilePresentationBatchResponses = await Promise.all(
+    profilePresentationBatches.map((resourceIds) =>
+      supabase.rpc("get_uin_event_presentations_v150", {
+        p_resource_ids: resourceIds,
+      })
+    )
+  );
+  const profileDisplayTitleByResourceId = new Map<string, string | null>();
+
+  for (let index = 0; index < profilePresentationBatchResponses.length; index += 1) {
+    const response = profilePresentationBatchResponses[index];
+    const resourceIds = profilePresentationBatches[index] ?? [];
+
+    if (response.error) {
+      console.warn(
+        "Profile event presentation batch is temporarily unavailable; using the exact fallback:",
+        response.error.message
+      );
+      const fallbackResponses = await Promise.all(
+        resourceIds.map(async (resourceId) => ({
+          resourceId,
+          result: await supabase.rpc("get_uin_event_presentation_v86", {
+            p_resource_id: resourceId,
+          }),
+        }))
+      );
+      for (const { resourceId, result } of fallbackResponses) {
+        const displayTitle =
+          !result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)
+            ? (result.data as { displayTitle?: unknown }).displayTitle
+            : null;
+        profileDisplayTitleByResourceId.set(
+          resourceId,
+          typeof displayTitle === "string" ? displayTitle : null
+        );
+      }
+      continue;
+    }
+
+    for (const row of (response.data ?? []) as Array<{
+      resource_id: string;
+      presentation: { displayTitle?: unknown } | null;
+    }>) {
+      const displayTitle = row.presentation?.displayTitle;
+      profileDisplayTitleByResourceId.set(
+        row.resource_id,
+        typeof displayTitle === "string" ? displayTitle : null
+      );
+    }
+  }
   const [profilePeopleResponse, profileLineageResponse] = await Promise.all([
     profileResourceIds.length > 0
       ? supabase.rpc("get_visible_activity_people_batch", {
@@ -1628,6 +1699,12 @@ export default async function PublicProfilePage({
   const hasPersonalExperiences = visibleSeeds.some(
     (seed) => seed.status === "completed"
   );
+  const activePersonalCount = visibleSeedError
+    ? null
+    : visibleSeeds.filter((seed) => seed.status === "active").length;
+  const personalExperienceCount = visibleSeedError
+    ? null
+    : visibleSeeds.filter((seed) => seed.status === "completed").length;
 
   const hasUpcoming = [...hostedActiveCards, ...participatingActiveCards].some(
     (card) =>
@@ -1736,7 +1813,7 @@ export default async function PublicProfilePage({
                   )}
 
                   <span className="text-gray-400">
-                    UIN'e katıldı · {formatMonthYear(profile.created_at)}
+                    UIN&apos;e katıldı · {formatMonthYear(profile.created_at)}
                   </span>
                 </div>
                   </div>
@@ -1824,24 +1901,26 @@ export default async function PublicProfilePage({
       <section className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
         {[
           { label: "Aktif Etkinlik", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
-          { label: "Aktif Kişisel Niyet", value: visibleSeeds.filter((seed) => seed.status === "active").length, href: "#active-personal" },
+          { label: "Aktif Kişisel Niyet", value: activePersonalCount, href: "#active-personal" },
           { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
           { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
-          { label: "Kişisel Deneyim", value: visibleSeeds.filter((seed) => seed.status === "completed").length, href: "#personal-experiences" },
+          { label: "Kişisel Deneyim", value: personalExperienceCount, href: "#personal-experiences" },
           { label: "Yaklaşan", value: upcomingActivities.length + activeCards.filter((card) => card.lifecycle_status === "future").length, href: "#upcoming" },
         ].map((item) => {
+          const isKnown = item.value !== null;
+          const isPositive = typeof item.value === "number" && item.value > 0;
           const content = (
             <>
-              <p className={`text-2xl font-bold ${item.value > 0 ? "text-gray-900 transition group-hover:text-green-800" : "text-gray-300"}`}>
-                {item.value}
+              <p className={`text-2xl font-bold ${isPositive ? "text-gray-900 transition group-hover:text-green-800" : isKnown ? "text-gray-300" : "text-amber-600"}`}>
+                {isKnown ? item.value : "—"}
               </p>
-              <p className={`mt-1 text-[11px] font-semibold leading-4 ${item.value > 0 ? "text-gray-500" : "text-gray-300"}`}>
+              <p className={`mt-1 text-[11px] font-semibold leading-4 ${isPositive ? "text-gray-500" : isKnown ? "text-gray-300" : "text-amber-700"}`}>
                 {item.label}
               </p>
             </>
           );
 
-          return item.value > 0 ? (
+          return isPositive ? (
             <a
               key={item.label}
               href={item.href}
@@ -1863,6 +1942,18 @@ export default async function PublicProfilePage({
 
 
         <div className="mt-8 flex justify-end"><WebCardLayoutPicker/></div>
+
+        {visibleSeedError && (
+          <section role="alert" className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+            <h2 className="font-black">Kişisel niyet ve deneyimler yüklenemedi</h2>
+            <p className="mt-2 text-sm leading-6">
+              Eksik kayıtları sıfır gibi göstermiyoruz. Bu bölümü görmek için sayfayı yeniden deneyebilirsin.
+            </p>
+            <Link href={retryHref} className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white">
+              Yeniden dene
+            </Link>
+          </section>
+        )}
 
         {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">

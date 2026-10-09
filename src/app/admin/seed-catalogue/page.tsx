@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import SeedCatalogueSubjectFields from "@/components/admin/SeedCatalogueSubjectFields";
 import DeleteCatalogueItemForm from "@/components/admin/DeleteCatalogueItemForm";
-import { createClient } from "@/utils/supabase/server";
+import { requireAdmin } from "@/utils/admin";
 
 import {
   createSeedCatalogueItem,
@@ -212,7 +212,7 @@ export default async function AdminSeedCataloguePage({
   const errorMessage = one(params.error);
   const updated = one(params.updated);
 
-  const supabase = await createClient();
+  const { supabase } = await requireAdmin();
   const [itemsResponse, seedTypesResponse, countsResponse] = await Promise.all([
     supabase.rpc("get_admin_seed_catalog_items", {
       p_status: status === "all" ? null : status,

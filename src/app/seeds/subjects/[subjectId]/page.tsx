@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import SeedCatalogueSubjectFields from "@/components/admin/SeedCatalogueSubjectFields";
 import SeedExperienceEngagement, {
   type SeedExperienceCommentPreview,
@@ -136,6 +138,12 @@ function one(value: string | string[] | undefined): string {
   return value?.trim() || "";
 }
 
+function isValidUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 function getPastExperienceLabel(seedTypeSlug: string): string {
   switch (seedTypeSlug) {
     case "read":
@@ -203,22 +211,56 @@ export default async function SeedSubjectPage({
     searchParams,
   ]);
 
+  if (!isValidUuid(subjectId)) {
+    notFound();
+  }
+
+  const returnTo = `/seeds/subjects/${encodeURIComponent(subjectId)}`;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Seed konusu şu anda yüklenemedi"
+      retryHref={returnTo}
+      backHref="/seeds/explore"
+      backLabel="Seed Library'ye dön"
+    />
+  );
+
   const supabase = await createClient();
   const { data, error } = await supabase.rpc(
     "get_seed_catalog_detail",
     { p_catalog_item_id: subjectId }
   );
 
-  if (error || !data) {
+  if (error) {
+    console.error("Seed subject query failed:", error);
+    return unavailable;
+  }
+
+  if (!data) {
     notFound();
   }
 
   const detail = data as SubjectDetail;
   const subject = detail.subject;
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Seed subject session query failed:", userError);
+    return unavailable;
+  }
+
   let adminRole: string | null = null;
   if (user) {
-    const { data: roleData } = await supabase.rpc("get_admin_role");
+    const { data: roleData, error: roleError } = await supabase.rpc("get_admin_role");
+
+    if (roleError) {
+      console.error("Seed subject admin role query failed:", roleError);
+      return unavailable;
+    }
+
     adminRole = typeof roleData === "string" ? roleData : null;
   }
   const isAdmin = Boolean(adminRole);
@@ -228,11 +270,21 @@ export default async function SeedSubjectPage({
       .select("country_name,region_name,city_name,address_text,latitude,longitude,map_url,external_place_id")
       .eq("catalog_item_id", subject.catalog_item_id)
       .maybeSingle(),
-    isAdmin ? supabase.rpc("get_active_seed_types") : Promise.resolve({ data: [] }),
+    isAdmin
+      ? supabase.rpc("get_active_seed_types")
+      : Promise.resolve({ data: [], error: null }),
   ]);
+
+  if (placeResponse.error || seedTypesResponse.error) {
+    console.error("Seed subject related queries failed:", {
+      place: placeResponse.error,
+      seedTypes: seedTypesResponse.error,
+    });
+    return unavailable;
+  }
+
   const place = (placeResponse.data ?? null) as PlaceDetails | null;
   const seedTypes = (seedTypesResponse.data ?? []) as SeedTypeRow[];
-  const returnTo = `/seeds/subjects/${encodeURIComponent(subjectId)}`;
   const viewerCompletedHasExperience = Boolean(
     detail.viewer_completed_seed?.seed_id &&
       detail.experiences.some(

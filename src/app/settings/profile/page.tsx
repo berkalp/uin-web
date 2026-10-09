@@ -3,7 +3,9 @@ import {
   notFound,
   redirect,
 } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import AgeAndFamilyManager, {
   type FamilyCenterData,
 } from "@/components/family/AgeAndFamilyManager";
@@ -49,7 +51,20 @@ export default async function ProfileSettingsPage() {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Profile settings session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Profil ayarları şu anda yüklenemedi"
+        retryHref="/settings/profile"
+        backHref="/timeline"
+        backLabel="Niyetlere dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -94,44 +109,49 @@ export default async function ProfileSettingsPage() {
     error: profileError,
   } = profileResult;
 
-  if (profileError || !profileData) {
-    if (profileError) {
-      console.error("Profile settings query failed:", {
-        message: profileError.message,
-        code: profileError.code,
-        details: profileError.details,
-        hint: profileError.hint,
-      });
-    }
+  if (profileError) {
+    console.error("Profile settings query failed:", {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
+    });
 
+    return (
+      <PageDataUnavailable
+        title="Profil ayarları şu anda yüklenemedi"
+        retryHref="/settings/profile"
+        backHref="/timeline"
+        backLabel="Niyetlere dön"
+      />
+    );
+  }
+
+  if (!profileData) {
     notFound();
   }
 
-  if (connectionsFamilyResult.error) {
-    console.error(
-      "Profile connection and family settings query failed:",
-      connectionsFamilyResult.error
-    );
-  }
+  const relatedSettingsError =
+    presenceResult.error ??
+    connectionsFamilyResult.error ??
+    familyResponse.error ??
+    publicFamilyResponse.error;
 
-  if (presenceResult.error) {
-    console.error(
-      "Profile presence query failed:",
-      presenceResult.error
-    );
-  }
+  if (relatedSettingsError) {
+    console.error("Related profile settings query failed:", {
+      presence: presenceResult.error,
+      connectionsFamily: connectionsFamilyResult.error,
+      family: familyResponse.error,
+      publicFamily: publicFamilyResponse.error,
+    });
 
-  if (familyResponse.error) {
-    console.error(
-      "Age and family settings query failed:",
-      familyResponse.error
-    );
-  }
-
-  if (publicFamilyResponse.error) {
-    console.error(
-      "Public family settings query failed:",
-      publicFamilyResponse.error
+    return (
+      <PageDataUnavailable
+        title="Profil ayarları şu anda yüklenemedi"
+        retryHref="/settings/profile"
+        backHref="/timeline"
+        backLabel="Niyetlere dön"
+      />
     );
   }
 

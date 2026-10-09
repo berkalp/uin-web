@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import CanonicalMatchForm from "@/components/seeds/CanonicalMatchForm";
 import SeedCollaborationSettings from "@/components/seeds/SeedCollaborationSettings";
 import SeedDetailView from "@/components/seeds/SeedDetailView";
@@ -32,10 +34,33 @@ export default async function SeedDetailPage({
     notFound();
   }
 
+  const editExperience =
+    (Array.isArray(query.editExperience)
+      ? query.editExperience[0]
+      : query.editExperience) === "1";
+  const retryPath = `/seeds/${encodeURIComponent(seedId)}`;
+  const retryHref = editExperience
+    ? `${retryPath}?editExperience=1`
+    : retryPath;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Seed ayrıntıları şu anda yüklenemedi"
+      retryHref={retryHref}
+      backHref="/seeds"
+      backLabel="Seed'lere dön"
+    />
+  );
+
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Seed detail session query failed:", userError);
+    return unavailable;
+  }
 
   const [detailResult, reactionResult, reminderResult] = await Promise.all([
     supabase.rpc("get_visible_seed_detail", {
@@ -54,22 +79,22 @@ export default async function SeedDetailPage({
       : Promise.resolve({ data: null, error: null }),
   ]);
 
-  if (detailResult.error) {
-    console.error("Seed detail query failed:", detailResult.error);
+  const initialReadError =
+    detailResult.error ?? reactionResult.error ?? reminderResult.error;
+
+  if (initialReadError) {
+    console.error("Seed detail queries failed:", {
+      detail: detailResult.error,
+      reaction: reactionResult.error,
+      reminder: reminderResult.error,
+    });
+    return unavailable;
   }
 
   const detail = parseSeedDetailData(detailResult.data);
 
   if (!detail) {
     notFound();
-  }
-
-
-  if (reactionResult.error) {
-    console.warn(
-      "Seed reaction context is temporarily unavailable:",
-      reactionResult.error.message
-    );
   }
 
   const reactionContext =
@@ -92,8 +117,12 @@ export default async function SeedDetailPage({
     }
   );
 
+  if (contextResult.error) {
+    console.error("Seed context query failed:", contextResult.error);
+    return unavailable;
+  }
+
   if (
-    !contextResult.error &&
     contextResult.data &&
     typeof contextResult.data === "object"
   ) {
@@ -145,8 +174,12 @@ export default async function SeedDetailPage({
         p_catalog_item_id: detail.seed.catalog_item_id,
       });
 
+    if (catalogError) {
+      console.error("Seed catalogue fallback query failed:", catalogError);
+      return unavailable;
+    }
+
     if (
-      !catalogError &&
       catalogDetail &&
       typeof catalogDetail === "object"
     ) {
@@ -192,6 +225,12 @@ export default async function SeedDetailPage({
     }
   }
   const canonicalResult = await supabase.rpc("get_canonical_seed_detail_v31", { p_source_seed_id: seedId });
+
+  if (canonicalResult.error) {
+    console.error("Canonical Seed detail query failed:", canonicalResult.error);
+    return unavailable;
+  }
+
   const canonical = Array.isArray(canonicalResult.data) ? canonicalResult.data[0] : canonicalResult.data;
   if (canonical?.title) detail.seed.title = canonical.title;
   return (
@@ -211,7 +250,7 @@ export default async function SeedDetailPage({
           ? reminderResult.data.timezone
           : null
       }
-      editExperience={(Array.isArray(query.editExperience) ? query.editExperience[0] : query.editExperience) === "1"}
+      editExperience={editExperience}
     />
     {detail.seed.is_owner && canonical?.canonical_kind === "live_match" && <CanonicalMatchForm seedId={seedId} />}
     {detail.seed.is_owner && detail.seed.status !== "completed" && <SeedCollaborationSettings seedId={seedId} />}

@@ -714,14 +714,48 @@ export default async function ActivityDetailPage({
     }
   );
 
-  if (error || !data) {
-    if (error) {
-      console.error(
-        "Activity detail query failed:",
-        error
-      );
-    }
+  if (error) {
+    console.error(
+      "Activity detail query failed:",
+      error
+    );
 
+    return (
+      <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-6xl">
+          <Link
+            href={backNavigation.href}
+            className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
+          >
+            ← Geri {backNavigation.label}
+          </Link>
+
+          <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
+              Yükleme sorunu
+            </p>
+
+            <h1 className="mt-3 text-2xl font-bold text-gray-950">
+              Etkinlik şu anda yüklenemedi
+            </h1>
+
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600">
+              Eksik veya yanlış bilgi göstermemek için etkinlik ayrıntılarını gizledik. Biraz sonra yeniden deneyebilirsin.
+            </p>
+
+            <a
+              href={`/activities/${encodeURIComponent(resourceId)}`}
+              className="mt-6 inline-flex min-h-11 items-center justify-center rounded-xl bg-gray-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-gray-800"
+            >
+              Yeniden dene
+            </a>
+          </section>
+        </div>
+      </main>
+    );
+  }
+
+  if (!data) {
     return (
       <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
         <div className="mx-auto max-w-6xl">
@@ -1075,9 +1109,13 @@ export default async function ActivityDetailPage({
     (linksResult.data ?? []) as IntentLinkRpcRow[]
   );
 
-  const activityPeople = (
-    peopleResult.data ?? []
-  ) as ActivityPersonRow[];
+  const peopleUnavailable = Boolean(
+    peopleResult.error
+  );
+
+  const activityPeople = peopleUnavailable
+    ? []
+    : ((peopleResult.data ?? []) as ActivityPersonRow[]);
 
   const commonTarget = commonTargetResult.error
     ? null
@@ -1104,18 +1142,22 @@ export default async function ActivityDetailPage({
   const planOriginCount = getPlanOriginCount(planOrigins);
 
   const peopleById = new Map<string, ActivityPersonRow>();
-  for (const person of activityPeople) {
-    peopleById.set(person.user_id, person);
+  if (!peopleUnavailable) {
+    for (const person of activityPeople) {
+      peopleById.set(person.user_id, person);
+    }
+    peopleById.set(activity.host_user_id, {
+      user_id: activity.host_user_id,
+      full_name: activity.host_full_name,
+      username: activity.host_username,
+      avatar_url: activity.host_avatar_url,
+      role: "host",
+    });
   }
-  peopleById.set(activity.host_user_id, {
-    user_id: activity.host_user_id,
-    full_name: activity.host_full_name,
-    username: activity.host_username,
-    avatar_url: activity.host_avatar_url,
-    role: "host",
-  });
   const participants = Array.from(peopleById.values());
-  const visiblePeopleCount = participants.length;
+  const visiblePeopleCount = peopleUnavailable
+    ? null
+    : participants.length;
 
   const professionalRequirement =
     (professionalRequirementResult.data as IntentProfessionalRequirementData | null) ??
@@ -1730,7 +1772,9 @@ const detailLabel =
                     Katılımcılar
                   </p>
                   <p className="mt-2 text-xl font-black text-gray-950">
-                    {visiblePeopleCount} / {getParticipantLimit(activity.max_participants)}
+                    {visiblePeopleCount === null
+                      ? "—"
+                      : `${visiblePeopleCount} / ${getParticipantLimit(activity.max_participants)}`}
                   </p>
                 </div>
 
@@ -1849,11 +1893,26 @@ const detailLabel =
                   </div>
 
                   <span className="rounded-full bg-violet-50 px-3 py-1.5 text-xs font-bold text-violet-700">
-                    {participants.length}
+                    {peopleUnavailable ? "—" : participants.length}
                   </span>
                 </div>
 
-                {participants.length > 0 ? (
+                {peopleUnavailable ? (
+                  <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-5">
+                    <p className="text-sm font-bold text-amber-950">
+                      Katılımcı listesi şu anda yüklenemedi.
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-amber-800">
+                      Eksik bir liste göstermemek için katılımcıları gizledik. Biraz sonra yeniden deneyebilirsin.
+                    </p>
+                    <a
+                      href={`/activities/${encodeURIComponent(resourceId)}#people`}
+                      className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
+                    >
+                      Katılımcıları yeniden yükle
+                    </a>
+                  </div>
+                ) : participants.length > 0 ? (
                   <div className="mt-4 space-y-3">
                     {participants.map(
                       (person) => {

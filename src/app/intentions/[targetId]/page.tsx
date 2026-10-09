@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import AppNavigation from "@/components/navigation/AppNavigation";
 import ProductAnalyticsView from "@/components/analytics/ProductAnalyticsView";
 import CommonIntentAdminEditor from "@/components/intentions/CommonIntentAdminEditor";
 import CommonTargetUpcomingList from "@/components/intentions/CommonTargetUpcomingList";
 import CommonTargetExperienceAction from "@/components/intentions/CommonTargetExperienceAction";
+import CommonIntentUnavailable from "@/components/intentions/CommonIntentUnavailable";
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import SportsBreadcrumbs from "@/components/sports/SportsBreadcrumbs";
 import { createClient } from "@/utils/supabase/server";
@@ -33,7 +35,11 @@ export default async function CommonIntentPage({params}:{params:Promise<{targetI
   const {targetId}=await params;const supabase=await createClient();const [cardResult,socialResult,activityResult,reviewResult,pageContextResult,sportContextResult,authResult]=await Promise.all([
     supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
     supabase.rpc("get_uin_card_events_v80",{p_target_id:targetId}),supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0}),supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0}),supabase.rpc("get_common_target_page_context_v41",{p_target_id:targetId}),supabase.rpc("get_sport_target_context_v47",{p_target_id:targetId}),supabase.auth.getUser()]);
+  if(cardResult.error){console.error("Common card query failed:",cardResult.error);return <CommonIntentUnavailable retryHref={`/intentions/${encodeURIComponent(targetId)}`}/>;}
   const baseCard=((cardResult.data??[]) as Card[])[0];if(!baseCard)notFound();
+  const authReadError=authResult.error&&!isAuthSessionMissingError(authResult.error)?authResult.error:null;
+  const initialReadError=socialResult.error||activityResult.error||reviewResult.error||pageContextResult.error||sportContextResult.error||authReadError;
+  if(initialReadError){console.error("Common card details query failed:",initialReadError);return <CommonIntentUnavailable retryHref={`/intentions/${encodeURIComponent(targetId)}`}/>;}
   const pageContext=(pageContextResult.data||null) as PageContext|null;
   const sportContext=(sportContextResult.data||null) as SportTargetContext|null;
   const card:Card={...baseCard,title:pageContext?.title||baseCard.title,subtitle:pageContext?.creator_name||baseCard.subtitle,cover_url:pageContext?.cover_url||baseCard.cover_url,metadata:{...(baseCard.metadata||{}),...(pageContext?.metadata||{})}};
@@ -41,10 +47,12 @@ export default async function CommonIntentPage({params}:{params:Promise<{targetI
   const socialPlanIds=Array.from(new Set(rawSocials.map(s=>s.plan_id).filter((id):id is string=>Boolean(id))));
   const [presentationResult,publicContentEntries]=await Promise.all([
     socialPlanIds.length?supabase.rpc("get_visible_plan_presentations",{p_plan_ids:socialPlanIds}):Promise.resolve({data:[],error:null}),
-    Promise.all(socialPlanIds.map(async planId=>{const {data,error}=await supabase.rpc("get_visible_plan_public_content",{p_plan_id:planId});return [planId,error?null:(data as PlanPublicContent|null)] as const;}))
+    Promise.all(socialPlanIds.map(async planId=>{const {data,error}=await supabase.rpc("get_visible_plan_public_content",{p_plan_id:planId});return {planId,data:error?null:(data as PlanPublicContent|null),error};}))
   ]);
+  const presentationReadError=presentationResult.error||publicContentEntries.find(entry=>entry.error)?.error;
+  if(presentationReadError){console.error("Common card event presentation query failed:",presentationReadError);return <CommonIntentUnavailable retryHref={`/intentions/${encodeURIComponent(targetId)}`}/>;}
   const presentationTitleByPlan=new Map(((presentationResult.data??[]) as PlanPresentation[]).map(row=>[row.plan_id,text(row.custom_title)]));
-  const publicContentByPlan=new Map(publicContentEntries);
+  const publicContentByPlan=new Map(publicContentEntries.map(entry=>[entry.planId,entry.data]));
   const socials=rawSocials.map(s=>{const content=s.plan_id?publicContentByPlan.get(s.plan_id):null;return {...s,subtitle:(s.plan_id?presentationTitleByPlan.get(s.plan_id):null)||s.subtitle,meeting_point:text(content?.meeting_point),activity_location:text(content?.activity_location_name)||s.location};});
   const viewerId=authResult.data.user?.id||null;const activities=(activityResult.data??[]) as Activity[];const rawReviews=(reviewResult.data??[]) as Review[];const reviews=[...rawReviews].sort((a,b)=>{const own=Number(b.user_id===viewerId)-Number(a.user_id===viewerId);if(own)return own;return(b.experience_date||String(b.experience_year||0)).localeCompare(a.experience_date||String(a.experience_year||0))});
   const now=new Date().toLocaleDateString("sv-SE",{timeZone:"Europe/Istanbul"});const activeSocials=socials.filter(s=>(s.event_state||((s.status==="completed"||s.plan_status==="completed")?"completed":(s.status==="cancelled"||s.status==="canceled"||s.plan_status==="cancelled")?"cancelled":s.end_date<now?"expired":"active"))==="active").sort((a,b)=>a.start_date.localeCompare(b.start_date));const currentActivity=activities.filter(a=>!a.is_past&&(!a.end_date||a.end_date>=now)).sort((a,b)=>(a.start_date||"9999").localeCompare(b.start_date||"9999"));
@@ -52,6 +60,7 @@ export default async function CommonIntentPage({params}:{params:Promise<{targetI
   const ratings=reviews.map(r=>Number(r.rating)).filter(Number.isFinite);const average=ratings.length?ratings.reduce((a,b)=>a+b,0)/ratings.length:null;
   const ownReview=reviews.find(review=>review.user_id===viewerId)||null;
   const ownDetailResult=card.own_seed_id?await supabase.rpc("get_visible_seed_detail",{p_seed_id:card.own_seed_id}):null;
+  if(ownDetailResult?.error){console.error("Own experience detail query failed:",ownDetailResult.error);return <CommonIntentUnavailable retryHref={`/intentions/${encodeURIComponent(targetId)}`}/>;}
   const ownDetail=ownDetailResult?parseSeedDetailData(ownDetailResult.data):null;
   const ownReflection=ownDetail?.journal.find(entry=>entry.entry_kind==="reflection")||null;
   const sportsRootHref = "/ideas?type=sporu+yerinde+izle";

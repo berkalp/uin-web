@@ -24,6 +24,12 @@ function getInitial(
   );
 }
 
+function toCount(value: number | string | null | undefined) {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 export default async function InboxPage() {
   const supabase =
     await createClient();
@@ -78,14 +84,21 @@ export default async function InboxPage() {
       .is("expired_at", null),
   ]);
 
+  const loadFailed = Boolean(
+    requestResponse.error ||
+      intentInvitationResponse.error ||
+      joinRequestResponse.error ||
+      managedProfileResponse.error ||
+      activeOwnedIntentResponse.error
+  );
+
   const pendingIntentRequestCount =
-    (
-      requestResponse.data ??
-      []
-    ).length;
+    requestResponse.error ? null : (requestResponse.data ?? []).length;
 
   const pendingIntentInvitationCount =
-    (
+    intentInvitationResponse.error
+      ? null
+      : (
       (
         intentInvitationResponse.data ??
         []
@@ -96,7 +109,7 @@ export default async function InboxPage() {
       (invitation) =>
         invitation.invitation_status ===
         "pending"
-    ).length;
+      ).length;
 
   const activeOwnedIntentIds = new Set(
     ((activeOwnedIntentResponse.data ?? []) as { id: string }[]).map(
@@ -105,7 +118,9 @@ export default async function InboxPage() {
   );
 
   const pendingJoinRequestCount =
-    (
+    joinRequestResponse.error || activeOwnedIntentResponse.error
+      ? null
+      : (
       (
         joinRequestResponse.data ??
         []
@@ -124,40 +139,36 @@ export default async function InboxPage() {
           request.intent_id &&
           activeOwnedIntentIds.has(request.intent_id)
         )
-    ).length;
+      ).length;
 
   const managedProfiles =
-    (
-      managedProfileResponse.data ??
-      []
-    ) as ManagedProfileRow[];
+    managedProfileResponse.error
+      ? []
+      : ((managedProfileResponse.data ?? []) as ManagedProfileRow[]);
 
-  const managedProfileActionCount =
-    managedProfiles.reduce(
-      (
-        total,
-        profile
-      ) =>
-        total +
-        Number(
-          profile.pending_invitation_count ||
-            0
-        ),
-      0
-    );
+  const managedProfileCounts = managedProfiles.map((profile) =>
+    toCount(profile.pending_invitation_count)
+  );
+  const managedProfileActionCount = managedProfileResponse.error || managedProfileCounts.some((count) => count === null)
+    ? null
+    : managedProfileCounts.reduce<number>((total, count) => total + (count ?? 0), 0);
 
-  const totalCount =
-    pendingIntentRequestCount +
-    pendingIntentInvitationCount +
-    pendingJoinRequestCount +
-    managedProfileActionCount;
+  const knownCounts = [
+    pendingIntentRequestCount,
+    pendingIntentInvitationCount,
+    pendingJoinRequestCount,
+    managedProfileActionCount,
+  ];
+  const totalCount = knownCounts.some((count) => count === null)
+    ? null
+    : knownCounts.reduce<number>((total, count) => total + (count ?? 0), 0);
 
   const actionCards = [
     {
       title:
-        "Intent Requests",
+        "Niyet İstekleri",
       description:
-        "Requests connecting compatible personal Intents.",
+        "Uyumlu kişisel niyetleri bir araya getiren istekler.",
       count:
         pendingIntentRequestCount,
       href: "/requests",
@@ -166,9 +177,9 @@ export default async function InboxPage() {
     },
     {
       title:
-        "Activity Invitations",
+        "Etkinlik Davetleri",
       description:
-        "Direct invitations sent to your personal profile.",
+        "Kişisel profiline doğrudan gönderilen davetler.",
       count:
         pendingIntentInvitationCount,
       href:
@@ -178,9 +189,9 @@ export default async function InboxPage() {
     },
     {
       title:
-        "Join Requests",
+        "Katılım İstekleri",
       description:
-        "People asking to participate in your public Activities.",
+        "Herkese açık etkinliklerine katılmak isteyen kişiler.",
       count:
         pendingJoinRequestCount,
       href: "/join-requests",
@@ -201,7 +212,7 @@ export default async function InboxPage() {
           </Link>
 
           <span className="rounded-full bg-gray-950 px-4 py-2 text-sm font-semibold text-white">
-            {totalCount} pending
+            {totalCount === null ? "Bekleyen sayısı yüklenemedi" : `${totalCount} bekleyen`}
           </span>
         </div>
 
@@ -214,6 +225,18 @@ export default async function InboxPage() {
             Karar vermen gereken istekler, davetler ve yönetilen profil işlemleri burada. Mesajlar ve Bildirimler ayrı tutulur.
           </p>
         </header>
+
+        {loadFailed && (
+          <section role="alert" className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
+            <h2 className="font-bold">Bazı kararlar yüklenemedi</h2>
+            <p className="mt-2 text-sm leading-6">
+              Eksik kayıtları sıfır gibi göstermiyoruz. Yüklenemeyen sayaçlar çizgiyle işaretlendi.
+            </p>
+            <Link href="/inbox" className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white">
+              Yeniden dene
+            </Link>
+          </section>
+        )}
 
         <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
           {actionCards.map(
@@ -237,12 +260,12 @@ export default async function InboxPage() {
                   </div>
 
                   <span className="rounded-full bg-white px-3 py-1 text-sm font-bold shadow-sm">
-                    {card.count}
+                    {card.count === null ? "—" : card.count}
                   </span>
                 </div>
 
                 <p className="mt-5 text-sm font-semibold">
-                  Open
+                  Aç
                   <span className="ml-2 inline-block transition group-hover:translate-x-1">
                     →
                   </span>
@@ -256,11 +279,11 @@ export default async function InboxPage() {
           0 && (
           <section className="mt-10">
             <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-              Managed Profiles
+              Yönetilen Profiller
             </p>
 
             <h2 className="mt-2 text-2xl font-bold text-gray-950">
-              Guardian actions
+              Veli işlemleri
             </h2>
 
             <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
@@ -270,11 +293,7 @@ export default async function InboxPage() {
                     profile.child_full_name ||
                     profile.child_username;
 
-                  const count =
-                    Number(
-                      profile.pending_invitation_count ||
-                        0
-                    );
+                  const count = toCount(profile.pending_invitation_count);
 
                   return (
                     <Link
@@ -306,12 +325,12 @@ export default async function InboxPage() {
                         </h3>
 
                         <p className="mt-1 text-sm text-gray-500">
-                          Managed Child Profile
+                          Yönetilen çocuk profili
                         </p>
                       </div>
 
                       <span className="rounded-full bg-blue-600 px-3 py-1 text-sm font-bold text-white">
-                        {count}
+                        {count === null ? "—" : count}
                       </span>
 
                       <span className="text-gray-300 transition group-hover:translate-x-1 group-hover:text-blue-700">

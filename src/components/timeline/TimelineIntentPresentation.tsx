@@ -39,6 +39,7 @@ export type TimelineIntentPresentationProps = {
   recruitmentStatus: "open" | "full" | "closed";
   matchingStatus: "open" | "paused" | "matched" | "closed";
   requestCount: number;
+  participantCount?: number | null;
   participantLimit: string;
   budget: number | null;
   visibilityLabel: string;
@@ -142,6 +143,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
     recruitmentStatus,
     matchingStatus,
     requestCount,
+    participantCount = null,
     participantLimit,
     budget,
     visibilityLabel,
@@ -172,10 +174,13 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
   const sportPresentation = sportName ? getSportPresentation(sportName) : null;
   const primaryCommunity = null;
   const createdLabel = formatDateTime(createdAt);
+  const participantValue = participantCount === null
+    ? `— / ${participantLimit}`
+    : `${participantCount} / ${participantLimit}`;
 
   return (
     <>
-      <TimelineLibraryCardFace title={liveSportTitle(title,sportName,null)} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={`/activities/${encodeURIComponent(intentId)}`} location={locationLabel} dateLabel={formatDateTime(startDate)} dnaTitles={dnaTitles} targetId={props.communityTargetId} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{`0 / ${participantLimit}`}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{statusLabel}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>} action={props.listEditHref?<Link href={props.listEditHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Planımı düzenle</Link>:undefined}/>
+      <TimelineLibraryCardFace title={liveSportTitle(title,sportName,null)} category={categoryName} status={statusLabel} coverUrl={coverUrl} href={`/activities/${encodeURIComponent(intentId)}`} location={locationLabel} dateLabel={formatDateTime(startDate)} dnaTitles={dnaTitles} targetId={props.communityTargetId} metrics={props.communityTargetId?<CanonicalTargetPeople targetId={props.communityTargetId} appearance="overlay"/>:<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantValue}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{statusLabel}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">İstekler</p><b>{requestCount}</b></div></div>} action={props.listEditHref?<Link href={props.listEditHref} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 py-2.5 text-sm font-black text-white hover:bg-emerald-700">✓ Planımı düzenle</Link>:undefined}/>
       <CanonicalActivityCardDetails
         targetStart={startDate}
         targetEnd={endDate}
@@ -184,7 +189,7 @@ export default function TimelineIntentPresentation(props: TimelineIntentPresenta
         expiredAt={expiredAt}
         status={lifecycleStatus}
         timezone="Europe/Istanbul"
-        participantValue={`0 / ${participantLimit}`}
+        participantValue={participantValue}
         visibilityValue={visibilityLabel}
         recurrenceValue={readableChoice(recurrence)}
         costLabel="Tahmini kişi başı maliyet"

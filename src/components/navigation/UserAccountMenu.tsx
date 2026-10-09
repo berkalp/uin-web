@@ -5,7 +5,6 @@ import LocaleSwitcher from "@/components/i18n/LocaleSwitcher";
 import type {
   ManagedProfileSwitcherRow,
 } from "@/components/navigation/AccountContextSwitcher";
-import { createClient } from "@/utils/supabase/server";
 
 type AccountContext =
   | {
@@ -70,7 +69,7 @@ function ContextAvatar({
   );
 }
 
-export default async function UserAccountMenu({
+export default function UserAccountMenu({
   fullName,
   username,
   email,
@@ -103,28 +102,6 @@ export default async function UserAccountMenu({
     currentContext.type === "managed_profile"
       ? "Yönetilen profil"
       : "Kişisel";
-
-  const supabase = await createClient();
-
-  const {
-    data: archivedResourceKeys,
-    error: archiveCountError,
-  } = await supabase.rpc(
-    "get_my_archived_resource_keys"
-  );
-
-  if (archiveCountError) {
-    console.error(
-      "Account menu archive count query failed:",
-      archiveCountError
-    );
-  }
-
-  const archiveCount = Array.isArray(
-    archivedResourceKeys
-  )
-    ? archivedResourceKeys.length
-    : 0;
 
   return (
     <details className="group relative z-[100]">
@@ -274,6 +251,21 @@ export default async function UserAccountMenu({
         </div>
 
         <div className="border-t border-gray-100 p-2">
+          <div className="grid grid-cols-2 gap-1 border-b border-gray-100 pb-2">
+            <Link href="/inbox" className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-emerald-50 hover:text-emerald-800">
+              Karar Merkezi
+            </Link>
+            <Link href="/messages" className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-emerald-50 hover:text-emerald-800">
+              Mesajlar
+            </Link>
+            <Link href="/matches" className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-emerald-50 hover:text-emerald-800">
+              Eşleşmeler
+            </Link>
+            <Link href="/friends" className="rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-emerald-50 hover:text-emerald-800">
+              Arkadaşlar
+            </Link>
+          </div>
+
           {username && (
             <Link
               href={`/u/${encodeURIComponent(username)}`}
@@ -307,17 +299,9 @@ export default async function UserAccountMenu({
 
           <Link
             href="/archive"
-            className="flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
+            className="block rounded-xl px-4 py-3 text-sm font-semibold text-amber-800 transition hover:bg-amber-50"
           >
-            <span>Kişisel arşiv</span>
-
-            {archiveCount > 0 && (
-              <span className="flex min-h-6 min-w-6 items-center justify-center rounded-full bg-amber-700 px-1.5 text-[11px] font-bold text-white">
-                {archiveCount > 99
-                  ? "99+"
-                  : archiveCount}
-              </span>
-            )}
+            Kişisel arşiv
           </Link>
 
           {isAdmin && (

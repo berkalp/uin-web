@@ -27,7 +27,7 @@ const POPUP_TYPES = [
 const POPUP_TYPE_SET = new Set<string>(POPUP_TYPES);
 const RECENT_WINDOW_MS = 2 * 60 * 1000;
 
-export default function ReminderToastListener() {
+export default function ReminderToastListener({ enabled }: { enabled: boolean }) {
   const router = useRouter();
   const [toast, setToast] = useState<ToastNotification | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +65,8 @@ export default function ReminderToastListener() {
   }, [showToast]);
 
   useEffect(() => {
+    if (!enabled) return;
+
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let cancelled = false;
     let pollId: ReturnType<typeof setInterval> | null = null;
@@ -116,7 +118,7 @@ export default function ReminderToastListener() {
       document.removeEventListener("visibilitychange", onVisibility);
       if (channel) void supabase.removeChannel(channel);
     };
-  }, [recoverRecentPopup, showToast]);
+  }, [enabled, recoverRecentPopup, showToast]);
 
   if (!toast) return null;
 
