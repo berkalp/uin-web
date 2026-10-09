@@ -183,6 +183,71 @@ test("card details parallelize bounded readers and preserve canonical aggregates
   assert.doesNotMatch(modal, /communityCounts\?\.\[[012]\]\|\|0/);
 });
 
+test("card ownership excludes social event attendance from personal wish state", () => {
+  const route = read("src/app/api/ideas/[targetId]/route.ts");
+  const modal = read("src/components/ideas/TopicCardModal.tsx");
+  const start = route.indexOf("const ownRow=");
+  const end = route.indexOf("if(socialResult.error", start);
+  const ownership = route.slice(start, end);
+
+  assert.ok(start >= 0 && end > start, "card ownership block must remain identifiable");
+  assert.match(
+    ownership,
+    /const ownPerson=people\.find\(person=>person\.user_id===viewerId&&person\.is_current!==false&&\["personal","seed"\]\.includes\(String\(person\.source_kind\|\|""\)\)\)/,
+    "only personal and seed people may provide wish ownership",
+  );
+  assert.match(
+    ownership,
+    /const hasOwnPersonalIntent=ownRow\?\.status==="active"\|\|Boolean\(ownPerson\)/,
+    "an explicit personal row must be active before it owns the wish",
+  );
+  assert.doesNotMatch(
+    ownership,
+    /const hasOwnPersonalIntent=Boolean\(ownIntentResult\?\.data\)\|\|Boolean\(ownPerson\)/,
+    "completed personal rows must not be treated as current wishes",
+  );
+  assert.match(ownership, /const ownWish=ownRow\?\.status==="active"\?[\s\S]*?:ownPerson\?[\s\S]*?:null/);
+  assert.match(ownership, /const ownIntentDraft=ownRow\?\.status==="active"\?[\s\S]*?:ownPerson\?[\s\S]*?:null/);
+  assert.match(
+    route,
+    /wantRows\.filter\(row=>row\.user_id!==viewerId&&\["personal","seed"\]\.includes\(String\(row\.source_kind\|\|""\)\)\)/,
+    "social event and plan rows must not trigger together-permission checks",
+  );
+  assert.match(modal, /function isPersonalWishSource\([^)]*\)\{return \["personal","seed"\]\.includes/);
+  assert.match(modal, /const ownPersonalWish=people\.find\(person=>isCurrentPersonalWish\(person,detail\?\.viewerId\|\|null\)\)\|\|null/);
+  assert.match(modal, /const hasWanted=wantedNow\|\|Boolean\(detail\?\.hasOwnPersonalIntent\)\|\|Boolean\(ownPersonalWish\)/);
+  assert.doesNotMatch(modal, /hasWanted=[^;]*people\.some\(person=>person\.user_id===detail\?\.viewerId/);
+  assert.match(modal, /const baseline=ownWish\|\|people\.find\(person=>isCurrentPersonalWish\(person,viewerId\)\)/);
+  assert.match(modal, /person\.source_kind==="social"\?"Aktif etkinlik veya plan üzerinden görünüyor":"Genel istek"/);
+  assert.match(modal, /allowProposal&&targetId&&viewerId&&isPersonalWishSource\(person\)/);
+  assert.match(
+    route,
+    /const rowId=row\.source_kind==="social"\?`\$\{String\(row\.source_id\|\|sourceTarget\)\}:\$\{String\(row\.user_id\)\}`:row\.source_id\|\|row\.user_id/,
+    "social participants sharing one event need distinct UI row identities",
+  );
+});
+
+test("card wish mutations use the exact personal source target across aliases", () => {
+  const route = read("src/app/api/ideas/[targetId]/route.ts");
+  const modal = read("src/components/ideas/TopicCardModal.tsx");
+
+  assert.match(route, /const ownPersonSourceTargetId=ownPerson\?\.source_target_id/);
+  assert.match(
+    route,
+    /const ownWishTargetId=ownRow\?\.status==="active"\?targetId:[^;]*ownPersonSourceTargetId[^;]*:ownPerson\?targetId:null/,
+  );
+  assert.match(route, /return NextResponse\.json\(\{canonicalTargetId:targetId,ownWishTargetId,ownWish,ownIntentDraft/);
+  assert.match(modal, /ownWishTargetId\?:string\|null/);
+  assert.match(modal, /const canonicalTargetId=validTargetId\(detail\?\.canonicalTargetId\)\|\|selected\.canonicalTargetId/);
+  assert.match(modal, /const wishTargetId=hasWanted\?\(validTargetId\(detail\?\.ownWishTargetId\)[^;]*\):canonicalTargetId/);
+  assert.match(modal, /archive_my_common_wish_v73",\{p_target_id:wishTargetId\}/);
+  assert.match(modal, /<CommonPersonalIntentForm[^>]*targetId=\{wishTargetId\}/);
+  assert.match(modal, /hasWanted\?<div className="grid grid-cols-2 gap-1\.5">/);
+  assert.match(modal, /onClick=\{\(\)=>setView\("want_form"\)\}[^>]*>Düzenle<\/button>/);
+  assert.match(modal, /onClick=\{\(\)=>void cancelWish\(\)\}[^>]*>İptal et<\/button>/);
+  assert.doesNotMatch(modal, /onClick=\{\(\)=>hasWanted\?void cancelWish\(\):setView\("want_form"\)\}/);
+});
+
 test("place admin edits rehydrate the stored hierarchy before saving", () => {
   const client = read("src/components/ideas/InlineTopicSearch.tsx");
   const route = read("src/app/api/ideas/admin/route.ts");
