@@ -3,7 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 
 type SeedRow = { seed_id?: string | null; canonical_target_id?: string | null; status?: string | null };
 type PersonalRow = { id?: string | null; target_id?: string | null; type_id?: string | null };
-type SourceRow = { resource_id?: string | null; target_id?: string | null; type_id?: string | null };
+type PlanTopicRow = { resource_id?: string | null; target_id?: string | null; type_id?: string | null };
 type ResolvedRow = { requested_id?: string | null; resolved_id?: string | null; type_id?: string | null };
 type Row = Record<string, unknown>;
 
@@ -11,15 +11,13 @@ export async function GET(request: NextRequest) {
   const db = await createClient();
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
-  const [seeds, presentations, personal, sources, plans, intents] = await Promise.all([
+  const [seeds, presentations, personal, planTopics] = await Promise.all([
     db.rpc("get_my_canonical_seeds_v31", { p_status: null }),
     db.rpc("get_my_uin_seed_presentations_v70"),
     db.rpc("get_my_uin_personal_cards_v57"),
-    db.rpc("get_my_uin_topic_sources_v71"),
-    db.from("plans").select("id,status").in("status", ["forming", "planned", "active"]),
-    db.from("intents").select("id,status").in("status", ["open", "future", "forming", "planned"]),
+    db.rpc("get_my_uin_active_plan_topics_v152"),
   ]);
-  const failed = [seeds, presentations, personal, sources, plans, intents].find((result) => result.error);
+  const failed = [seeds, presentations, personal, planTopics].find((result) => result.error);
   if (failed?.error) {
     console.error("personal scope sources unavailable", failed.error);
     return NextResponse.json({ error: "Kişisel kart kapsamları yüklenemedi." }, { status: 503 });
@@ -27,12 +25,12 @@ export async function GET(request: NextRequest) {
   const seedRows = (seeds.data ?? []) as SeedRow[];
   const presentationRows = (presentations.data ?? []) as Array<{ seed_id?: string | null; type_id?: string | null }>;
   const personalRows = (personal.data ?? []) as PersonalRow[];
-  const sourceRows = (sources.data ?? []) as SourceRow[];
+  const planTopicRows = (planTopics.data ?? []) as PlanTopicRow[];
   const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))];
   const rawTargetIds = unique([
     ...seedRows.map((row) => row.canonical_target_id),
     ...personalRows.map((row) => row.target_id),
-    ...sourceRows.map((row) => row.target_id),
+    ...planTopicRows.map((row) => row.target_id),
   ]);
   const resolvedResult = rawTargetIds.length
     ? await db.rpc("resolve_uin_card_targets_v143", { p_target_ids: rawTargetIds })
@@ -60,11 +58,9 @@ export async function GET(request: NextRequest) {
   }
   const resolveTarget = (id: string | null | undefined) => id ? resolvedByRequested.get(id) ?? null : null;
   const presentationType = new Map(presentationRows.map((row) => [row.seed_id, row.type_id || "activity"]));
-  const plannedResources = new Set(unique([...(plans.data ?? []).map((row) => row.id), ...(intents.data ?? []).map((row) => row.id)]));
-  const plansByTarget = sourceRows
-    .filter((row) => row.resource_id && plannedResources.has(row.resource_id))
+  const plansByTarget = planTopicRows
     .map((row) => ({ ...row, resolved_target_id: resolveTarget(row.target_id) }))
-    .filter((row): row is SourceRow & { resolved_target_id: string } => Boolean(row.resolved_target_id));
+    .filter((row): row is PlanTopicRow & { resolved_target_id: string } => Boolean(row.resolved_target_id));
   const activeSeeds = seedRows
     .filter((row) => row.status === "active")
     .map((row) => ({ ...row, resolved_target_id: resolveTarget(row.canonical_target_id) }))
