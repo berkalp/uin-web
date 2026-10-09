@@ -31,6 +31,14 @@ test("category cards omit only proven hidden targets and fail closed otherwise",
   assert.doesNotMatch(source, /cardByTarget\.get\(id\)\s*\|\|\s*\{[^}]*intent_people_count\s*:\s*0/s);
 });
 
+test("category cards preserve the native viewer session for visibility-aware counters", () => {
+  const source = read("src/app/api/ideas/category-cards/route.ts");
+  assert.match(source, /request\.headers\.get\("authorization"\)/);
+  assert.match(source, /createSupabaseClient\([^\n]*global:\{headers:\{Authorization:`Bearer \$\{token\}`\}\}/);
+  assert.match(source, /const db=await requestClient\(request\)/);
+  assert.doesNotMatch(source, /const db=await createClient\(\)/);
+});
+
 test("category cards reuse social enrichment and throttle repeat catalogue loads", () => {
   const route = read("src/app/api/ideas/category-cards/route.ts");
   const client = read("src/components/ideas/InlineTopicSearch.tsx");

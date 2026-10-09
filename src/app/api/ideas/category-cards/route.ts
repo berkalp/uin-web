@@ -1,4 +1,5 @@
 import {NextRequest,NextResponse} from "next/server";
+import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 import {createClient} from "@/utils/supabase/server";
 import {readImdbMetadata} from "@/utils/imdbMetadata";
 import {readBookListMetadata} from "@/utils/bookListMetadata";
@@ -8,8 +9,16 @@ type ContentType={id:string;base_kind:string;active:boolean};
 type Row=Record<string,unknown>;
 const CATEGORY_PLACEMENT_SELECT="id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,content_type_id:metadata->>content_type_id,imdb_top_250_rank:metadata->>imdb_top_250_rank,imdb_top_100_rank:metadata->>imdb_top_100_rank,imdb_rating:metadata->>imdb_rating,book_lists:metadata->book_lists,book_list_ranks:metadata->book_list_ranks,book_awards:metadata->book_awards,series_lists:metadata->series_lists,series_list_ranks:metadata->series_list_ranks,series_awards:metadata->series_awards";
 
+async function requestClient(request:NextRequest){
+  const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
+  return token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):createClient();
+}
+
 export async function GET(request:NextRequest){
-  const db=await createClient();
+  // Native clients carry the same user session as the card detail endpoint.
+  // This keeps visibility-aware counters identical in category and detail views
+  // without adding another database read.
+  const db=await requestClient(request);
   const kind=(request.nextUrl.searchParams.get("kind")||"").trim();
   const typeResult=await db.from("uin_content_types").select("id,base_kind,active").eq("id",kind).maybeSingle();
   const type=typeResult.data as ContentType|null;
