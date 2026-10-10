@@ -16,7 +16,6 @@ import ProfileFollowButton from "@/components/profile/ProfileFollowButton";
 import ProfilePresencePanel from "@/components/profile/ProfilePresencePanel";
 import ProfileConnectionsFamilyPanel from "@/components/profile/ProfileConnectionsFamilyPanel";
 import ProfileActivityTabs from "@/components/profile/ProfileActivityTabs";
-import PublicFavoritesPanel, { type PublicFavoriteItem } from "@/components/profile/PublicFavoritesPanel";
 import ProfileIntentReactions, {
   type ProfileIntentReactionItem,
 } from "@/components/profile/ProfileIntentReactions";
@@ -76,8 +75,8 @@ import {
 } from "@/utils/intentReactions";
 import {
   parseSeedReactionContexts,
-  type PublicSeedRecord,
 } from "@/utils/seeds";
+import { parsePublicProfileSeedLifePayload } from "@/utils/publicProfileSeeds";
 
 type PublicProfilePageProps = {
   params: Promise<{
@@ -689,19 +688,13 @@ export default async function PublicProfilePage({
   // Start every independent read as soon as the privacy gates have passed. The
   // individual promises remain awaitable below, while their network time overlaps.
   const visibleSeedResultPromise = startQuery(
-    supabase.rpc("get_visible_profile_seeds_v2", {
+    supabase.rpc("get_visible_profile_seed_life_v170", {
       p_profile_user_id: profile.id,
-      p_limit: 40,
     })
   );
   const displayOrderResultPromise = startQuery(
     supabase.rpc("get_visible_profile_display_order", {
       p_profile_user_id: profile.id,
-    })
-  );
-  const publicPreferencesResultPromise = startQuery(
-    supabase.rpc("get_public_preferences_v2921", {
-      p_username: profile.username,
     })
   );
   const savedReactionResultPromise = page.viewer.is_owner
@@ -901,9 +894,19 @@ export default async function PublicProfilePage({
 
   const visibleSeedReactionResultPromise = visibleSeedResultPromise.then(
     async ({ data: seedData }) => {
-      const seedIds = (Array.isArray(seedData) ? seedData : []).map(
-        (seed) => seed.seed_id
-      );
+      const parsedSeeds = parsePublicProfileSeedLifePayload(seedData);
+      const seedIds =
+        parsedSeeds &&
+        (page.viewer.is_owner ||
+          parsedSeeds.every(
+            (seed) =>
+              seed.seed_scope === "library" &&
+              seed.visibility !== "only_me" &&
+              (seed.visibility === "everyone" ||
+                page.viewer.friendship_status === "accepted")
+          ))
+          ? parsedSeeds.map((seed) => seed.seed_id)
+          : [];
       return seedIds.length > 0
         ? await supabase.rpc("get_visible_seed_reaction_context", {
             p_seed_ids: seedIds,
@@ -1036,8 +1039,11 @@ export default async function PublicProfilePage({
     }
   }
 
+  const parsedVisibleSeeds =
+    parsePublicProfileSeedLifePayload(visibleSeedData) ?? [];
+
   const baseVisibleSeeds = sortByProfileDisplayOrder(
-    (Array.isArray(visibleSeedData) ? visibleSeedData : []) as PublicSeedRecord[],
+    parsedVisibleSeeds,
     (seed) => seed.seed_id,
     displayOrderMaps.seed
   );
@@ -1065,13 +1071,6 @@ export default async function PublicProfilePage({
     reaction_context:
       visibleSeedReactionById.get(seed.seed_id) ?? null,
   }));
-
-  const { data: publicPreferencesData, error: publicPreferencesError } =
-    await publicPreferencesResultPromise;
-
-  if (publicPreferencesError) {
-    console.warn("Public favorites are temporarily unavailable:", publicPreferencesError.message);
-  }
 
   const savedReactionResult = await savedReactionResultPromise;
 
@@ -1471,7 +1470,6 @@ export default async function PublicProfilePage({
     visibleSeedError,
     displayOrderError,
     visibleSeedReactionResult.error,
-    publicPreferencesError,
     savedReactionResult.error,
     planSourceIntentError,
     familyResult.error,
@@ -1495,10 +1493,6 @@ export default async function PublicProfilePage({
     profilePeopleResponse.error,
     profileLineageResponse.error,
   ].filter(Boolean);
-  const publicPreferencesPayloadIncomplete =
-    !isRecord(publicPreferencesData) ||
-    !Array.isArray(publicPreferencesData.favorites) ||
-    !("shared_favorite_count" in publicPreferencesData);
   const familyPayloadIncomplete =
     !isRecord(familyResult.data) ||
     !Array.isArray(familyResult.data.children) ||
@@ -1524,9 +1518,19 @@ export default async function PublicProfilePage({
     !isRecord(professionalStatusResult.data) ||
     !Array.isArray(professionalStatusResult.data.credentials) ||
     typeof professionalStatusResult.data.identity_verified !== "boolean";
-  const invalidVisibleSeedRows = (
-    Array.isArray(visibleSeedData) ? visibleSeedData : []
-  ).some((row) => !hasStringFields(row, ["seed_id"]));
+  const invalidVisibleSeedRows =
+    parsePublicProfileSeedLifePayload(visibleSeedData) === null;
+  const forbiddenNonOwnerSeedScope =
+    !page.viewer.is_owner &&
+    parsedVisibleSeeds.some((seed) => seed.seed_scope !== "library");
+  const forbiddenNonOwnerSeedVisibility =
+    !page.viewer.is_owner &&
+    parsedVisibleSeeds.some(
+      (seed) =>
+        seed.visibility === "only_me" ||
+        (seed.visibility === "friends" &&
+          page.viewer.friendship_status !== "accepted")
+    );
   const invalidSeedReactionRows = (
     Array.isArray(visibleSeedReactionResult.data)
       ? visibleSeedReactionResult.data
@@ -1687,7 +1691,6 @@ export default async function PublicProfilePage({
     publicGenderResult.data !== null &&
     !["female", "male", "non_binary"].includes(publicGenderResult.data);
   const secondaryPayloadIncomplete =
-    publicPreferencesPayloadIncomplete ||
     familyPayloadIncomplete ||
     connectionPayloadIncomplete ||
     presencePayloadIncomplete ||
@@ -1695,6 +1698,8 @@ export default async function PublicProfilePage({
     professionalStatusPayloadIncomplete ||
     invalidDisplayOrderRows ||
     invalidVisibleSeedRows ||
+    forbiddenNonOwnerSeedScope ||
+    forbiddenNonOwnerSeedVisibility ||
     invalidSeedReactionRows ||
     invalidSavedReactionRows ||
     invalidPlanSourceRows ||
@@ -1748,11 +1753,6 @@ export default async function PublicProfilePage({
     return <ProfileDataUnavailable retryHref={retryHref} />;
   }
 
-  const publicPreferences = publicPreferencesData as {
-    favorites: PublicFavoriteItem[];
-    shared_favorite_count: number | string | null;
-  };
-  const publicFavorites = publicPreferences.favorites;
   const publicFamily = familyResult.data as RawFamilyData;
   const connectionSummary =
     connectionResult.data as ProfileConnectionSummary;
@@ -2156,39 +2156,35 @@ export default async function PublicProfilePage({
       (card) => card.profile_role === "participant"
     );
 
-  const hasActiveSocial = [...hostedActiveCards, ...participatingActiveCards].some(
+  const activeSocialCount = activeCards.filter(
     (card) => card.lifecycle_status === "open"
-  );
-
-  const hasActivePersonal = visibleSeeds.some(
+  ).length;
+  const activePersonalCount = visibleSeeds.filter(
     (seed) => seed.status === "active"
-  );
-
-  const hasPlanning = [...hostedActiveCards, ...participatingActiveCards].some(
-    (card) => card.lifecycle_status === "forming"
-  );
-
-  const hasSocialExperiences =
-    hostedExperienceCards.length > 0 || participatedExperienceCards.length > 0;
-
-  const hasPersonalExperiences = visibleSeeds.some(
+  ).length;
+  const planningCount = formingActivities.length;
+  const socialExperienceCount = completedActivities.length;
+  const personalExperienceCount = visibleSeeds.filter(
     (seed) => seed.status === "completed"
+  ).length;
+  const upcomingCount =
+    upcomingActivities.length +
+    activeCards.filter((card) => card.lifecycle_status === "future").length;
+  const profileSections = [
+    { label: "Aktif Etkinlik", value: activeSocialCount, href: "#active-social" },
+    { label: "Aktif Kişisel Niyet", value: activePersonalCount, href: "#active-personal" },
+    { label: "Planlanıyor", value: planningCount, href: "#planning" },
+    { label: "Sosyal Deneyim", value: socialExperienceCount, href: "#social-experiences" },
+    { label: "Kişisel Deneyim", value: personalExperienceCount, href: "#personal-experiences" },
+    { label: "Yaklaşan", value: upcomingCount, href: "#upcoming" },
+  ];
+  const hasTrustSummary = Boolean(
+    reputationSummary.global ||
+      reputationSummary.is_managed_minor ||
+      publicBadges.length > 0 ||
+      professionalStatus.identity_verified ||
+      professionalStatus.credentials.length > 0
   );
-  const activePersonalCount = visibleSeedError
-    ? null
-    : visibleSeeds.filter((seed) => seed.status === "active").length;
-  const personalExperienceCount = visibleSeedError
-    ? null
-    : visibleSeeds.filter((seed) => seed.status === "completed").length;
-
-  const hasUpcoming = [...hostedActiveCards, ...participatingActiveCards].some(
-    (card) =>
-      card.lifecycle_status === "planned" ||
-      card.lifecycle_status === "future"
-  );
-
-  const hasFavorites =
-    toCount(publicPreferences.shared_favorite_count) > 0;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
@@ -2373,64 +2369,125 @@ export default async function PublicProfilePage({
           </div>
         </section>
 
-      <section className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6">
-        {[
-          { label: "Aktif Etkinlik", value: activeCards.filter((card) => card.lifecycle_status === "open").length, href: "#active-social" },
-          { label: "Aktif Kişisel Niyet", value: activePersonalCount, href: "#active-personal" },
-          { label: "Planlanıyor", value: formingActivities.length, href: "#planning" },
-          { label: "Sosyal Deneyim", value: completedActivities.length, href: "#social-experiences" },
-          { label: "Kişisel Deneyim", value: personalExperienceCount, href: "#personal-experiences" },
-          { label: "Yaklaşan", value: upcomingActivities.length + activeCards.filter((card) => card.lifecycle_status === "future").length, href: "#upcoming" },
-        ].map((item) => {
-          const isKnown = item.value !== null;
-          const isPositive = typeof item.value === "number" && item.value > 0;
-          const content = (
-            <>
-              <p className={`text-2xl font-bold ${isPositive ? "text-gray-900 transition group-hover:text-green-800" : isKnown ? "text-gray-300" : "text-amber-600"}`}>
-                {isKnown ? item.value : "—"}
-              </p>
-              <p className={`mt-1 text-[11px] font-semibold leading-4 ${isPositive ? "text-gray-500" : isKnown ? "text-gray-300" : "text-amber-700"}`}>
-                {item.label}
-              </p>
-            </>
-          );
-
-          return isPositive ? (
-            <a
-              key={item.label}
-              href={item.href}
-              className="group rounded-2xl border border-gray-200 bg-white px-3 py-4 text-center transition hover:border-green-300 hover:bg-green-50/40"
-            >
-              {content}
-            </a>
-          ) : (
-            <div
-              key={item.label}
-              aria-disabled="true"
-              className="cursor-default rounded-2xl border border-gray-100 bg-gray-50/60 px-3 py-4 text-center"
-            >
-              {content}
-            </div>
-          );
-        })}
-      </section>
-
-
-        <div className="mt-8 flex justify-end"><WebCardLayoutPicker/></div>
-
-        {visibleSeedError && (
-          <section role="alert" className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
-            <h2 className="font-black">Kişisel niyet ve deneyimler yüklenemedi</h2>
-            <p className="mt-2 text-sm leading-6">
-              Eksik kayıtları sıfır gibi göstermiyoruz. Bu bölümü görmek için sayfayı yeniden deneyebilirsin.
+      <nav
+        aria-label="Profil bölümleri"
+        className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6"
+      >
+        {profileSections.map((item) => (
+          <a
+            key={item.label}
+            href={item.href}
+            className={`group rounded-2xl border px-3 py-4 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 ${
+              item.value > 0
+                ? "border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40"
+                : "border-gray-200 bg-gray-50/70 hover:border-gray-300 hover:bg-white"
+            }`}
+          >
+            <p className={`text-2xl font-bold transition group-hover:text-green-800 ${item.value > 0 ? "text-gray-900" : "text-gray-400"}`}>
+              {item.value}
             </p>
-            <Link href={retryHref} className="mt-4 inline-flex rounded-xl bg-amber-700 px-4 py-2 text-sm font-bold text-white">
-              Yeniden dene
-            </Link>
+            <p className={`mt-1 text-[11px] font-semibold leading-4 ${item.value > 0 ? "text-gray-500" : "text-gray-400"}`}>
+              {item.label}
+            </p>
+            <p className="mt-2 text-[10px] font-bold text-green-700 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
+              Bölüme git ↓
+            </p>
+          </a>
+        ))}
+      </nav>
+
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-green-700">
+              Profil kartları
+            </p>
+            <p className="mt-1 text-sm text-gray-500">
+              Kütüphanedeki kart görünümünü burada da kullanabilirsin.
+            </p>
+          </div>
+          <WebCardLayoutPicker/>
+        </div>
+
+        {hasTrustSummary && (
+          <section
+            id="trust-summary"
+            className="mt-8 scroll-mt-8 overflow-hidden rounded-[30px] border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-violet-50 shadow-[0_16px_44px_rgba(5,150,105,.10)]"
+          >
+            <div className="flex flex-col gap-4 border-b border-emerald-100 px-5 py-6 md:flex-row md:items-center md:justify-between md:px-7">
+              <div className="flex items-start gap-4">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-emerald-600 text-2xl text-white shadow-sm" aria-hidden="true">
+                  ✓
+                </span>
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">
+                    UIN Güven Özeti
+                  </p>
+                  <h2 className="mt-1 text-2xl font-black text-gray-950">
+                    Doğrulamalar ve ortak deneyim geçmişi
+                  </h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+                    Tamamlanmış ortak etkinlikler, doğrulanmış rozetler ve profesyonel bilgiler tek yerde.
+                  </p>
+                </div>
+              </div>
+              {reputationSummary.global && (
+                <span className="w-fit rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-black text-emerald-800 shadow-sm">
+                  {reputationSummary.global.activity_count} doğrulanmış ortak deneyim
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-3 p-3 md:p-5">
+              {(reputationSummary.global || reputationSummary.is_managed_minor) && (
+                <div className="rounded-3xl border border-white bg-white/90 shadow-sm">
+                  <PublicReputationPanel summary={reputationSummary} />
+                </div>
+              )}
+
+              {publicBadges.length > 0 && (
+                <details className="group rounded-2xl border border-emerald-100 bg-white shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                    <div>
+                      <p className="text-sm font-bold text-gray-950">Doğrulanmış UIN rozetleri</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {publicBadges.length} rozet · ayrıntıları göster
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold text-emerald-700 transition group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="border-t border-emerald-50 px-1 pb-1">
+                    <PublicBadgesPanel
+                      badges={publicBadges}
+                      isOwner={page.viewer.is_owner}
+                    />
+                  </div>
+                </details>
+              )}
+
+              {(professionalStatus.identity_verified ||
+                professionalStatus.credentials.length > 0) && (
+                <details className="group rounded-2xl border border-violet-100 bg-white shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+                    <div>
+                      <p className="text-sm font-bold text-gray-950">Doğrulanmış bilgiler</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        Kimlik ve profesyonel yeterlilikler
+                      </p>
+                    </div>
+                    <span className="text-lg font-bold text-violet-700 transition group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="border-t border-violet-50 px-1 pb-1">
+                    <PublicProfessionalCredentialsPanel
+                      status={professionalStatus}
+                      isOwner={page.viewer.is_owner}
+                    />
+                  </div>
+                </details>
+              )}
+            </div>
           </section>
         )}
 
-        {hasActiveSocial && (
         <div id="active-social" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Aktif Etkinlikler"
@@ -2447,24 +2504,20 @@ export default async function PublicProfilePage({
             lifecycleMode="active"
           />
         </div>
-        )}
 
-        {hasActivePersonal && (
         <div id="active-personal" className="scroll-mt-8">
           <PublicSeedsPanel
+            key={`${profile.id}-active-personal`}
             displayName={displayName}
             seeds={visibleSeeds}
             isOwner={page.viewer.is_owner}
-            isAuthenticated={page.viewer.is_authenticated}
             mode="active"
             eyebrow="Aktif Kişisel"
             title={`${displayName} · Aktif Kişisel Niyetler`}
             description="Henüz deneyime dönüşmemiş aktif kişisel niyetler."
           />
         </div>
-        )}
 
-        {hasPlanning && (
         <div id="planning" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Planlanıyor"
@@ -2481,9 +2534,7 @@ export default async function PublicProfilePage({
             lifecycleMode="forming"
           />
         </div>
-        )}
 
-        {hasSocialExperiences && (
         <div id="social-experiences" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Sosyal Deneyimler"
@@ -2500,24 +2551,20 @@ export default async function PublicProfilePage({
             sortMode="experience"
           />
         </div>
-        )}
 
-        {hasPersonalExperiences && (
         <div id="personal-experiences" className="scroll-mt-8">
           <PublicSeedsPanel
+            key={`${profile.id}-personal-experiences`}
             displayName={displayName}
             seeds={visibleSeeds}
             isOwner={page.viewer.is_owner}
-            isAuthenticated={page.viewer.is_authenticated}
             mode="completed"
             eyebrow="Kişisel Deneyimler"
             title={`${displayName} · Kişisel Deneyimler`}
             description="Tamamlanmış kişisel niyetler ve yaşanmış deneyimler."
           />
         </div>
-        )}
 
-        {hasUpcoming && (
         <div id="upcoming" className="scroll-mt-8">
           <ProfileActivityTabs
             eyebrow="Yaklaşan"
@@ -2534,96 +2581,6 @@ export default async function PublicProfilePage({
             lifecycleMode="upcoming"
           />
         </div>
-        )}
-
-        {hasFavorites && (
-        <div id="favorites" className="scroll-mt-8">
-          <PublicFavoritesPanel
-            items={publicFavorites}
-            sharedCount={toCount(publicPreferences.shared_favorite_count)}
-          />
-        </div>
-        )}
-
-      {(reputationSummary.global ||
-        reputationSummary.is_managed_minor ||
-        publicBadges.length > 0 ||
-        professionalStatus.identity_verified ||
-        professionalStatus.credentials.length > 0) && (
-        <section className="mt-10 border-t border-gray-200 pt-8">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
-              Güven & Profil
-            </p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-950">
-              Doğrulamalar ve itibar
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-gray-500">
-              Paylaşılan deneyimlerden oluşan itibar, UIN rozetleri ve doğrulanmış profesyonel bilgiler.
-            </p>
-          </div>
-
-          <div className="mt-5 space-y-3">
-            {(reputationSummary.global || reputationSummary.is_managed_minor) && (
-              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="text-sm font-bold text-gray-950">İtibar</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Birlikte tamamlanan deneyimlerden oluşan güven geçmişi
-                    </p>
-                  </div>
-                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
-                </summary>
-                <div className="border-t border-gray-100 px-1 pb-1">
-                  <PublicReputationPanel summary={reputationSummary} />
-                </div>
-              </details>
-            )}
-
-            {publicBadges.length > 0 && (
-              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="text-sm font-bold text-gray-950">Rozetler</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {publicBadges.length} doğrulanmış UIN rozeti
-                    </p>
-                  </div>
-                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
-                </summary>
-                <div className="border-t border-gray-100 px-1 pb-1">
-                  <PublicBadgesPanel
-                    badges={publicBadges}
-                    isOwner={page.viewer.is_owner}
-                  />
-                </div>
-              </details>
-            )}
-
-            {(professionalStatus.identity_verified ||
-              professionalStatus.credentials.length > 0) && (
-              <details className="group rounded-2xl border border-gray-200 bg-white shadow-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
-                  <div>
-                    <p className="text-sm font-bold text-gray-950">Doğrulanmış Bilgiler</p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Kimlik ve profesyonel yeterlilikler
-                    </p>
-                  </div>
-                  <span className="text-lg font-bold text-gray-400 transition group-open:rotate-45">+</span>
-                </summary>
-                <div className="border-t border-gray-100 px-1 pb-1">
-                  <PublicProfessionalCredentialsPanel
-                    status={professionalStatus}
-                    isOwner={page.viewer.is_owner}
-                  />
-                </div>
-              </details>
-            )}
-          </div>
-        </section>
-      )}
 
         {page.viewer.is_owner && (
           <ProfileIntentReactions

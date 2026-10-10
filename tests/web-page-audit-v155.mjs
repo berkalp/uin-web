@@ -131,7 +131,6 @@ test("public profile overlaps complete reads and batches bounded plan lookups", 
 
   assert.ok(launchStart >= 0 && firstConsumerAwait > launchStart);
   for (const marker of [
-    "const publicPreferencesResultPromise",
     "const familyResultPromise",
     "const planMetadataResultPromise",
     "const profileDisplayTitlesPromise",

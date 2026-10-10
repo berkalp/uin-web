@@ -162,6 +162,39 @@ export type PublicSeedRecord = {
   social_intent_count?: number | string | null;
 };
 
+// Complete, already privacy-filtered row returned by the profile Seed life
+// read model. It intentionally models only fields the
+// profile surface actually receives, so the UI never invents visibility or
+// counter values that are absent from that read model.
+export type PublicProfileSeedRecord = {
+  seed_id: string;
+  catalog_item_id: string | null;
+  canonical_target_id: string | null;
+  seed_type_name: string | null;
+  seed_type_slug: string | null;
+  seed_type_icon: string | null;
+  title: string;
+  subtitle: string | null;
+  cover_url: string | null;
+  visibility: SeedVisibility;
+  seed_scope: SeedScope;
+  status: "active" | "completed";
+  target_date: string | null;
+  key_takeaway: string | null;
+  created_at: string;
+  updated_at: string;
+  relationship_status: "want" | "in_progress" | "completed";
+  experience_precision: SeedCompletionPrecision | null;
+  experience_date: string | null;
+  experience_year: number | null;
+  personal_rating: number | null;
+  notes: string | null;
+  creator_name: string | null;
+  release_year: number | null;
+  catalog_item_kind: string | null;
+  reaction_context?: SeedReactionContext | null;
+};
+
 export type SeedDetailSeed = {
   seed_id: string;
   catalog_item_id: string | null;

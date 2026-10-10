@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import SeedSquareCard from "@/components/seeds/SeedSquareCard";
+import ProfileSeedCard from "@/components/seeds/ProfileSeedCard";
 import { setMyProfileDisplayOrder } from "@/services/profileDisplayOrderService";
 import {
-  toSeedCount,
-  type PublicSeedRecord,
+  type PublicProfileSeedRecord,
 } from "@/utils/seeds";
 
 type PublicSeedsMode =
@@ -17,9 +16,8 @@ type PublicSeedsMode =
 
 type PublicSeedsPanelProps = {
   displayName: string;
-  seeds: PublicSeedRecord[];
+  seeds: PublicProfileSeedRecord[];
   isOwner: boolean;
-  isAuthenticated: boolean;
   mode?: PublicSeedsMode;
   eyebrow?: string;
   title?: string;
@@ -29,8 +27,13 @@ type PublicSeedsPanelProps = {
 type SeedFilter =
   | "all"
   | "growing"
-  | "completed"
-  | "intent";
+  | "completed";
+
+type ExperienceSort =
+  | "date-desc"
+  | "date-asc"
+  | "rating-desc"
+  | "rating-asc";
 
 const PAGE_SIZE = 6;
 
@@ -41,10 +44,9 @@ const filters: Array<{
   { value: "all", label: "Tümü" },
   { value: "growing", label: "Aktif" },
   { value: "completed", label: "Yaşanan" },
-  { value: "intent", label: "Etkinliğe Dönüşen" },
 ];
 
-function matchesFilter(seed: PublicSeedRecord, filter: SeedFilter) {
+function matchesFilter(seed: PublicProfileSeedRecord, filter: SeedFilter) {
   if (filter === "growing") {
     return seed.status === "active";
   }
@@ -53,18 +55,59 @@ function matchesFilter(seed: PublicSeedRecord, filter: SeedFilter) {
     return seed.status === "completed";
   }
 
-  if (filter === "intent") {
-    return toSeedCount(seed.grown_intent_count) > 0;
+  return true;
+}
+
+function experienceTimestamp(seed: PublicProfileSeedRecord) {
+  if (seed.experience_precision === "year" && seed.experience_year) {
+    return Date.UTC(seed.experience_year, 0, 1);
   }
 
-  return true;
+  if (seed.experience_precision === "unknown" || !seed.experience_date) {
+    return null;
+  }
+
+  const timestamp = new Date(seed.experience_date).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareNullableNumbers(
+  left: number | null,
+  right: number | null,
+  direction: "asc" | "desc"
+) {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return direction === "asc" ? left - right : right - left;
+}
+
+function sortExperiences(
+  seeds: PublicProfileSeedRecord[],
+  sort: ExperienceSort
+) {
+  return [...seeds].sort((left, right) => {
+    const comparison = sort.startsWith("rating")
+      ? compareNullableNumbers(
+          left.personal_rating,
+          right.personal_rating,
+          sort.endsWith("asc") ? "asc" : "desc"
+        )
+      : compareNullableNumbers(
+          experienceTimestamp(left),
+          experienceTimestamp(right),
+          sort.endsWith("asc") ? "asc" : "desc"
+        );
+
+    if (comparison !== 0) return comparison;
+    return right.updated_at.localeCompare(left.updated_at);
+  });
 }
 
 export default function PublicSeedsPanel({
   displayName,
   seeds,
   isOwner,
-  isAuthenticated,
   mode = "all",
   eyebrow = "Kişisel Niyetler",
   title,
@@ -72,22 +115,31 @@ export default function PublicSeedsPanel({
 }: PublicSeedsPanelProps) {
   const [filter, setFilter] = useState<SeedFilter>("all");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [orderedSeeds, setOrderedSeeds] = useState(seeds);
+  const [orderedSeedIds, setOrderedSeedIds] = useState(() =>
+    seeds.map((seed) => seed.seed_id)
+  );
+  const [experienceSort, setExperienceSort] =
+    useState<ExperienceSort>("date-desc");
   const [reordering, setReordering] = useState(false);
   const [orderMessage, setOrderMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    setOrderedSeeds(seeds);
-  }, [seeds]);
+  const orderedSeeds = useMemo(() => {
+    const byId = new Map(seeds.map((seed) => [seed.seed_id, seed]));
+    const ordered = orderedSeedIds.flatMap((seedId) => {
+      const seed = byId.get(seedId);
+      if (!seed) return [];
+      byId.delete(seedId);
+      return [seed];
+    });
+
+    return [...ordered, ...byId.values()];
+  }, [orderedSeedIds, seeds]);
 
   const counts = useMemo(
     () => ({
       all: orderedSeeds.length,
       growing: orderedSeeds.filter((seed) => seed.status === "active").length,
       completed: orderedSeeds.filter((seed) => seed.status === "completed").length,
-      intent: orderedSeeds.filter(
-        (seed) => toSeedCount(seed.grown_intent_count) > 0
-      ).length,
     }),
     [orderedSeeds]
   );
@@ -98,11 +150,14 @@ export default function PublicSeedsPanel({
     }
 
     if (mode === "completed") {
-      return orderedSeeds.filter((seed) => seed.status === "completed");
+      return sortExperiences(
+        orderedSeeds.filter((seed) => seed.status === "completed"),
+        experienceSort
+      );
     }
 
     return orderedSeeds.filter((seed) => matchesFilter(seed, filter));
-  }, [filter, mode, orderedSeeds]);
+  }, [experienceSort, filter, mode, orderedSeeds]);
 
 
   const visibleSeeds = reordering
@@ -114,10 +169,6 @@ export default function PublicSeedsPanel({
 
   const hasExpandedSeeds =
     !reordering && filteredSeeds.length > PAGE_SIZE;
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [filter, mode]);
 
   async function moveSeed(seedId: string, direction: -1 | 1) {
     const visibleIndex = filteredSeeds.findIndex(
@@ -140,32 +191,29 @@ export default function PublicSeedsPanel({
       return;
     }
 
-    const previous = orderedSeeds;
+    const previousOrder = orderedSeedIds;
     const next = [...orderedSeeds];
     [next[currentIndex], next[targetIndex]] = [
       next[targetIndex],
       next[currentIndex],
     ];
 
-    setOrderedSeeds(next);
+    const nextOrder = next.map((seed) => seed.seed_id);
+    setOrderedSeedIds(nextOrder);
     setOrderMessage("Sıralama kaydediliyor…");
 
     try {
       await setMyProfileDisplayOrder(
         "seed",
-        next.map((seed) => seed.seed_id)
+        nextOrder
       );
       setOrderMessage("Sıralama kaydedildi");
     } catch (error) {
-      setOrderedSeeds(previous);
+      setOrderedSeedIds(previousOrder);
       setOrderMessage(
         error instanceof Error ? error.message : "Sıralama kaydedilemedi."
       );
     }
-  }
-
-  if (seeds.length === 0 && !isOwner) {
-    return null;
   }
 
   return (
@@ -190,7 +238,10 @@ export default function PublicSeedsPanel({
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => setFilter(item.value)}
+                  onClick={() => {
+                    setFilter(item.value);
+                    setVisibleCount(PAGE_SIZE);
+                  }}
                   className={`flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                     filter === item.value
                       ? "bg-gray-950 text-white"
@@ -210,6 +261,28 @@ export default function PublicSeedsPanel({
                 </button>
               ))}
             </div>
+          )}
+
+          {mode === "completed" && counts.completed > 0 && (
+            <label className="flex min-w-[220px] items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
+                Sırala
+              </span>
+              <select
+                value={experienceSort}
+                onChange={(event) => {
+                  setExperienceSort(event.target.value as ExperienceSort);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className="min-w-0 flex-1 border-0 bg-transparent p-1 text-sm font-bold text-gray-700 outline-none"
+                aria-label="Deneyimleri sırala"
+              >
+                <option value="date-desc">En yeni deneyim</option>
+                <option value="date-asc">En eski deneyim</option>
+                <option value="rating-desc">Puanı yüksek</option>
+                <option value="rating-asc">Puanı düşük</option>
+              </select>
+            </label>
           )}
 
 
@@ -288,9 +361,9 @@ export default function PublicSeedsPanel({
                   </div>
                 )}
 
-                <SeedSquareCard
+                <ProfileSeedCard
                   seed={seed}
-                  isAuthenticated={isAuthenticated}
+                  displayName={displayName}
                   isOwner={isOwner}
                 />
               </div>

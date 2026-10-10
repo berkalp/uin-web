@@ -20,19 +20,7 @@ test("the public-only preference reader is available to anonymous profiles", () 
   assert.doesNotMatch(migration, /to public/i);
 });
 
-test("profile reads the public preference payload and fails closed on transport errors", () => {
-  assert.match(profile, /supabase\.rpc\("get_public_preferences_v2921"/);
-  assert.match(profile, /publicPreferencesError/);
-  assert.match(
-    profile,
-    /secondaryReadErrors\s*=\s*\[[\s\S]*publicPreferencesError/,
-  );
-  assert.match(
-    profile,
-    /publicPreferencesPayloadIncomplete\s*=\s*[\s\S]{0,220}!isRecord\(publicPreferencesData\)/,
-  );
-  assert.match(
-    profile,
-    /secondaryPayloadIncomplete\s*=\s*[\s\S]{0,220}publicPreferencesPayloadIncomplete/,
-  );
+test("profile does not fetch preferences after the favorites section is removed", () => {
+  assert.doesNotMatch(profile, /supabase\.rpc\("get_public_preferences_v2921"/);
+  assert.doesNotMatch(profile, /PublicFavoritesPanel|publicPreferencesError/);
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import DiscoverIntentCard, {
   type DiscoverIntentRow,
@@ -15,6 +15,10 @@ type ProfileActivityTab =
 type ProfileActivitySortMode =
   | "active"
   | "experience";
+
+type ExperienceDateSort =
+  | "date-desc"
+  | "date-asc";
 
 type ProfileLifecycleMode =
   | "all"
@@ -69,6 +73,23 @@ function dateTimestamp(value: string | null | undefined) {
     : Number.POSITIVE_INFINITY;
 }
 
+function nullableDateTimestamp(value: string | null | undefined) {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareExperienceDates(
+  left: number | null,
+  right: number | null,
+  direction: ExperienceDateSort
+) {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return direction === "date-asc" ? left - right : right - left;
+}
+
 function activeJourneyRank(card: DiscoverIntentRow) {
   if (
     card.lifecycle_status === "planned" &&
@@ -93,18 +114,30 @@ function activeJourneyRank(card: DiscoverIntentRow) {
 
 function sortProfileCards(
   cards: DiscoverIntentRow[],
-  mode: ProfileActivitySortMode
+  mode: ProfileActivitySortMode,
+  experienceDateSort: ExperienceDateSort = "date-desc"
 ) {
   return [...cards].sort((left, right) => {
     if (mode === "experience") {
-      const leftTimestamp = dateTimestamp(
+      const leftTimestamp = nullableDateTimestamp(
         left.completed_at ?? left.scheduled_end ?? left.end_date
       );
-      const rightTimestamp = dateTimestamp(
+      const rightTimestamp = nullableDateTimestamp(
         right.completed_at ?? right.scheduled_end ?? right.end_date
       );
 
-      return rightTimestamp - leftTimestamp;
+      const dateComparison = compareExperienceDates(
+        leftTimestamp,
+        rightTimestamp,
+        experienceDateSort
+      );
+
+      if (dateComparison !== 0) return dateComparison;
+      return compareExperienceDates(
+        nullableDateTimestamp(left.created_at),
+        nullableDateTimestamp(right.created_at),
+        "date-desc"
+      );
     }
 
     const rankComparison =
@@ -136,6 +169,37 @@ function lifecycleMatches(
   return filter === "all" || lifecycle === filter;
 }
 
+export function filterProfileCardsForLifecycle(
+  cards: DiscoverIntentRow[],
+  sortMode: ProfileActivitySortMode,
+  lifecycleMode: ProfileLifecycleMode,
+  lifecycleFilter: ActiveLifecycleFilter
+) {
+  if (sortMode !== "active") {
+    return cards;
+  }
+
+  if (lifecycleMode === "active") {
+    return cards.filter((card) => card.lifecycle_status === "open");
+  }
+
+  if (lifecycleMode === "forming") {
+    return cards.filter((card) => card.lifecycle_status === "forming");
+  }
+
+  if (lifecycleMode === "upcoming") {
+    return cards.filter(
+      (card) =>
+        card.lifecycle_status === "planned" ||
+        card.lifecycle_status === "future"
+    );
+  }
+
+  return cards.filter((card) =>
+    lifecycleMatches(card.lifecycle_status, lifecycleFilter)
+  );
+}
+
 export default function ProfileActivityTabs({
   eyebrow,
   title,
@@ -155,20 +219,28 @@ export default function ProfileActivityTabs({
     useState<ProfileActivityTab>("all");
   const [lifecycleFilter, setLifecycleFilter] =
     useState<ActiveLifecycleFilter>("all");
+  const [experienceDateSort, setExperienceDateSort] =
+    useState<ExperienceDateSort>("date-desc");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const sortedHostedCards = useMemo(
-    () => sortProfileCards(deduplicateCards(hostedCards), sortMode),
-    [hostedCards, sortMode]
+    () =>
+      sortProfileCards(
+        deduplicateCards(hostedCards),
+        sortMode,
+        experienceDateSort
+      ),
+    [experienceDateSort, hostedCards, sortMode]
   );
 
   const sortedParticipatingCards = useMemo(
     () =>
       sortProfileCards(
         deduplicateCards(participatingCards),
-        sortMode
+        sortMode,
+        experienceDateSort
       ),
-    [participatingCards, sortMode]
+    [experienceDateSort, participatingCards, sortMode]
   );
 
   const allCards = useMemo(
@@ -178,9 +250,10 @@ export default function ProfileActivityTabs({
           ...sortedHostedCards,
           ...sortedParticipatingCards,
         ]),
-        sortMode
+        sortMode,
+        experienceDateSort
       ),
-    [sortedHostedCards, sortedParticipatingCards, sortMode]
+    [experienceDateSort, sortedHostedCards, sortedParticipatingCards, sortMode]
   );
 
   const roleCards =
@@ -217,39 +290,41 @@ export default function ProfileActivityTabs({
     }));
   }, [roleCards]);
 
-  const filteredCards = useMemo(() => {
-    if (sortMode !== "active") {
-      return roleCards;
-    }
-
-    if (lifecycleMode === "active") {
-      return roleCards.filter((card) => card.lifecycle_status === "open");
-    }
-
-    if (lifecycleMode === "forming") {
-      return roleCards.filter((card) => card.lifecycle_status === "forming");
-    }
-
-    if (lifecycleMode === "upcoming") {
-      return roleCards.filter(
-        (card) =>
-          card.lifecycle_status === "planned" ||
-          card.lifecycle_status === "future"
-      );
-    }
-
-    return roleCards.filter((card) =>
-      lifecycleMatches(card.lifecycle_status, lifecycleFilter)
-    );
-  }, [lifecycleFilter, lifecycleMode, roleCards, sortMode]);
+  const lifecycleFilteredCardsByTab = useMemo(
+    () => ({
+      all: filterProfileCardsForLifecycle(
+        allCards,
+        sortMode,
+        lifecycleMode,
+        lifecycleFilter
+      ),
+      hosting: filterProfileCardsForLifecycle(
+        sortedHostedCards,
+        sortMode,
+        lifecycleMode,
+        lifecycleFilter
+      ),
+      participating: filterProfileCardsForLifecycle(
+        sortedParticipatingCards,
+        sortMode,
+        lifecycleMode,
+        lifecycleFilter
+      ),
+    }),
+    [
+      allCards,
+      lifecycleFilter,
+      lifecycleMode,
+      sortMode,
+      sortedHostedCards,
+      sortedParticipatingCards,
+    ]
+  );
+  const filteredCards = lifecycleFilteredCardsByTab[activeTab];
 
   const visibleCards = filteredCards.slice(0, visibleCount);
   const hasMoreCards = visibleCount < filteredCards.length;
   const hasExpandedCards = filteredCards.length > PAGE_SIZE;
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [activeTab, lifecycleFilter, lifecycleMode]);
 
   const tabs: Array<{
     value: ProfileActivityTab;
@@ -259,17 +334,17 @@ export default function ProfileActivityTabs({
     {
       value: "all",
       label: "Tümü",
-      count: allCards.length,
+      count: lifecycleFilteredCardsByTab.all.length,
     },
     {
       value: "hosting",
       label: hostingLabel,
-      count: sortedHostedCards.length,
+      count: lifecycleFilteredCardsByTab.hosting.length,
     },
     {
       value: "participating",
       label: participatingLabel,
-      count: sortedParticipatingCards.length,
+      count: lifecycleFilteredCardsByTab.participating.length,
     },
   ];
 
@@ -288,12 +363,13 @@ export default function ProfileActivityTabs({
           </p>
         </div>
 
-        <div
-          className="inline-flex w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm lg:w-auto"
-          role="tablist"
-          aria-label={`${eyebrow} rol filtreleri`}
-        >
-          {tabs.map((tab) => {
+        <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+          <div
+            className="inline-flex w-full overflow-x-auto rounded-2xl border border-gray-200 bg-white p-1 shadow-sm lg:w-auto"
+            role="tablist"
+            aria-label={`${eyebrow} rol filtreleri`}
+          >
+            {tabs.map((tab) => {
             const isActive = activeTab === tab.value;
 
             return (
@@ -302,7 +378,10 @@ export default function ProfileActivityTabs({
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                onClick={() => setActiveTab(tab.value)}
+                onClick={() => {
+                  setActiveTab(tab.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 className={`flex min-w-max items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                   isActive
                     ? "bg-gray-950 text-white shadow-sm"
@@ -321,7 +400,28 @@ export default function ProfileActivityTabs({
                 </span>
               </button>
             );
-          })}
+            })}
+          </div>
+
+          {sortMode === "experience" && filteredCards.length > 0 && (
+            <label className="flex min-w-[205px] items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
+                Sırala
+              </span>
+              <select
+                value={experienceDateSort}
+                onChange={(event) => {
+                  setExperienceDateSort(event.target.value as ExperienceDateSort);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className="min-w-0 flex-1 border-0 bg-transparent p-1 text-sm font-bold text-gray-700 outline-none"
+                aria-label="Sosyal deneyimleri sırala"
+              >
+                <option value="date-desc">En yeni</option>
+                <option value="date-asc">En eski</option>
+              </select>
+            </label>
+          )}
         </div>
       </div>
 
@@ -337,7 +437,10 @@ export default function ProfileActivityTabs({
               <button
                 key={item.value}
                 type="button"
-                onClick={() => setLifecycleFilter(item.value)}
+                onClick={() => {
+                  setLifecycleFilter(item.value);
+                  setVisibleCount(PAGE_SIZE);
+                }}
                 className={`rounded-full border px-3 py-1.5 text-xs font-bold transition ${
                   active
                     ? "border-green-700 bg-green-700 text-white"
