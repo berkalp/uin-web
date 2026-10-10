@@ -4,6 +4,7 @@ import WelcomeMessageManager, {
   type WelcomeAdminSettings,
 } from "@/components/admin/WelcomeMessageManager";
 import { requireAdmin } from "@/utils/admin";
+import { getAdminArrayReadError } from "../_lib/read-state";
 
 export default async function AdminWelcomeMessagePage() {
   const { supabase, role, user } = await requireAdmin();
@@ -35,8 +36,15 @@ export default async function AdminWelcomeMessagePage() {
     "get_uin_welcome_admin_settings"
   );
 
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Welcome message settings",
+    ["enabled", "reply_window_days", "message_version", "message_bubbles"]
+  );
+
   const settings =
-    !error && Array.isArray(data) && data.length > 0
+    !readError && Array.isArray(data) && data.length > 0
       ? (data[0] as WelcomeAdminSettings)
       : null;
 
@@ -69,13 +77,14 @@ export default async function AdminWelcomeMessagePage() {
           </p>
         </header>
 
-        {error ? (
+        {readError ? (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            Karşılama mesajı ayarları yüklenemedi. Önce ilgili Supabase SQL migration&apos;ını çalıştır.
+            Karşılama mesajı ayarları yüklenemedi: {readError.message}
           </div>
-        ) : null}
+        ) : (
+          <WelcomeMessageManager initialSettings={settings} />
+        )}
 
-        <WelcomeMessageManager initialSettings={settings} />
       </div>
     </main>
   );

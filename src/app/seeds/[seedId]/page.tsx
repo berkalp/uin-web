@@ -91,14 +91,26 @@ export default async function SeedDetailPage({
     return unavailable;
   }
 
-  const detail = parseSeedDetailData(detailResult.data);
-
-  if (!detail) {
+  if (detailResult.data === null) {
     notFound();
   }
 
-  const reactionContext =
-    parseSeedReactionContexts(reactionResult.data)[0] ?? null;
+  const detail = parseSeedDetailData(detailResult.data);
+
+  if (!detail) {
+    console.error("Seed detail query returned a malformed payload.");
+    return unavailable;
+  }
+
+  const reactionContexts = parseSeedReactionContexts(reactionResult.data);
+  if (
+    !Array.isArray(reactionResult.data) ||
+    reactionContexts.length !== reactionResult.data.length
+  ) {
+    console.error("Seed reaction query returned a malformed payload.");
+    return unavailable;
+  }
+  const reactionContext = reactionContexts[0] ?? null;
 
   let subjectSnapshot: {
     item_kind: string;

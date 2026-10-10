@@ -4,6 +4,11 @@ import Link from "next/link";
 import SeedCatalogueSubjectFields from "@/components/admin/SeedCatalogueSubjectFields";
 import DeleteCatalogueItemForm from "@/components/admin/DeleteCatalogueItemForm";
 import { requireAdmin } from "@/utils/admin";
+import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+  getAdminRecordReadError,
+} from "../_lib/read-state";
 
 import {
   createSeedCatalogueItem,
@@ -223,7 +228,9 @@ export default async function AdminSeedCataloguePage({
     supabase.rpc("get_admin_seed_catalog_counts"),
   ]);
 
-  const allItems = (itemsResponse.data ?? []) as CatalogueItem[];
+  const allItems = Array.isArray(itemsResponse.data)
+    ? (itemsResponse.data as CatalogueItem[])
+    : [];
   const kindCounts = allItems.reduce<Record<string, number>>((result, item) => {
     result[item.item_kind] = (result[item.item_kind] || 0) + 1;
     return result;
@@ -234,8 +241,38 @@ export default async function AdminSeedCataloguePage({
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const items = filteredItems.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const seedTypes = (seedTypesResponse.data ?? []) as SeedTypeRow[];
-  const counts = (countsResponse.data ?? {}) as CatalogueCounts;
+  const seedTypes = Array.isArray(seedTypesResponse.data)
+    ? (seedTypesResponse.data as SeedTypeRow[])
+    : [];
+  const counts =
+    countsResponse.data &&
+    typeof countsResponse.data === "object" &&
+    !Array.isArray(countsResponse.data)
+      ? (countsResponse.data as CatalogueCounts)
+      : ({} as CatalogueCounts);
+  const readError = firstAdminReadError(
+    getAdminArrayReadError(
+      itemsResponse.data,
+      itemsResponse.error,
+      "Seed catalogue items",
+      ["catalog_item_id", "item_kind", "personal_seed_count"],
+      ["personal_seed_count"]
+    ),
+    getAdminArrayReadError(
+      seedTypesResponse.data,
+      seedTypesResponse.error,
+      "Seed types",
+      ["id", "name"]
+    ),
+    getAdminRecordReadError(
+      countsResponse.data,
+      countsResponse.error,
+      "Seed catalogue counts",
+      [],
+      ["pending", "active", "under_review", "rejected", "merged"],
+      ["pending", "active", "under_review", "rejected", "merged"]
+    )
+  );
   const pendingCount = numberValue(counts.pending);
   const activeCount = numberValue(counts.active);
   const reportCount = numberValue(counts.under_review);
@@ -304,6 +341,17 @@ export default async function AdminSeedCataloguePage({
           </div>
         </div>
 
+        {readError ? (
+          <section className="mb-6 rounded-3xl border border-red-200 bg-red-50 p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-black text-red-900">
+              Kütüphane yönetimi verileri yüklenemedi.
+            </h2>
+            <p className="mt-2 text-sm font-semibold text-red-700">
+              {readError.message}
+            </p>
+          </section>
+        ) : (
+        <>
         {(pendingCount > 0 || reportCount > 0) && (
           <section className="mb-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -650,6 +698,8 @@ export default async function AdminSeedCataloguePage({
               <Link href={catalogueHref({ page: String(currentPage + 1) })} className="rounded-xl bg-gray-950 px-5 py-3 text-sm font-black text-white">Devamını gör</Link>
             )}
           </nav>
+        )}
+        </>
         )}
       </div>
     </main>

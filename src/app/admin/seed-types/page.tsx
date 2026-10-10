@@ -6,6 +6,11 @@ import SeedTypesManager, {
 } from "@/components/admin/SeedTypesManager";
 import type { AdminCatalogueActivity } from "@/components/admin/ActivityCatalogueManager";
 import { requireAdmin } from "@/utils/admin";
+import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+  getAdminRecordReadError,
+} from "../_lib/read-state";
 
 type AdminActivityCatalogueData = {
   activities: AdminCatalogueActivity[] | null;
@@ -29,7 +34,31 @@ export default async function AdminSeedTypesPage() {
 
   const seedTypes = (seedTypeResult.data ?? []) as AdminSeedType[];
   const catalogue = (catalogueResult.data ?? { activities: [] }) as AdminActivityCatalogueData;
-  const activities: SeedActivityOption[] = (catalogue.activities ?? []).map(
+  const readError = firstAdminReadError(
+    getAdminArrayReadError(
+      seedTypeResult.data,
+      seedTypeResult.error,
+      "Seed types",
+      ["id", "name", "seed_count"],
+      ["seed_count"]
+    ),
+    getAdminRecordReadError(
+      catalogueResult.data,
+      catalogueResult.error,
+      "Activity catalogue",
+      ["activities"],
+      [],
+      [],
+      {
+        activities: {
+          requiredFields: ["id", "name", "category_name"],
+        },
+      }
+    )
+  );
+  const activities: SeedActivityOption[] = (Array.isArray(catalogue.activities)
+    ? catalogue.activities
+    : []).map(
     (activity) => ({
       id: activity.id,
       name: activity.name,
@@ -86,13 +115,13 @@ export default async function AdminSeedTypesPage() {
           </div>
         </header>
 
-        {(seedTypeResult.error || catalogueResult.error) && (
+        {readError && (
           <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
             Seed Types could not be loaded. Run migration 032 before opening this page.
           </section>
         )}
 
-        {!seedTypeResult.error && !catalogueResult.error && (
+        {!readError && (
           <section className="mt-6">
             <SeedTypesManager seedTypes={seedTypes} activities={activities} />
           </section>

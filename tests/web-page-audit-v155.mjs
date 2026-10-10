@@ -62,9 +62,9 @@ test("navigation and list pages do not turn failed reads into reassuring zeroes"
   assert.match(navigation, /notifications\.error[\s\S]*\? null/);
   assert.match(bell, /initialUnreadCount: number \| null/);
   assert.match(bell, /count == null[\s\S]*sayısı şu anda bilinmiyor/);
-  assert.match(friends, /<WebCardLayoutPicker[\s\S]*\{!error && \(/);
+  assert.match(friends, /<WebCardLayoutPicker[\s\S]*\{!readFailed && \(/);
   assert.match(notifications, /\{!error && \([\s\S]*\{unreadCount\} okunmamış/);
-  assert.match(connections, /\{error \? "—" : counts\[view\]\}/);
+  assert.match(connections, /\{readFailed \? "—" : counts\[view\]\}/);
 });
 
 test("event presentation reads use bounded batches with a lossless compatibility fallback", () => {
@@ -303,18 +303,18 @@ test("discover does not silently hide a failed event archive read", () => {
 
   assert.match(
     discover,
-    /view === "cards" && archiveResponse\.error[\s\S]*İptal olan ve süresi geçen etkinlikler şu anda yüklenemedi/,
+    /view === "cards" && archiveReadError[\s\S]*İptal olan ve süresi geçen etkinlikler şu anda yüklenemedi/,
   );
   assert.match(
     discover,
-    /view === "cards" && !archiveResponse\.error && archivedResults\.length > 0/,
+    /view === "cards" && !archiveReadError && archivedResults\.length > 0/,
   );
 });
 
 test("loved detail distinguishes read failure and people without public profiles", () => {
   const loved = source("src/app/loved/[source]/[id]/page.tsx");
 
-  assert.match(loved, /if\(error\)return <main/);
+  assert.match(loved, /if\(error\)[\s\S]*return unavailable/);
   assert.match(loved, /if\(!data\)notFound\(\)/);
   assert.doesNotMatch(loved, /href=\{person\.username\?[^\n]*:"#"\}/);
   assert.match(loved, /publicCount===null\?"Kişi sayısı bilinmiyor"/);

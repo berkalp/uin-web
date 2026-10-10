@@ -3,7 +3,9 @@ import {
   notFound,
   redirect,
 } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "../../../../components/common/PageDataUnavailable";
 import EditIntentForm from "../../../../components/intents/EditIntentForm";
 import SportFixtureEditor from "../../../../components/intents/SportFixtureEditor";
 import type { SportFixtureOption } from "../../../../components/activities/SportActivityPlanningHero";
@@ -52,20 +54,57 @@ type ActivityRow = {
 
 type LocationRow = {
   id: string | number;
-  city: string;
-  district: string;
+  city: string | null;
+  district: string | null;
 };
 
 type PlanIntentRow = {
   plan_id: string;
 };
 
+function isValidUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isCategoryRow(value: unknown): value is CategoryRow {
+  return isRecord(value) &&
+    (typeof value.id === "string" || typeof value.id === "number") &&
+    typeof value.name === "string";
+}
+
+function isActivityRow(value: unknown): value is ActivityRow {
+  return isRecord(value) &&
+    (typeof value.id === "string" || typeof value.id === "number") &&
+    (typeof value.category_id === "string" || typeof value.category_id === "number") &&
+    typeof value.name === "string";
+}
+
+function isLocationRow(value: unknown): value is LocationRow {
+  return isRecord(value) &&
+    (typeof value.id === "string" || typeof value.id === "number") &&
+    (value.city === null || typeof value.city === "string") &&
+    (value.district === null || typeof value.district === "string");
+}
+
+function isSportFixtureOption(value: unknown): value is SportFixtureOption {
+  return isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.match_name === "string" &&
+    typeof value.match_date === "string" &&
+    (value.venue === null || typeof value.venue === "string") &&
+    typeof value.selected === "boolean";
+}
+
 export default async function EditIntentPage({
   params,
 }: EditIntentPageProps) {
   const { intentId } = await params;
 
-  if (!intentId) {
+  if (!intentId || !isValidUuid(intentId)) {
     console.error(
       "Intent route parameter is missing."
     );
@@ -73,12 +112,28 @@ export default async function EditIntentPage({
     notFound();
   }
 
+  const retryHref = `/intents/${encodeURIComponent(intentId)}/edit`;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Niyet düzenleme bilgileri şu anda yüklenemedi"
+      retryHref={retryHref}
+      backHref="/timeline"
+      backLabel="Niyetlere dön"
+    />
+  );
+
   const supabase =
     await createClient();
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Intent edit session query failed:", userError);
+    return unavailable;
+  }
 
   if (!user) {
     redirect("/");
@@ -123,7 +178,7 @@ export default async function EditIntentPage({
       }
     );
 
-    notFound();
+    return unavailable;
   }
 
   if (!intentData) {
@@ -157,6 +212,7 @@ export default async function EditIntentPage({
           linkedPlanError.hint,
       }
     );
+    return unavailable;
   }
 
   const linkedPlan =
@@ -233,6 +289,21 @@ export default async function EditIntentPage({
     );
   }
 
+  if (
+    categoryResult.error ||
+    activityResult.error ||
+    locationResult.error ||
+    !Array.isArray(categoryResult.data) ||
+    !categoryResult.data.every(isCategoryRow) ||
+    !Array.isArray(activityResult.data) ||
+    !activityResult.data.every(isActivityRow) ||
+    !Array.isArray(locationResult.data) ||
+    !locationResult.data.every(isLocationRow)
+  ) {
+    console.error("Intent edit option queries failed or returned malformed payloads.");
+    return unavailable;
+  }
+
   const [
     profileGenderResult,
     acceptedParticipantResult,
@@ -267,16 +338,26 @@ export default async function EditIntentPage({
     );
   }
 
+  if (
+    profileGenderResult.error ||
+    acceptedParticipantResult.error ||
+    typeof acceptedParticipantResult.count !== "number" ||
+    !Number.isInteger(acceptedParticipantResult.count) ||
+    acceptedParticipantResult.count < 0
+  ) {
+    console.error("Intent edit eligibility queries failed or returned malformed payloads.");
+    return unavailable;
+  }
+
   const currentUserGender =
     normalizeProfileGender(
       profileGenderResult.data?.gender
     );
 
-  const hasAcceptedParticipants =
-    (acceptedParticipantResult.count ?? 0) > 0;
+  const hasAcceptedParticipants = acceptedParticipantResult.count > 0;
 
   const categories = (
-    categoryResult.data ?? []
+    categoryResult.data
   ).map((category) => {
     const typedCategory =
       category as CategoryRow;
@@ -291,7 +372,7 @@ export default async function EditIntentPage({
   });
 
   const activities = (
-    activityResult.data ?? []
+    activityResult.data
   ).map((activity) => {
     const typedActivity =
       activity as ActivityRow;
@@ -309,7 +390,7 @@ export default async function EditIntentPage({
   });
 
   const locations = (
-    locationResult.data ?? []
+    locationResult.data
   ).map((location) => {
     const typedLocation =
       location as LocationRow;
@@ -319,9 +400,9 @@ export default async function EditIntentPage({
         typedLocation.id
       ),
       city:
-        typedLocation.city,
+        typedLocation.city ?? "",
       district:
-        typedLocation.district,
+        typedLocation.district ?? "",
     };
   });
 
@@ -335,7 +416,15 @@ export default async function EditIntentPage({
         p_intent_id: intent.id,
       })
     : { data: [], error: null };
-  const fixtures = (fixtureResult.data ?? []) as SportFixtureOption[];
+  if (
+    fixtureResult.error ||
+    !Array.isArray(fixtureResult.data) ||
+    !fixtureResult.data.every(isSportFixtureOption)
+  ) {
+    console.error("Intent fixture query failed or returned a malformed payload.");
+    return unavailable;
+  }
+  const fixtures = fixtureResult.data;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-10 md:px-6">

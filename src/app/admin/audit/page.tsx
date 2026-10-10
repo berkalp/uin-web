@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { getAdminArrayReadError } from "../_lib/read-state";
 import {
   AdminRole,
   requireAdmin,
@@ -457,6 +458,14 @@ export default async function AdminAuditPage({
       data ?? []
     ) as unknown as AdminAuditRow[];
 
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Audit records",
+    ["log_id", "total_count"],
+    ["total_count"]
+  );
+
   const totalLogs =
     logs.length > 0
       ? toNumber(
@@ -611,7 +620,7 @@ export default async function AdminAuditPage({
           </form>
         </section>
 
-        {error && (
+        {readError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Audit records could not
@@ -619,12 +628,12 @@ export default async function AdminAuditPage({
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              The audit query returned
-              an error.
+              {readError.message}
             </p>
           </div>
         )}
 
+        {!readError && (
         <section className="mt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -800,7 +809,7 @@ export default async function AdminAuditPage({
             })}
 
             {logs.length === 0 &&
-              !error && (
+              !readError && (
                 <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
                   <h3 className="text-xl font-bold text-gray-900">
                     No audit records found.
@@ -865,6 +874,7 @@ export default async function AdminAuditPage({
             </div>
           )}
         </section>
+        )}
       </div>
     </main>
   );

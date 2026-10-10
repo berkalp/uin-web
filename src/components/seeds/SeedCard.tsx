@@ -6,6 +6,7 @@ import PersonalWishSummary,{wishBadge,wishHow,wishWhen,wishWords,type WishPresen
 import UinCard, { cardPrimary, cardSecondary } from "@/components/cards/UinCard";
 import TargetHighlight from "@/components/cards/TargetHighlight";
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
+import { initialCommunityCountProps } from "@/utils/communityCounts";
 import { cardDate, targetLanguage } from "@/utils/targetLanguage";
 import { type SeedRecord, isSeedPastDue } from "@/utils/seeds";
 
@@ -21,6 +22,11 @@ export default function SeedCard({ seed,editable=false,variant }: {
   const actionWants:Record<string,string>={"ÖĞREN":"Öğrenmek istiyorum","KEŞFET":"Keşfetmek istiyorum","ZİYARET ET":"Ziyaret etmek istiyorum","PRATİK YAP":"Pratik yapmak istiyorum","ÜRET":"Üretmek istiyorum"};
   const wantLabel=presentation.ui_labels?.want?.trim()||actionWants[words.action]||wishWords(presentation).want;
   const href = `/seeds/${seed.seed_id}`;
+  const communityCountProps = initialCommunityCountProps(
+    seed.intent_people_count,
+    seed.experience_people_count,
+    seed.active_event_count ?? seed.social_intent_count
+  );
   if (variant === "experience" && completed) {
     const experienceWords=wishWords(presentation);
     return <PersonalLibraryCard
@@ -32,7 +38,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       href={href}
       cornerMeta={<CardRatingBadge targetId={seed.canonical_target_id} personalRating={seed.personal_rating}/>}
       topActionHref={presentation.base_kind==="club"?`/clubs/${seed.canonical_target_id}`:undefined}
-      metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />:undefined}
+      metrics={!privateSeed?<CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" {...communityCountProps} />:undefined}
       action={editable?<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-black text-white hover:bg-emerald-700">Deneyimimi düzenle</Link>:<Link href={href} className="flex min-h-11 w-full items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-black text-white hover:bg-white/15">Deneyimi aç</Link>}
     />;
   }
@@ -54,7 +60,7 @@ export default function SeedCard({ seed,editable=false,variant }: {
       </div>}
       metrics={privateSeed
         ? <p className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/80">🔒 Bu kayıt yalnızca sana ait.</p>
-        : <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" />}
+        : <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} appearance="overlay" {...communityCountProps} />}
       action={editable
         ? <Link href={`${href}/edit`} className="flex min-h-11 w-full items-center justify-center gap-1 rounded-xl bg-emerald-600 px-3 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"><span>✓</span><span>İsteğimi düzenle</span></Link>
         : <span className="flex min-h-11 w-full items-center justify-center rounded-xl border border-white/15 bg-white/10 px-3 text-xs font-bold text-white/80">✓ Ekli</span>}
@@ -68,10 +74,10 @@ export default function SeedCard({ seed,editable=false,variant }: {
       <p className="rounded-xl bg-blue-50 px-3 py-2 text-xs text-blue-900">✓ {seed.completed_date_precision === "year" ? seed.completed_year : seed.completed_date_precision === "unknown" ? "Tarih belirtilmedi" : cardDate(seed.completed_at) || "Tarih belirtilmedi"}</p>
       {typeof seed.personal_rating==="number"&&<p className="text-sm font-bold text-amber-700">★ {seed.personal_rating}/10</p>}
       {seed.key_takeaway && <p className="line-clamp-2 text-sm leading-5">“{seed.key_takeaway}”</p>}
-      {!privateSeed && <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} />}
+      {!privateSeed && <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} {...communityCountProps} />}
     </div> : <div className="space-y-2">
       <PersonalWishSummary presentation={presentation} wantLabel={wantLabel} notes={seed.notes}/>{isSeedPastDue(seed)&&<p className="text-xs font-bold text-amber-700">Süresi geçti</p>}
-      {!privateSeed && !archived && <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} />}
+      {!privateSeed && !archived && <CanonicalTargetPeople seedId={seed.seed_id} targetId={seed.canonical_target_id} seedType={seed.seed_type_slug} presentation={presentation} {...communityCountProps} />}
       {privateSeed && <p className="text-xs">🔒 Bu kayıt yalnızca sana ait.</p>}
     </div>}
     {seed.canonical_source_seed_ids && seed.canonical_source_seed_ids.length > 1 && <details className="mt-2 text-xs"><summary className="cursor-pointer text-emerald-700">Önceki kayıtların ({seed.canonical_source_seed_ids.length})</summary>{seed.canonical_source_seed_ids.map((id, i) => <Link key={id} href={`/seeds/${id}`} className="block py-1">Kayıt {i + 1}</Link>)}</details>}

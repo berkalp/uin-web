@@ -29,6 +29,8 @@ test("category cards omit only proven hidden targets and fail closed otherwise",
   assert.match(source, /catalogue=visibleIds\.map/);
   assert.doesNotMatch(source, /missingIds=ids\.filter/);
   assert.doesNotMatch(source, /cardByTarget\.get\(id\)\s*\|\|\s*\{[^}]*intent_people_count\s*:\s*0/s);
+  assert.match(source, /if\(typeResult\.error\)\{[\s\S]*status:503/);
+  assert.match(source, /if\(!type\?\.active\)return NextResponse\.json\(\{error:"Kategori bulunamadı\."\},\{status:404\}\)/);
 });
 
 test("category cards preserve the native viewer session for visibility-aware counters", () => {
@@ -39,7 +41,7 @@ test("category cards preserve the native viewer session for visibility-aware cou
   assert.doesNotMatch(source, /const db=await createClient\(\)/);
 });
 
-test("category cards reuse social enrichment and throttle repeat catalogue loads", () => {
+test("category cards reuse enrichment, fail closed, and throttle repeat catalogue loads", () => {
   const route = read("src/app/api/ideas/category-cards/route.ts");
   const client = read("src/components/ideas/InlineTopicSearch.tsx");
 
@@ -57,11 +59,16 @@ test("category cards reuse social enrichment and throttle repeat catalogue loads
   assert.match(route, /const \[socialResult,hierarchyResult\]=await Promise\.all\(\[/);
   assert.match(route, /initialSocialResult\.error\?db\.rpc\("get_uin_card_social_v87",\{p_target_ids:ids\}\):Promise\.resolve\(initialSocialResult\)/);
   assert.match(route, /initialHierarchyResult\.error\?db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:ids\}\):Promise\.resolve\(initialHierarchyResult\)/);
-  assert.match(route, /socialResult\.error\?\[\]:socialResult\.data\|\|\[\]/);
-  assert.match(route, /hierarchyResult\.error\?\[\]:hierarchyResult\.data\|\|\[\]/);
-  assert.doesNotMatch(route, /Kategori kartı ayrıntıları yüklenemedi/);
+  assert.match(route, /if\(socialResult\.error\)\{[\s\S]*status:503/);
+  assert.match(route, /if\(hierarchyResult\.error\)\{[\s\S]*status:503/);
+  assert.match(route, /if\(!Array\.isArray\(socialResult\.data\)\)\{[\s\S]*status:503/);
+  assert.match(route, /if\(!Array\.isArray\(hierarchyResult\.data\)\)\{[\s\S]*status:503/);
+  assert.match(route, /invalidSocialIds=visibleIds\.filter/);
+  assert.match(route, /if\(invalidSocialIds\.length\)\{[\s\S]*status:503/);
+  assert.doesNotMatch(route, /socialResult\.error\?\[\]/);
+  assert.doesNotMatch(route, /hierarchyResult\.error\?\[\]/);
   assert.doesNotMatch(route, /db\.rpc\("get_uin_card_ratings_v85"/);
-  assert.match(route, /const social=new Map\(\(\(socialResult\.error\?\[\]:socialResult\.data\|\|\[\]\)/);
+  assert.match(route, /const social=new Map\(\(\(socialResult\.data\|\|\[\]\)/);
   assert.match(route, /average_rating:stats\?\.average_rating==null\?null:Number\(stats\.average_rating\)/);
 assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"\}/);
   assert.match(route, /return NextResponse\.json\(\{catalogue\},\{headers:cacheHeaders\}\)/);

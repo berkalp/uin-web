@@ -3,7 +3,9 @@ import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import MyPersonalIntentCard from "@/components/seeds/MyPersonalIntentCard";
 import {getExperienceTotals} from "@/utils/experienceEntries";
 import MySeedsContent, {loadMySeedsData} from "@/components/seeds/MySeedsContent";
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import Link from "next/link";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
 import EyeIcon from "../../components/ui/EyeIcon";
 import { redirect } from "next/navigation";
@@ -80,6 +82,169 @@ import type {
 import type { PublicCommunityMembership } from "../../utils/communityMemberships";
 import type { PublicProfessionalStatus } from "../../utils/professionals";
 import type { EventPresentation } from "../../utils/eventPresentation";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isRecordArray(value: unknown): value is Record<string, unknown>[] {
+  return Array.isArray(value) && value.every(isRecord);
+}
+
+function hasStringFields(
+  value: unknown,
+  fields: readonly string[]
+): value is Record<string, unknown> {
+  return (
+    isRecord(value) &&
+    fields.every((field) => typeof value[field] === "string")
+  );
+}
+
+function isCountLike(value: unknown, allowNull = true) {
+  if (allowNull && value === null) return true;
+  if (
+    (typeof value !== "number" && typeof value !== "string") ||
+    (typeof value === "string" && !value.trim())
+  ) {
+    return false;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 0;
+}
+
+function isFamilyCenterPayload(value: unknown): value is FamilyCenterData {
+  if (!isRecord(value) || !isRecord(value.self)) return false;
+
+  const self = value.self;
+  return (
+    typeof self.user_id === "string" &&
+    isNullableString(self.full_name) &&
+    typeof self.username === "string" &&
+    isNullableString(self.avatar_url) &&
+    typeof self.has_date_of_birth === "boolean" &&
+    isNullableString(self.date_of_birth) &&
+    typeof self.age_state === "string" &&
+    typeof self.is_managed_minor === "boolean" &&
+    typeof self.can_complete_adult_transition === "boolean" &&
+    typeof self.can_bootstrap_guardian === "boolean" &&
+    isRecordArray(value.guardians) &&
+    value.guardians.every(
+      (guardian) =>
+        hasStringFields(guardian, [
+          "guardian_link_id",
+          "guardian_user_id",
+          "username",
+          "relationship",
+          "guardian_role",
+          "status",
+        ]) &&
+        isNullableString(guardian.full_name) &&
+        isNullableString(guardian.avatar_url) &&
+        typeof guardian.can_manage_profile === "boolean" &&
+        typeof guardian.can_manage_activities === "boolean" &&
+        typeof guardian.can_manage_guardians === "boolean"
+    ) &&
+    isRecordArray(value.managed_children) &&
+    isRecordArray(value.incoming_invitations) &&
+    isRecordArray(value.outgoing_invitations)
+  );
+}
+
+function isPersonalProfilePayload(value: unknown) {
+  if (value === null) return true;
+  if (!isRecord(value)) return false;
+
+  return (
+    isNullableString(value.full_name) &&
+    isNullableString(value.username) &&
+    isNullableString(value.avatar_url) &&
+    isNullableString(value.cover_url) &&
+    isNullableString(value.bio) &&
+    isNullableString(value.city) &&
+    isNullableString(value.country) &&
+    isNullableString(value.created_at)
+  );
+}
+
+function isManagedProfileSwitcherRow(value: unknown) {
+  return (
+    hasStringFields(value, ["child_user_id", "child_username", "guardian_role"]) &&
+    isNullableString(value.child_full_name) &&
+    isNullableString(value.child_avatar_url) &&
+    isCountLike(value.pending_invitation_count, false)
+  );
+}
+
+function isTimelinePlanRow(value: unknown) {
+  if (!hasStringFields(value, ["id", "status", "host_user_id"])) return false;
+
+  return (
+    (value.plan_members === null ||
+      (isRecordArray(value.plan_members) &&
+        value.plan_members.every(
+          (member) =>
+            hasStringFields(member, ["user_id", "status"]) &&
+            (member.profiles === null ||
+              isRecord(member.profiles) ||
+              isRecordArray(member.profiles))
+        ))) &&
+    (value.plan_intents === null ||
+      (isRecordArray(value.plan_intents) &&
+        value.plan_intents.every((link) =>
+          hasStringFields(link, ["id", "intent_id", "relationship", "status"])
+        )))
+  );
+}
+
+function isProfileMutualFriendRow(value: unknown) {
+  return (
+    hasStringFields(value, ["user_id", "username"]) &&
+    isNullableString(value.full_name) &&
+    isNullableString(value.avatar_url)
+  );
+}
+
+function isProfileReactionRow(value: unknown) {
+  return (
+    hasStringFields(value, [
+      "reaction_id",
+      "reaction_type",
+      "reaction_visibility",
+      "reacted_at",
+      "intent_id",
+      "resource_id",
+      "owner_user_id",
+      "activity_name",
+      "category_name",
+      "lifecycle_status",
+    ]) &&
+    isNullableString(value.plan_id) &&
+    isNullableString(value.owner_full_name) &&
+    isNullableString(value.owner_username) &&
+    isNullableString(value.owner_avatar_url) &&
+    isNullableString(value.activity_cover_url) &&
+    isNullableString(value.category_cover_url) &&
+    isNullableString(value.city) &&
+    isNullableString(value.district) &&
+    isNullableString(value.start_date) &&
+    isNullableString(value.end_date) &&
+    isNullableString(value.scheduled_start) &&
+    isNullableString(value.scheduled_end)
+  );
+}
+
+function isProfileDisplayOrderRow(value: unknown) {
+  return (
+    hasStringFields(value, ["item_type", "item_id"]) &&
+    isCountLike(value.sort_order, false)
+  );
+}
 
 type IntentStatus =
   | "active"
@@ -173,8 +338,8 @@ type TimelineProfileIntentReactionRow = {
   category_cover_url: string | null;
   city: string | null;
   district: string | null;
-  start_date: string;
-  end_date: string;
+  start_date: string | null;
+  end_date: string | null;
   scheduled_start: string | null;
   scheduled_end: string | null;
   lifecycle_status: string;
@@ -189,8 +354,8 @@ type TimelineProfileDisplayOrderRow = {
 type TimelineIntent = {
   id: string;
   user_id: string;
-  start_date: string;
-  end_date: string;
+  start_date: string | null;
+  end_date: string | null;
   people: string;
   budget: number | null;
   recurrence: string;
@@ -760,8 +925,9 @@ function isExpiredIntent(
     intent.status === "active" &&
     (
       intent.expired_at !== null ||
-      intent.end_date <
-        getTodayDateKey()
+      (intent.end_date !== null &&
+        intent.end_date <
+          getTodayDateKey())
     )
   );
 }
@@ -892,12 +1058,21 @@ function getOpenIntentMoment(
   intent: TimelineIntent,
   today: string
 ): Exclude<OpenMomentFilter, "all"> {
-  if (intent.start_date <= today && intent.end_date >= today) {
+  if (
+    intent.start_date !== null &&
+    intent.end_date !== null &&
+    intent.start_date <= today &&
+    intent.end_date >= today
+  ) {
     return "now";
   }
 
   const upcomingLimit = addUtcDays(today, OPEN_UPCOMING_WINDOW_DAYS);
-  if (intent.start_date > today && intent.start_date <= upcomingLimit) {
+  if (
+    intent.start_date !== null &&
+    intent.start_date > today &&
+    intent.start_date <= upcomingLimit
+  ) {
     return "upcoming";
   }
 
@@ -906,7 +1081,7 @@ function getOpenIntentMoment(
 
 function getTimelineEntrySortDate(entry: TimelineEntry) {
   if (entry.kind === "intent") {
-    return entry.intent.start_date;
+    return entry.intent.start_date ?? entry.intent.created_at;
   }
 
   return (
@@ -2021,6 +2196,13 @@ export default async function TimelinePage({
 }: TimelinePageProps) {
   const resolvedSearchParams =
     await searchParams;
+  const retryQuery = new URLSearchParams();
+  for (const [key, value] of Object.entries(resolvedSearchParams)) {
+    if (value) retryQuery.set(key, value);
+  }
+  const timelineRetryHref = retryQuery.size > 0
+    ? `/timeline?${retryQuery.toString()}`
+    : "/timeline";
 
   const selectedTab=["wanted","events","experiences","loved"].includes(resolvedSearchParams.tab||"")?resolvedSearchParams.tab!:resolvedSearchParams.view==="completed"?"experiences":resolvedSearchParams.mine==="social"||resolvedSearchParams.mine==="planned"?"events":"wanted";
   const selectedView =
@@ -2068,8 +2250,21 @@ export default async function TimelinePage({
 
   const {
     data: { user },
+    error: userError,
   } =
     await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Timeline session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Listen şu anda eksiksiz yüklenemedi"
+        retryHref={timelineRetryHref}
+        backHref="/ideas"
+        backLabel="Kütüphaneye dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -2083,13 +2278,11 @@ export default async function TimelinePage({
     { error: lineageReconcileError },
     { data: familyCenterData, error: familyCenterError },
   ] = await Promise.all([
-    loadMySeedsData({searchParams:Promise.resolve({alan:"deneyimler"})}),
+    loadMySeedsData({searchParams:Promise.resolve({alan:"deneyimler"}),user}),
     supabase.rpc("refresh_my_intent_join_resolutions"),
     supabase.rpc("reconcile_my_intent_plan_lineage"),
     supabase.rpc("get_my_family_center"),
   ]);
-  const experienceTotals=getExperienceTotals(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites);
-
   if (resolutionRefreshError) {
     console.warn(
       "Intent resolution refresh failed:",
@@ -2111,10 +2304,24 @@ export default async function TimelinePage({
     );
   }
 
-  const familyCenter =
-    familyCenterData as
-      | FamilyCenterData
-      | null;
+  if (
+    experienceData.loadFailed ||
+    familyCenterError ||
+    !isFamilyCenterPayload(familyCenterData)
+  ) {
+    return (
+      <PageDataUnavailable
+        title="Listen şu anda eksiksiz yüklenemedi"
+        retryHref={timelineRetryHref}
+        backHref="/ideas"
+        backLabel="Kütüphaneye dön"
+      />
+    );
+  }
+
+  const familyCenter = familyCenterData;
+
+  const experienceTotals=getExperienceTotals(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites);
 
   if (
     familyCenter?.self
@@ -2402,6 +2609,79 @@ export default async function TimelinePage({
     );
   }
 
+  const timelinePayloadsValid =
+    isRecordArray(ownedIntentResult.data) &&
+    ownedIntentResult.data.every((row) =>
+      hasStringFields(row, ["id", "status"]) &&
+      isNullableString(row.start_date) &&
+      isNullableString(row.end_date)
+    ) &&
+    isRecordArray(planResult.data) &&
+    planResult.data.every(isTimelinePlanRow) &&
+    isRecordArray(requestResult.data) &&
+    requestResult.data.every((row) =>
+      hasStringFields(row, ["id", "status", "requester_id", "receiver_id"])
+    ) &&
+    isRecordArray(conversationSummaryResult.data) &&
+    conversationSummaryResult.data.every((row) =>
+      hasStringFields(row, ["plan_id"])
+    ) &&
+    isRecordArray(expiredActivityResult.data) &&
+    expiredActivityResult.data.every((row) =>
+      hasStringFields(row, ["item_type", "item_id"])
+    ) &&
+    isRecordArray(intentInvitationResult.data) &&
+    intentInvitationResult.data.every((row) =>
+      hasStringFields(row, ["invitation_status"])
+    ) &&
+    isRecordArray(joinRequestResult.data) &&
+    joinRequestResult.data.every((row) =>
+      hasStringFields(row, ["direction", "request_status", "intent_id"])
+    ) &&
+    isRecordArray(managedProfilesResult.data) &&
+    managedProfilesResult.data.every(isManagedProfileSwitcherRow) &&
+    isPersonalProfilePayload(personalProfileResult.data) &&
+    typeof adminResult.data === "boolean" &&
+    isRecordArray(activeMatchCountResult.data) &&
+    activeMatchCountResult.data.every((row) =>
+      hasStringFields(row, ["own_intent_id", "target_intent_id"])
+    ) &&
+    isRecordArray(activeSeedResult.data) &&
+    activeSeedResult.data.every((row) =>
+      hasStringFields(row, ["seed_id", "status", "title"])
+    ) &&
+    isRecordArray(intentResolutionResult.data) &&
+    intentResolutionResult.data.every((row) =>
+      hasStringFields(row, ["id", "status", "source_intent_id", "target_intent_id"])
+    );
+  const timelineReadFailed = Boolean(
+    ownedIntentResult.error ||
+    planResult.error ||
+    requestResult.error ||
+    conversationSummaryResult.error ||
+    expiredActivityResult.error ||
+    intentInvitationResult.error ||
+    joinRequestResult.error ||
+    managedProfilesResult.error ||
+    personalProfileResult.error ||
+    adminResult.error ||
+    activeMatchCountResult.error ||
+    activeSeedResult.error ||
+    intentResolutionResult.error ||
+    !timelinePayloadsValid
+  );
+
+  if (timelineReadFailed) {
+    return (
+      <PageDataUnavailable
+        title="Listen şu anda eksiksiz yüklenemedi"
+        retryHref={timelineRetryHref}
+        backHref="/ideas"
+        backLabel="Kütüphaneye dön"
+      />
+    );
+  }
+
   const joinRequests =
     (
       joinRequestResult.data ??
@@ -2572,6 +2852,57 @@ export default async function TimelinePage({
   }
   if (profilePreferencesResult.error) {
     console.warn("Timeline favorites query failed:", profilePreferencesResult.error.message);
+  }
+
+  const profileOverviewReadFailed = Boolean(
+    profileFamilyResult.error ||
+    profileConnectionResult.error ||
+    profilePresenceResult.error ||
+    profileProfessionalResult.error ||
+    profileCommunityMembershipResult.error ||
+    profileSavedReactionResult.error ||
+    profilePawedReactionResult.error ||
+    profileDisplayOrderResult.error ||
+    profilePreferencesResult.error ||
+    !isRecord(profileFamilyResult.data) ||
+    !isRecordArray(profileFamilyResult.data.children) ||
+    !isRecordArray(profileFamilyResult.data.relationships) ||
+    !isRecord(profileConnectionResult.data) ||
+    !isRecordArray(profileConnectionResult.data.mutual_friends) ||
+    !profileConnectionResult.data.mutual_friends.every(isProfileMutualFriendRow) ||
+    !isCountLike(profileConnectionResult.data.followers_count) ||
+    !isCountLike(profileConnectionResult.data.following_count) ||
+    !isCountLike(profileConnectionResult.data.friends_count) ||
+    !isCountLike(profileConnectionResult.data.mutual_friends_count, false) ||
+    !isRecord(profilePresenceResult.data) ||
+    !isRecordArray(profilePresenceResult.data.links) ||
+    !isRecordArray(profilePresenceResult.data.embeds) ||
+    !isRecordArray(profileCommunityMembershipResult.data) ||
+    !isRecordArray(profileSavedReactionResult.data) ||
+    !profileSavedReactionResult.data.every(isProfileReactionRow) ||
+    !isRecordArray(profilePawedReactionResult.data) ||
+    !profilePawedReactionResult.data.every(isProfileReactionRow) ||
+    !isRecordArray(profileDisplayOrderResult.data) ||
+    !profileDisplayOrderResult.data.every(isProfileDisplayOrderRow) ||
+    (Boolean(personalProfile.username) &&
+      (!isRecord(profileProfessionalResult.data) ||
+        typeof profileProfessionalResult.data.identity_verified !== "boolean" ||
+        !isRecordArray(profileProfessionalResult.data.credentials))) ||
+    (Boolean(personalProfile.username) &&
+      (!isRecord(profilePreferencesResult.data) ||
+        !isRecordArray(profilePreferencesResult.data.favorites) ||
+        !isCountLike(profilePreferencesResult.data.shared_favorite_count)))
+  );
+
+  if (profileOverviewReadFailed) {
+    return (
+      <PageDataUnavailable
+        title="Profilin ve listen şu anda eksiksiz yüklenemedi"
+        retryHref={timelineRetryHref}
+        backHref="/ideas"
+        backLabel="Kütüphaneye dön"
+      />
+    );
   }
 
   const profileDisplayOrderRows =
@@ -3203,8 +3534,8 @@ const {
       categoryCoverUrl: row.category_cover_url,
       city: row.city,
       district: row.district,
-      startDate: row.start_date,
-      endDate: row.end_date,
+      startDate: row.start_date ?? "",
+      endDate: row.end_date ?? "",
       scheduledStart: row.scheduled_start,
       scheduledEnd: row.scheduled_end,
       lifecycleStatus: row.lifecycle_status,
@@ -3692,6 +4023,27 @@ const {
   }
 
   const [myTypesResult,mySourcesResult]=await Promise.all([supabase.from("uin_content_types").select("id,label,icon").order("position").order("label"),supabase.rpc("get_my_uin_topic_sources_v71")]);
+  if (
+    myTypesResult.error ||
+    mySourcesResult.error ||
+    !isRecordArray(myTypesResult.data) ||
+    !myTypesResult.data.every((row) =>
+      hasStringFields(row, ["id", "label", "icon"])
+    ) ||
+    !isRecordArray(mySourcesResult.data) ||
+    !mySourcesResult.data.every((row) =>
+      hasStringFields(row, ["resource_id", "target_id", "type_id"])
+    )
+  ) {
+    return (
+      <PageDataUnavailable
+        title="Liste filtreleri şu anda eksiksiz yüklenemedi"
+        retryHref={timelineRetryHref}
+        backHref="/ideas"
+        backLabel="Kütüphaneye dön"
+      />
+    );
+  }
   const mySources=(mySourcesResult.data||[]) as Array<{resource_id:string;target_id:string;type_id:string}>;
   const selectedKind=resolvedSearchParams.kind||"";const cardQuery=(resolvedSearchParams.q||"").trim().toLocaleLowerCase("tr-TR");
   const tabIntentItems=allMyIntentItems.filter(item=>selectedTab==="events"?item.kind!=="personal":item.kind==="personal").filter(item=>{
@@ -3764,12 +4116,13 @@ const {
         entry.kind === "intent" &&
         (getEntryView(entry) === "open" ||
           getEntryView(entry) === "full") &&
+        entry.intent.start_date !== null &&
         entry.intent.start_date > today
     )
     .sort(
       (first, second) =>
-        new Date(first.intent.start_date).getTime() -
-        new Date(second.intent.start_date).getTime()
+        new Date(first.intent.start_date ?? 0).getTime() -
+        new Date(second.intent.start_date ?? 0).getTime()
     );
 
   const upcomingPersonalSeeds = timelineSeeds
@@ -3796,7 +4149,7 @@ const {
   const filteredUpcomingEntries = [
     ...upcomingSocialEntries.map((entry) => ({
       kind: "social" as const,
-      date: entry.intent.start_date,
+      date: entry.intent.start_date ?? "",
       entry,
     })),
     ...upcomingPersonalSeeds.map((seed) => ({
@@ -4034,10 +4387,10 @@ const {
               null
             }
             startDate={
-              intent.start_date
+              intent.start_date ?? ""
             }
             endDate={
-              intent.end_date
+              intent.end_date ?? ""
             }
             lifecycleStatus={
               intent.expired_at
@@ -4051,7 +4404,8 @@ const {
                       : intent.recruitment_status === "closed" ||
                           intent.matching_status === "closed"
                         ? "closed"
-                        : intent.start_date >
+                        : intent.start_date !== null &&
+                          intent.start_date >
                             today
                           ? "future"
                           : "open"
@@ -4065,6 +4419,7 @@ const {
             statusLabel={
               intent.status ===
                 "active" &&
+              intent.start_date !== null &&
               intent.start_date >
                 today
                 ? "Future"
@@ -4075,6 +4430,7 @@ const {
             statusClasses={
               intent.status ===
                 "active" &&
+              intent.start_date !== null &&
               intent.start_date >
                 today
                 ? "bg-blue-100 text-blue-800"
@@ -4172,7 +4528,7 @@ const {
                     Review {requestCount} request{requestCount === 1 ? "" : "s"}
                   </Link>
                 )}
-                {intent.status === "active" && intent.recruitment_status === "open" && intent.end_date >= today && (
+                {intent.status === "active" && intent.recruitment_status === "open" && intent.end_date !== null && intent.end_date >= today && (
                   <IntentInvitePeopleButton intentId={intent.id} activityLabel={activity?.name ?? "UIN Activity"} compact />
                 )}
                 <Link href={`/intents/${encodeURIComponent(intent.id)}/visibility`} className="inline-flex h-7 w-full items-center justify-center rounded-md border border-indigo-200 bg-indigo-50 px-2 text-[9.5px] font-semibold leading-none text-indigo-700 transition hover:bg-indigo-100">

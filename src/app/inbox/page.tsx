@@ -30,6 +30,42 @@ function toCount(value: number | string | null | undefined) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isIntentRequestRow(value: unknown) {
+  return isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.receiver_id === "string" &&
+    typeof value.status === "string";
+}
+
+function isIntentInvitationRow(value: unknown) {
+  return isRecord(value) && typeof value.invitation_status === "string";
+}
+
+function isJoinRequestRow(value: unknown) {
+  return isRecord(value) &&
+    typeof value.direction === "string" &&
+    typeof value.request_status === "string" &&
+    (value.intent_id === null || typeof value.intent_id === "string");
+}
+
+function isManagedProfileRow(value: unknown): value is ManagedProfileRow {
+  return isRecord(value) &&
+    typeof value.child_user_id === "string" &&
+    (value.child_full_name === null || typeof value.child_full_name === "string") &&
+    typeof value.child_username === "string" &&
+    (value.child_avatar_url === null || typeof value.child_avatar_url === "string") &&
+    (typeof value.pending_invitation_count === "number" || typeof value.pending_invitation_count === "string") &&
+    toCount(value.pending_invitation_count as number | string | null | undefined) !== null;
+}
+
+function isOwnedIntentRow(value: unknown): value is { id: string } {
+  return isRecord(value) && typeof value.id === "string";
+}
+
 export default async function InboxPage() {
   const supabase =
     await createClient();
@@ -84,52 +120,73 @@ export default async function InboxPage() {
       .is("expired_at", null),
   ]);
 
+  const requestPayloadValid = Array.isArray(requestResponse.data) &&
+    requestResponse.data.every(isIntentRequestRow);
+  const invitationPayloadValid = Array.isArray(intentInvitationResponse.data) &&
+    intentInvitationResponse.data.every(isIntentInvitationRow);
+  const joinRequestPayloadValid = Array.isArray(joinRequestResponse.data) &&
+    joinRequestResponse.data.every(isJoinRequestRow);
+  const managedProfilePayloadValid = Array.isArray(managedProfileResponse.data) &&
+    managedProfileResponse.data.every(isManagedProfileRow);
+  const ownedIntentPayloadValid = Array.isArray(activeOwnedIntentResponse.data) &&
+    activeOwnedIntentResponse.data.every(isOwnedIntentRow);
+
   const loadFailed = Boolean(
     requestResponse.error ||
       intentInvitationResponse.error ||
       joinRequestResponse.error ||
       managedProfileResponse.error ||
-      activeOwnedIntentResponse.error
+      activeOwnedIntentResponse.error ||
+      !requestPayloadValid ||
+      !invitationPayloadValid ||
+      !joinRequestPayloadValid ||
+      !managedProfilePayloadValid ||
+      !ownedIntentPayloadValid
   );
 
+  if (loadFailed) {
+    console.error("Decision center queries returned an error or malformed payload.");
+  }
+
+  const intentRequestRows = requestPayloadValid
+    ? requestResponse.data as { id: string; receiver_id: string; status: string }[]
+    : [];
+  const invitationRows = invitationPayloadValid
+    ? intentInvitationResponse.data as { invitation_status: string }[]
+    : [];
+  const joinRequestRows = joinRequestPayloadValid
+    ? joinRequestResponse.data as { direction: string; request_status: string; intent_id: string | null }[]
+    : [];
+  const ownedIntentRows = ownedIntentPayloadValid
+    ? activeOwnedIntentResponse.data as { id: string }[]
+    : [];
+  const managedProfiles: ManagedProfileRow[] = managedProfilePayloadValid
+    ? managedProfileResponse.data as ManagedProfileRow[]
+    : [];
+
   const pendingIntentRequestCount =
-    requestResponse.error ? null : (requestResponse.data ?? []).length;
+    requestResponse.error || !requestPayloadValid ? null : intentRequestRows.length;
 
   const pendingIntentInvitationCount =
-    intentInvitationResponse.error
+    intentInvitationResponse.error || !invitationPayloadValid
       ? null
-      : (
-      (
-        intentInvitationResponse.data ??
-        []
-      ) as {
-        invitation_status?: string;
-      }[]
-    ).filter(
+      : invitationRows.filter(
       (invitation) =>
         invitation.invitation_status ===
         "pending"
       ).length;
 
   const activeOwnedIntentIds = new Set(
-    ((activeOwnedIntentResponse.data ?? []) as { id: string }[]).map(
+    ownedIntentRows.map(
       (intent) => intent.id
     )
   );
 
   const pendingJoinRequestCount =
-    joinRequestResponse.error || activeOwnedIntentResponse.error
+    joinRequestResponse.error || activeOwnedIntentResponse.error ||
+      !joinRequestPayloadValid || !ownedIntentPayloadValid
       ? null
-      : (
-      (
-        joinRequestResponse.data ??
-        []
-      ) as {
-        direction?: string;
-        request_status?: string;
-        intent_id?: string;
-      }[]
-    ).filter(
+      : joinRequestRows.filter(
       (request) =>
         request.direction ===
           "received" &&
@@ -141,15 +198,10 @@ export default async function InboxPage() {
         )
       ).length;
 
-  const managedProfiles =
-    managedProfileResponse.error
-      ? []
-      : ((managedProfileResponse.data ?? []) as ManagedProfileRow[]);
-
   const managedProfileCounts = managedProfiles.map((profile) =>
     toCount(profile.pending_invitation_count)
   );
-  const managedProfileActionCount = managedProfileResponse.error || managedProfileCounts.some((count) => count === null)
+  const managedProfileActionCount = managedProfileResponse.error || !managedProfilePayloadValid || managedProfileCounts.some((count) => count === null)
     ? null
     : managedProfileCounts.reduce<number>((total, count) => total + (count ?? 0), 0);
 

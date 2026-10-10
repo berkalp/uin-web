@@ -36,12 +36,20 @@ test("sports pages explain successful empty catalogue results without extra read
   assert.doesNotMatch(pages.slice(1).map(({ path }) => source(path)).join("\n"), /notFound\(/);
 });
 
+test("league team cards open their club profile", () => {
+  const page = source("src/app/sports/[sportSlug]/[leagueSlug]/page.tsx");
+
+  assert.match(page, /`\/clubs\/\$\{encodeURIComponent\(item\.canonical_target_id\)\}`/);
+  assert.doesNotMatch(page, /`\/intentions\/\$\{encodeURIComponent\(item\.canonical_target_id\)\}`/);
+});
+
 test("admin dashboard hides summary counters after a failed summary read", () => {
   const page = source("src/app/admin/page.tsx");
   const overviewStart = page.indexOf('{!summaryUnavailable && <section className="mt-8">');
   const usersCard = page.indexOf('label="Users"', overviewStart);
 
-  assert.match(page, /const summaryUnavailable = Boolean\([\s\S]*summaryError \|\| !summary/);
+  assert.match(page, /const summaryReadError = getAdminArrayReadError\([\s\S]*summaryError/);
+  assert.match(page, /const summaryUnavailable = Boolean\([\s\S]*summaryReadError \|\| !summary/);
   assert.match(page, /\{summaryUnavailable && \(/);
   assert.ok(overviewStart >= 0, "summary cards need an error guard");
   assert.ok(usersCard > overviewStart, "summary cards must remain inside the guard");

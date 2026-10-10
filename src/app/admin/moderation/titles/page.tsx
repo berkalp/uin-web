@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { getAdminArrayReadError } from "../../_lib/read-state";
 import TitleModerationActions from "@/components/admin/TitleModerationActions";
 import { requireAdmin } from "@/utils/admin";
 
@@ -115,6 +116,13 @@ export default async function AdminTitleModerationPage({ searchParams }: PagePro
   });
 
   const reports = (data ?? []) as TitleReportRow[];
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Reported Activity titles",
+    ["report_id", "total_count"],
+    ["total_count"]
+  );
   const total = reports.length ? Number(reports[0].total_count ?? 0) : 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const canResolve = role === "owner" || role === "admin" || role === "moderator";
@@ -163,19 +171,19 @@ export default async function AdminTitleModerationPage({ searchParams }: PagePro
           </div>
         </header>
 
-        {error && (
+        {readError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-800">
-            {error.message}
+            {readError.message}
           </div>
         )}
 
-        {!error && reports.length === 0 && (
+        {!readError && reports.length === 0 && (
           <div className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">
             No {status} custom-title reports.
           </div>
         )}
 
-        {!error && reports.length > 0 && (
+        {!readError && reports.length > 0 && (
           <section className="mt-6 grid gap-5 lg:grid-cols-2">
             {reports.map((report) => (
               <article key={report.report_id} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -247,7 +255,7 @@ export default async function AdminTitleModerationPage({ searchParams }: PagePro
           </section>
         )}
 
-        {totalPages > 1 && (
+        {!readError && totalPages > 1 && (
           <nav className="mt-8 flex flex-wrap justify-center gap-2" aria-label="Title moderation pages">
             {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
               <Link

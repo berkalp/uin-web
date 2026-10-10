@@ -209,6 +209,16 @@ type ActivityCommonTargetContext = {
 
 type SportTargetCard = { metadata?:{club_profile?:{logo_url?:string|null}} };
 
+function isSportFixtureOption(value: unknown): value is SportFixtureOption {
+  if (!value || typeof value !== "object") return false;
+  const fixture = value as Record<string, unknown>;
+  return typeof fixture.id === "string" &&
+    typeof fixture.match_name === "string" &&
+    typeof fixture.match_date === "string" &&
+    (fixture.venue === null || typeof fixture.venue === "string") &&
+    typeof fixture.selected === "boolean";
+}
+
 type IntentProfessionalRequirementData = {
   intent_id: string;
   requirement: "preferred" | "required";
@@ -1134,7 +1144,16 @@ export default async function ActivityDetailPage({
   const clubViewingResult=activity.intent_id?await supabase.rpc("get_uin_event_viewing_v60",{p_intent_id:activity.intent_id}):null;
   const clubViewing=clubViewingResult?.data as {context:ViewingContext;target_id:string;club_title:string}|null;
   const sportTeamLogo=sportTargetCard?.metadata?.club_profile?.logo_url||null;
-  const sportFixtures=(sportFixturesResult.data??[]) as SportFixtureOption[];
+  const sportFixturesReadFailed=Boolean(
+    isLiveSportActivity&&(
+      sportFixturesResult.error||
+      !Array.isArray(sportFixturesResult.data)||
+      !sportFixturesResult.data.every(isSportFixtureOption)
+    )
+  );
+  const sportFixtures=sportFixturesReadFailed
+    ? []
+    : (sportFixturesResult.data as SportFixtureOption[]);
 
   const planOrigins = parsePlanOriginRows(
     planOriginsResult.data
@@ -1648,7 +1667,7 @@ const detailLabel =
 
             <div className="overflow-hidden border-t border-gray-200 bg-white lg:border-l lg:border-t-0">
               <EventCardLinks resourceId={resourceId}/>
-              {isLiveSportActivity?<SportActivityPlanningHero intentId={activity.intent_id} teamTitle={commonTarget?.canonical_target_title||displayTitle} sportName={sportCoverContext?.sport_name||null} scheduleLabel={scheduleLabel} locationLabel={locationLabel||approximateLocationLabel} hostName={hostName} participantCount={activity.participant_count} maxParticipants={activity.max_participants} visibilityLabel={activity.visibility==="public"?"Herkese Açık":getActivityVisibilityLabel(activity.visibility)} recruitmentLabel={activity.recruitment_status==="open"?"Katılıma Açık":activity.recruitment_status==="full"?"Kontenjan Dolu":"Katılıma Kapalı"} fixtures={sportFixtures} canManage={viewer.is_owner} roomHref={roomHref}/>:<ActivityPublicMapPanel
+              {isLiveSportActivity?(sportFixturesReadFailed?<section role="alert" className="m-5 rounded-2xl border border-red-200 bg-red-50 p-5 md:m-7"><p className="text-xs font-black uppercase tracking-[.16em] text-red-700">Fikstür yüklenemedi</p><p className="mt-2 text-sm leading-6 text-red-900">Maç bilgilerini yanlış veya eksik göstermemek için seçim alanını gizledik. Lütfen yeniden dene.</p><a href={`/activities/${encodeURIComponent(resourceId)}`} className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-gray-950 px-4 py-2 text-sm font-black text-white">Yeniden dene</a></section>:<SportActivityPlanningHero intentId={activity.intent_id} teamTitle={commonTarget?.canonical_target_title||displayTitle} sportName={sportCoverContext?.sport_name||null} scheduleLabel={scheduleLabel} locationLabel={locationLabel||approximateLocationLabel} hostName={hostName} participantCount={activity.participant_count} maxParticipants={activity.max_participants} visibilityLabel={activity.visibility==="public"?"Herkese Açık":getActivityVisibilityLabel(activity.visibility)} recruitmentLabel={activity.recruitment_status==="open"?"Katılıma Açık":activity.recruitment_status==="full"?"Kontenjan Dolu":"Katılıma Kapalı"} fixtures={sportFixtures} canManage={viewer.is_owner} roomHref={roomHref}/>):<ActivityPublicMapPanel
                 planId={activity.plan_id}
                 title={displayTitle}
                 fallbackActivityLocation={mapLocationLabel}

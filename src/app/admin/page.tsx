@@ -4,6 +4,12 @@ import {
   AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+  getAdminCountReadError,
+  getAdminRecordReadError,
+} from "./_lib/read-state";
 
 type AdminDashboardSummary = {
   total_users: number | string | null;
@@ -318,8 +324,53 @@ export default async function AdminDashboardPage() {
         summaryData ?? []
       ) as AdminDashboardSummary[]
     )[0] ?? null;
+  const summaryReadError = getAdminArrayReadError(
+    summaryData,
+    summaryError,
+    "Dashboard statistics",
+    [
+      "total_users",
+      "active_intents",
+      "forming_plans",
+      "planned_activities",
+      "completed_activities",
+      "cancelled_activities",
+      "pending_requests",
+      "total_messages",
+    ],
+    [
+      "total_users",
+      "active_intents",
+      "forming_plans",
+      "planned_activities",
+      "completed_activities",
+      "cancelled_activities",
+      "pending_requests",
+      "total_messages",
+    ]
+  );
   const summaryUnavailable = Boolean(
-    summaryError || !summary
+    summaryReadError || !summary
+  );
+
+  const pendingSuggestionReadError = getAdminCountReadError(
+    pendingActivitySuggestionResult.data,
+    pendingActivitySuggestionResult.error,
+    "Pending Activity request count"
+  );
+
+  const seedCountReadError = getAdminRecordReadError(
+    seedCatalogueCountsResult.data,
+    seedCatalogueCountsResult.error,
+    "Seed catalogue counts",
+    [],
+    ["pending", "under_review"],
+    ["pending", "under_review"]
+  );
+
+  const secondaryReadError = firstAdminReadError(
+    pendingSuggestionReadError,
+    seedCountReadError
   );
 
   const totalUsers =
@@ -428,7 +479,7 @@ export default async function AdminDashboardPage() {
           </div>
         </header>
 
-        {seedItemsNeedingAttention > 0 && (
+        {!seedCountReadError && seedItemsNeedingAttention > 0 && (
           <section className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
@@ -461,6 +512,17 @@ export default async function AdminDashboardPage() {
               The admin route is available,
               but the summary function did
               not return usable data.
+            </p>
+          </div>
+        )}
+
+        {secondaryReadError && (
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
+            <p className="font-semibold text-red-800">
+              Dashboard queue counts could not be loaded.
+            </p>
+            <p className="mt-2 text-sm text-red-700">
+              {secondaryReadError.message}
             </p>
           </div>
         )}
@@ -595,7 +657,7 @@ export default async function AdminDashboardPage() {
               description="Curate shared Seed subjects, review suggestions and reports, merge real duplicates and complete type-specific metadata."
               href="/admin/seed-catalogue"
               badge={
-                seedItemsNeedingAttention > 0
+                !seedCountReadError && seedItemsNeedingAttention > 0
                   ? `${formatNumber(seedItemsNeedingAttention)} need review`
                   : null
               }
@@ -627,7 +689,7 @@ export default async function AdminDashboardPage() {
               description="Classify user-submitted Activity requests and release approved Intent drafts for publication."
               href="/admin/activity-suggestions"
               badge={
-                pendingActivitySuggestions > 0
+                !pendingSuggestionReadError && pendingActivitySuggestions > 0
                   ? `${formatNumber(
                       pendingActivitySuggestions
                     )} pending`

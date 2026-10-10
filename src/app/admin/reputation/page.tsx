@@ -7,6 +7,7 @@ import {
   type AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import { getAdminRecordReadError } from "../_lib/read-state";
 
 function getRoleLabel(
   role: AdminRole
@@ -46,6 +47,23 @@ export default async function AdminReputationPage() {
       error
     );
   }
+
+  const readError = getAdminRecordReadError(
+    data,
+    error,
+    "Reputation configuration",
+    ["categories", "activities", "questions"],
+    [],
+    [],
+    {
+      categories: { requiredFields: ["id", "name"] },
+      activities: { requiredFields: ["id", "name", "category_id"] },
+      questions: {
+        requiredFields: ["id", "prompt", "current_version", "sort_order"],
+        countFields: ["current_version", "sort_order"],
+      },
+    }
+  );
 
   const catalogue =
     (
@@ -136,13 +154,13 @@ export default async function AdminReputationPage() {
           </article>
         </section>
 
-        {error ? (
+        {readError ? (
           <section className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-bold text-red-900">
               Reputation configuration could not be loaded.
             </p>
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              {readError.message}
             </p>
           </section>
         ) : (

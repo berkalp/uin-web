@@ -4,6 +4,7 @@ import CommonIntentQuickDetails from "@/components/intentions/CommonIntentQuickD
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import type { DiscoverPersonalIntent } from "@/components/discover/DiscoverPersonalIntentCard";
 import { commonIntentTitle } from "@/utils/commonIntentTitle";
+import { initialCommunityCountProps } from "@/utils/communityCounts";
 import { topicDisplayIdentity, topicPresentation } from "@/utils/topicPresentation";
 
 export default function CatalogIntentCard({ item }: { item: DiscoverPersonalIntent }) {
@@ -14,6 +15,11 @@ export default function CatalogIntentCard({ item }: { item: DiscoverPersonalInte
   const cover = item.catalog_cover_url || item.cover_url;
   const identity = topicDisplayIdentity(item);
   const displayTitle = commonIntentTitle(identity.title);
+  const communityCountProps = initialCommunityCountProps(
+    item.intent_people_count,
+    item.experience_people_count,
+    item.social_intent_count
+  );
 
   return <article className="flex h-[500px] min-w-0 flex-col overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
     <div className="relative h-52 shrink-0 overflow-hidden bg-emerald-50">
@@ -28,7 +34,7 @@ export default function CatalogIntentCard({ item }: { item: DiscoverPersonalInte
       {identity.subtitle && <p className="mt-1 truncate text-xs text-gray-500">{identity.subtitle}</p>}
     </div>
     <div className="px-4 pt-4">
-      <CanonicalTargetPeople targetId={item.canonical_target_id} seedId={item.source_seed_id} seedType={item.seed_type_slug} initialCounts={[Number(item.intent_people_count || 0), Number(item.experience_people_count || 0)]} socialCount={Number(item.social_intent_count || 0)} socialHref={`${detailHref}#social-intents`}/>
+      <CanonicalTargetPeople targetId={item.canonical_target_id} seedId={item.source_seed_id} seedType={item.seed_type_slug} {...communityCountProps} socialHref={`${detailHref}#social-intents`}/>
     </div>
     <div className="mt-auto flex items-center gap-2 px-4 pb-4 pt-4">
       <Link href={detailHref} title="Fikri aç" aria-label="Fikri aç" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50">◉</Link>

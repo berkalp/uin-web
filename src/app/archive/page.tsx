@@ -62,11 +62,13 @@ export default async function PersonalArchivePage() {
 
   const { data, error } = await supabase.rpc("get_my_archived_resources");
 
-  if (error) {
-    console.error("Personal Archive query failed:", error);
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
+    console.error("Personal Archive query failed:", error ?? "Unexpected payload");
   }
 
-  const resources = (data ?? []) as ArchivedResourceRow[];
+  const resources = readFailed ? [] : (data as ArchivedResourceRow[]);
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -92,13 +94,13 @@ export default async function PersonalArchivePage() {
           </Link>
         </div>
 
-        {error && (
+        {readFailed && (
           <div className="mt-8 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700">
-            The archive could not be loaded: {error.message}
+            The archive could not be loaded. Please try again.
           </div>
         )}
 
-        {!error && resources.length === 0 && (
+        {!readFailed && resources.length === 0 && (
           <div className="mt-8 rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
             <h2 className="text-xl font-bold text-gray-950">Your archive is empty.</h2>
             <p className="mt-3 text-gray-500">Nothing has been hidden from your active Timeline yet.</p>

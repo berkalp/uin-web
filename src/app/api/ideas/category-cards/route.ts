@@ -22,7 +22,11 @@ export async function GET(request:NextRequest){
   const kind=(request.nextUrl.searchParams.get("kind")||"").trim();
   const typeResult=await db.from("uin_content_types").select("id,base_kind,active").eq("id",kind).maybeSingle();
   const type=typeResult.data as ContentType|null;
-  if(typeResult.error||!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
+  if(typeResult.error){
+    console.error("category content type unavailable",{kind,error:typeResult.error});
+    return NextResponse.json({error:"Kategori bilgisi yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  if(!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
   const cacheHeaders={"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"};
   if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   const pageSize=500;
@@ -63,6 +67,10 @@ export async function GET(request:NextRequest){
     console.error("category card visibility unavailable",{kind,error:visibilityResult.error});
     return NextResponse.json({error:"Kategori kartlarının görünürlüğü doğrulanamadı. Lütfen tekrar dene."},{status:503});
   }
+  if(!Array.isArray(visibilityResult.data)){
+    console.error("category card visibility payload incomplete",{kind});
+    return NextResponse.json({error:"Kategori kartlarının görünürlüğü doğrulanamadı. Lütfen tekrar dene."},{status:503});
+  }
   const visibilityRows=(visibilityResult.data||[]) as Row[];
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
@@ -70,6 +78,10 @@ export async function GET(request:NextRequest){
   if(cardsResult.error)cardsResult=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids});
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
+    return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  if(!Array.isArray(cardsResult.data)){
+    console.error("category card summary payload incomplete",{kind});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
   }
   const cardRows=(cardsResult.data||[]) as Row[];
@@ -85,22 +97,43 @@ export async function GET(request:NextRequest){
     console.error("category cards missing summary metrics",{kind,invalidMetricIds});
     return NextResponse.json({error:"Bazı kategori kartlarının sayaçları eksik geldi. Lütfen tekrar dene."},{status:503});
   }
-  // Ratings/followers and parent edges decorate the cards, but neither owns
-  // the canonical counters. Retry each projection independently so a brief
-  // timeout in one does not repeat the other. If the retry still fails, keep
-  // serving the verified catalogue summaries with empty enrichment instead of
-  // turning a healthy category into a 503 (or inventing counter values).
+  // Ratings, followers and hierarchy are visible card data. Retry each
+  // projection independently so a brief timeout in one does not repeat the
+  // other, then fail closed: an empty enrichment after a failed read would
+  // fabricate zero followers/ratings or silently lose a parent relationship.
   const [socialResult,hierarchyResult]=await Promise.all([
     initialSocialResult.error?db.rpc("get_uin_card_social_v87",{p_target_ids:ids}):Promise.resolve(initialSocialResult),
     initialHierarchyResult.error?db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:ids}):Promise.resolve(initialHierarchyResult),
   ]);
-  if(socialResult.error)console.warn("category card social enrichment unavailable",{kind,error:socialResult.error});
-  if(hierarchyResult.error)console.warn("category card hierarchy enrichment unavailable",{kind,error:hierarchyResult.error});
+  if(socialResult.error){
+    console.error("category card social enrichment unavailable",{kind,error:socialResult.error});
+    return NextResponse.json({error:"Kategori kartlarının topluluk bilgileri yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  if(!Array.isArray(socialResult.data)){
+    console.error("category card social enrichment payload incomplete",{kind});
+    return NextResponse.json({error:"Kategori kartlarının topluluk bilgileri yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  if(hierarchyResult.error){
+    console.error("category card hierarchy enrichment unavailable",{kind,error:hierarchyResult.error});
+    return NextResponse.json({error:"Kategori kartlarının bağlantıları yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
+  if(!Array.isArray(hierarchyResult.data)){
+    console.error("category card hierarchy enrichment payload incomplete",{kind});
+    return NextResponse.json({error:"Kategori kartlarının bağlantıları yüklenemedi. Lütfen tekrar dene."},{status:503});
+  }
   const itemByTarget=new Map<string,Row>();
   items.forEach(item=>{const id=String(item.canonical_target_id||"");if(id&&!itemByTarget.has(id))itemByTarget.set(id,item)});
-  const social=new Map(((socialResult.error?[]:socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
+  const social=new Map(((socialResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
+  const invalidSocialIds=visibleIds.filter(id=>{
+    const stats=social.get(id);
+    return !stats||["rating_count","follower_count","related_count"].some(field=>stats[field]==null||!Number.isFinite(Number(stats[field]))||Number(stats[field])<0);
+  });
+  if(invalidSocialIds.length){
+    console.error("category cards missing social metrics",{kind,invalidSocialIds});
+    return NextResponse.json({error:"Bazı kategori kartlarının topluluk bilgileri eksik geldi. Lütfen tekrar dene."},{status:503});
+  }
   const covers=new Map(visibilityRows.map(row=>[String(row.target_id||""),Number(row.cover_position_y||50)]));
-  const hierarchy=new Map(((hierarchyResult.error?[]:hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
+  const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   const catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
     const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),stats=social.get(id),tree=hierarchy.get(id);
     const imdb=readImdbMetadata(item);const book=readBookListMetadata(item);const series=readSeriesListMetadata(item);

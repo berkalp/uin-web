@@ -5,6 +5,9 @@ import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 type SeedType = { id:string; name:string; slug:string; icon:string };
+type ContentType = Parameters<typeof InlineTopicSearch>[0]["contentTypes"][number];
+function isSeedType(value:unknown):value is SeedType{if(!value||typeof value!=="object"||Array.isArray(value))return false;const row=value as Record<string,unknown>;return typeof row.id==="string"&&typeof row.name==="string"&&typeof row.slug==="string"&&typeof row.icon==="string";}
+function isContentType(value:unknown):value is ContentType{if(!value||typeof value!=="object"||Array.isArray(value))return false;const row=value as Record<string,unknown>;return typeof row.id==="string"&&typeof row.label==="string"&&typeof row.icon==="string"&&typeof row.base_kind==="string"&&typeof row.active==="boolean";}
 
 async function IdeasCatalogue(){
   const supabase=await createClient();
@@ -13,8 +16,13 @@ async function IdeasCatalogue(){
     supabase.rpc("get_admin_role"),
     supabase.from("uin_content_types").select("*").order("position").order("label"),
   ]);
-  const seedTypes=(seedTypeResult.data??[]) as SeedType[];
-  return typeResult.error||seedTypeResult.error?<p className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={typeResult.data||[]} seedTypes={seedTypes} catalogue={[]} categoryCounts={{}} isAdmin={Boolean(adminResult.data)}/>;
+  const seedTypesValid=Array.isArray(seedTypeResult.data)&&seedTypeResult.data.every(isSeedType);
+  const contentTypesValid=Array.isArray(typeResult.data)&&typeResult.data.every(isContentType);
+  const readFailed=Boolean(typeResult.error||seedTypeResult.error||!seedTypesValid||!contentTypesValid);
+  if(readFailed)console.error("Ideas catalogue dependencies failed or returned malformed payloads.");
+  const contentTypes:ContentType[]=contentTypesValid?typeResult.data as ContentType[]:[];
+  const seedTypes:SeedType[]=seedTypesValid?seedTypeResult.data as SeedType[]:[];
+  return readFailed?<p role="alert" className="mt-6 rounded-2xl border border-red-200 bg-white p-6 font-semibold text-red-700">Kütüphane şu anda yüklenemedi.</p>:<InlineTopicSearch contentTypes={contentTypes} seedTypes={seedTypes} catalogue={[]} categoryCounts={{}} isAdmin={Boolean(adminResult.data)}/>;
 }
 
 function CatalogueFallback(){return <div className="mt-6 space-y-4" aria-label="Kütüphane yükleniyor"><div className="h-44 animate-pulse rounded-[30px] bg-white"/><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{Array.from({length:6},(_,index)=><div key={index} className="h-96 animate-pulse rounded-[26px] bg-white"/>)}</div></div>}

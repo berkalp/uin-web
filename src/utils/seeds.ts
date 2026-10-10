@@ -128,6 +128,10 @@ export type SeedRecord = {
   journal_count: number | string;
   key_takeaway: string | null;
   reaction_context?: SeedReactionContext | null;
+  intent_people_count?: number | string | null;
+  experience_people_count?: number | string | null;
+  active_event_count?: number | string | null;
+  social_intent_count?: number | string | null;
 };
 
 export type PublicSeedRecord = {
@@ -152,6 +156,10 @@ export type PublicSeedRecord = {
   key_takeaway: string | null;
   updated_at: string;
   reaction_context?: SeedReactionContext | null;
+  intent_people_count?: number | string | null;
+  experience_people_count?: number | string | null;
+  active_event_count?: number | string | null;
+  social_intent_count?: number | string | null;
 };
 
 export type SeedDetailSeed = {

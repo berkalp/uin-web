@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import test from "node:test";
+
+const page = fs.readFileSync(
+  new URL("../src/app/intentions/[targetId]/page.tsx", import.meta.url),
+  "utf8",
+);
+const migration = fs.readFileSync(
+  new URL(
+    "../supabase/migrations/202610100002_common_intent_public_detail_v161.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+test("common card detail reads only the requested target through the canonical projection", () => {
+  assert.match(page, /get_uin_catalogue_for_targets_v123/);
+  assert.match(page, /p_target_ids:\[targetId\]/);
+  assert.doesNotMatch(page, /get_common_intent_cards_v38/);
+});
+
+test("public page context checks admin membership without rejecting non-admin viewers", () => {
+  assert.match(migration, /'is_admin', public\.is_admin\(\)/);
+  assert.doesNotMatch(migration, /get_admin_role\s*\(/);
+  assert.match(
+    migration,
+    /grant execute on function public\.get_common_target_page_context_v41\(uuid\)[\s\S]*to anon, authenticated/,
+  );
+});
+
+test("common card detail keeps fail-closed behavior for every required projection", () => {
+  assert.match(
+    page,
+    /initialReadError=socialResult\.error\|\|activityResult\.error\|\|reviewResult\.error\|\|pageContextResult\.error\|\|sportContextResult\.error\|\|authReadError/,
+  );
+  assert.match(page, /if\(initialReadError\).*CommonIntentUnavailable/s);
+});

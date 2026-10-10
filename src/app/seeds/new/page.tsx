@@ -30,6 +30,16 @@ function one(value: string | string[] | undefined): string {
   return value?.trim() || "";
 }
 
+function isSeedTypeOption(value: unknown): value is SeedTypeOption {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.id === "string" &&
+    typeof row.name === "string" &&
+    typeof row.slug === "string" &&
+    typeof row.icon === "string" &&
+    typeof row.description === "string";
+}
+
 export default async function NewSeedPage({
   searchParams,
 }: NewSeedPageProps) {
@@ -49,11 +59,14 @@ export default async function NewSeedPage({
 
   const { data, error } = await supabase.rpc("get_active_seed_types");
 
-  if (error) {
-    console.error("Seed Type query failed:", error);
+  const payloadValid = Array.isArray(data) && data.every(isSeedTypeOption);
+  const readFailed = Boolean(error || !payloadValid);
+
+  if (readFailed) {
+    console.error("Seed Type query failed:", error ?? "Unexpected payload");
   }
 
-  const seedTypes = (data ?? []) as SeedTypeOption[];
+  const seedTypes = payloadValid ? data : [];
   const initialSeedTypeId = seedTypes.some(
     (seedType) => seedType.id === requestedTypeId
   )
@@ -63,13 +76,15 @@ export default async function NewSeedPage({
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="mx-auto max-w-[1450px]">
-        {error || seedTypes.length === 0 ? (
+        {readFailed || seedTypes.length === 0 ? (
           <section className="rounded-3xl border border-amber-200 bg-white p-8 shadow-sm">
             <h1 className="text-2xl font-black text-gray-950">
-              Seed Types are not available
+              {readFailed ? "Seed Types could not be loaded" : "Seed Types are not available"}
             </h1>
             <p className="mt-3 text-sm leading-7 text-gray-600">
-              Run migrations 032, 033 and 034 before planting the first Seed.
+              {readFailed
+                ? "Please refresh the page and try again."
+                : "No active Seed Type has been configured yet."}
             </p>
           </section>
         ) : privateMode ? (

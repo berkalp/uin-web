@@ -100,18 +100,17 @@ export default async function MatchesPage() {
     "get_my_active_matches"
   );
 
-  if (error) {
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
     console.error(
       "Aktif Eşleşme query failed:",
-      error
+      error ?? "Unexpected payload"
     );
   }
 
   const matches =
-    (
-      data ??
-      []
-    ) as ActiveMatchRow[];
+    readFailed ? [] : data as ActiveMatchRow[];
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -134,7 +133,7 @@ export default async function MatchesPage() {
           </div>
 
           <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-            {matches.length} aktif
+            {readFailed ? "Aktif eşleşme sayısı yüklenemedi" : `${matches.length} aktif`}
           </span>
         </div>
 
@@ -157,14 +156,14 @@ export default async function MatchesPage() {
           </p>
         </header>
 
-        {error ? (
+        {readFailed ? (
           <section className="mt-8 rounded-3xl border border-red-200 bg-white p-8 shadow-sm">
             <h2 className="font-bold text-red-900">
               Eşleşmeler yüklenemedi
             </h2>
 
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              Eksik eşleşme göstermemek için listeyi gizledik. Lütfen yeniden dene.
             </p>
           </section>
         ) : matches.length >
@@ -368,4 +367,3 @@ export default async function MatchesPage() {
     </main>
   );
 }
-

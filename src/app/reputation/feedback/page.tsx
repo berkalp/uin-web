@@ -60,15 +60,17 @@ export default async function ReputationFeedbackPage({
     "get_my_pending_reputation_feedback"
   );
 
-  if (error) {
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
     console.error(
       "Pending reputation feedback query failed:",
-      error
+      error ?? "Unexpected payload"
     );
   }
 
   const items =
-    (data ?? []) as PendingReputationFeedback[];
+    readFailed ? [] : data as PendingReputationFeedback[];
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -115,18 +117,18 @@ export default async function ReputationFeedbackPage({
           </section>
         )}
 
-        {error && (
+        {readFailed && (
           <section className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-bold text-red-900">
               Feedback tasks could not be loaded.
             </p>
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              Please refresh the page and try again.
             </p>
           </section>
         )}
 
-        {!error && items.length === 0 && (
+        {!readFailed && items.length === 0 && (
           <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-gray-950">
               No feedback tasks
@@ -138,7 +140,7 @@ export default async function ReputationFeedbackPage({
           </section>
         )}
 
-        {!error && items.length > 0 && (
+        {!readFailed && items.length > 0 && (
           <section className="mt-6 grid gap-4 md:grid-cols-2">
             {items.map((item) => {
               const targetName =

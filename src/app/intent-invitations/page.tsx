@@ -374,10 +374,18 @@ export default async function IntentInvitationsPage({
     console.error("Sent Intent invitation query failed:", sentResponse.error);
   }
 
-  const received = (receivedResponse.data ?? []) as ReceivedInvitationRow[];
-  const sent = (sentResponse.data ?? []) as SentInvitationRow[];
-  const pendingReceived = received.filter((item) => item.invitation_status === "pending").length;
-  const pendingSent = sent.filter((item) => item.invitation_status === "pending").length;
+  const receivedPayloadValid = Array.isArray(receivedResponse.data);
+  const sentPayloadValid = Array.isArray(sentResponse.data);
+  const receivedReadFailed = Boolean(receivedResponse.error || !receivedPayloadValid);
+  const sentReadFailed = Boolean(sentResponse.error || !sentPayloadValid);
+  const received = (receivedPayloadValid ? receivedResponse.data : []) as ReceivedInvitationRow[];
+  const sent = (sentPayloadValid ? sentResponse.data : []) as SentInvitationRow[];
+  const pendingReceived = receivedReadFailed
+    ? null
+    : received.filter((item) => item.invitation_status === "pending").length;
+  const pendingSent = sentReadFailed
+    ? null
+    : sent.filter((item) => item.invitation_status === "pending").length;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -412,7 +420,7 @@ export default async function IntentInvitationsPage({
               }`}
             >
               <p className="text-xs font-semibold uppercase tracking-wide">Received</p>
-              <p className="mt-2 text-2xl font-bold">{pendingReceived}</p>
+              <p className="mt-2 text-2xl font-bold">{pendingReceived ?? "—"}</p>
             </Link>
 
             <Link
@@ -424,7 +432,7 @@ export default async function IntentInvitationsPage({
               }`}
             >
               <p className="text-xs font-semibold uppercase tracking-wide">Sent</p>
-              <p className="mt-2 text-2xl font-bold">{pendingSent}</p>
+              <p className="mt-2 text-2xl font-bold">{pendingSent ?? "—"}</p>
             </Link>
           </div>
         </header>
@@ -435,9 +443,10 @@ export default async function IntentInvitationsPage({
           </h2>
 
           {selectedView === "received" ? (
-            receivedResponse.error ? (
-              <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
-                {receivedResponse.error.message}
+            receivedReadFailed ? (
+              <div role="alert" className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
+                Davetlerin şu anda yüklenemedi. Eksik kayıt göstermemek için listeyi gizledik.
+                <Link href="/intent-invitations?view=received" className="ml-3 inline-flex rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white">Yeniden dene</Link>
               </div>
             ) : received.length > 0 ? (
               <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -450,9 +459,10 @@ export default async function IntentInvitationsPage({
                 <h3 className="text-xl font-bold text-gray-950">No Intent invitations</h3>
               </div>
             )
-          ) : sentResponse.error ? (
-            <div className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
-              {sentResponse.error.message}
+          ) : sentReadFailed ? (
+            <div role="alert" className="mt-5 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
+              Gönderdiğin davetler şu anda yüklenemedi. Eksik kayıt göstermemek için listeyi gizledik.
+              <Link href="/intent-invitations?view=sent" className="ml-3 inline-flex rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white">Yeniden dene</Link>
             </div>
           ) : sent.length > 0 ? (
             <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">

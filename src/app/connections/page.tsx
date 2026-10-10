@@ -135,11 +135,13 @@ export default async function ConnectionsPage({
 
   const { data, error } = await supabase.rpc("get_my_profile_connections");
 
-  if (error) {
-    console.error("Profile connection-list query failed:", error);
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
+    console.error("Profile connection-list query failed:", error ?? "Unexpected payload");
   }
 
-  const rows = (data ?? []) as ConnectionRow[];
+  const rows = readFailed ? [] : (data as ConnectionRow[]);
   const counts: Record<ConnectionView, number> = {
     followers: rows.filter((row) => row.connection_type === "follower").length,
     following: rows.filter((row) => row.connection_type === "following").length,
@@ -193,7 +195,7 @@ export default async function ConnectionsPage({
                       active ? "bg-white/15 text-white" : "bg-white text-gray-500"
                     }`}
                   >
-                    {error ? "—" : counts[view]}
+                    {readFailed ? "—" : counts[view]}
                   </span>
                 </Link>
               );
@@ -201,7 +203,7 @@ export default async function ConnectionsPage({
           </nav>
         </header>
 
-        {error ? (
+        {readFailed ? (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-sm font-semibold text-red-800">
             Bağlantı listesi şu anda yüklenemedi. Eksik kayıt göstermemek için listeyi gizledik.
             <Link href={`/connections?view=${selectedView}`} className="ml-3 inline-flex rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white">

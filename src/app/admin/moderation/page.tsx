@@ -3,6 +3,10 @@ import Link from "next/link";
 import ModerationActions from "@/components/admin/ModerationActions";
 import ProfileNameLink from "@/components/profile/ProfileNameLink";
 import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+} from "../_lib/read-state";
+import {
   AdminRole,
   requireAdmin,
 } from "@/utils/admin";
@@ -795,6 +799,45 @@ export default async function AdminModerationPage({
       reportsResponse.data ?? []
     ) as unknown as ModerationReportRow[];
 
+  const summaryReadError =
+    getAdminArrayReadError(
+      summaryResponse.data,
+      summaryResponse.error,
+      "Moderation summary",
+      [
+        "open_reports",
+        "under_review_reports",
+        "urgent_reports",
+        "active_restrictions",
+        "resolved_last_30_days",
+        "dismissed_last_30_days",
+      ],
+      [
+        "open_reports",
+        "under_review_reports",
+        "urgent_reports",
+        "active_restrictions",
+        "resolved_last_30_days",
+        "dismissed_last_30_days",
+      ]
+    ) ??
+    (!summary
+      ? { message: "Moderation summary returned incomplete data." }
+      : null);
+
+  const reportsReadError = getAdminArrayReadError(
+    reportsResponse.data,
+    reportsResponse.error,
+    "Moderation reports",
+    ["report_id", "total_count"],
+    ["total_count"]
+  );
+
+  const readError = firstAdminReadError(
+    summaryReadError,
+    reportsReadError
+  );
+
   const totalReports =
     reports.length > 0
       ? toNumber(
@@ -910,8 +953,7 @@ export default async function AdminModerationPage({
           </div>
         </header>
 
-        {(summaryResponse.error ||
-          reportsResponse.error) && (
+        {readError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Moderation data could not
@@ -919,12 +961,12 @@ export default async function AdminModerationPage({
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              One or more moderation
-              queries returned an error.
+              {readError.message}
             </p>
           </div>
         )}
 
+        {!summaryReadError && (
         <section className="mt-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-600">
             Moderation Overview
@@ -990,6 +1032,7 @@ export default async function AdminModerationPage({
             />
           </div>
         </section>
+        )}
 
         <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm md:p-6">
           <form
@@ -1148,6 +1191,7 @@ export default async function AdminModerationPage({
           </form>
         </section>
 
+        {!reportsReadError && (
         <section className="mt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -1447,7 +1491,7 @@ export default async function AdminModerationPage({
             )}
 
             {reports.length === 0 &&
-              !reportsResponse.error && (
+              !reportsReadError && (
                 <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
                   <h3 className="text-xl font-bold text-gray-900">
                     No moderation reports
@@ -1517,6 +1561,7 @@ export default async function AdminModerationPage({
             </div>
           )}
         </section>
+        )}
       </div>
     </main>
   );

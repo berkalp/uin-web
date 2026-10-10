@@ -7,6 +7,7 @@ import {
   type AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import { getAdminArrayReadError } from "../_lib/read-state";
 
 function getRoleLabel(
   role: AdminRole
@@ -55,6 +56,15 @@ export default async function AdminLanguagesPage() {
       error
     );
   }
+
+
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Languages",
+    ["code", "total_keys", "translated_keys", "outdated_keys"],
+    ["total_keys", "translated_keys", "outdated_keys"]
+  );
 
   const languages =
     (
@@ -115,14 +125,14 @@ export default async function AdminLanguagesPage() {
           </div>
         </header>
 
-        {error ? (
+        {readError ? (
           <section className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-semibold text-red-800">
               Languages could not be loaded.
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              {readError.message}
             </p>
           </section>
         ) : (

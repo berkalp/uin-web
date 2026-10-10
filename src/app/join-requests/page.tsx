@@ -255,12 +255,14 @@ export default async function JoinRequestsPage({
     supabase.rpc("get_my_intent_join_request_prompt_snapshots"),
   ]);
 
-  const promptRows = (promptResponse.data ?? []) as JoinRequestPromptRow[];
+  const requestPayloadValid = Array.isArray(requestResponse.data);
+  const promptPayloadValid = Array.isArray(promptResponse.data);
+  const promptRows = (promptPayloadValid ? promptResponse.data : []) as JoinRequestPromptRow[];
   const promptByRequestId = new Map(
     promptRows.map((row) => [row.request_id, row.prompt_snapshot] as const)
   );
 
-  const requestRows = (requestResponse.data ?? []) as Array<
+  const requestRows = (requestPayloadValid ? requestResponse.data : []) as Array<
     Omit<JoinRequestRow, "request_prompt">
   >;
 
@@ -293,16 +295,21 @@ export default async function JoinRequestsPage({
       : Promise.resolve({ data: [], error: null }),
   ]);
 
-  const hydratedPresentations = await hydrateVisiblePlanPresentations(
-    supabase,
-    (presentationResponse.data ?? []) as VisiblePlanPresentationRow[]
-  );
+  const intentPayloadValid = Array.isArray(intentResponse.data);
+  const planPayloadValid = Array.isArray(planResponse.data);
+  const presentationPayloadValid = Array.isArray(presentationResponse.data);
+  const hydratedPresentations = presentationPayloadValid
+    ? await hydrateVisiblePlanPresentations(
+        supabase,
+        presentationResponse.data as VisiblePlanPresentationRow[]
+      )
+    : [];
 
   const intentById = new Map(
-    ((intentResponse.data ?? []) as IntentLifecycleRow[]).map((item) => [item.id, item])
+    ((intentPayloadValid ? intentResponse.data : []) as IntentLifecycleRow[]).map((item) => [item.id, item])
   );
   const planById = new Map(
-    ((planResponse.data ?? []) as PlanLifecycleRow[]).map((item) => [item.id, item])
+    ((planPayloadValid ? planResponse.data : []) as PlanLifecycleRow[]).map((item) => [item.id, item])
   );
   const presentationByPlanId = new Map(
     hydratedPresentations.map((item) => [item.plan_id, item])
@@ -350,6 +357,14 @@ export default async function JoinRequestsPage({
     intentResponse.error ??
     planResponse.error ??
     presentationResponse.error;
+  const readFailed = Boolean(
+    error ||
+    !requestPayloadValid ||
+    !promptPayloadValid ||
+    !intentPayloadValid ||
+    !planPayloadValid ||
+    !presentationPayloadValid
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -384,24 +399,25 @@ export default async function JoinRequestsPage({
 
           <div className="mt-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-green-50 px-4 py-2 text-sm font-semibold text-green-700">
-              {pendingReceived.length} senden yanıt bekliyor
+              {readFailed ? "—" : pendingReceived.length} senden yanıt bekliyor
             </span>
             <span className="rounded-full bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
-              {pendingSent.length} yürütenden yanıt bekliyor
+              {readFailed ? "—" : pendingSent.length} yürütenden yanıt bekliyor
             </span>
             <span className="rounded-full bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-600">
-              {history.length} geçmişte
+              {readFailed ? "—" : history.length} geçmişte
             </span>
           </div>
         </header>
 
-        {error && (
-          <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
-            {error.message}
+        {readFailed && (
+          <div role="alert" className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
+            Katılım istekleri şu anda yüklenemedi. Eksik kayıt göstermemek için listeyi gizledik.
+            <Link href={showAllHistory ? "/join-requests?history=all" : "/join-requests"} className="ml-3 inline-flex rounded-lg bg-red-700 px-3 py-1.5 text-xs font-bold text-white">Yeniden dene</Link>
           </div>
         )}
 
-        {!error && (
+        {!readFailed && (
           <>
             <section className="mt-8">
               <p className="text-xs font-semibold uppercase tracking-wide text-green-700">

@@ -1,18 +1,26 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import { createClient } from "@/utils/supabase/server";
 
 type LovedDetail = { id:string; source_type:"catalog"|"subject"; title:string; subtitle:string|null; cover_url:string|null; item_kind:string|null; source_url:string|null; public_count:number|string; catalog_item_id:string|null; people?:Array<{user_id:string;full_name:string|null;username:string|null;avatar_url:string|null}> };
+type LovedPerson=NonNullable<LovedDetail["people"]>[number];
+function isNullableString(value:unknown):value is string|null{return value===null||typeof value==="string";}
+function isLovedPerson(value:unknown):value is LovedPerson{if(!value||typeof value!=="object"||Array.isArray(value))return false;const row=value as Record<string,unknown>;return typeof row.user_id==="string"&&isNullableString(row.full_name)&&isNullableString(row.username)&&isNullableString(row.avatar_url);}
+function isLovedDetail(value:unknown,source:"catalog"|"subject"):value is LovedDetail{if(!value||typeof value!=="object"||Array.isArray(value))return false;const row=value as Record<string,unknown>;const count=Number(row.public_count);return typeof row.id==="string"&&row.source_type===source&&typeof row.title==="string"&&isNullableString(row.subtitle)&&isNullableString(row.cover_url)&&isNullableString(row.item_kind)&&isNullableString(row.source_url)&&Number.isFinite(count)&&count>=0&&isNullableString(row.catalog_item_id)&&(row.people===undefined||(Array.isArray(row.people)&&row.people.every(isLovedPerson)));}
 
 export default async function LovedDetailPage({params}:{params:Promise<{source:string;id:string}>}) {
   const {source,id}=await params;
   if(source!=="catalog"&&source!=="subject")notFound();
+  const retryHref=`/loved/${encodeURIComponent(source)}/${encodeURIComponent(id)}`;
+  const unavailable=<PageDataUnavailable title="Sevilen konu şu anda yüklenemedi" retryHref={retryHref} backHref="/timeline" backLabel="Niyetlere dön"/>;
   const supabase=await createClient();
   const {data,error}=await supabase.rpc("get_loved_subject_detail_v29222",{p_source_type:source,p_id:id});
-  if(error)return <main className="flex min-h-screen items-center justify-center bg-gray-50 px-4"><section role="alert" className="w-full max-w-xl rounded-3xl border border-red-200 bg-white p-8 text-center shadow-sm"><h1 className="text-2xl font-black">Sevilen konu yüklenemedi</h1><p className="mt-3 text-sm text-red-700">Eksik bilgi göstermemek için ayrıntılar geçici olarak gizlendi.</p><Link href={`/loved/${encodeURIComponent(source)}/${encodeURIComponent(id)}`} className="mt-5 inline-flex rounded-xl bg-red-700 px-5 py-3 text-sm font-bold text-white">Yeniden dene</Link></section></main>;
+  if(error){console.error("Loved subject detail query failed:",error);return unavailable;}
   if(!data)notFound();
-  const detail=data as LovedDetail;
-  const people=Array.isArray(detail.people)?detail.people:[];
+  if(!isLovedDetail(data,source)){console.error("Loved subject detail query returned a malformed payload.");return unavailable;}
+  const detail=data;
+  const people=detail.people??[];
   const parsedPublicCount=Number(detail.public_count);
   const publicCount=Number.isFinite(parsedPublicCount)&&parsedPublicCount>=0?parsedPublicCount:null;
   return <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6"><div className="mx-auto max-w-5xl">

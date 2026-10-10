@@ -5,6 +5,7 @@ import UinCard, { cardPrimary } from "@/components/cards/UinCard";
 import TargetHighlight from "@/components/cards/TargetHighlight";
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import CommonIntentQuickDetails from "@/components/intentions/CommonIntentQuickDetails";
+import { initialCommunityCountProps } from "@/utils/communityCounts";
 import { topicPresentation } from "@/utils/topicPresentation";
 import { supabase } from "@/utils/supabase/client";
 
@@ -24,6 +25,11 @@ export default function DiscoverPersonalIntentCard({ item }: { item: DiscoverPer
   const [error, setError] = useState("");
   const [ownId, setOwnId] = useState(item.own_seed_id || item.own_common_intent_id || null);
   const words = topicPresentation(item);
+  const communityCountProps = initialCommunityCountProps(
+    item.intent_people_count,
+    item.experience_people_count,
+    item.social_intent_count
+  );
   async function add() {
     if (ownId) return;
     setBusy(true); setError("");
@@ -39,7 +45,7 @@ export default function DiscoverPersonalIntentCard({ item }: { item: DiscoverPer
     primary={<button type="button" disabled={busy || Boolean(ownId)} onClick={() => void add()} className={ownId ? "flex min-h-10 w-full items-center justify-center rounded-xl border border-gray-200 bg-gray-50 px-2 text-xs font-semibold text-gray-500" : cardPrimary}>{busy ? "Ekleniyor…" : ownId ? "✓ Ekli" : "+ Ekle"}</button>}
     secondary={item.source_seed_id ? <TargetHighlight seedId={item.source_seed_id} /> : null}
     detailContent={<CommonIntentQuickDetails targetId={item.canonical_target_id} title={item.title} />}>
-    <CanonicalTargetPeople targetId={item.canonical_target_id} seedId={item.source_seed_id} seedType={item.seed_type_slug} initialCounts={[Number(item.intent_people_count || 0), Number(item.experience_people_count || 0)]} socialCount={Number(item.social_intent_count || 0)} socialHref={`/intentions/${item.canonical_target_id}#social-intents`} />
+    <CanonicalTargetPeople targetId={item.canonical_target_id} seedId={item.source_seed_id} seedType={item.seed_type_slug} {...communityCountProps} socialHref={`/intentions/${item.canonical_target_id}#social-intents`} />
     {error && <p role="alert" className="mt-2 text-xs text-red-700">{error}</p>}
   </UinCard>;
 }

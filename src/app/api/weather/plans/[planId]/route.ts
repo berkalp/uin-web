@@ -276,10 +276,14 @@ async function loadWeatherAlerts(
   supabase: Awaited<ReturnType<typeof createClient>>,
   planId: string
 ) {
-  const { data } = await supabase.rpc("get_plan_weather_alerts", { p_plan_id: planId });
-  return (Array.isArray(data) ? data : [])
-    .map((item) => normalizeWeatherAlert(item as RawWeatherAlert))
-    .filter((item): item is PlanWeatherAlert => item !== null);
+  const { data, error } = await supabase.rpc("get_plan_weather_alerts", { p_plan_id: planId });
+  if (error) throw error;
+  if (!Array.isArray(data)) throw new Error("Weather alert payload was incomplete.");
+  const alerts = data.map((item) => normalizeWeatherAlert(item as RawWeatherAlert));
+  if (alerts.some((item) => item === null)) {
+    throw new Error("Weather alert payload contained an invalid row.");
+  }
+  return alerts as PlanWeatherAlert[];
 }
 
 function json(payload: PlanWeatherResponse, status = 200) {
@@ -461,7 +465,18 @@ export async function GET(_request: Request, context: RouteContext) {
     await Promise.allSettled(
       base.locations.map((point) => recordWeatherObservation(supabase, planId, point))
     );
-    base.alerts = await loadWeatherAlerts(supabase, planId);
+    try {
+      base.alerts = await loadWeatherAlerts(supabase, planId);
+    } catch (error) {
+      console.error("Plan weather alerts query failed:", error);
+      return NextResponse.json(
+        { error: "Hava uyarıları şu anda yüklenemedi. Lütfen tekrar dene." },
+        {
+          status: 503,
+          headers: { "Cache-Control": "private, no-store" },
+        }
+      );
+    }
   }
 
   return json(base);

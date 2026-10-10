@@ -100,17 +100,17 @@ export default async function IntentDraftsPage() {
     "get_my_intent_drafts"
   );
 
-  if (error) {
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
     console.error(
       "Intent drafts query failed:",
-      error
+      error ?? "Unexpected payload"
     );
   }
 
   const drafts =
-    (
-      data ?? []
-    ) as IntentDraftListRow[];
+    readFailed ? [] : data as IntentDraftListRow[];
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -152,7 +152,7 @@ export default async function IntentDraftsPage() {
           </div>
         </header>
 
-        {error && (
+        {readFailed && (
           <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Activity requests could not
@@ -160,12 +160,12 @@ export default async function IntentDraftsPage() {
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              Please refresh the page and try again.
             </p>
           </section>
         )}
 
-        {!error &&
+        {!readFailed &&
           drafts.length === 0 && (
           <section className="mt-6 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
             <h2 className="text-xl font-bold text-gray-950">
@@ -180,7 +180,7 @@ export default async function IntentDraftsPage() {
           </section>
         )}
 
-        {!error &&
+        {!readFailed &&
           drafts.length > 0 && (
           <section className="mt-6 space-y-4">
             {drafts.map(

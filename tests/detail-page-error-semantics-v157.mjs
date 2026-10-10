@@ -25,12 +25,19 @@ test("detail routes distinguish failed reads from genuinely missing records", ()
   const messageFailure = messages.indexOf(
     "if (detailResponse.error || messagesResponse.error)",
   );
-  const messageMissing = messages.indexOf("if (!detail)", messageFailure);
+  const messageMissing = messages.indexOf(
+    "if (detailResponse.data.length === 0)",
+    messageFailure,
+  );
   const messageFailureBranch = messages.slice(messageFailure, messageMissing);
   assert.ok(messageFailure >= 0 && messageMissing > messageFailure);
   assert.match(messageFailureBranch, /error\?\.code === "P0002"[\s\S]*notFound\(\)/);
   assert.match(messageFailureBranch, /return unavailable/);
-  assertFailurePrecedesMissing(seed, "if (initialReadError)", "if (!detail)");
+  assertFailurePrecedesMissing(
+    seed,
+    "if (initialReadError)",
+    "if (detailResult.data === null)",
+  );
   assertFailurePrecedesMissing(subject, "if (error)", "if (!data)");
   assertFailurePrecedesMissing(plan, "if (error)", "if (!data)");
   assertFailurePrecedesMissing(profile, "if (profileError)", "if (!profileData)");

@@ -8,6 +8,7 @@ import {
 import type {
   AdminProfessionalCatalogue,
 } from "@/utils/professionals";
+import { getAdminRecordReadError } from "../_lib/read-state";
 
 function getRoleLabel(
   role: AdminRole
@@ -47,6 +48,21 @@ export default async function AdminProfessionalsPage() {
       error
     );
   }
+
+  const readError = getAdminRecordReadError(
+    data,
+    error,
+    "Professional administration",
+    ["categories", "activities", "roles", "credentials"],
+    [],
+    [],
+    {
+      categories: { requiredFields: ["id", "name"] },
+      activities: { requiredFields: ["id", "name", "category_id"] },
+      roles: { requiredFields: ["id", "name", "scope_type"] },
+      credentials: { requiredFields: ["id", "user_id", "status"] },
+    }
+  );
 
   const catalogue =
     (
@@ -145,13 +161,13 @@ export default async function AdminProfessionalsPage() {
           </article>
         </section>
 
-        {error ? (
+        {readError ? (
           <section className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-bold text-red-900">
               Professional administration could not be loaded.
             </p>
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              {readError.message}
             </p>
           </section>
         ) : (

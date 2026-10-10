@@ -110,6 +110,24 @@ type IntentSportCoverContext = {
   context_cover_url: string | null;
 };
 
+type DiscoverReadError = {
+  message?: string;
+};
+
+function getRowsetReadError(
+  data: unknown,
+  error: DiscoverReadError | null,
+  label: string
+): DiscoverReadError | null {
+  if (error) return error;
+  if (!Array.isArray(data)) {
+    return { message: `${label} geçerli bir liste döndürmedi. Lütfen yeniden dene.` };
+  }
+  return data.some((row) => !row || typeof row !== "object" || Array.isArray(row))
+    ? { message: `${label} eksik veya bozuk döndü. Lütfen yeniden dene.` }
+    : null;
+}
+
 type DiscoveryCategory = {
   id: string;
   name: string;
@@ -773,12 +791,30 @@ export default async function DiscoverPage({
       runDiscoverSearch(80, 0, "history"),
     ]);
 
-  if (
-    filterResponse.error
-  ) {
+  const rawFilterPayload = filterResponse.data as unknown;
+  const filterReadError: DiscoverReadError | null = filterResponse.error ??
+    (!rawFilterPayload || typeof rawFilterPayload !== "object" || Array.isArray(rawFilterPayload) ||
+      !Array.isArray((rawFilterPayload as DiscoveryFilters).categories) ||
+      !Array.isArray((rawFilterPayload as DiscoveryFilters).activities) ||
+      !Array.isArray((rawFilterPayload as DiscoveryFilters).sports) ||
+      !Array.isArray((rawFilterPayload as DiscoveryFilters).locations)
+      ? { message: "Keşif filtreleri eksik veya bozuk döndü. Lütfen yeniden dene." }
+      : null);
+  const searchReadError = getRowsetReadError(
+    searchResponse.data,
+    searchResponse.error,
+    "Etkinlik arama sonuçları"
+  );
+  const archiveReadError = getRowsetReadError(
+    archiveResponse.data,
+    archiveResponse.error,
+    "Etkinlik arşivi"
+  );
+
+  if (filterReadError) {
     console.error(
       "Intent discovery filters failed:",
-      filterResponse.error
+      filterReadError
     );
   }
 
@@ -800,44 +836,47 @@ export default async function DiscoverPage({
     );
   }
 
-  if (
-    searchResponse.error
-  ) {
+  if (searchReadError) {
     console.error(
       "Intent discovery search failed:",
-      searchResponse.error
+      searchReadError
     );
   }
 
-  if (archiveResponse.error) {
-    console.warn("Etkinlik arşivi yüklenemedi:", archiveResponse.error.message);
+  if (archiveReadError) {
+    console.warn("Etkinlik arşivi yüklenemedi:", archiveReadError.message);
   }
 
   let mapBatchError: { message?: string } | null = null;
-  const searchRows = [
-    ...(((searchResponse.data ?? []) as DiscoverIntentRow[])),
-  ];
+  const searchRows = searchReadError
+    ? []
+    : [...(searchResponse.data as DiscoverIntentRow[])];
 
-  if (view !== "cards" && !searchResponse.error && searchRows.length > 0) {
+  if (view !== "cards" && !searchReadError && searchRows.length > 0) {
     const totalAvailable = toCount(searchRows[0]?.total_count);
     const maximumToLoad = Math.min(totalAvailable, MAP_MAX_RESULTS);
 
     for (let offset = MAP_BATCH_LIMIT; offset < maximumToLoad; offset += MAP_BATCH_LIMIT) {
       const batchResponse = await runDiscoverSearch(MAP_BATCH_LIMIT, offset);
 
-      if (batchResponse.error) {
-        console.error("Discover map batch query failed:", batchResponse.error);
-        mapBatchError = batchResponse.error;
+      const batchReadError = getRowsetReadError(
+        batchResponse.data,
+        batchResponse.error,
+        "Harita etkinlik sonuçları"
+      );
+      if (batchReadError) {
+        console.error("Discover map batch query failed:", batchReadError);
+        mapBatchError = batchReadError;
         break;
       }
 
-      searchRows.push(...((batchResponse.data ?? []) as DiscoverIntentRow[]));
+      searchRows.push(...(batchResponse.data as DiscoverIntentRow[]));
     }
   }
 
   const archivedResults = Array.from(
     new Map(
-      ((archiveResponse.data ?? []) as DiscoverIntentRow[])
+      (archiveReadError ? [] : archiveResponse.data as DiscoverIntentRow[])
         .filter((intent) => intent.lifecycle_status === "cancelled" || intent.lifecycle_status === "expired")
         .map((intent) => [intent.intent_id, intent])
     ).values()
@@ -845,12 +884,12 @@ export default async function DiscoverPage({
 
   const filters =
     (
-      filterResponse.data ?? {
+      filterReadError ? {
         categories: [],
         activities: [],
         sports: [],
         locations: [],
-      }
+      } : filterResponse.data
     ) as DiscoveryFilters;
 
   const categories =
@@ -911,7 +950,7 @@ export default async function DiscoverPage({
   if (
     rawSearchTotal === null &&
     resultOffset === 0 &&
-    !searchResponse.error &&
+    !searchReadError &&
     searchRows.length === 0
   ) {
     rawSearchTotal = 0;
@@ -919,7 +958,7 @@ export default async function DiscoverPage({
 
   let rawRowsScanned = searchRows.length;
   let rawSearchExhausted =
-    !searchResponse.error &&
+    !searchReadError &&
     (searchRows.length < resultLimit ||
       (rawSearchTotal !== null && rawRowsScanned >= rawSearchTotal));
 
@@ -1034,12 +1073,17 @@ export default async function DiscoverPage({
       rawRowsScanned
     );
 
-    if (batchResponse.error) {
-      eligibilityScanError = batchResponse.error;
+    const batchReadError = getRowsetReadError(
+      batchResponse.data,
+      batchResponse.error,
+      "Uygunluk taraması sonuçları"
+    );
+    if (batchReadError) {
+      eligibilityScanError = batchReadError;
       break;
     }
 
-    const batchRows = (batchResponse.data ?? []) as DiscoverIntentRow[];
+    const batchRows = batchResponse.data as DiscoverIntentRow[];
     if (batchRows.length === 0) {
       rawSearchExhausted = true;
       break;
@@ -1151,24 +1195,380 @@ export default async function DiscoverPage({
     ])
   );
 
-  const {
-    data: intentCommonTargetData,
-    error: intentCommonTargetError,
-  } = commonTargetIntentIds.length > 0
-    ? await supabase.rpc("get_visible_intent_common_targets_v40", {
-        p_intent_ids: commonTargetIntentIds,
-      })
-    : { data: [], error: null };
+  const visiblePlanIds =
+    Array.from(
+      new Set(
+        eligibleResults
+          .map(
+            (intent) =>
+              intent.plan_id
+          )
+          .filter(
+            (planId):
+              planId is string =>
+                Boolean(planId)
+          )
+      )
+    );
 
-  if (intentCommonTargetError) {
-    console.warn(
-      "Intent common target lineage is temporarily unavailable:",
-      intentCommonTargetError.message
+  const visibleResourceIds = Array.from(
+    new Set(
+      eligibleResults.map((intent) =>
+        intent.plan_id ?? intent.resource_id ?? intent.intent_id
+      )
+    )
+  );
+
+  async function loadEventDisplayTitles() {
+    const eventDisplayTitleByIntentId = new Map<string, string | null>();
+    let fallbackError: DiscoverReadError | null = null;
+    const presentationBatches = Array.from(
+      { length: Math.ceil(commonTargetIntentIds.length / 100) },
+      (_, index) => commonTargetIntentIds.slice(index * 100, (index + 1) * 100)
+    );
+    const presentationBatchResponses = await Promise.all(
+      presentationBatches.map((resourceIds) =>
+        supabase.rpc("get_uin_event_presentations_v150", {
+          p_resource_ids: resourceIds,
+        })
+      )
+    );
+
+    for (let index = 0; index < presentationBatchResponses.length; index += 1) {
+      const response = presentationBatchResponses[index];
+      const resourceIds = presentationBatches[index] ?? [];
+      const rowsetError = getRowsetReadError(
+        response.data,
+        response.error,
+        "Etkinlik kartı sunumları"
+      );
+      const batchReadError = rowsetError ??
+        ((response.data as unknown[]).some((value) => {
+          const row = value as { resource_id?: unknown; presentation?: unknown };
+          return typeof row.resource_id !== "string" || !row.resource_id.trim() ||
+            (row.presentation !== null &&
+              (typeof row.presentation !== "object" || Array.isArray(row.presentation)));
+        })
+          ? { message: "Etkinlik kartı sunumları eksik veya bozuk döndü. Lütfen yeniden dene." }
+          : null);
+
+      if (batchReadError) {
+        console.warn(
+          "Canonical event presentation batch is temporarily unavailable; using the exact fallback:",
+          batchReadError.message
+        );
+        const fallbackResponses = await Promise.all(
+          resourceIds.map(async (intentId) => ({
+            intentId,
+            result: await supabase.rpc("get_uin_event_presentation_v86", {
+              p_resource_id: intentId,
+            }),
+          }))
+        );
+        for (const { intentId, result } of fallbackResponses) {
+          if (result.error) {
+            fallbackError ??= result.error;
+            continue;
+          }
+          if (result.data !== null &&
+              (typeof result.data !== "object" || Array.isArray(result.data))) {
+            fallbackError ??= {
+              message: "Etkinlik kartı sunumu doğrulanamadı. Lütfen yeniden dene.",
+            };
+            continue;
+          }
+          const displayTitle =
+            result.data && typeof result.data === "object" && !Array.isArray(result.data)
+              ? (result.data as { displayTitle?: unknown }).displayTitle
+              : null;
+          eventDisplayTitleByIntentId.set(
+            intentId,
+            typeof displayTitle === "string" ? displayTitle : null
+          );
+        }
+        continue;
+      }
+
+      for (const row of response.data as Array<{
+        resource_id: string;
+        presentation: { displayTitle?: unknown } | null;
+      }>) {
+        const displayTitle = row.presentation?.displayTitle;
+        eventDisplayTitleByIntentId.set(
+          row.resource_id,
+          typeof displayTitle === "string" ? displayTitle : null
+        );
+      }
+    }
+
+    return { titles: eventDisplayTitleByIntentId, error: fallbackError };
+  }
+
+  async function loadPrivatePresentations() {
+    const response = visiblePlanIds.length > 0
+      ? await supabase.rpc(
+          "get_visible_plan_presentations",
+          { p_plan_ids: visiblePlanIds }
+        )
+      : { data: [], error: null };
+    const error = getRowsetReadError(
+      response.data,
+      response.error,
+      "Özel etkinlik sunumları"
+    );
+    const presentations = error
+      ? []
+      : await hydrateVisiblePlanPresentations(
+          supabase,
+          response.data as VisiblePlanPresentationRow[]
+        );
+    const hydrationError = presentations.some((presentation) =>
+      (presentation.custom_cover_storage_path &&
+        !presentation.signed_custom_cover_url &&
+        !presentation.custom_cover_external_url) ||
+      (presentation.experience_cover_storage_path &&
+        !presentation.signed_experience_cover_url)
+    )
+      ? { message: "Bazı özel etkinlik kapakları doğrulanamadı. Lütfen yeniden dene." }
+      : null;
+
+    return { error: error ?? hydrationError, presentations };
+  }
+
+  async function loadPublicExperienceCovers() {
+    const response = visiblePlanIds.length > 0
+      ? await supabase.rpc(
+          "get_visible_public_experience_covers",
+          { p_plan_ids: visiblePlanIds }
+        )
+      : { data: [], error: null };
+    const readError = getRowsetReadError(
+      response.data,
+      response.error,
+      "Herkese açık deneyim kapakları"
+    );
+
+    if (readError) {
+      return {
+        covers: [] as PublicExperienceCover[],
+        error: readError,
+      };
+    }
+
+    const coverRows = response.data as PublicExperienceCoverRow[];
+    const storagePaths = Array.from(
+      new Set(
+        coverRows
+          .filter((cover) => !cover.external_url)
+          .map((cover) => cover.storage_path)
+          .filter((path): path is string => Boolean(path))
+      )
+    );
+    const signedUrlByPath = new Map<string, string>();
+    let signingError: DiscoverReadError | null = null;
+
+    if (storagePaths.length > 0) {
+      const { data: signedData, error: signedError } = await supabase.storage
+        .from("experience-media")
+        .createSignedUrls(storagePaths, 60 * 60);
+
+      if (signedError) {
+        console.error("Public Discover cover signing failed:", signedError);
+        signingError = signedError;
+      } else {
+        for (const item of signedData ?? []) {
+          if (item.error) {
+            console.error("Public Discover cover path signing failed:", item.error);
+            signingError ??= { message: String(item.error) };
+            continue;
+          }
+
+          if (item.path && item.signedUrl) {
+            signedUrlByPath.set(item.path, item.signedUrl);
+          }
+        }
+
+        if (storagePaths.some((path) => !signedUrlByPath.has(path))) {
+          signingError ??= {
+            message: "Bazı deneyim kapakları imzalanamadı. Lütfen yeniden dene.",
+          };
+        }
+      }
+    }
+
+    return {
+      covers: coverRows.map((cover): PublicExperienceCover => ({
+        ...cover,
+        signed_url:
+          cover.external_url ||
+          (cover.storage_path
+            ? signedUrlByPath.get(cover.storage_path) ?? null
+            : null),
+      })),
+      error: signingError,
+    };
+  }
+
+  async function loadPublicPlanContent() {
+    const reads = await Promise.all(
+      visiblePlanIds.map(async (planId) => {
+        const { data, error } = await supabase.rpc(
+          "get_visible_plan_public_content",
+          { p_plan_id: planId }
+        );
+
+        return {
+          planId,
+          content: error ? null : (data as VisiblePlanPublicContent | null),
+          error,
+        };
+      })
+    );
+
+    return {
+      entries: reads.map(({ planId, content }) => [planId, content] as const),
+      error: reads.find((read) => read.error)?.error ?? null,
+    };
+  }
+
+  const [
+    intentCommonTargetResponse,
+    eventPresentationLoad,
+    reactionContextResponse,
+    intentCardNoteResponse,
+    discoverMapContextResponse,
+    sportCoverContextResponse,
+    activityPeopleResponse,
+    viewerLineageResponse,
+    privatePresentationLoad,
+    publicExperienceCoverLoad,
+    publicActivityLocationResponse,
+    publicPlanContentLoad,
+    intentLinksResponse,
+  ] = await Promise.all([
+    commonTargetIntentIds.length > 0
+      ? supabase.rpc("get_visible_intent_common_targets_v40", {
+          p_intent_ids: commonTargetIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    loadEventDisplayTitles(),
+    visibleIntentIds.length > 0
+      ? supabase.rpc("get_visible_intent_reaction_context", {
+          p_intent_ids: visibleIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visibleIntentIds.length > 0
+      ? supabase.rpc("get_visible_intent_card_notes", {
+          p_intent_ids: visibleIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visibleIntentIds.length > 0
+      ? supabase.rpc("get_visible_discover_map_points", {
+          p_intent_ids: visibleIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visibleIntentIds.length > 0
+      ? supabase.rpc("get_intent_sport_cover_context", {
+          p_intent_ids: visibleIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visibleResourceIds.length > 0
+      ? supabase.rpc("get_visible_activity_people_batch", {
+          p_resource_ids: visibleResourceIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    visiblePlanIds.length > 0
+      ? supabase.rpc("get_my_visible_plan_lineage", {
+          p_plan_ids: visiblePlanIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    loadPrivatePresentations(),
+    loadPublicExperienceCovers(),
+    visiblePlanIds.length > 0
+      ? supabase.rpc("get_visible_public_plan_activity_locations", {
+          p_plan_ids: visiblePlanIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+    loadPublicPlanContent(),
+    visibleIntentIds.length > 0
+      ? supabase.rpc("get_visible_intent_links", {
+          p_intent_ids: visibleIntentIds,
+        })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const eventDisplayTitleByIntentId = eventPresentationLoad.titles;
+
+  const intentCommonTargetError = getRowsetReadError(
+    intentCommonTargetResponse.data,
+    intentCommonTargetResponse.error,
+    "Ortak kart bağlantıları"
+  );
+  const reactionContextError = getRowsetReadError(
+    reactionContextResponse.data,
+    reactionContextResponse.error,
+    "Etkinlik tepkileri"
+  );
+  const intentCardNoteError = getRowsetReadError(
+    intentCardNoteResponse.data,
+    intentCardNoteResponse.error,
+    "Etkinlik kart notları"
+  );
+  const discoverMapContextError = getRowsetReadError(
+    discoverMapContextResponse.data,
+    discoverMapContextResponse.error,
+    "Etkinlik harita bilgileri"
+  );
+  const sportCoverContextError = getRowsetReadError(
+    sportCoverContextResponse.data,
+    sportCoverContextResponse.error,
+    "Spor etkinliği kapak bilgileri"
+  );
+  const activityPeopleError = getRowsetReadError(
+    activityPeopleResponse.data,
+    activityPeopleResponse.error,
+    "Etkinlik kişi bilgileri"
+  );
+  const viewerLineageError = getRowsetReadError(
+    viewerLineageResponse.data,
+    viewerLineageResponse.error,
+    "Etkinlik kaynak bilgileri"
+  );
+  const publicActivityLocationError = getRowsetReadError(
+    publicActivityLocationResponse.data,
+    publicActivityLocationResponse.error,
+    "Etkinlik konum bilgileri"
+  );
+  const intentLinksError = getRowsetReadError(
+    intentLinksResponse.data,
+    intentLinksResponse.error,
+    "Etkinlik bağlantıları"
+  );
+
+  const discoverEnrichmentError =
+    intentCommonTargetError ??
+    eventPresentationLoad.error ??
+    reactionContextError ??
+    intentCardNoteError ??
+    discoverMapContextError ??
+    sportCoverContextError ??
+    activityPeopleError ??
+    viewerLineageError ??
+    privatePresentationLoad.error ??
+    publicExperienceCoverLoad.error ??
+    publicActivityLocationError ??
+    publicPlanContentLoad.error ??
+    intentLinksError;
+
+  if (discoverEnrichmentError) {
+    console.error(
+      "Discover enrichment could not be loaded completely:",
+      discoverEnrichmentError.message
     );
   }
 
   const commonTargetByIntentId = new Map(
-    ((intentCommonTargetData ?? []) as IntentCommonTargetRow[]).map((row) => [
+    ((intentCommonTargetResponse.data ?? []) as IntentCommonTargetRow[]).map((row) => [
       row.intent_id,
       {
         id: row.canonical_target_id,
@@ -1177,88 +1577,18 @@ export default async function DiscoverPage({
     ])
   );
 
-  const presentationBatches = Array.from(
-    { length: Math.ceil(commonTargetIntentIds.length / 100) },
-    (_, index) => commonTargetIntentIds.slice(index * 100, (index + 1) * 100)
-  );
-  const presentationBatchResponses = await Promise.all(
-    presentationBatches.map((resourceIds) =>
-      supabase.rpc("get_uin_event_presentations_v150", {
-        p_resource_ids: resourceIds,
-      })
-    )
-  );
-  const eventDisplayTitleByIntentId = new Map<string, string | null>();
-
-  for (let index = 0; index < presentationBatchResponses.length; index += 1) {
-    const response = presentationBatchResponses[index];
-    const resourceIds = presentationBatches[index] ?? [];
-
-    if (response.error) {
-      console.warn(
-        "Canonical event presentation batch is temporarily unavailable; using the exact fallback:",
-        response.error.message
-      );
-      const fallbackResponses = await Promise.all(
-        resourceIds.map(async (intentId) => ({
-          intentId,
-          result: await supabase.rpc("get_uin_event_presentation_v86", {
-            p_resource_id: intentId,
-          }),
-        }))
-      );
-      for (const { intentId, result } of fallbackResponses) {
-        const displayTitle =
-          !result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)
-            ? (result.data as { displayTitle?: unknown }).displayTitle
-            : null;
-        eventDisplayTitleByIntentId.set(
-          intentId,
-          typeof displayTitle === "string" ? displayTitle : null
-        );
-      }
-      continue;
-    }
-
-    for (const row of (response.data ?? []) as Array<{
-      resource_id: string;
-      presentation: { displayTitle?: unknown } | null;
-    }>) {
-      const displayTitle = row.presentation?.displayTitle;
-      eventDisplayTitleByIntentId.set(
-        row.resource_id,
-        typeof displayTitle === "string" ? displayTitle : null
-      );
-    }
-  }
-  const {
-    data: reactionContextData,
-    error: reactionContextError,
-  } = visibleIntentIds.length > 0
-    ? await supabase.rpc("get_visible_intent_reaction_context", {
-        p_intent_ids: visibleIntentIds,
-      })
-    : { data: [], error: null };
-
-  if (reactionContextError) {
-    console.warn(
-      "Intent reaction context is temporarily unavailable:",
-      reactionContextError.message
-    );
-  }
-
   const reactionContextByIntentId = new Map(
-    parseIntentReactionContexts(reactionContextData).map((context) => [
+    parseIntentReactionContexts(reactionContextResponse.data).map((context) => [
       context.intent_id,
       context,
     ])
   );
 
   const results = eligibleResults.map((intent) => ({
-      ...intent,
-      reaction_context:
-        reactionContextByIntentId.get(intent.intent_id) ?? null,
-    }));
+    ...intent,
+    reaction_context:
+      reactionContextByIntentId.get(intent.intent_id) ?? null,
+  }));
   const mixedDiscoverItems: Array<
     {
         kind: "social";
@@ -1279,140 +1609,26 @@ export default async function DiscoverPage({
     }
   }
 
-  const {
-    data: intentCardNoteData,
-    error: intentCardNoteError,
-  } = visibleIntentIds.length > 0
-    ? await supabase.rpc("get_visible_intent_card_notes", {
-        p_intent_ids: visibleIntentIds,
-      })
-    : { data: [], error: null };
-
-  if (intentCardNoteError) {
-    console.warn(
-      "Intent card notes are temporarily unavailable:",
-      intentCardNoteError.message
-    );
-  }
-
   const intentNoteByIntentId = new Map(
-    ((intentCardNoteData ?? []) as IntentCardNoteRow[]).map((row) => [
+    ((intentCardNoteResponse.data ?? []) as IntentCardNoteRow[]).map((row) => [
       row.intent_id,
       row.notes,
     ])
   );
 
-  const {
-    data: discoverMapContextData,
-    error: discoverMapContextError,
-  } = visibleIntentIds.length > 0
-    ? await supabase.rpc("get_visible_discover_map_points", {
-        p_intent_ids: visibleIntentIds,
-      })
-    : { data: [], error: null };
-
-  if (discoverMapContextError) {
-    console.error("Discover map context query failed:", discoverMapContextError);
-  }
-
   const discoverMapContextByIntentId = new Map(
-    ((discoverMapContextData ?? []) as DiscoverMapPointContextRow[]).map((row) => [
+    ((discoverMapContextResponse.data ?? []) as DiscoverMapPointContextRow[]).map((row) => [
       row.intent_id,
       row,
     ])
   );
 
-  const {
-    data: sportCoverContextData,
-    error: sportCoverContextError,
-  } = visibleIntentIds.length > 0
-    ? await supabase.rpc(
-        "get_intent_sport_cover_context",
-        {
-          p_intent_ids:
-            visibleIntentIds,
-        }
-      )
-    : {
-        data: [],
-        error: null,
-      };
-
-  if (sportCoverContextError) {
-    console.error(
-      "Intent sport cover context query failed:",
-      sportCoverContextError
-    );
-  }
-
   const sportCoverContextByIntentId =
-    new Map<
-      string,
-      IntentSportCoverContext
-    >(
-      (
-        (
-          sportCoverContextData ??
-          []
-        ) as IntentSportCoverContext[]
-      ).map(
-        (context) => [
-          context.intent_id,
-          context,
-        ]
+    new Map<string, IntentSportCoverContext>(
+      ((sportCoverContextResponse.data ?? []) as IntentSportCoverContext[]).map(
+        (context) => [context.intent_id, context]
       )
     );
-
-  const visiblePlanIds =
-    Array.from(
-      new Set(
-        results
-          .map(
-            (intent) =>
-              intent.plan_id
-          )
-          .filter(
-            (planId):
-              planId is string =>
-                Boolean(planId)
-          )
-      )
-    );
-
-  const visibleResourceIds = Array.from(
-    new Set(
-      results.map((intent) =>
-        intent.plan_id ?? intent.resource_id ?? intent.intent_id
-      )
-    )
-  );
-
-  const [activityPeopleResponse, viewerLineageResponse] = await Promise.all([
-    visibleResourceIds.length > 0
-      ? supabase.rpc("get_visible_activity_people_batch", {
-          p_resource_ids: visibleResourceIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-    visiblePlanIds.length > 0
-      ? supabase.rpc("get_my_visible_plan_lineage", {
-          p_plan_ids: visiblePlanIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (activityPeopleResponse.error) {
-    console.error(
-      "Discover Activity people query failed:",
-      activityPeopleResponse.error
-    );
-  }
-
-  if (viewerLineageResponse.error) {
-    console.error(
-      "Discover viewer lineage query failed:",
-      viewerLineageResponse.error
-    );
-  }
 
   const activityPeopleByResourceId = groupActivityPeopleByResourceId(
     (activityPeopleResponse.data ?? []) as ActivityPeopleBatchRow[]
@@ -1435,193 +1651,39 @@ export default async function DiscoverPage({
     }
   );
 
-  const {
-    data: privatePresentationData,
-    error: privatePresentationError,
-  } = visiblePlanIds.length > 0
-    ? await supabase.rpc(
-        "get_visible_plan_presentations",
-        {
-          p_plan_ids:
-            visiblePlanIds,
-        }
-      )
-    : {
-        data: [],
-        error: null,
-      };
-
-  if (privatePresentationError) {
-    console.error(
-      "Private Discover presentation query failed:",
-      privatePresentationError
-    );
-  }
-
-  const privatePresentations =
-    await hydrateVisiblePlanPresentations(
-      supabase,
-      (privatePresentationData ?? []) as VisiblePlanPresentationRow[]
-    );
-
   const privatePresentationByPlanId =
     new Map<string, VisiblePlanPresentation>(
-      privatePresentations.map(
-        (presentation) => [
-          presentation.plan_id,
-          presentation,
-        ]
+      privatePresentationLoad.presentations.map(
+        (presentation) => [presentation.plan_id, presentation]
       )
     );
-
-  const {
-    data: publicExperienceCoverData,
-    error: publicExperienceCoverError,
-  } = visiblePlanIds.length > 0
-    ? await supabase.rpc(
-        "get_visible_public_experience_covers",
-        {
-          p_plan_ids: visiblePlanIds,
-        }
-      )
-    : {
-        data: [],
-        error: null,
-      };
-
-  if (publicExperienceCoverError) {
-    console.error(
-      "Public Discover cover query failed:",
-      publicExperienceCoverError
-    );
-  }
-
-  const publicExperienceCovers = await Promise.all(
-    ((publicExperienceCoverData ?? []) as PublicExperienceCoverRow[]).map(
-      async (cover): Promise<PublicExperienceCover> => {
-        if (cover.external_url) {
-          return { ...cover, signed_url: cover.external_url };
-        }
-
-        if (!cover.storage_path) {
-          return { ...cover, signed_url: null };
-        }
-
-        const { data: signedData, error: signedError } =
-          await supabase.storage
-            .from("experience-media")
-            .createSignedUrl(cover.storage_path, 60 * 60);
-
-        if (signedError) {
-          console.error("Public Discover cover signing failed:", signedError);
-        }
-
-        return {
-          ...cover,
-          signed_url: signedData?.signedUrl ?? null,
-        };
-      }
-    )
-  );
 
   const publicExperienceCoverByPlanId = new Map(
-    publicExperienceCovers.map((cover) => [cover.plan_id, cover])
+    publicExperienceCoverLoad.covers.map((cover) => [cover.plan_id, cover])
   );
-
-  const {
-    data: publicActivityLocationData,
-    error: publicActivityLocationError,
-  } = visiblePlanIds.length > 0
-    ? await supabase.rpc(
-        "get_visible_public_plan_activity_locations",
-        {
-          p_plan_ids:
-            visiblePlanIds,
-        }
-      )
-    : {
-        data: [],
-        error: null,
-      };
-
-  if (publicActivityLocationError) {
-    console.error(
-      "Public Activity venue query failed:",
-      publicActivityLocationError
-    );
-  }
 
   const publicActivityLocationByPlanId =
     new Map(
-      (
-        (publicActivityLocationData ??
-          []) as PublicPlanActivityLocationRow[]
-      ).map((row) => [
-        row.plan_id,
-        row.activity_location_name,
-      ])
+      ((publicActivityLocationResponse.data ?? []) as PublicPlanActivityLocationRow[]).map(
+        (row) => [row.plan_id, row.activity_location_name]
+      )
     );
 
-  const publicPlanContentEntries = await Promise.all(
-    visiblePlanIds.map(async (planId) => {
-      const { data, error } = await supabase.rpc("get_visible_plan_public_content", {
-        p_plan_id: planId,
-      });
-      return [planId, error ? null : (data as VisiblePlanPublicContent | null)] as const;
-    })
-  );
   const publicMeetingPointByPlanId = new Map(
-    publicPlanContentEntries.map(([planId, content]) => [
+    publicPlanContentLoad.entries.map(([planId, content]) => [
       planId,
       typeof content?.meeting_point === "string" ? content.meeting_point.trim() || null : null,
     ])
   );
 
-  let intentLinkRows:
-    IntentLinkRpcRow[] =
-    [];
+  const intentLinkRows = intentLinksError
+    ? []
+    : (intentLinksResponse.data ?? []) as IntentLinkRpcRow[];
 
   const intentCommunityRows:
     ReturnType<
       typeof parseIntentCommunityRows
     > = [];
-
-  if (
-    results.length >
-    0
-  ) {
-    const intentIds =
-      results.map(
-        (intent) =>
-          intent.intent_id
-      );
-
-    const [intentLinksResponse] = await Promise.all([
-      supabase.rpc(
-        "get_visible_intent_links",
-        {
-          p_intent_ids:
-            intentIds,
-        }
-      ),
-    ]);
-
-    if (
-      intentLinksResponse.error
-    ) {
-      console.error(
-        "Intent related links query failed:",
-        intentLinksResponse.error
-      );
-    } else {
-      intentLinkRows =
-        (
-          intentLinksResponse.data ??
-          []
-        ) as IntentLinkRpcRow[];
-    }
-
-  }
 
   const intentLinksByIntentId =
     groupIntentLinksByIntentId(
@@ -1784,32 +1846,34 @@ export default async function DiscoverPage({
           <button type="submit" className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-green-700">Ara</button>
         </form>
 
-        <DiscoverFiltersForm
-          kind={kind}
-          query={query}
-          categoryId={categoryId}
-          activityId={activityId}
-          sportId={sportId}
-          communityId={communityId}
-          communityScope={communityScope}
-          locationId={locationId}
-          startDate={startDate}
-          endDate={endDate}
-          lifecycle={lifecycle}
-          scope={scope}
-          eligibility={eligibility}
-          view={view}
-          categories={categories}
-          activities={activities}
-          sports={sports}
-          communities={communities}
-          locations={locations}
-        />
+        {!filterReadError && (
+          <DiscoverFiltersForm
+            kind={kind}
+            query={query}
+            categoryId={categoryId}
+            activityId={activityId}
+            sportId={sportId}
+            communityId={communityId}
+            communityScope={communityScope}
+            locationId={locationId}
+            startDate={startDate}
+            endDate={endDate}
+            lifecycle={lifecycle}
+            scope={scope}
+            eligibility={eligibility}
+            view={view}
+            categories={categories}
+            activities={activities}
+            sports={sports}
+            communities={communities}
+            locations={locations}
+          />
+        )}
 
-        {(filterResponse.error ||
-          searchResponse.error ||
+        {(filterReadError ||
+          searchReadError ||
           eligibilityScanError ||
-          discoverMapContextError ||
+          discoverEnrichmentError ||
           mapBatchError) && (
           <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
@@ -1818,18 +1882,19 @@ export default async function DiscoverPage({
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {searchResponse.error?.message ??
+              {searchReadError?.message ??
                 eligibilityScanError?.message ??
-                discoverMapContextError?.message ??
+                discoverEnrichmentError?.message ??
                 mapBatchError?.message ??
-                filterResponse.error?.message}
+                filterReadError?.message}
             </p>
           </section>
         )}
 
-        {(!searchResponse.error &&
+        {(!filterReadError &&
+              !searchReadError &&
               !eligibilityScanError &&
-              !discoverMapContextError &&
+              !discoverEnrichmentError &&
               !mapBatchError) && (
           <>
             <section className="mt-7 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -2239,7 +2304,7 @@ export default async function DiscoverPage({
               </nav>
             )}
 
-            {view === "cards" && archiveResponse.error && (
+            {view === "cards" && archiveReadError && (
               <section role="alert" className="mt-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
                 <p className="font-semibold text-amber-900">
                   İptal olan ve süresi geçen etkinlikler şu anda yüklenemedi.
@@ -2250,7 +2315,7 @@ export default async function DiscoverPage({
               </section>
             )}
 
-            {view === "cards" && !archiveResponse.error && archivedResults.length > 0 && (
+            {view === "cards" && !archiveReadError && archivedResults.length > 0 && (
               <details className="mt-8 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 font-black text-gray-900 marker:hidden md:px-6">
                   <span>

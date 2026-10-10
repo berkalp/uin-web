@@ -1,6 +1,8 @@
 import AppNavigation from "@/components/navigation/AppNavigation";
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
 import {
   MarkAllNotificationsReadButton,
@@ -44,6 +46,53 @@ const PAGE_SIZE = 10;
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value ?? fallback);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isNotificationCount(value: unknown) {
+  if (
+    (typeof value !== "number" && typeof value !== "string") ||
+    (typeof value === "string" && !value.trim())
+  ) {
+    return false;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && Number.isInteger(parsed) && parsed >= 0;
+}
+
+function isNotificationRow(value: unknown): value is NotificationRow {
+  if (!isRecord(value)) return false;
+
+  return (
+    typeof value.notification_id === "string" &&
+    typeof value.notification_type === "string" &&
+    isNullableString(value.entity_type) &&
+    isNullableString(value.entity_id) &&
+    typeof value.title === "string" &&
+    isNullableString(value.body) &&
+    isNullableString(value.action_url) &&
+    typeof value.is_read === "boolean" &&
+    isNullableString(value.read_at) &&
+    typeof value.created_at === "string" &&
+    isNullableString(value.actor_user_id) &&
+    isNullableString(value.actor_full_name) &&
+    isNullableString(value.actor_username) &&
+    isNullableString(value.actor_avatar_url)
+  );
+}
+
+function isCollaborationChatRouteRow(
+  value: unknown
+): value is { suggestion_id: string } {
+  return isRecord(value) && typeof value.suggestion_id === "string";
 }
 
 function getInitial(value: string) {
@@ -152,14 +201,27 @@ export default async function NotificationsPage({
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Notification session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Bildirimler şu anda yüklenemedi"
+        retryHref={pageHref(requestedPage)}
+        backHref="/timeline"
+        backLabel="Listeye dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
   }
 
   const offset = (requestedPage - 1) * PAGE_SIZE;
-  const { data, error } = await supabase.rpc(
+  const { data, error: queryError } = await supabase.rpc(
     "get_my_update_notifications_page",
     {
       p_limit: PAGE_SIZE,
@@ -167,11 +229,22 @@ export default async function NotificationsPage({
     }
   );
 
+  const payloadValid = Boolean(
+    isRecord(data) &&
+    Array.isArray(data.items) &&
+    data.items.every(isNotificationRow) &&
+    isNotificationCount(data.total_count) &&
+    isNotificationCount(data.unread_count)
+  );
+  const error = queryError ?? (
+    payloadValid ? null : new Error("Notification payload was incomplete.")
+  );
+
   if (error) {
     console.error("Notification query failed:", error);
   }
 
-  const payload = (data ?? {}) as NotificationPagePayload;
+  const payload = (payloadValid ? data : {}) as NotificationPagePayload;
   const notifications = Array.isArray(payload.items) ? payload.items : [];
   const totalCount = Math.max(0, toNumber(payload.total_count));
   const unreadCount = Math.max(0, toNumber(payload.unread_count));
@@ -185,13 +258,26 @@ export default async function NotificationsPage({
     .filter((item) => item.notification_type.startsWith("personal_intent_collaboration") && item.entity_id)
     .map((item) => item.entity_id as string);
   const chatRoutes = new Map<string, string>();
+  let collaborationRouteReadFailed = false;
   if (collaborationIds.length) {
-    const { data: chats } = await supabase
+    const { data: chats, error: chatsError } = await supabase
       .from("personal_intent_collaboration_chats")
       .select("suggestion_id")
       .in("suggestion_id", collaborationIds);
-    for (const row of chats ?? []) chatRoutes.set(row.suggestion_id, `/collaboration-chat/${row.suggestion_id}`);
-    for (const id of collaborationIds) if (!chatRoutes.has(id)) chatRoutes.set(id, `/collaboration-suggestions?focus=${id}`);
+    if (
+      chatsError ||
+      !Array.isArray(chats) ||
+      !chats.every(isCollaborationChatRouteRow)
+    ) {
+      collaborationRouteReadFailed = true;
+      console.error(
+        "Collaboration notification route query failed:",
+        chatsError ?? "Incomplete route payload"
+      );
+    } else {
+      for (const row of chats) chatRoutes.set(row.suggestion_id, `/collaboration-chat/${row.suggestion_id}`);
+      for (const id of collaborationIds) if (!chatRoutes.has(id)) chatRoutes.set(id, `/collaboration-suggestions?focus=${id}`);
+    }
   }
 
   const unreadNotifications = notifications.filter(
@@ -207,7 +293,7 @@ export default async function NotificationsPage({
     const tone = getNotificationTone(notification.notification_type);
     const displayTitle = localizedNotificationTitle(notification.title);
     const displayBody = localizedNotificationBody(notification.notification_type, notification.body);
-    const actionUrl = notification.entity_id && chatRoutes.get(notification.entity_id)
+    const actionUrl = !collaborationRouteReadFailed && notification.entity_id && chatRoutes.get(notification.entity_id)
       ? chatRoutes.get(notification.entity_id)!
       : notification.action_url;
 

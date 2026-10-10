@@ -8,6 +8,11 @@ import {
   type AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+  getAdminRecordReadError,
+} from "../_lib/read-state";
 
 function getRoleLabel(
   role: AdminRole
@@ -45,6 +50,38 @@ export default async function AdminSportsPage() {
       error
     );
   }
+
+  if (hierarchyError) {
+    console.error(
+      "Sports hierarchy query failed:",
+      hierarchyError
+    );
+  }
+
+  const readError = firstAdminReadError(
+    getAdminArrayReadError(
+      data,
+      error,
+      "Sports catalogue",
+      ["id", "name", "intent_count", "community_count"],
+      ["intent_count", "community_count"]
+    ),
+    getAdminRecordReadError(
+      hierarchyData,
+      hierarchyError,
+      "Sports hierarchy",
+      ["sports", "leagues", "teams", "memberships", "targets"],
+      [],
+      [],
+      {
+        sports: { requiredFields: ["id", "name"] },
+        leagues: { requiredFields: ["id", "sport_id", "name"] },
+        teams: { requiredFields: ["id", "sport_id", "official_name"] },
+        memberships: { requiredFields: ["league_id", "team_id"] },
+        targets: { requiredFields: ["id", "title"] },
+      }
+    )
+  );
 
   const sports =
     (
@@ -113,7 +150,7 @@ export default async function AdminSportsPage() {
           </div>
         </header>
 
-        {error && (
+        {readError && (
           <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Sports catalogue could not
@@ -121,17 +158,17 @@ export default async function AdminSportsPage() {
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              {readError.message}
             </p>
           </section>
         )}
 
-        {!error && (
+        {!readError && (
           <section className="mt-6">
             <SportsManager
               sports={sports}
             />
-            {!hierarchyError && hierarchyData && <SportsHierarchyManager catalogue={hierarchyData as SportsHierarchy}/>}
+            <SportsHierarchyManager catalogue={hierarchyData as SportsHierarchy}/>
           </section>
         )}
       </div>

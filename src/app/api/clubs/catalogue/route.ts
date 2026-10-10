@@ -1,75 +1,119 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import {NextResponse} from "next/server";
+import {createClient} from "@/utils/supabase/server";
 
-export async function GET() {
-  try {
-    const db = await createClient();
-    const hierarchy = await db.rpc('get_club_hierarchy_v78');
-    if (hierarchy.error) throw hierarchy.error;
+type Row=Record<string,unknown>;
+const UUID_PATTERN=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const CACHE_HEADERS={"Cache-Control":"private, max-age=30, must-revalidate","Vary":"Cookie, Authorization"};
 
-    const cards: any[] = [];
-    const labels = new Map<string, string>();
-    const label = (value = '') => {
-      const clean = value.trim().replace(/\s+/g, ' ');
-      const key = clean.toLocaleLowerCase('tr');
-      if (!labels.has(key)) labels.set(key, clean);
-      return labels.get(key) || '';
-    };
+function isRow(value:unknown):value is Row{
+  return Boolean(value)&&typeof value==="object"&&!Array.isArray(value);
+}
 
-    for (let offset = 0; ; offset += 200) {
-      const result = await db.rpc('get_uin_catalogue_fast_v122', {
-        p_query: null,
-        p_limit: 200,
-        p_offset: offset,
-        p_target_id: null,
-      });
-      if (result.error) throw result.error;
-      cards.push(...(result.data || []));
-      if ((result.data || []).length < 200) break;
+function targetId(row:Row,key:"target_id"|"canonical_target_id"="target_id"){
+  const value=row[key];
+  return typeof value==="string"&&UUID_PATTERN.test(value)?value:"";
+}
+
+function count(row:Row,key:"wanting"|"done"|"active"){
+  const raw=row[key];
+  if(raw==null||raw==="")throw new Error(`Missing club ${key} count`);
+  const value=Number(raw);
+  if(!Number.isSafeInteger(value)||value<0)throw new Error(`Invalid club ${key} count`);
+  return value;
+}
+
+export async function GET(){
+  try{
+    const db=await createClient();
+    const hierarchy=await db.rpc("get_club_hierarchy_v78");
+    if(hierarchy.error)throw hierarchy.error;
+    if(!Array.isArray(hierarchy.data)||!hierarchy.data.every(isRow))throw new Error("Invalid club hierarchy payload");
+
+    const hierarchyRows=hierarchy.data as Row[];
+    const malformedHierarchy=hierarchyRows.some(row=>!targetId(row)||(row.parent_target_id!=null&&(typeof row.parent_target_id!=="string"||!UUID_PATTERN.test(row.parent_target_id))));
+    if(malformedHierarchy)throw new Error("Incomplete club hierarchy payload");
+    const ids=[...new Set(hierarchyRows.map(row=>targetId(row)))];
+    if(!ids.length)return NextResponse.json({clubs:[]},{headers:CACHE_HEADERS});
+
+    // Every dependent reader is bounded by the hierarchy ids and starts in the
+    // same batch. This replaces the old full-catalogue pagination waterfall.
+    const [catalogue,summary,placements,styles]=await Promise.all([
+      db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
+      db.rpc("get_uin_card_summary_v129",{p_target_ids:ids}),
+      db.from("seed_catalog_items").select("id,canonical_target_id,status").in("canonical_target_id",ids),
+      db.rpc("get_uin_card_styles_v76",{p_target_ids:ids}),
+    ]);
+    if(catalogue.error||summary.error||placements.error||styles.error)throw catalogue.error||summary.error||placements.error||styles.error;
+    if(!Array.isArray(catalogue.data)||!catalogue.data.every(isRow)
+      ||!Array.isArray(summary.data)||!summary.data.every(isRow)
+      ||!Array.isArray(placements.data)||!placements.data.every(isRow)
+      ||!Array.isArray(styles.data)||!styles.data.every(isRow))throw new Error("Incomplete club catalogue payload");
+
+    const cardByTarget=new Map<string,Row>();
+    for(const row of catalogue.data as Row[]){const id=targetId(row,"canonical_target_id");if(id)cardByTarget.set(id,row)}
+    const summaryByTarget=new Map<string,Row>();
+    for(const row of summary.data as Row[]){const id=targetId(row);if(id)summaryByTarget.set(id,row)}
+    const styleByTarget=new Map<string,Row>();
+    for(const row of styles.data as Row[]){const id=targetId(row);if(id)styleByTarget.set(id,row)}
+    const placementByTarget=new Map<string,Row>();
+    for(const row of placements.data as Row[]){
+      const id=targetId(row,"canonical_target_id");
+      if(!id)continue;
+      const current=placementByTarget.get(id);
+      if(!current||(row.status==="active"&&current.status!=="active"))placementByTarget.set(id,row);
     }
 
-    const ids = (hierarchy.data || []).map((row: any) => row.target_id);
-    const summary = ids.length
-      ? await db.rpc('get_uin_card_summary_v80', { p_target_ids: ids })
-      : { data: [], error: null };
-    const placements = ids.length
-      ? await db.from('seed_catalog_items').select('id,canonical_target_id,status').in('canonical_target_id', ids)
-      : { data: [], error: null };
-    const styles = ids.length
-      ? await db.rpc('get_uin_card_styles_v76', { p_target_ids: ids })
-      : { data: [], error: null };
-    if (styles.error) throw styles.error;
-    if (summary.error || placements.error) throw new Error('Club details failed');
-
-    return NextResponse.json({
-      clubs: (hierarchy.data || []).flatMap((row: any) => {
-        const card = cards.find((item) => item.canonical_target_id === row.target_id);
-        // Root clubs must be active catalogue cards. Child teams remain hidden in
-        // the main catalogue, but mobile still needs them for the same hierarchy,
-        // filters and team count that the web card uses.
-        if (!card && !row.parent_target_id) return [];
-        const stats = (summary.data || []).find((item: any) => item.target_id === row.target_id);
-        const style = (styles.data || []).find((item: any) => item.target_id === row.target_id);
-        const displayName = row.display_name || card?.title || row.title;
-        return [{
-          ...row,
-          displayName,
-          cardStyle: style?.card_style || null,
-          ownStyle: style?.own_style || null,
-          sport: label(row.sport).toLocaleLowerCase('tr').replace(/^./, (value) => value.toLocaleUpperCase('tr')),
-          division: label(row.division).toLocaleLowerCase('tr').replace(/^./, (value) => value.toLocaleUpperCase('tr')),
-          league: label(row.league),
-          title: card?.title || displayName,
-          coverUrl: card?.catalog_cover_url || card?.cover_url || row.logo_url || null,
-          logoUrl: row.logo_url || null,
-          catalogItemId: (placements.data || []).find((item: any) => item.canonical_target_id === row.target_id && item.status === 'active')?.id || (placements.data || []).find((item: any) => item.canonical_target_id === row.target_id)?.id || '',
-          wanting: Number(stats?.wanting || 0),
-          done: Number(stats?.done || 0),
-          active: Number(stats?.active || 0),
-        }];
-      }),
+    // The canonical projection proves which root clubs and child teams this
+    // viewer may see. Every returned card must have all dependent projections;
+    // otherwise the endpoint fails instead of inventing empty ids or counters.
+    const visibleRows=hierarchyRows.filter(row=>{
+      const id=targetId(row),placement=placementByTarget.get(id);
+      return cardByTarget.has(id)&&Boolean(row.parent_target_id||placement?.status==="active");
     });
-  } catch {
-    return NextResponse.json({ error: 'Kulüp ve takım bilgileri yüklenemedi.' }, { status: 502 });
+    const incompleteIds=visibleRows.map(row=>targetId(row)).filter(id=>{
+      const placement=placementByTarget.get(id);
+      return !summaryByTarget.has(id)||!placement||typeof placement.id!=="string"||!UUID_PATTERN.test(placement.id)||!styleByTarget.has(id);
+    });
+    if(incompleteIds.length)throw new Error("Club catalogue projections are incomplete");
+
+    const labels=new Map<string,string>();
+    const label=(value:unknown)=>{
+      const clean=typeof value==="string"?value.trim().replace(/\s+/g," "):"";
+      const key=clean.toLocaleLowerCase("tr");
+      if(!labels.has(key))labels.set(key,clean);
+      return labels.get(key)||"";
+    };
+    const titleCase=(value:unknown)=>label(value).toLocaleLowerCase("tr").replace(/^./,character=>character.toLocaleUpperCase("tr"));
+
+    const clubs=visibleRows.map(row=>{
+      const id=targetId(row);
+      const card=cardByTarget.get(id);
+      const stats=summaryByTarget.get(id)!;
+      const style=styleByTarget.get(id);
+      const placement=placementByTarget.get(id);
+      const displayName=String(row.display_name||card?.title||row.title||"").trim();
+      if(!displayName)throw new Error("Club display name is missing");
+      return{
+        ...row,
+        displayName,
+        cardStyle:style?.card_style??null,
+        ownStyle:style?.own_style??null,
+        sport:titleCase(row.sport),
+        division:titleCase(row.division),
+        league:label(row.league),
+        title:String(card?.title||displayName),
+        coverUrl:card?.catalog_cover_url||card?.cover_url||row.logo_url||null,
+        logoUrl:typeof row.logo_url==="string"?row.logo_url:null,
+        catalogItemId:String(placement?.id),
+        wanting:count(stats,"wanting"),
+        done:count(stats,"done"),
+        active:count(stats,"active"),
+      };
+    });
+
+    return NextResponse.json({clubs},{headers:CACHE_HEADERS});
+  }catch(error){
+    console.error("club catalogue unavailable",error);
+    return NextResponse.json({error:"Kulüp ve takım bilgileri yüklenemedi."},{status:503,headers:{"Cache-Control":"no-store"}});
   }
 }

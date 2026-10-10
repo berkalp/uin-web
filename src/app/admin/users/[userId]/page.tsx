@@ -4,6 +4,7 @@ import {
 } from "next/navigation";
 
 import StaffPermissionControl from "@/components/admin/StaffPermissionControl";
+import { getAdminArrayReadError } from "../../_lib/read-state";
 import {
   AdminRole,
   getMyStaffCapabilitySet,
@@ -261,7 +262,17 @@ export default async function AdminUserDetailPage({
       }
     );
 
-    notFound();
+  }
+
+  const profileReadError = getAdminArrayReadError(
+    data,
+    error,
+    "Admin user detail",
+    ["user_id"]
+  );
+
+  if (profileReadError) {
+    throw new Error(profileReadError.message);
   }
 
   const profile =
@@ -312,7 +323,9 @@ export default async function AdminUserDetailPage({
   ]);
 
   const targetCapabilities = (
-    (targetCapabilityResponse.data ?? []) as unknown as StaffCapabilityRow[]
+    (Array.isArray(targetCapabilityResponse.data)
+      ? targetCapabilityResponse.data
+      : []) as unknown as StaffCapabilityRow[]
   ).reduce(
     (result, row) => ({
       ...result,
@@ -329,7 +342,26 @@ export default async function AdminUserDetailPage({
   );
 
   const staffOperations =
-    (staffAuditResponse.data ?? []) as unknown as StaffOperationRow[];
+    (Array.isArray(staffAuditResponse.data)
+      ? staffAuditResponse.data
+      : []) as unknown as StaffOperationRow[];
+
+  const targetCapabilityReadError =
+    role === "owner" && profile.admin_role
+      ? getAdminArrayReadError(
+          targetCapabilityResponse.data,
+          targetCapabilityResponse.error,
+          "Staff capabilities",
+          ["capability", "enabled"]
+        )
+      : null;
+
+  const staffAuditReadError = getAdminArrayReadError(
+    staffAuditResponse.data,
+    staffAuditResponse.error,
+    "Staff operations",
+    ["audit_id", "action"]
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -655,12 +687,18 @@ export default async function AdminUserDetailPage({
             <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-600">
               Role and capability are separate. A Moderator can exist without messaging or profile-edit access until you explicitly enable it here.
             </p>
+            {targetCapabilityReadError ? (
+              <p className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+                {targetCapabilityReadError.message}
+              </p>
+            ) : (
             <div className="mt-6">
               <StaffPermissionControl
                 userId={profile.user_id}
                 initial={targetCapabilities}
               />
             </div>
+            )}
           </section>
         )}
 
@@ -672,7 +710,11 @@ export default async function AdminUserDetailPage({
             Recent audited actions
           </h2>
 
-          {staffOperations.length === 0 ? (
+          {staffAuditReadError ? (
+            <p className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
+              {staffAuditReadError.message}
+            </p>
+          ) : staffOperations.length === 0 ? (
             <p className="mt-5 text-sm text-gray-500">No staff operations recorded for this account yet.</p>
           ) : (
             <div className="mt-5 space-y-3">

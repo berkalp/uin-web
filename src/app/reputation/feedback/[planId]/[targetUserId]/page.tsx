@@ -5,6 +5,7 @@ import {
 } from "next/navigation";
 
 import ReputationFeedbackForm from "@/components/reputation/ReputationFeedbackForm";
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import type {
   ReputationFeedbackFormData,
 } from "@/utils/reputation";
@@ -28,6 +29,25 @@ function isUuid(
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
     value
   );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isFeedbackFormData(value: unknown): value is ReputationFeedbackFormData {
+  if (!isRecord(value) || !isRecord(value.plan) || !isRecord(value.target)) return false;
+  return typeof value.plan.id === "string" &&
+    typeof value.plan.title === "string" &&
+    typeof value.target.id === "string" &&
+    typeof value.target.username === "string" &&
+    Array.isArray(value.questions) &&
+    value.questions.every((question) =>
+      isRecord(question) &&
+      typeof question.id === "string" &&
+      typeof question.prompt === "string" &&
+      (question.response_type === "yes_no" || question.response_type === "scale_5")
+    );
 }
 
 function getSafeReturnHref(
@@ -113,13 +133,22 @@ export default async function ReputationFeedbackDetailPage({
     }
   );
 
-  if (error || !data) {
-    if (error) {
-      console.error(
-        "Reputation feedback form query failed:",
-        error
-      );
-    }
+  if (error) {
+    console.error(
+      "Reputation feedback form query failed:",
+      error
+    );
+    return (
+      <PageDataUnavailable
+        title="Değerlendirme şu anda yüklenemedi"
+        retryHref={`/reputation/feedback/${encodeURIComponent(planId)}/${encodeURIComponent(targetUserId)}?returnTo=${encodeURIComponent(returnHref)}`}
+        backHref={returnHref}
+        backLabel={returnLabel.replace("← ", "")}
+      />
+    );
+  }
+
+  if (!data) {
 
     return (
       <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -145,8 +174,19 @@ export default async function ReputationFeedbackDetailPage({
     );
   }
 
-  const form =
-    data as ReputationFeedbackFormData;
+  if (!isFeedbackFormData(data)) {
+    console.error("Reputation feedback form query returned a malformed payload.");
+    return (
+      <PageDataUnavailable
+        title="Değerlendirme şu anda yüklenemedi"
+        retryHref={`/reputation/feedback/${encodeURIComponent(planId)}/${encodeURIComponent(targetUserId)}?returnTo=${encodeURIComponent(returnHref)}`}
+        backHref={returnHref}
+        backLabel={returnLabel.replace("← ", "")}
+      />
+    );
+  }
+
+  const form = data;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import PastSeedExperienceForm from "@/components/seeds/PastSeedExperienceForm";
 import { createClient } from "@/utils/supabase/server";
 
@@ -29,6 +31,55 @@ type SubjectDetail = {
 
 function one(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0]?.trim() || "" : value?.trim() || "";
+}
+
+function isValidUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isSubjectDetail(
+  value: unknown,
+  expectedSubjectId: string
+): value is SubjectDetail {
+  if (!isRecord(value) || !isRecord(value.subject)) return false;
+
+  const subject = value.subject;
+  if (
+    subject.catalog_item_id !== expectedSubjectId ||
+    typeof subject.seed_type_name !== "string" ||
+    typeof subject.seed_type_slug !== "string" ||
+    typeof subject.seed_type_icon !== "string" ||
+    typeof subject.item_kind !== "string" ||
+    typeof subject.canonical_title !== "string" ||
+    !subject.canonical_title.trim() ||
+    !isNullableString(subject.creator_name) ||
+    !isNullableString(subject.cover_url) ||
+    !(
+      subject.release_year === null ||
+      (typeof subject.release_year === "number" &&
+        Number.isFinite(subject.release_year))
+    )
+  ) {
+    return false;
+  }
+
+  const completedSeed = value.viewer_completed_seed;
+  return (
+    completedSeed == null ||
+    (isRecord(completedSeed) &&
+      typeof completedSeed.seed_id === "string" &&
+      isValidUuid(completedSeed.seed_id))
+  );
 }
 
 function pastVerb(slug: string) {
@@ -59,10 +110,30 @@ export default async function PastSeedExperiencePage({
   searchParams,
 }: PastSeedExperiencePageProps) {
   const [{ subjectId }, query] = await Promise.all([params, searchParams]);
+  if (!isValidUuid(subjectId)) {
+    notFound();
+  }
+
+  const subjectPath = `/seeds/subjects/${encodeURIComponent(subjectId)}`;
+  const returnTo = `${subjectPath}/past`;
+  const unavailable = (
+    <PageDataUnavailable
+      title="Geçmiş Seed deneyimi şu anda yüklenemedi"
+      retryHref={returnTo}
+      backHref={subjectPath}
+      backLabel="Seed konusuna dön"
+    />
+  );
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Past Seed experience session query failed:", userError);
+    return unavailable;
+  }
 
   if (!user) {
     redirect("/");
@@ -72,15 +143,25 @@ export default async function PastSeedExperiencePage({
     p_catalog_item_id: subjectId,
   });
 
-  if (error || !data) {
+  if (error) {
+    console.error("Past Seed experience subject query failed:", error);
+    return unavailable;
+  }
+
+  if (data == null) {
     notFound();
   }
 
-  const detail = data as SubjectDetail;
+  if (!isSubjectDetail(data, subjectId)) {
+    console.error(
+      "Past Seed experience subject query returned an incomplete payload."
+    );
+    return unavailable;
+  }
+
+  const detail = data;
   const subject = detail.subject;
   const errorMessage = one(query.error);
-  const subjectPath = `/seeds/subjects/${encodeURIComponent(subjectId)}`;
-  const returnTo = `${subjectPath}/past`;
 
   if (detail.viewer_completed_seed?.seed_id) {
     return (

@@ -3,6 +3,7 @@ import {
   redirect,
 } from "next/navigation";
 
+import { getAdminArrayReadError } from "../../_lib/read-state";
 import RestrictionActions from "@/components/admin/RestrictionActions";
 import { createClient } from "@/utils/supabase/server";
 
@@ -382,6 +383,14 @@ export default async function AdminRestrictionsPage({
       data ?? []
     ) as RestrictionRow[];
 
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Restrictions",
+    ["restriction_id", "total_count"],
+    ["total_count"]
+  );
+
   const totalCount =
     restrictions.length > 0
       ? Number(
@@ -581,6 +590,7 @@ export default async function AdminRestrictionsPage({
         </section>
 
         <section className="mt-6">
+          {!readError && (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-gray-500">
               Showing{" "}
@@ -607,8 +617,9 @@ export default async function AdminRestrictionsPage({
               </span>
             </p>
           </div>
+          )}
 
-          {error && (
+          {readError && (
             <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
               <p className="font-semibold text-red-800">
                 Restrictions could not be
@@ -616,13 +627,13 @@ export default async function AdminRestrictionsPage({
               </p>
 
               <p className="mt-2 text-sm text-red-700">
-                {error.message}
+                {readError.message}
               </p>
             </div>
           )}
 
           <div className="mt-5 space-y-5">
-            {restrictions.map(
+            {!readError && restrictions.map(
               (restriction) => {
                 const displayName =
                   restriction.user_full_name ||
@@ -873,7 +884,7 @@ export default async function AdminRestrictionsPage({
               }
             )}
 
-            {!error &&
+            {!readError &&
               restrictions.length ===
                 0 && (
                 <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">

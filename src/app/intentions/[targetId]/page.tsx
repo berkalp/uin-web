@@ -33,7 +33,7 @@ function wantAction(action:string){const labels:Record<string,string>={"İZLE":"
 
 export default async function CommonIntentPage({params}:{params:Promise<{targetId:string}>}){
   const {targetId}=await params;const supabase=await createClient();const [cardResult,socialResult,activityResult,reviewResult,pageContextResult,sportContextResult,authResult]=await Promise.all([
-    supabase.rpc("get_common_intent_cards_v38",{p_query:null,p_limit:1,p_offset:0,p_target_id:targetId}),
+    supabase.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:[targetId]}),
     supabase.rpc("get_uin_card_events_v80",{p_target_id:targetId}),supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"intent",p_limit:100,p_offset:0}),supabase.rpc("get_uin_card_people_v80",{p_target_id:targetId,p_group:"experience",p_limit:100,p_offset:0}),supabase.rpc("get_common_target_page_context_v41",{p_target_id:targetId}),supabase.rpc("get_sport_target_context_v47",{p_target_id:targetId}),supabase.auth.getUser()]);
   if(cardResult.error){console.error("Common card query failed:",cardResult.error);return <CommonIntentUnavailable retryHref={`/intentions/${encodeURIComponent(targetId)}`}/>;}
   const baseCard=((cardResult.data??[]) as Card[])[0];if(!baseCard)notFound();

@@ -12,6 +12,7 @@ import {
   type AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import { getAdminRecordReadError } from "../_lib/read-state";
 
 type AdminActivityCatalogueData = {
   categories:
@@ -66,6 +67,25 @@ export default async function AdminActivityCataloguePage() {
       error
     );
   }
+
+  const readError = getAdminRecordReadError(
+    data,
+    error,
+    "Activity catalogue",
+    ["categories", "activities"],
+    [],
+    [],
+    {
+      categories: {
+        requiredFields: ["id", "name", "activity_count", "active_activity_count"],
+        countFields: ["activity_count", "active_activity_count"],
+      },
+      activities: {
+        requiredFields: ["id", "name", "category_id", "intent_count", "plan_count"],
+        countFields: ["intent_count", "plan_count"],
+      },
+    }
+  );
 
   const catalogue =
     (
@@ -144,7 +164,7 @@ export default async function AdminActivityCataloguePage() {
           </div>
         </header>
 
-        {error && (
+        {readError && (
           <section className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Activity catalogue could not
@@ -152,12 +172,12 @@ export default async function AdminActivityCataloguePage() {
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {error.message}
+              {readError.message}
             </p>
           </section>
         )}
 
-        {!error && (
+        {!readError && (
           <>
             <section className="mt-6">
               <ActivityCatalogueManager

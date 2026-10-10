@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import AdminRoleControl from "@/components/admin/AdminRoleControl";
+import { getAdminArrayReadError } from "../_lib/read-state";
 import {
   AdminRole,
   getMyStaffCapabilitySet,
@@ -261,6 +262,14 @@ export default async function AdminUsersPage({
       data ?? []
     ) as unknown as AdminUserRow[];
 
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Users",
+    ["user_id", "total_count"],
+    ["total_count"]
+  );
+
   const totalUsers =
     users.length > 0
       ? toNumber(
@@ -383,19 +392,19 @@ export default async function AdminUsersPage({
           </form>
         </section>
 
-        {error && (
+        {readError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Users could not be loaded.
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              The admin user query returned
-              an error.
+              {readError.message}
             </p>
           </div>
         )}
 
+        {!readError && (
         <section className="mt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -658,7 +667,7 @@ export default async function AdminUsersPage({
 
                   {users.length ===
                     0 &&
-                    !error && (
+                    !readError && (
                       <tr>
                         <td
                           colSpan={9}
@@ -724,6 +733,7 @@ export default async function AdminUsersPage({
             </div>
           )}
         </section>
+        )}
       </div>
     </main>
   );

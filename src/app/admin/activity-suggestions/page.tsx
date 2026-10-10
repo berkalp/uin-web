@@ -9,6 +9,11 @@ import {
   type AdminRole,
   requireAdmin,
 } from "@/utils/admin";
+import {
+  firstAdminReadError,
+  getAdminArrayReadError,
+  getAdminRecordReadError,
+} from "../_lib/read-state";
 
 type AdminActivityCatalogueData = {
   categories:
@@ -98,9 +103,29 @@ export default async function AdminActivitySuggestionsPage() {
   const activities =
     catalogue.activities ?? [];
 
-  const error =
-    suggestionsResult.error ??
-    catalogueResult.error;
+  const error = firstAdminReadError(
+    getAdminArrayReadError(
+      suggestionsResult.data,
+      suggestionsResult.error,
+      "Activity requests",
+      ["suggestion_id", "supporter_count", "draft_count"],
+      ["supporter_count", "draft_count"]
+    ),
+    getAdminRecordReadError(
+      catalogueResult.data,
+      catalogueResult.error,
+      "Activity catalogue",
+      ["categories", "activities"],
+      [],
+      [],
+      {
+        categories: { requiredFields: ["id", "name"] },
+        activities: {
+          requiredFields: ["id", "name", "category_id", "category_name"],
+        },
+      }
+    )
+  );
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">

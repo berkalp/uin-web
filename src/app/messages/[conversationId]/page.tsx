@@ -20,6 +20,27 @@ function isValidUuid(value: string) {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isConversationDetail(value: unknown): value is DirectConversationDetail {
+  return isRecord(value) &&
+    typeof value.conversation_id === "string" &&
+    typeof value.other_user_id === "string" &&
+    typeof value.viewer_can_send === "boolean" &&
+    typeof value.viewer_can_manage_access === "boolean" &&
+    typeof value.other_is_staff === "boolean";
+}
+
+function isConversationMessage(value: unknown): value is DirectConversationMessage {
+  return isRecord(value) &&
+    typeof value.message_id === "string" &&
+    typeof value.sender_id === "string" &&
+    typeof value.body === "string" &&
+    typeof value.created_at === "string";
+}
+
 export default async function ConversationPage({ params }: ConversationPageProps) {
   const resolvedParams = await params;
   const conversationId =
@@ -74,11 +95,24 @@ export default async function ConversationPage({ params }: ConversationPageProps
     return unavailable;
   }
 
-  const detail =
-    ((detailResponse.data ?? []) as unknown as DirectConversationDetail[])[0] ?? null;
-  if (!detail) notFound();
+  if (!Array.isArray(detailResponse.data) || !Array.isArray(messagesResponse.data)) {
+    console.error("Direct conversation queries returned malformed payloads.");
+    return unavailable;
+  }
 
-  const messages = (messagesResponse.data ?? []) as unknown as DirectConversationMessage[];
+  if (detailResponse.data.length === 0) notFound();
+
+  if (
+    detailResponse.data.length !== 1 ||
+    !isConversationDetail(detailResponse.data[0]) ||
+    !messagesResponse.data.every(isConversationMessage)
+  ) {
+    console.error("Direct conversation queries returned incomplete payloads.");
+    return unavailable;
+  }
+
+  const detail = detailResponse.data[0];
+  const messages = messagesResponse.data;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">

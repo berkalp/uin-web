@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import AdminProfileEditForm from "@/components/admin/AdminProfileEditForm";
+import { getAdminArrayReadError } from "../../../_lib/read-state";
 import {
   type AdminRole,
   getMyStaffCapabilitySet,
@@ -43,7 +44,17 @@ export default async function AdminUserEditPage({ params }: AdminUserEditPagePro
 
   if (error) {
     console.error("Admin edit profile query failed:", error);
-    notFound();
+  }
+
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Admin profile editor",
+    ["user_id"]
+  );
+
+  if (readError) {
+    throw new Error(readError.message);
   }
 
   const profile = ((data ?? []) as unknown as AdminUserDetail[])[0] ?? null;

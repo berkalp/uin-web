@@ -16,6 +16,61 @@ function toNumber(value: unknown) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isUnreadCount(value: unknown): value is number | string | null {
+  if (value === null) return true;
+  if (typeof value !== "number" && typeof value !== "string") return false;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0;
+}
+
+function isDirectConversationSummary(value: unknown): value is DirectConversationSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.conversation_id === "string" &&
+    typeof row.other_user_id === "string" &&
+    isNullableString(row.other_full_name) &&
+    isNullableString(row.other_username) &&
+    isNullableString(row.other_avatar_url) &&
+    isNullableString(row.last_message_body) &&
+    isNullableString(row.last_message_at) &&
+    isNullableString(row.last_message_sender_id) &&
+    isUnreadCount(row.unread_count) &&
+    typeof row.viewer_can_send === "boolean" &&
+    (row.viewer_access_kind === null || row.viewer_access_kind === "staff" || row.viewer_access_kind === "granted") &&
+    isNullableString(row.viewer_access_expires_at);
+}
+
+function isRoomConversationSummary(value: unknown): value is RoomConversationSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.plan_id === "string" &&
+    isNullableString(row.latest_message_id) &&
+    (row.latest_message_type === null || row.latest_message_type === "text" || row.latest_message_type === "system") &&
+    isNullableString(row.latest_system_event) &&
+    isNullableString(row.latest_body) &&
+    isNullableString(row.latest_sender_id) &&
+    isNullableString(row.latest_sender_name) &&
+    isNullableString(row.latest_created_at) &&
+    isUnreadCount(row.unread_count);
+}
+
+function isRoomConversationPlan(value: unknown): value is RoomConversationPlan {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.id === "string" &&
+    isNullableString(row.title) &&
+    isNullableString(row.creation_mode) &&
+    isNullableString(row.status) &&
+    isNullableString(row.planned_at) &&
+    isNullableString(row.expired_at) &&
+    isNullableString(row.window_end) &&
+    isNullableString(row.timezone);
+}
+
 type MessagesPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -62,8 +117,23 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     console.error("Room conversations query failed:", roomResult.error);
   }
 
-  const directConversations = (directResult.data ?? []) as unknown as DirectConversationSummary[];
-  const roomSummaries = (roomResult.data ?? []) as unknown as RoomConversationSummary[];
+  const directPayloadValid = Array.isArray(directResult.data) &&
+    directResult.data.every(isDirectConversationSummary);
+  const roomPayloadValid = Array.isArray(roomResult.data) &&
+    roomResult.data.every(isRoomConversationSummary);
+  const directLoadFailed = Boolean(directResult.error || !directPayloadValid);
+  const roomSummaryLoadFailed = Boolean(roomResult.error || !roomPayloadValid);
+
+  if ((!directResult.error && !directPayloadValid) || (!roomResult.error && !roomPayloadValid)) {
+    console.error("Message-center queries returned malformed payloads.");
+  }
+
+  const directConversations: DirectConversationSummary[] = directPayloadValid
+    ? directResult.data as unknown as DirectConversationSummary[]
+    : [];
+  const roomSummaries: RoomConversationSummary[] = roomPayloadValid
+    ? roomResult.data as unknown as RoomConversationSummary[]
+    : [];
   const planIds = Array.from(
     new Set(
       roomSummaries
@@ -81,11 +151,15 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
       .select("id, title, creation_mode, status, planned_at, expired_at, window_end, timezone")
       .in("id", planIds);
 
-    if (planResult.error) {
+    if (
+      planResult.error ||
+      !Array.isArray(planResult.data) ||
+      !planResult.data.every(isRoomConversationPlan)
+    ) {
       console.error("Message-center Plan query failed:", planResult.error);
       planLoadFailed = true;
     } else {
-      plans = (planResult.data ?? []) as RoomConversationPlan[];
+      plans = planResult.data as RoomConversationPlan[];
     }
   }
 
@@ -94,14 +168,14 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   const activeRoomSummaries = roomSummaries.filter((summary) =>
     openPlanIds.has(summary.plan_id)
   );
-  const roomLoadFailed = Boolean(roomResult.error || planLoadFailed);
+  const roomLoadFailed = Boolean(roomSummaryLoadFailed || planLoadFailed);
   const roomUnread = roomLoadFailed
     ? null
     : activeRoomSummaries.reduce(
         (total, summary) => total + toNumber(summary.unread_count),
         0
       );
-  const directUnread = directResult.error
+  const directUnread = directLoadFailed
     ? null
     : directConversations.reduce(
         (total, conversation) => total + toNumber(conversation.unread_count),
@@ -161,7 +235,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
 
         <DirectConversationList
           initialConversations={directConversations}
-          initialLoadFailed={Boolean(directResult.error)}
+          initialLoadFailed={directLoadFailed}
           page={directPage}
           roomPage={roomPage}
         />

@@ -133,18 +133,17 @@ export default async function FriendsPage() {
     "get_my_friendships"
   );
 
-  if (error) {
+  const readFailed = Boolean(error || !Array.isArray(data));
+
+  if (readFailed) {
     console.error(
       "Friendship query failed:",
-      error
+      error ?? "Unexpected payload"
     );
   }
 
   const rows =
-    (
-      data ??
-      []
-    ) as FriendshipRow[];
+    readFailed ? [] : data as FriendshipRow[];
 
   const incoming =
     rows.filter(
@@ -188,7 +187,7 @@ export default async function FriendsPage() {
 
           <div className="mt-6 flex flex-wrap items-center gap-2">
             <WebCardLayoutPicker className="mr-auto"/>
-            {!error && (
+            {!readFailed && (
               <>
                 <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
                   {friends.length} arkadaş
@@ -206,7 +205,7 @@ export default async function FriendsPage() {
           </div>
         </header>
 
-        {error && (
+        {readFailed && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6 text-red-800">
             <p className="font-semibold">Arkadaşlık listesi şu anda yüklenemedi.</p>
             <Link href="/friends" className="mt-3 inline-flex rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">
@@ -215,7 +214,7 @@ export default async function FriendsPage() {
           </div>
         )}
 
-        {!error &&
+        {!readFailed &&
           incoming.length >
             0 && (
             <section className="mt-8">
@@ -243,7 +242,7 @@ export default async function FriendsPage() {
             </section>
           )}
 
-        {!error &&
+        {!readFailed &&
           friends.length >
             0 && (
             <section className="mt-10">
@@ -273,7 +272,7 @@ export default async function FriendsPage() {
             </section>
           )}
 
-        {!error &&
+        {!readFailed &&
           outgoing.length >
             0 && (
             <section className="mt-10">
@@ -303,7 +302,7 @@ export default async function FriendsPage() {
             </section>
           )}
 
-        {!error &&
+        {!readFailed &&
           rows.length ===
             0 && (
             <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">

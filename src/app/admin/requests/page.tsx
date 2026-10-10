@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import ProfileNameLink from "@/components/profile/ProfileNameLink";
+import { getAdminArrayReadError } from "../_lib/read-state";
 import {
   AdminRole,
   requireAdmin,
@@ -605,6 +606,14 @@ export default async function AdminRequestsPage({
       data ?? []
     ) as unknown as AdminRequestRow[];
 
+  const readError = getAdminArrayReadError(
+    data,
+    error,
+    "Requests",
+    ["request_id", "total_count"],
+    ["total_count"]
+  );
+
   const totalRequests =
     requests.length > 0
       ? toNumber(
@@ -808,19 +817,19 @@ export default async function AdminRequestsPage({
           </form>
         </section>
 
-        {error && (
+        {readError && (
           <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
               Requests could not be loaded.
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              The admin Request query returned
-              an error.
+              {readError.message}
             </p>
           </div>
         )}
 
+        {!readError && (
         <section className="mt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
@@ -1154,7 +1163,7 @@ export default async function AdminRequestsPage({
             )}
 
             {requests.length === 0 &&
-              !error && (
+              !readError && (
                 <div className="rounded-3xl border border-gray-200 bg-white p-12 text-center shadow-sm">
                   <h3 className="text-xl font-bold text-gray-900">
                     No Requests found.
@@ -1221,6 +1230,7 @@ export default async function AdminRequestsPage({
             </div>
           )}
         </section>
+        )}
       </div>
     </main>
   );
