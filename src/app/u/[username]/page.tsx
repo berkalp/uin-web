@@ -1,6 +1,10 @@
 import Link from "next/link";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import { notFound } from "next/navigation";
+import {
+  isAuthSessionMissingError,
+  type PostgrestError,
+} from "@supabase/supabase-js";
 
 import ManagedMinorPublicProfile, {
   type ManagedMinorContext,
@@ -18,7 +22,6 @@ import ProfileIntentReactions, {
 } from "@/components/profile/ProfileIntentReactions";
 import PublicSeedsPanel from "@/components/seeds/PublicSeedsPanel";
 import PublicBadgesPanel from "@/components/badges/PublicBadgesPanel";
-import PublicCommunityMembershipsPanel from "@/components/communities/PublicCommunityMembershipsPanel";
 import PublicProfessionalCredentialsPanel from "@/components/professionals/PublicProfessionalCredentialsPanel";
 import VerificationMark from "@/components/professionals/VerificationMark";
 import PublicReputationPanel from "@/components/reputation/PublicReputationPanel";
@@ -52,9 +55,6 @@ import type {
 import type {
   PublicBadge,
 } from "@/utils/badges";
-import type {
-  PublicCommunityMembership,
-} from "@/utils/communityMemberships";
 import type {
   PublicProfessionalStatus,
 } from "@/utils/professionals";
@@ -143,7 +143,7 @@ type FormingActivity = {
   recruitment_status: "open" | "full" | "closed";
   visibility: ActivityVisibility;
   viewer_can_request: boolean;
-  viewer_is_member: boolean;
+  viewer_is_member: boolean | null;
   viewer_invitation_status:
     | "pending"
     | "accepted"
@@ -323,6 +323,62 @@ function deduplicateById<Item extends { id: string }>(items: Item[]) {
   return Array.from(new Map(items.map((item) => [item.id, item])).values());
 }
 
+function startQuery<Result>(query: PromiseLike<Result>): Promise<Result> {
+  return Promise.resolve(query);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasStringFields(
+  value: unknown,
+  fields: string[]
+): value is Record<string, unknown> {
+  return (
+    isRecord(value) && fields.every((field) => typeof value[field] === "string")
+  );
+}
+
+function hasOwnFields(
+  value: unknown,
+  fields: string[]
+): value is Record<string, unknown> {
+  return isRecord(value) && fields.every((field) => field in value);
+}
+
+function toBatches<Item>(items: Item[], size = 100) {
+  return Array.from(
+    { length: Math.ceil(items.length / size) },
+    (_, index) => items.slice(index * size, (index + 1) * size)
+  );
+}
+
+type BatchedReadResult<Row> = {
+  data: Row[] | null;
+  error: PostgrestError | null;
+};
+
+async function collectBatchedRows<Row>(
+  queries: Array<PromiseLike<BatchedReadResult<Row>>>
+): Promise<BatchedReadResult<Row>> {
+  const results = await Promise.all(queries.map(startQuery));
+  const failedResult = results.find((result) => result.error);
+
+  if (failedResult?.error) {
+    return { data: null, error: failedResult.error };
+  }
+
+  if (results.some((result) => !Array.isArray(result.data))) {
+    return { data: null, error: null };
+  }
+
+  return {
+    data: results.flatMap((result) => result.data as Row[]),
+    error: null,
+  };
+}
+
 function getInitial(value: string | null) {
   return value?.trim().charAt(0).toUpperCase() || "?";
 }
@@ -451,6 +507,14 @@ export default async function PublicProfilePage({
     supabase.auth.getUser(),
   ]);
 
+  if (
+    viewerResult.error &&
+    !isAuthSessionMissingError(viewerResult.error)
+  ) {
+    console.error("Public profile viewer query failed:", viewerResult.error);
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
   if (error) {
     console.error("Public profile query failed:", error);
     return <ProfileDataUnavailable retryHref={retryHref} />;
@@ -460,25 +524,49 @@ export default async function PublicProfilePage({
     notFound();
   }
 
-  const rawPage = data as ProfilePageData;
+  const rawPageCandidate = data as Partial<ProfilePageData>;
+
+  if (
+    !rawPageCandidate.profile?.id ||
+    !rawPageCandidate.profile.username ||
+    !rawPageCandidate.viewer ||
+    !rawPageCandidate.summary ||
+    !Array.isArray(rawPageCandidate.active_intents) ||
+    !Array.isArray(rawPageCandidate.forming_activities) ||
+    !Array.isArray(rawPageCandidate.upcoming_activities) ||
+    !Array.isArray(rawPageCandidate.completed_activities)
+  ) {
+    console.error("Public profile query returned an incomplete payload.");
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
+  const rawPage = rawPageCandidate as ProfilePageData;
   const profile = rawPage.profile;
   const viewerUserId = viewerResult.data.user?.id ?? "";
 
+  const [hiddenResourceResult, minorContextResult] = await Promise.all([
+    supabase.rpc("get_profile_hidden_resource_keys", {
+      p_profile_user_id: profile.id,
+    }),
+    supabase.rpc("get_public_minor_profile_context", {
+      p_profile_user_id: profile.id,
+    }),
+  ]);
   const {
     data: hiddenResourceData,
     error: hiddenResourceError,
-  } = await supabase.rpc(
-    "get_profile_hidden_resource_keys",
-    {
-      p_profile_user_id: profile.id,
-    }
-  );
+  } = hiddenResourceResult;
 
   if (hiddenResourceError) {
     console.error(
       "Profile hidden resource query failed:",
       hiddenResourceError
     );
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
+  if (!Array.isArray(hiddenResourceData)) {
+    console.error("Profile hidden resource query returned an incomplete payload.");
     return <ProfileDataUnavailable retryHref={retryHref} />;
   }
 
@@ -525,12 +613,20 @@ export default async function PublicProfilePage({
   };
 
   const { data: minorContextData, error: minorContextError } =
-    await supabase.rpc("get_public_minor_profile_context", {
-      p_profile_user_id: profile.id,
-    });
+    minorContextResult;
 
   if (minorContextError) {
     console.error("Managed minor profile context query failed:", minorContextError);
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
+
+  if (
+    !minorContextData ||
+    typeof (minorContextData as { is_managed_minor?: unknown })
+      .is_managed_minor !== "boolean"
+  ) {
+    console.error("Managed minor profile context is incomplete.");
     return <ProfileDataUnavailable retryHref={retryHref} />;
   }
 
@@ -552,7 +648,7 @@ export default async function PublicProfilePage({
       { p_child_user_id: profile.id }
     );
 
-    if (guardianError) {
+    if (guardianError || !Array.isArray(guardianData)) {
       console.error("Public guardian query failed:", guardianError);
       return <ProfileDataUnavailable retryHref={retryHref} />;
     }
@@ -568,14 +664,331 @@ export default async function PublicProfilePage({
     );
   }
 
-  const [visibleSeedResult, displayOrderResult] = await Promise.all([
+  const planIds = Array.from(
+    new Set([
+      ...formingActivities.map((item) => item.id),
+      ...upcomingActivities.map((item) => item.id),
+      ...completedActivities.map((item) => item.id),
+    ])
+  );
+  const activityNames = Array.from(
+    new Set([
+      ...activeIntents.map((item) => item.activity_name),
+      ...formingActivities.map((item) => item.activity_name),
+      ...upcomingActivities.map((item) => item.activity_name),
+      ...completedActivities.map((item) => item.activity_name),
+    ])
+  );
+  const activeIntentIds = activeIntents.map((item) => item.id);
+  const profileResourceIds = Array.from(
+    new Set([...activeIntentIds, ...planIds])
+  );
+  const profilePlanIds = planIds;
+  const planIdBatches = toBatches(planIds);
+  const profileResourceBatches = toBatches(profileResourceIds);
+  // Start every independent read as soon as the privacy gates have passed. The
+  // individual promises remain awaitable below, while their network time overlaps.
+  const visibleSeedResultPromise = startQuery(
     supabase.rpc("get_visible_profile_seeds_v2", {
       p_profile_user_id: profile.id,
       p_limit: 40,
-    }),
+    })
+  );
+  const displayOrderResultPromise = startQuery(
     supabase.rpc("get_visible_profile_display_order", {
       p_profile_user_id: profile.id,
-    }),
+    })
+  );
+  const publicPreferencesResultPromise = startQuery(
+    supabase.rpc("get_public_preferences_v2921", {
+      p_username: profile.username,
+    })
+  );
+  const savedReactionResultPromise = page.viewer.is_owner
+    ? startQuery(
+        supabase.rpc("get_profile_visible_intent_reactions", {
+          p_profile_user_id: profile.id,
+          p_reaction_type: "save",
+          p_limit: 60,
+          p_offset: 0,
+        })
+      )
+    : Promise.resolve({ data: [], error: null });
+  const planSourceIntentResultPromise = collectBatchedRows<PlanSourceIntentRow>(
+    planIdBatches.map((batchPlanIds) =>
+      supabase.rpc("get_visible_plan_source_intents", {
+        p_plan_ids: batchPlanIds,
+      })
+    )
+  );
+  const familyResultPromise = startQuery(
+    supabase.rpc("get_visible_profile_family", {
+      p_profile_user_id: profile.id,
+    })
+  );
+  const connectionResultPromise = startQuery(
+    supabase.rpc("get_profile_connection_summary", {
+      p_profile_user_id: profile.id,
+    })
+  );
+  const presenceResultPromise = startQuery(
+    supabase.rpc("get_public_profile_presence", {
+      p_profile_user_id: profile.id,
+    })
+  );
+  const planMetadataResultPromise = collectBatchedRows<PlanCardMetadata>(
+    planIdBatches.map((batchPlanIds) =>
+      supabase.rpc("get_visible_plan_card_metadata", {
+        p_plan_ids: batchPlanIds,
+      })
+    )
+  );
+  const visiblePlanPresentationResultPromise =
+    collectBatchedRows<VisiblePlanPresentationRow>(
+      planIdBatches.map((batchPlanIds) =>
+        supabase.rpc("get_visible_plan_presentations", {
+          p_plan_ids: batchPlanIds,
+        })
+      )
+    );
+  const catalogueActivityResultPromise = activityNames.length > 0
+    ? startQuery(
+        supabase
+          .from("activities")
+          .select("id, name, category_id, default_cover_url")
+          .in("name", activityNames)
+      )
+    : Promise.resolve({ data: [], error: null });
+  const participantResultPromise = activeIntentIds.length > 0
+    ? startQuery(
+        supabase
+          .from("intent_participants")
+          .select("intent_id, user_id")
+          .in("intent_id", activeIntentIds)
+          .eq("status", "active")
+      )
+    : Promise.resolve({ data: [], error: null });
+  const reputationResultPromise = startQuery(
+    supabase.rpc("get_public_reputation_summary", {
+      p_user_id: profile.id,
+    })
+  );
+  const professionalStatusResultPromise = startQuery(
+    supabase.rpc("get_public_profile_professional_status", {
+      p_username: profile.username,
+    })
+  );
+  const publicGenderResultPromise = startQuery(
+    supabase.rpc("get_public_profile_gender", {
+      p_username: profile.username,
+    })
+  );
+  const publicActivityLocationResultPromise =
+    collectBatchedRows<PublicPlanActivityLocationRow>(
+      planIdBatches.map((batchPlanIds) =>
+        supabase.rpc("get_visible_public_plan_activity_locations", {
+          p_plan_ids: batchPlanIds,
+        })
+      )
+    );
+  const badgeResultPromise = startQuery(
+    supabase.rpc("get_public_profile_badges", {
+      p_user_id: profile.id,
+    })
+  );
+  const profilePresentationBatches = Array.from(
+    { length: Math.ceil(profileResourceIds.length / 100) },
+    (_, index) => profileResourceIds.slice(index * 100, (index + 1) * 100)
+  );
+  const profilePresentationBatchResponsesPromise = Promise.all(
+    profilePresentationBatches.map((resourceIds) =>
+      supabase.rpc("get_uin_event_presentations_v150", {
+        p_resource_ids: resourceIds,
+      })
+    )
+  );
+  const profileDisplayTitlesPromise =
+    profilePresentationBatchResponsesPromise.then(async (responses) => {
+      const displayTitleByResourceId = new Map<string, string | null>();
+      let readError: unknown = null;
+      let payloadIncomplete = false;
+
+      for (let index = 0; index < responses.length; index += 1) {
+        const response = responses[index];
+        const resourceIds = profilePresentationBatches[index] ?? [];
+
+        if (response.error) {
+          console.warn(
+            "Profile event presentation batch is temporarily unavailable; using the exact fallback:",
+            response.error.message
+          );
+          const fallbackResponses = await Promise.all(
+            resourceIds.map(async (resourceId) => ({
+              resourceId,
+              result: await supabase.rpc("get_uin_event_presentation_v86", {
+                p_resource_id: resourceId,
+              }),
+            }))
+          );
+          const failedFallback = fallbackResponses.find(
+            ({ result }) => result.error
+          );
+
+          if (failedFallback?.result.error) {
+            readError = failedFallback.result.error;
+            console.error(
+              "Profile event presentation fallback failed:",
+              failedFallback.result.error
+            );
+            continue;
+          }
+
+          for (const { resourceId, result } of fallbackResponses) {
+            const displayTitle =
+              result.data &&
+              typeof result.data === "object" &&
+              !Array.isArray(result.data)
+                ? (result.data as { displayTitle?: unknown }).displayTitle
+                : null;
+            displayTitleByResourceId.set(
+              resourceId,
+              typeof displayTitle === "string" ? displayTitle : null
+            );
+          }
+          continue;
+        }
+
+        if (!Array.isArray(response.data)) {
+          payloadIncomplete = true;
+          continue;
+        }
+
+        for (const row of response.data as Array<{
+          resource_id: string;
+          presentation: { displayTitle?: unknown } | null;
+        }>) {
+          const displayTitle = row.presentation?.displayTitle;
+          displayTitleByResourceId.set(
+            row.resource_id,
+            typeof displayTitle === "string" ? displayTitle : null
+          );
+        }
+      }
+
+      return {
+        data: displayTitleByResourceId,
+        error: readError,
+        payloadIncomplete,
+      };
+    });
+  const profilePeopleResponsePromise =
+    collectBatchedRows<ActivityPeopleBatchRow>(
+      profileResourceBatches.map((resourceIds) =>
+        supabase.rpc("get_visible_activity_people_batch", {
+          p_resource_ids: resourceIds,
+        })
+      )
+    );
+  const profileLineageResponsePromise = viewerUserId && profilePlanIds.length > 0
+    ? collectBatchedRows<ViewerPlanLineageRow>(
+        planIdBatches.map((batchPlanIds) =>
+          supabase.rpc("get_my_visible_plan_lineage", {
+            p_plan_ids: batchPlanIds,
+          })
+        )
+      )
+    : Promise.resolve({ data: [], error: null });
+
+  const visibleSeedReactionResultPromise = visibleSeedResultPromise.then(
+    async ({ data: seedData }) => {
+      const seedIds = (Array.isArray(seedData) ? seedData : []).map(
+        (seed) => seed.seed_id
+      );
+      return seedIds.length > 0
+        ? await supabase.rpc("get_visible_seed_reaction_context", {
+            p_seed_ids: seedIds,
+          })
+        : { data: [], error: null };
+    }
+  );
+  const catalogueCategoryResultPromise = catalogueActivityResultPromise.then(
+    async ({ data: activityData }) => {
+      const categoryIds = Array.from(
+        new Set(
+          (Array.isArray(activityData) ? activityData : []).map(
+            (item) => item.category_id
+          )
+        )
+      );
+      return categoryIds.length > 0
+        ? await supabase
+            .from("activity_categories")
+            .select("id, name, default_cover_url")
+            .in("id", categoryIds)
+        : { data: [], error: null };
+    }
+  );
+  const visiblePlanPresentationsPromise =
+    visiblePlanPresentationResultPromise
+      .then(async ({ data: presentationData }) => ({
+        data: await hydrateVisiblePlanPresentations(
+          supabase,
+          Array.isArray(presentationData) ? presentationData : []
+        ),
+        error: null as unknown,
+      }))
+      .catch((error: unknown) => ({
+        data: [] as VisiblePlanPresentation[],
+        error,
+      }));
+  const presentationIntentIdsPromise = Promise.all([
+    savedReactionResultPromise,
+    planSourceIntentResultPromise,
+  ]).then(([savedResult, sourceResult]) => {
+    const reactionIntentIds = (
+      Array.isArray(savedResult.data) ? savedResult.data : []
+    ).map((row) => row.intent_id);
+    const sourceIntentIds = (
+      Array.isArray(sourceResult.data) ? sourceResult.data : []
+    ).map((row) => row.intent_id);
+
+    return Array.from(
+      new Set([
+        ...activeIntentIds,
+        ...formingActivities.map((item) => item.source_intent_id),
+        ...sourceIntentIds,
+        ...reactionIntentIds,
+      ])
+    );
+  });
+  const eligibilityContextResultPromise = presentationIntentIdsPromise.then(
+    async (intentIds) =>
+      intentIds.length > 0
+        ? await supabase.rpc("get_visible_intent_participant_eligibility", {
+            p_intent_ids: intentIds,
+          })
+        : { data: [], error: null }
+  );
+  const presentationContextResultPromise = presentationIntentIdsPromise.then(
+    async (intentIds) =>
+      intentIds.length > 0
+        ? await supabase.rpc("get_public_visible_intent_presentation_context", {
+            p_intent_ids: intentIds,
+          })
+        : { data: [], error: null }
+  );
+  const reactionContextResultPromise = presentationIntentIdsPromise.then(
+    async (intentIds) =>
+      intentIds.length > 0
+        ? await supabase.rpc("get_visible_intent_reaction_context", {
+            p_intent_ids: intentIds,
+          })
+        : { data: [], error: null }
+  );
+
+  const [visibleSeedResult, displayOrderResult] = await Promise.all([
+    visibleSeedResultPromise,
+    displayOrderResultPromise,
   ]);
 
   const { data: visibleSeedData, error: visibleSeedError } = visibleSeedResult;
@@ -595,9 +1008,20 @@ export default async function PublicProfilePage({
     );
   }
 
-  const displayOrderRows = (
-    displayOrderData ?? []
-  ) as ProfileDisplayOrderRow[];
+  const rawDisplayOrderRows = Array.isArray(displayOrderData)
+    ? displayOrderData
+    : [];
+  const displayOrderRows = rawDisplayOrderRows.filter(
+    (row): row is ProfileDisplayOrderRow =>
+      isRecord(row) &&
+      typeof row.item_type === "string" &&
+      typeof row.item_id === "string" &&
+      ["seed", "credential", "badge"].includes(row.item_type) &&
+      (typeof row.sort_order === "number" ||
+        typeof row.sort_order === "string")
+  );
+  const invalidDisplayOrderRows =
+    displayOrderRows.length !== rawDisplayOrderRows.length;
 
   const displayOrderMaps = {
     seed: new Map<string, number>(),
@@ -613,17 +1037,12 @@ export default async function PublicProfilePage({
   }
 
   const baseVisibleSeeds = sortByProfileDisplayOrder(
-    (visibleSeedData ?? []) as PublicSeedRecord[],
+    (Array.isArray(visibleSeedData) ? visibleSeedData : []) as PublicSeedRecord[],
     (seed) => seed.seed_id,
     displayOrderMaps.seed
   );
 
-  const visibleSeedReactionResult =
-    baseVisibleSeeds.length > 0
-      ? await supabase.rpc("get_visible_seed_reaction_context", {
-          p_seed_ids: baseVisibleSeeds.map((seed) => seed.seed_id),
-        })
-      : { data: [], error: null };
+  const visibleSeedReactionResult = await visibleSeedReactionResultPromise;
 
   if (visibleSeedReactionResult.error) {
     console.warn(
@@ -637,6 +1056,9 @@ export default async function PublicProfilePage({
       (context) => [context.seed_id, context]
     )
   );
+  const missingSeedReactionContext = baseVisibleSeeds.some(
+    (seed) => !visibleSeedReactionById.has(seed.seed_id)
+  );
 
   const visibleSeeds = baseVisibleSeeds.map((seed) => ({
     ...seed,
@@ -645,38 +1067,13 @@ export default async function PublicProfilePage({
   }));
 
   const { data: publicPreferencesData, error: publicPreferencesError } =
-    await supabase.rpc("get_public_preferences_v2921", {
-      p_username: profile.username,
-    });
+    await publicPreferencesResultPromise;
 
   if (publicPreferencesError) {
     console.warn("Public favorites are temporarily unavailable:", publicPreferencesError.message);
   }
 
-  const publicPreferences = (publicPreferencesData ?? {}) as {
-    favorites?: PublicFavoriteItem[];
-    shared_favorite_count?: number | string;
-  };
-  const publicFavorites = Array.isArray(publicPreferences.favorites)
-    ? publicPreferences.favorites
-    : [];
-
-  const [savedReactionResult, pawedReactionResult] = await Promise.all([
-    page.viewer.is_owner
-      ? supabase.rpc("get_profile_visible_intent_reactions", {
-          p_profile_user_id: profile.id,
-          p_reaction_type: "save",
-          p_limit: 60,
-          p_offset: 0,
-        })
-      : Promise.resolve({ data: [], error: null }),
-    supabase.rpc("get_profile_visible_intent_reactions", {
-      p_profile_user_id: profile.id,
-      p_reaction_type: "paw",
-      p_limit: 60,
-      p_offset: 0,
-    }),
-  ]);
+  const savedReactionResult = await savedReactionResultPromise;
 
   if (savedReactionResult.error) {
     console.warn(
@@ -685,45 +1082,21 @@ export default async function PublicProfilePage({
     );
   }
 
-  if (pawedReactionResult.error) {
-    console.warn(
-      "Pawed Intent profile section is temporarily unavailable:",
-      pawedReactionResult.error.message
-    );
-  }
-
   const savedReactionRows =
-    (savedReactionResult.data ?? []) as ProfileIntentReactionRow[];
-  const pawedReactionRows =
-    (pawedReactionResult.data ?? []) as ProfileIntentReactionRow[];
-  const reactionIntentIds = Array.from(
-    new Set(
-      [...savedReactionRows, ...pawedReactionRows].map(
-        (row) => row.intent_id
-      )
-    )
+    (Array.isArray(savedReactionResult.data)
+      ? savedReactionResult.data
+      : []) as ProfileIntentReactionRow[];
+  const requiredIntentContextIds = Array.from(
+    new Set([
+      ...activeIntentIds,
+      ...formingActivities.map((item) => item.source_intent_id),
+      ...savedReactionRows.map((row) => row.intent_id),
+    ])
   );
-
-  const planIds = [
-    ...formingActivities.map((item) => item.id),
-    ...upcomingActivities.map((item) => item.id),
-    ...completedActivities.map((item) => item.id),
-  ];
-
   const {
     data: planSourceIntentData,
     error: planSourceIntentError,
-  } = planIds.length > 0
-    ? await supabase.rpc(
-        "get_visible_plan_source_intents",
-        {
-          p_plan_ids: planIds,
-        }
-      )
-    : {
-        data: [],
-        error: null,
-      };
+  } = await planSourceIntentResultPromise;
 
   if (planSourceIntentError) {
     console.error(
@@ -740,31 +1113,6 @@ export default async function PublicProfilePage({
       row.intent_id,
     ])
   );
-
-  const activityNames = Array.from(
-    new Set([
-      ...activeIntents.map((item) => item.activity_name),
-      ...formingActivities.map((item) => item.activity_name),
-      ...upcomingActivities.map((item) => item.activity_name),
-      ...completedActivities.map((item) => item.activity_name),
-    ])
-  );
-
-  const activeIntentIds = activeIntents.map((item) => item.id);
-
-  const presentationIntentIds = Array.from(
-    new Set([
-      ...activeIntentIds,
-      ...formingActivities.map(
-        (item) => item.source_intent_id
-      ),
-      ...sourceIntentByPlanId.values(),
-      ...reactionIntentIds,
-    ])
-  );
-
-  const participantEligibilityIntentIds = presentationIntentIds;
-
   const [
     familyResult,
     connectionResult,
@@ -781,102 +1129,22 @@ export default async function PublicProfilePage({
     reactionContextResult,
     publicActivityLocationResult,
   ] = await Promise.all([
-    supabase.rpc("get_visible_profile_family", {
-      p_profile_user_id: profile.id,
-    }),
-    supabase.rpc("get_profile_connection_summary", {
-      p_profile_user_id: profile.id,
-    }),
-    supabase.rpc("get_public_profile_presence", {
-      p_profile_user_id: profile.id,
-    }),
-    planIds.length > 0
-      ? supabase.rpc("get_visible_plan_card_metadata", {
-          p_plan_ids: planIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-    planIds.length > 0
-      ? supabase.rpc("get_visible_plan_presentations", {
-          p_plan_ids: planIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-    activityNames.length > 0
-      ? supabase
-          .from("activities")
-          .select("id, name, category_id, default_cover_url")
-          .in("name", activityNames)
-      : Promise.resolve({ data: [], error: null }),
-    activeIntentIds.length > 0
-      ? supabase
-          .from("intent_participants")
-          .select("intent_id, user_id")
-          .in("intent_id", activeIntentIds)
-          .eq("status", "active")
-      : Promise.resolve({ data: [], error: null }),
-    supabase.rpc(
-      "get_public_reputation_summary",
-      {
-        p_user_id: profile.id,
-      }
-    ),
-    supabase.rpc(
-      "get_public_profile_professional_status",
-      {
-        p_username: profile.username,
-      }
-    ),
-    supabase.rpc(
-      "get_public_profile_gender",
-      {
-        p_username: profile.username,
-      }
-    ),
-    participantEligibilityIntentIds.length > 0
-      ? supabase.rpc(
-          "get_visible_intent_participant_eligibility",
-          {
-            p_intent_ids:
-              participantEligibilityIntentIds,
-          }
-        )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
-    presentationIntentIds.length > 0
-      ? supabase.rpc(
-          "get_public_visible_intent_presentation_context",
-          {
-            p_intent_ids: presentationIntentIds,
-          }
-        )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
-    presentationIntentIds.length > 0
-      ? supabase.rpc(
-          "get_visible_intent_reaction_context",
-          {
-            p_intent_ids: presentationIntentIds,
-          }
-        )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
-    planIds.length > 0
-      ? supabase.rpc(
-          "get_visible_public_plan_activity_locations",
-          {
-            p_plan_ids: planIds,
-          }
-        )
-      : Promise.resolve({
-          data: [],
-          error: null,
-        }),
+    familyResultPromise,
+    connectionResultPromise,
+    presenceResultPromise,
+    planMetadataResultPromise,
+    visiblePlanPresentationResultPromise,
+    catalogueActivityResultPromise,
+    participantResultPromise,
+    reputationResultPromise,
+    professionalStatusResultPromise,
+    publicGenderResultPromise,
+    eligibilityContextResultPromise,
+    presentationContextResultPromise,
+    reactionContextResultPromise,
+    publicActivityLocationResultPromise,
   ]);
+  const presentationIntentIds = await presentationIntentIdsPromise;
 
   if (familyResult.error) console.error("Visible family query failed:", familyResult.error);
   if (connectionResult.error) console.error("Profile connection summary failed:", connectionResult.error);
@@ -940,10 +1208,21 @@ export default async function PublicProfilePage({
         },
       ])
     );
+  const missingEligibilityContext = requiredIntentContextIds.some(
+    (intentId) => !eligibilityByIntentId.has(intentId)
+  );
 
   const presentationContextRows = (
-    presentationContextResult.data ?? []
+    Array.isArray(presentationContextResult.data)
+      ? presentationContextResult.data
+      : []
   ) as PublicIntentPresentationContextRow[];
+  const presentationContextIntentIds = new Set(
+    presentationContextRows.map((row) => row.intent_id)
+  );
+  const missingPresentationContext = requiredIntentContextIds.some(
+    (intentId) => !presentationContextIntentIds.has(intentId)
+  );
 
   const sportCoverContextByIntentId = new Map<
     string,
@@ -1010,54 +1289,24 @@ export default async function PublicProfilePage({
       context,
     ])
   );
-
-  const publicFamily = (
-    familyResult.data ?? { children: [], relationships: [] }
-  ) as RawFamilyData;
-
-  const connectionSummary = (
-    connectionResult.data ?? null
-  ) as ProfileConnectionSummary | null;
-
-  const presence = (
-    presenceResult.data ?? { links: [], embeds: [] }
-  ) as ProfilePresenceData;
-
-  const reputationSummary = (
-    reputationResult.data ?? {
-      is_managed_minor: false,
-      participation_count: 0,
-      global: null,
-      role_summaries: [],
-      contexts: [],
+  const missingReactionContext = requiredIntentContextIds.some(
+    (intentId) => !reactionContextByIntentId.has(intentId)
+  );
+  const mismatchedOptionalIntentContext = presentationIntentIds.some(
+    (intentId) => {
+      const presence = [
+        eligibilityByIntentId.has(intentId),
+        presentationContextIntentIds.has(intentId),
+        reactionContextByIntentId.has(intentId),
+      ];
+      return presence.some(Boolean) && !presence.every(Boolean);
     }
-  ) as PublicReputationSummary;
-
-  const rawProfessionalStatus = (
-    professionalStatusResult.data ?? {
-      identity_verified: false,
-      credentials: [],
-    }
-  ) as PublicProfessionalStatus;
-
-  const professionalStatus: PublicProfessionalStatus = {
-    ...rawProfessionalStatus,
-    credentials: sortByProfileDisplayOrder(
-      rawProfessionalStatus.credentials,
-      (credential) => credential.id,
-      displayOrderMaps.credential
-    ),
-  };
+  );
 
   const {
     data: badgeData,
     error: badgeError,
-  } = await supabase.rpc(
-    "get_public_profile_badges",
-    {
-      p_user_id: profile.id,
-    }
-  );
+  } = await badgeResultPromise;
 
   if (badgeError) {
     console.error(
@@ -1066,47 +1315,8 @@ export default async function PublicProfilePage({
     );
   }
 
-  const publicBadges = sortByProfileDisplayOrder(
-    (badgeData ?? []) as PublicBadge[],
-    (badge) => badge.id,
-    displayOrderMaps.badge
-  );
-
-  const {
-    data: communityMembershipData,
-    error: communityMembershipError,
-  } = await supabase.rpc(
-    "get_public_profile_community_memberships",
-    {
-      p_user_id: profile.id,
-    }
-  );
-
-  if (communityMembershipError) {
-    console.warn(
-      "Public Community membership query failed; the membership migration may not be applied yet:",
-      communityMembershipError
-    );
-  }
-
-  const publicCommunityMemberships =
-    communityMembershipError
-      ? []
-      : (communityMembershipData ?? []) as PublicCommunityMembership[];
-
-  const youtubeEmbedUrl =
-    buildYouTubeEmbedUrl(
-      presence.embeds.find(
-        (embed) =>
-          embed.provider ===
-          "youtube"
-      )?.source_url
-    );
-
-  const visiblePlanPresentations = await hydrateVisiblePlanPresentations(
-    supabase,
-    (visiblePlanPresentationResult.data ?? []) as VisiblePlanPresentationRow[]
-  );
+  const visiblePlanPresentationsResult = await visiblePlanPresentationsPromise;
+  const visiblePlanPresentations = visiblePlanPresentationsResult.data;
 
   const visiblePlanPresentationByPlanId = new Map<string, VisiblePlanPresentation>(
     visiblePlanPresentations.map((presentation) => [
@@ -1114,27 +1324,48 @@ export default async function PublicProfilePage({
       presentation,
     ])
   );
+  const formingPlanIds = new Set(formingActivities.map((activity) => activity.id));
+  const requiredPlanDetailIds = planIds.filter((planId) => {
+    if (page.viewer.is_owner || formingPlanIds.has(planId)) return true;
+    const sourceIntentId = sourceIntentByPlanId.get(planId);
+    return Boolean(
+      sourceIntentId && eligibilityByIntentId.has(sourceIntentId)
+    );
+  });
+  const missingPlanPresentation = requiredPlanDetailIds.some(
+    (planId) => !visiblePlanPresentationByPlanId.has(planId)
+  );
+  const missingSignedPlanMedia = visiblePlanPresentations.some(
+    (presentation) =>
+      (presentation.custom_cover_storage_path !== null &&
+        presentation.signed_custom_cover_url === null) ||
+      (presentation.experience_cover_storage_path !== null &&
+        presentation.signed_experience_cover_url === null)
+  );
 
-  const planMetadata = (planMetadataResult.data ?? []) as PlanCardMetadata[];
+  const planMetadata = (
+    Array.isArray(planMetadataResult.data) ? planMetadataResult.data : []
+  ) as PlanCardMetadata[];
   const planMetadataMap = new Map(
     planMetadata.map((item) => [item.plan_id, item])
   );
-
-  const catalogueActivities = (
-    catalogueActivityResult.data ?? []
-  ) as CatalogueActivityRow[];
-
-  const categoryIds = Array.from(
-    new Set(catalogueActivities.map((item) => item.category_id))
+  const missingPlanMetadata = requiredPlanDetailIds.some(
+    (planId) => !planMetadataMap.has(planId)
+  );
+  const mismatchedOptionalPlanDetails = planIds.some(
+    (planId) =>
+      planMetadataMap.has(planId) !==
+      visiblePlanPresentationByPlanId.has(planId)
   );
 
+  const catalogueActivities = (
+    Array.isArray(catalogueActivityResult.data)
+      ? catalogueActivityResult.data
+      : []
+  ) as CatalogueActivityRow[];
+
   const { data: catalogueCategoryData, error: catalogueCategoryError } =
-    categoryIds.length > 0
-      ? await supabase
-          .from("activity_categories")
-          .select("id, name, default_cover_url")
-          .in("id", categoryIds)
-      : { data: [], error: null };
+    await catalogueCategoryResultPromise;
 
   if (catalogueCategoryError) {
     console.error("Category cover query failed:", catalogueCategoryError);
@@ -1168,9 +1399,22 @@ export default async function PublicProfilePage({
       categoryCoverUrl: category.default_cover_url,
     });
   }
+  const missingCatalogueContext = [
+    ...activeIntents,
+    ...formingActivities,
+    ...upcomingActivities,
+    ...completedActivities,
+  ].some(
+    (item) =>
+      !catalogueCoverMap.has(
+        getCatalogueKey(item.category_name, item.activity_name)
+      )
+  );
 
   const participantCounts = new Map<string, number>();
-  for (const row of (participantResult.data ?? []) as Array<{
+  for (const row of (Array.isArray(participantResult.data)
+    ? participantResult.data
+    : []) as Array<{
     intent_id: string;
     user_id: string;
   }>) {
@@ -1181,18 +1425,366 @@ export default async function PublicProfilePage({
     );
   }
 
+  const [
+    profileDisplayTitleResult,
+    profilePeopleResponse,
+    profileLineageResponse,
+  ] = await Promise.all([
+    profileDisplayTitlesPromise,
+    profilePeopleResponsePromise,
+    profileLineageResponsePromise,
+  ]);
+  const profileDisplayTitleByResourceId = profileDisplayTitleResult.data;
+
+  if (profilePeopleResponse.error) {
+    console.error("Profile Activity people query failed:", profilePeopleResponse.error);
+  }
+
+  if (profileLineageResponse.error) {
+    console.error("Profile viewer lineage query failed:", profileLineageResponse.error);
+  }
+
+  const profilePeopleByResourceId = groupActivityPeopleByResourceId(
+    (Array.isArray(profilePeopleResponse.data)
+      ? profilePeopleResponse.data
+      : []) as ActivityPeopleBatchRow[]
+  );
+  const profileLineageRows = (
+    Array.isArray(profileLineageResponse.data)
+      ? profileLineageResponse.data
+      : []
+  ) as ViewerPlanLineageRow[];
+  const profileLineageByPlanId = new Map<string, ViewerPlanLineage>();
+
+  profileLineageRows.forEach((row) => {
+    if (!row.source_intent_id) return;
+
+    profileLineageByPlanId.set(row.plan_id, {
+      sourceCount: toCount(row.source_count),
+      sourceIntentId: row.source_intent_id,
+      sourceIntentName: row.source_activity_name,
+      sourceIntentHref: `/activities/${encodeURIComponent(row.source_intent_id)}`,
+    });
+  });
+
+  const secondaryReadErrors = [
+    visibleSeedError,
+    displayOrderError,
+    visibleSeedReactionResult.error,
+    publicPreferencesError,
+    savedReactionResult.error,
+    planSourceIntentError,
+    familyResult.error,
+    connectionResult.error,
+    presenceResult.error,
+    planMetadataResult.error,
+    visiblePlanPresentationResult.error,
+    visiblePlanPresentationsResult.error,
+    catalogueActivityResult.error,
+    participantResult.error,
+    reputationResult.error,
+    professionalStatusResult.error,
+    publicGenderResult.error,
+    eligibilityContextResult.error,
+    presentationContextResult.error,
+    reactionContextResult.error,
+    publicActivityLocationResult.error,
+    badgeError,
+    catalogueCategoryError,
+    profileDisplayTitleResult.error,
+    profilePeopleResponse.error,
+    profileLineageResponse.error,
+  ].filter(Boolean);
+  const publicPreferencesPayloadIncomplete =
+    !isRecord(publicPreferencesData) ||
+    !Array.isArray(publicPreferencesData.favorites) ||
+    !("shared_favorite_count" in publicPreferencesData);
+  const familyPayloadIncomplete =
+    !isRecord(familyResult.data) ||
+    !Array.isArray(familyResult.data.children) ||
+    !Array.isArray(familyResult.data.relationships);
+  const connectionPayloadIncomplete =
+    !isRecord(connectionResult.data) ||
+    !Array.isArray(connectionResult.data.mutual_friends) ||
+    !("followers_count" in connectionResult.data) ||
+    !("following_count" in connectionResult.data) ||
+    !("friends_count" in connectionResult.data) ||
+    !("mutual_friends_count" in connectionResult.data);
+  const presencePayloadIncomplete =
+    !isRecord(presenceResult.data) ||
+    !Array.isArray(presenceResult.data.links) ||
+    !Array.isArray(presenceResult.data.embeds);
+  const reputationPayloadIncomplete =
+    !isRecord(reputationResult.data) ||
+    !Array.isArray(reputationResult.data.role_summaries) ||
+    !Array.isArray(reputationResult.data.contexts) ||
+    typeof reputationResult.data.is_managed_minor !== "boolean" ||
+    typeof reputationResult.data.participation_count !== "number";
+  const professionalStatusPayloadIncomplete =
+    !isRecord(professionalStatusResult.data) ||
+    !Array.isArray(professionalStatusResult.data.credentials) ||
+    typeof professionalStatusResult.data.identity_verified !== "boolean";
+  const invalidVisibleSeedRows = (
+    Array.isArray(visibleSeedData) ? visibleSeedData : []
+  ).some((row) => !hasStringFields(row, ["seed_id"]));
+  const invalidSeedReactionRows = (
+    Array.isArray(visibleSeedReactionResult.data)
+      ? visibleSeedReactionResult.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["seed_id"]) ||
+      !hasOwnFields(row, [
+        "save_count",
+        "water_count",
+        "viewer_saved",
+        "viewer_watered",
+        "friend_water_count",
+        "friend_water_preview",
+        "viewer_can_react",
+        "reaction_disabled_reason",
+      ])
+  );
+  const invalidSavedReactionRows = (
+    Array.isArray(savedReactionResult.data) ? savedReactionResult.data : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, [
+        "reaction_id",
+        "reaction_type",
+        "reaction_visibility",
+        "intent_id",
+        "resource_id",
+        "owner_user_id",
+        "activity_name",
+        "category_name",
+        "start_date",
+        "end_date",
+      ])
+  );
+  const invalidPlanSourceRows = (
+    Array.isArray(planSourceIntentData) ? planSourceIntentData : []
+  ).some((row) => !hasStringFields(row, ["plan_id", "intent_id"]));
+  const invalidPlanMetadataRows = planMetadata.some(
+    (row) =>
+      !hasStringFields(row, [
+        "plan_id",
+        "host_user_id",
+        "plan_visibility",
+        "recruitment_status",
+      ]) ||
+      ![
+        "public",
+        "friends",
+        "except_friends",
+        "invite_only",
+        "private",
+      ].includes(row.plan_visibility) ||
+      !["open", "full", "closed"].includes(row.recruitment_status) ||
+      !(
+        row.viewer_is_member === null ||
+        typeof row.viewer_is_member === "boolean"
+      )
+  );
+  const invalidPlanPresentationRows = (
+    Array.isArray(visiblePlanPresentationResult.data)
+      ? visiblePlanPresentationResult.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["plan_id"]) ||
+      !isRecord(row) ||
+      !(
+        row.custom_cover_storage_path === null ||
+        typeof row.custom_cover_storage_path === "string"
+      ) ||
+      !(
+        row.experience_cover_storage_path === null ||
+        typeof row.experience_cover_storage_path === "string"
+      )
+  );
+  const invalidCatalogueActivityRows = catalogueActivities.some(
+    (row) => !hasStringFields(row, ["id", "name", "category_id"])
+  );
+  const invalidCatalogueCategoryRows = (
+    Array.isArray(catalogueCategoryData) ? catalogueCategoryData : []
+  ).some((row) => !hasStringFields(row, ["id", "name"]));
+  const invalidParticipantRows = (
+    Array.isArray(participantResult.data) ? participantResult.data : []
+  ).some((row) => !hasStringFields(row, ["intent_id", "user_id"]));
+  const invalidEligibilityRows = (
+    Array.isArray(eligibilityContextResult.data)
+      ? eligibilityContextResult.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["intent_id", "participant_eligibility"]) ||
+      !["everyone", "women_only", "men_only"].includes(
+        row.participant_eligibility as string
+      ) ||
+      !isRecord(row) ||
+      typeof row.viewer_is_eligible !== "boolean"
+  );
+  const invalidPresentationContextRows = presentationContextRows.some(
+    (row) => !hasStringFields(row, ["intent_id"])
+  );
+  const invalidReactionContextRows = (
+    Array.isArray(reactionContextResult.data)
+      ? reactionContextResult.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["intent_id", "viewer_paw_visibility"]) ||
+      !hasOwnFields(row, [
+        "save_count",
+        "paw_count",
+        "viewer_saved",
+        "viewer_pawed",
+        "friend_paw_count",
+        "friend_paw_preview",
+        "viewer_can_react",
+        "reaction_disabled_reason",
+      ])
+  );
+  const invalidActivityLocationRows = (
+    Array.isArray(publicActivityLocationResult.data)
+      ? publicActivityLocationResult.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["plan_id"]) ||
+      !isRecord(row) ||
+      !(
+        row.activity_location_name === null ||
+        typeof row.activity_location_name === "string"
+      )
+  );
+  const invalidBadgeRows = (
+    Array.isArray(badgeData) ? badgeData : []
+  ).some((row) => !hasStringFields(row, ["id", "slug", "name"]));
+  const invalidPeopleRows = (
+    Array.isArray(profilePeopleResponse.data)
+      ? profilePeopleResponse.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["resource_id", "user_id", "role"])
+  );
+  const invalidLineageRows = (
+    Array.isArray(profileLineageResponse.data)
+      ? profileLineageResponse.data
+      : []
+  ).some(
+    (row) =>
+      !hasStringFields(row, ["plan_id"]) ||
+      !hasOwnFields(row, [
+        "source_count",
+        "source_intent_id",
+        "source_activity_name",
+      ])
+  );
+  const invalidPublicGender =
+    publicGenderResult.data !== null &&
+    !["female", "male", "non_binary"].includes(publicGenderResult.data);
+  const secondaryPayloadIncomplete =
+    publicPreferencesPayloadIncomplete ||
+    familyPayloadIncomplete ||
+    connectionPayloadIncomplete ||
+    presencePayloadIncomplete ||
+    reputationPayloadIncomplete ||
+    professionalStatusPayloadIncomplete ||
+    invalidDisplayOrderRows ||
+    invalidVisibleSeedRows ||
+    invalidSeedReactionRows ||
+    invalidSavedReactionRows ||
+    invalidPlanSourceRows ||
+    invalidPlanMetadataRows ||
+    invalidPlanPresentationRows ||
+    invalidCatalogueActivityRows ||
+    invalidCatalogueCategoryRows ||
+    invalidParticipantRows ||
+    invalidEligibilityRows ||
+    invalidPresentationContextRows ||
+    invalidReactionContextRows ||
+    invalidActivityLocationRows ||
+    invalidBadgeRows ||
+    invalidPeopleRows ||
+    invalidLineageRows ||
+    invalidPublicGender ||
+    !Array.isArray(visibleSeedData) ||
+    !Array.isArray(displayOrderData) ||
+    !Array.isArray(visibleSeedReactionResult.data) ||
+    !Array.isArray(savedReactionResult.data) ||
+    !Array.isArray(planSourceIntentData) ||
+    !Array.isArray(planMetadataResult.data) ||
+    !Array.isArray(visiblePlanPresentationResult.data) ||
+    !Array.isArray(catalogueActivityResult.data) ||
+    !Array.isArray(participantResult.data) ||
+    !Array.isArray(eligibilityContextResult.data) ||
+    !Array.isArray(presentationContextResult.data) ||
+    !Array.isArray(reactionContextResult.data) ||
+    !Array.isArray(publicActivityLocationResult.data) ||
+    !Array.isArray(badgeData) ||
+    !Array.isArray(catalogueCategoryData) ||
+    !Array.isArray(profilePeopleResponse.data) ||
+    !Array.isArray(profileLineageResponse.data) ||
+    profileDisplayTitleResult.payloadIncomplete ||
+    missingSeedReactionContext ||
+    missingEligibilityContext ||
+    missingPresentationContext ||
+    missingReactionContext ||
+    mismatchedOptionalIntentContext ||
+    missingPlanPresentation ||
+    missingSignedPlanMedia ||
+    missingPlanMetadata ||
+    mismatchedOptionalPlanDetails ||
+    missingCatalogueContext;
+
+  if (secondaryReadErrors.length > 0 || secondaryPayloadIncomplete) {
+    console.error("Public profile secondary data is incomplete; rendering stopped.", {
+      errorCount: secondaryReadErrors.length,
+      payloadIncomplete: secondaryPayloadIncomplete,
+    });
+    return <ProfileDataUnavailable retryHref={retryHref} />;
+  }
+
+  const publicPreferences = publicPreferencesData as {
+    favorites: PublicFavoriteItem[];
+    shared_favorite_count: number | string | null;
+  };
+  const publicFavorites = publicPreferences.favorites;
+  const publicFamily = familyResult.data as RawFamilyData;
+  const connectionSummary =
+    connectionResult.data as ProfileConnectionSummary;
+  const presence = presenceResult.data as ProfilePresenceData;
+  const reputationSummary =
+    reputationResult.data as PublicReputationSummary;
+  const rawProfessionalStatus =
+    professionalStatusResult.data as PublicProfessionalStatus;
+  const professionalStatus: PublicProfessionalStatus = {
+    ...rawProfessionalStatus,
+    credentials: sortByProfileDisplayOrder(
+      rawProfessionalStatus.credentials,
+      (credential) => credential.id,
+      displayOrderMaps.credential
+    ),
+  };
+  const publicBadges = sortByProfileDisplayOrder(
+    badgeData as PublicBadge[],
+    (badge) => badge.id,
+    displayOrderMaps.badge
+  );
+  const youtubeEmbedUrl = buildYouTubeEmbedUrl(
+    presence.embeds.find((embed) => embed.provider === "youtube")?.source_url
+  );
+
   const displayName = profile.full_name || profile.username;
   const location = [profile.city, profile.country].filter(Boolean).join(", ");
 
   function coverData(categoryName: string, activityName: string) {
-    return (
-      catalogueCoverMap.get(getCatalogueKey(categoryName, activityName)) ?? {
-        activityId: "",
-        categoryId: "",
-        activityCoverUrl: null,
-        categoryCoverUrl: null,
-      }
-    );
+    return catalogueCoverMap.get(
+      getCatalogueKey(categoryName, activityName)
+    )!;
   }
 
   function intentPresentationData(
@@ -1264,14 +1856,25 @@ export default async function PublicProfilePage({
   }
 
   const savedReactionItems = savedReactionRows.map(reactionItem);
-  const pawedReactionItems = pawedReactionRows.map(reactionItem);
 
-  function ownerData(metadata?: PlanCardMetadata) {
+  function ownerData(
+    metadata?: PlanCardMetadata,
+    fallbackToProfile = true
+  ) {
+    if (metadata) {
+      return {
+        owner_user_id: metadata.host_user_id,
+        owner_full_name: metadata.host_full_name,
+        owner_username: metadata.host_username,
+        owner_avatar_url: metadata.host_avatar_url,
+      };
+    }
+
     return {
-      owner_user_id: metadata?.host_user_id ?? profile.id,
-      owner_full_name: metadata?.host_full_name ?? profile.full_name,
-      owner_username: metadata?.host_username ?? profile.username,
-      owner_avatar_url: metadata?.host_avatar_url ?? profile.avatar_url,
+      owner_user_id: fallbackToProfile ? profile.id : "",
+      owner_full_name: fallbackToProfile ? profile.full_name : null,
+      owner_username: fallbackToProfile ? profile.username : null,
+      owner_avatar_url: fallbackToProfile ? profile.avatar_url : null,
     };
   }
 
@@ -1297,6 +1900,7 @@ export default async function PublicProfilePage({
 
   const activeCards: DiscoverIntentRow[] = activeIntents.map((intent) => {
     const cover = coverData(intent.category_name, intent.activity_name);
+    const eligibility = eligibilityByIntentId.get(intent.id)!;
     const lifecycle: IntentLifecycleStatus =
       intent.start_date > new Date().toISOString().slice(0, 10)
         ? "future"
@@ -1337,16 +1941,8 @@ export default async function PublicProfilePage({
       lifecycle_status: lifecycle,
       max_participants: intent.max_participants,
       active_participant_count: participantCounts.get(intent.id) ?? 0,
-      participant_eligibility:
-        eligibilityByIntentId.get(
-          intent.id
-        )?.participantEligibility ??
-        "everyone",
-      viewer_is_eligible:
-        eligibilityByIntentId.get(
-          intent.id
-        )?.viewerIsEligible ??
-        page.viewer.is_owner,
+      participant_eligibility: eligibility.participantEligibility,
+      viewer_is_eligible: eligibility.viewerIsEligible,
       viewer_can_request: intent.viewer_can_request,
       viewer_is_member:
         page.viewer.is_owner || intent.viewer_join_request_status === "accepted",
@@ -1361,6 +1957,7 @@ export default async function PublicProfilePage({
     const cover = coverData(activity.category_name, activity.activity_name);
     const metadata = planMetadataMap.get(activity.id);
     const presentation = visiblePlanPresentationByPlanId.get(activity.id) ?? null;
+    const eligibility = eligibilityByIntentId.get(activity.source_intent_id)!;
 
     return {
       ...emptyDiscoverFields(),
@@ -1378,7 +1975,7 @@ export default async function PublicProfilePage({
       ...intentPresentationData(activity.source_intent_id),
       reaction_context:
         reactionContextByIntentId.get(activity.source_intent_id) ?? null,
-      ...ownerData(metadata),
+      ...ownerData(metadata, false),
       activity_id: cover.activityId,
       activity_name:
         presentation?.custom_title?.trim() ||
@@ -1395,27 +1992,20 @@ export default async function PublicProfilePage({
       people: "shared plan",
       budget: null,
       recurrence: "one-time",
-      visibility: metadata?.plan_visibility ?? activity.visibility,
+      visibility: metadata?.plan_visibility ?? "private",
       intent_type: "Shared Plan",
       intent_status: "planned",
-      recruitment_status: metadata?.recruitment_status ?? activity.recruitment_status,
+      recruitment_status: metadata?.recruitment_status ?? "closed",
       matching_status: "matched",
       expired_at: null,
       lifecycle_status: "forming",
       max_participants: null,
       active_participant_count: Math.max(activity.member_count - 1, 0),
-      participant_eligibility:
-        eligibilityByIntentId.get(
-          activity.source_intent_id
-        )?.participantEligibility ??
-        "everyone",
-      viewer_is_eligible:
-        eligibilityByIntentId.get(
-          activity.source_intent_id
-        )?.viewerIsEligible ??
-        page.viewer.is_owner,
+      participant_eligibility: eligibility.participantEligibility,
+      viewer_is_eligible: eligibility.viewerIsEligible,
       viewer_can_request: activity.viewer_can_request,
-      viewer_is_member: page.viewer.is_owner || activity.viewer_is_member,
+      viewer_is_member:
+        page.viewer.is_owner || activity.viewer_is_member === true,
       viewer_invitation_status: activity.viewer_invitation_status,
       viewer_request_status: activity.viewer_join_request_status,
       viewer_request_id: activity.viewer_join_request_id,
@@ -1430,10 +2020,11 @@ export default async function PublicProfilePage({
     const cover = coverData(activity.category_name, activity.activity_name);
     const metadata = planMetadataMap.get(activity.id);
     const presentation = visiblePlanPresentationByPlanId.get(activity.id) ?? null;
-    const sourceIntentId =
-      sourceIntentByPlanId.get(
-        activity.id
-      ) ?? null;
+    const sourceIntentId = sourceIntentByPlanId.get(activity.id) ?? null;
+    // Missing detail rows are valid only for an external viewer whose source
+    // Intent is not visible. The main profile RPC can expose that plan only
+    // through its explicit public-plan branch.
+    const planVisibility = metadata ? metadata.plan_visibility : "public";
 
     return {
       ...emptyDiscoverFields(),
@@ -1449,11 +2040,10 @@ export default async function PublicProfilePage({
       profile_role: activity.relationship,
       profile_role_label: profileRoleLabel(activity.relationship),
       ...intentPresentationData(sourceIntentId),
-      reaction_context:
-        sourceIntentId
-          ? reactionContextByIntentId.get(sourceIntentId) ?? null
-          : null,
-      ...ownerData(metadata),
+      reaction_context: sourceIntentId
+        ? reactionContextByIntentId.get(sourceIntentId) ?? null
+        : null,
+      ...ownerData(metadata, activity.relationship === "host"),
       activity_id: cover.activityId,
       activity_name:
         presentation?.custom_title?.trim() ||
@@ -1478,7 +2068,7 @@ export default async function PublicProfilePage({
       people: activity.relationship,
       budget: null,
       recurrence: "one-time",
-      visibility: metadata?.plan_visibility ?? "public",
+      visibility: planVisibility,
       intent_type:
         activity.relationship === "host"
           ? "Hosted Activity"
@@ -1509,121 +2099,6 @@ export default async function PublicProfilePage({
   const completedCards = completedActivities.map((activity) =>
     scheduledCard(activity, "completed")
   );
-
-  const allProfileCards = [
-    ...activeCards,
-    ...formingCards,
-    ...upcomingCards,
-    ...completedCards,
-  ];
-
-  const profileResourceIds = Array.from(
-    new Set(
-      allProfileCards.map((card) =>
-        card.plan_id ?? card.resource_id ?? card.intent_id
-      )
-    )
-  );
-
-  const profilePlanIds = Array.from(
-    new Set(
-      allProfileCards
-        .map((card) => card.plan_id)
-        .filter((planId): planId is string => Boolean(planId))
-    )
-  );
-
-  const profilePresentationBatches = Array.from(
-    { length: Math.ceil(profileResourceIds.length / 100) },
-    (_, index) => profileResourceIds.slice(index * 100, (index + 1) * 100)
-  );
-  const profilePresentationBatchResponses = await Promise.all(
-    profilePresentationBatches.map((resourceIds) =>
-      supabase.rpc("get_uin_event_presentations_v150", {
-        p_resource_ids: resourceIds,
-      })
-    )
-  );
-  const profileDisplayTitleByResourceId = new Map<string, string | null>();
-
-  for (let index = 0; index < profilePresentationBatchResponses.length; index += 1) {
-    const response = profilePresentationBatchResponses[index];
-    const resourceIds = profilePresentationBatches[index] ?? [];
-
-    if (response.error) {
-      console.warn(
-        "Profile event presentation batch is temporarily unavailable; using the exact fallback:",
-        response.error.message
-      );
-      const fallbackResponses = await Promise.all(
-        resourceIds.map(async (resourceId) => ({
-          resourceId,
-          result: await supabase.rpc("get_uin_event_presentation_v86", {
-            p_resource_id: resourceId,
-          }),
-        }))
-      );
-      for (const { resourceId, result } of fallbackResponses) {
-        const displayTitle =
-          !result.error && result.data && typeof result.data === "object" && !Array.isArray(result.data)
-            ? (result.data as { displayTitle?: unknown }).displayTitle
-            : null;
-        profileDisplayTitleByResourceId.set(
-          resourceId,
-          typeof displayTitle === "string" ? displayTitle : null
-        );
-      }
-      continue;
-    }
-
-    for (const row of (response.data ?? []) as Array<{
-      resource_id: string;
-      presentation: { displayTitle?: unknown } | null;
-    }>) {
-      const displayTitle = row.presentation?.displayTitle;
-      profileDisplayTitleByResourceId.set(
-        row.resource_id,
-        typeof displayTitle === "string" ? displayTitle : null
-      );
-    }
-  }
-  const [profilePeopleResponse, profileLineageResponse] = await Promise.all([
-    profileResourceIds.length > 0
-      ? supabase.rpc("get_visible_activity_people_batch", {
-          p_resource_ids: profileResourceIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-    viewerUserId && profilePlanIds.length > 0
-      ? supabase.rpc("get_my_visible_plan_lineage", {
-          p_plan_ids: profilePlanIds,
-        })
-      : Promise.resolve({ data: [], error: null }),
-  ]);
-
-  if (profilePeopleResponse.error) {
-    console.error("Profile Activity people query failed:", profilePeopleResponse.error);
-  }
-
-  if (profileLineageResponse.error) {
-    console.error("Profile viewer lineage query failed:", profileLineageResponse.error);
-  }
-
-  const profilePeopleByResourceId = groupActivityPeopleByResourceId(
-    (profilePeopleResponse.data ?? []) as ActivityPeopleBatchRow[]
-  );
-
-  const profileLineageByPlanId = new Map<string, ViewerPlanLineage>();
-
-  ((profileLineageResponse.data ?? []) as ViewerPlanLineageRow[]).forEach((row) => {
-    if (!row.source_intent_id) return;
-
-    profileLineageByPlanId.set(row.plan_id, {
-      sourceCount: toCount(row.source_count),
-      sourceIntentId: row.source_intent_id,
-      sourceIntentName: row.source_activity_name,
-      sourceIntentHref: `/activities/${encodeURIComponent(row.source_intent_id)}`,
-    });
-  });
 
   function enrichProfileCard(card: DiscoverIntentRow): DiscoverIntentRow {
     return {
@@ -1713,7 +2188,7 @@ export default async function PublicProfilePage({
   );
 
   const hasFavorites =
-    toCount(publicPreferences.shared_favorite_count ?? 0) > 0;
+    toCount(publicPreferences.shared_favorite_count) > 0;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6 md:py-8">
@@ -2065,7 +2540,7 @@ export default async function PublicProfilePage({
         <div id="favorites" className="scroll-mt-8">
           <PublicFavoritesPanel
             items={publicFavorites}
-            sharedCount={toCount(publicPreferences.shared_favorite_count ?? 0)}
+            sharedCount={toCount(publicPreferences.shared_favorite_count)}
           />
         </div>
         )}
@@ -2161,13 +2636,6 @@ export default async function PublicProfilePage({
             privateSection
           />
         )}
-
-
-        {false && <PublicCommunityMembershipsPanel
-          memberships={publicCommunityMemberships}
-          isOwner={page.viewer.is_owner}
-        />}
-
       </div>
     </main>
   );

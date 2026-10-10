@@ -110,6 +110,83 @@ test("failed profile privacy reads do not expose a partially authorized profile"
       `${marker} must fail closed`,
     );
   }
+
+  assert.match(
+    profile,
+    /if \(\s*!minorContextData[\s\S]{0,400}return <ProfileDataUnavailable/,
+  );
+  assert.match(
+    profile,
+    /Promise\.all\(\[\s*supabase\.rpc\("get_profile_hidden_resource_keys"[\s\S]{0,400}supabase\.rpc\("get_public_minor_profile_context"/,
+  );
+});
+
+test("public profile overlaps complete reads and batches bounded plan lookups", () => {
+  const profile = source("src/app/u/[username]/page.tsx");
+  const launchStart = profile.indexOf("const visibleSeedResultPromise");
+  const firstConsumerAwait = profile.indexOf(
+    "const [visibleSeedResult, displayOrderResult] = await",
+    launchStart,
+  );
+
+  assert.ok(launchStart >= 0 && firstConsumerAwait > launchStart);
+  for (const marker of [
+    "const publicPreferencesResultPromise",
+    "const familyResultPromise",
+    "const planMetadataResultPromise",
+    "const profileDisplayTitlesPromise",
+    "const profilePeopleResponsePromise",
+    "const presentationIntentIdsPromise",
+  ]) {
+    const position = profile.indexOf(marker, launchStart);
+    assert.ok(
+      position > launchStart && position < firstConsumerAwait,
+      `${marker} must start before the first independent result is consumed`,
+    );
+  }
+
+  assert.match(profile, /const planIdBatches = toBatches\(planIds\)/);
+  for (const rpc of [
+    "get_visible_plan_source_intents",
+    "get_visible_plan_card_metadata",
+    "get_visible_public_plan_activity_locations",
+  ]) {
+    assert.match(
+      profile,
+      new RegExp(`planIdBatches\\.map\\(\\(batchPlanIds\\)[\\s\\S]{0,180}${rpc}[\\s\\S]{0,120}p_plan_ids: batchPlanIds`),
+      `${rpc} must stay inside the database's 100-id boundary`,
+    );
+  }
+
+  assert.doesNotMatch(profile, /get_public_profile_community_memberships/);
+  assert.doesNotMatch(profile, /plan_visibility \?\? "public"/);
+  assert.doesNotMatch(profile, /const missingActivityPeople/);
+  assert.doesNotMatch(profile, /const missingPlanSourceIntent/);
+  assert.match(profile, /const missingSignedPlanMedia =/);
+  assert.match(profile, /missingSignedPlanMedia \|\|/);
+  assert.match(profile, /const requiredPlanDetailIds = planIds\.filter/);
+  assert.match(profile, /metadata\?\.plan_visibility \?\? "private"/);
+  assert.match(profile, /metadata\?\.recruitment_status \?\? "closed"/);
+  assert.match(
+    profile,
+    /const planVisibility = metadata \? metadata\.plan_visibility : "public"/,
+  );
+  assert.match(
+    profile,
+    /ownerData\(metadata, activity\.relationship === "host"\)/,
+  );
+  assert.match(
+    profile,
+    /const secondaryReadErrors =[\s\S]*if \(secondaryReadErrors\.length > 0 \|\| secondaryPayloadIncomplete\)[\s\S]*return <ProfileDataUnavailable/,
+  );
+});
+
+test("visible plan media uses bucket-level signed URL batches", () => {
+  const visibility = source("src/utils/planPresentationVisibility.ts");
+
+  assert.match(visibility, /createSignedUrls\(uniquePaths, 60 \* 60\)/);
+  assert.doesNotMatch(visibility, /\.createSignedUrl\(/);
+  assert.match(visibility, /new Set\(paths\.filter/);
 });
 
 test("interactive detail reads always settle and offer a retry after an error", () => {

@@ -61,58 +61,81 @@ export type VisiblePlanPresentation = VisiblePlanPresentationRow & {
   visible_cover_url: string | null;
 };
 
-async function signPath(
+async function signPaths(
   supabase: SupabaseClient,
   bucket: string,
-  path: string | null
+  paths: Array<string | null>
 ) {
-  if (!path) return null;
+  const uniquePaths = Array.from(
+    new Set(paths.filter((path): path is string => Boolean(path)))
+  );
+
+  if (uniquePaths.length === 0) {
+    return new Map<string, string>();
+  }
 
   const { data, error } = await supabase.storage
     .from(bucket)
-    .createSignedUrl(path, 60 * 60);
+    .createSignedUrls(uniquePaths, 60 * 60);
 
   if (error) {
     console.warn(`Could not sign ${bucket} media:`, error.message);
-    return null;
+    return new Map<string, string>();
   }
 
-  return data?.signedUrl ?? null;
+  const signedUrls = new Map<string, string>();
+
+  for (const item of data ?? []) {
+    if (item.error) {
+      console.warn(`Could not sign ${bucket} media path:`, item.error);
+      continue;
+    }
+
+    if (item.path && item.signedUrl) {
+      signedUrls.set(item.path, item.signedUrl);
+    }
+  }
+
+  return signedUrls;
 }
 
 export async function hydrateVisiblePlanPresentations(
   supabase: SupabaseClient,
   rows: VisiblePlanPresentationRow[]
 ): Promise<VisiblePlanPresentation[]> {
-  return Promise.all(
-    rows.map(async (row) => {
-      const [signedCustomCoverUrl, signedExperienceCoverUrl] =
-        await Promise.all([
-          signPath(
-            supabase,
-            "plan-presentation-covers",
-            row.custom_cover_storage_path
-          ),
-          signPath(
-            supabase,
-            "experience-media",
-            row.experience_cover_storage_path
-          ),
-        ]);
+  const [signedCustomCovers, signedExperienceCovers] = await Promise.all([
+    signPaths(
+      supabase,
+      "plan-presentation-covers",
+      rows.map((row) => row.custom_cover_storage_path)
+    ),
+    signPaths(
+      supabase,
+      "experience-media",
+      rows.map((row) => row.experience_cover_storage_path)
+    ),
+  ]);
 
-      return {
-        ...row,
-        title_visibility: normalizePlanPresentationVisibility(
-          row.title_visibility
-        ),
-        cover_visibility: normalizePlanPresentationVisibility(
-          row.cover_visibility
-        ),
-        signed_custom_cover_url: signedCustomCoverUrl,
-        signed_experience_cover_url: signedExperienceCoverUrl,
-        visible_cover_url:
-          signedCustomCoverUrl || row.custom_cover_external_url || null,
-      };
-    })
-  );
+  return rows.map((row) => {
+    const signedCustomCoverUrl = row.custom_cover_storage_path
+      ? signedCustomCovers.get(row.custom_cover_storage_path) ?? null
+      : null;
+    const signedExperienceCoverUrl = row.experience_cover_storage_path
+      ? signedExperienceCovers.get(row.experience_cover_storage_path) ?? null
+      : null;
+
+    return {
+      ...row,
+      title_visibility: normalizePlanPresentationVisibility(
+        row.title_visibility
+      ),
+      cover_visibility: normalizePlanPresentationVisibility(
+        row.cover_visibility
+      ),
+      signed_custom_cover_url: signedCustomCoverUrl,
+      signed_experience_cover_url: signedExperienceCoverUrl,
+      visible_cover_url:
+        signedCustomCoverUrl || row.custom_cover_external_url || null,
+    };
+  });
 }
