@@ -14,7 +14,7 @@ function targetId(row:Row,key:"target_id"|"canonical_target_id"="target_id"){
   return typeof value==="string"&&UUID_PATTERN.test(value)?value:"";
 }
 
-function count(row:Row,key:"wanting"|"done"|"active"){
+function count(row:Row,key:"intent_people_count"|"experience_people_count"|"active_event_count"){
   const raw=row[key];
   if(raw==null||raw==="")throw new Error(`Missing club ${key} count`);
   const value=Number(raw);
@@ -37,22 +37,18 @@ export async function GET(){
 
     // Every dependent reader is bounded by the hierarchy ids and starts in the
     // same batch. This replaces the old full-catalogue pagination waterfall.
-    const [catalogue,summary,placements,styles]=await Promise.all([
+    const [catalogue,placements,styles]=await Promise.all([
       db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
-      db.rpc("get_uin_card_summary_v129",{p_target_ids:ids}),
       db.from("seed_catalog_items").select("id,canonical_target_id,status").in("canonical_target_id",ids),
       db.rpc("get_uin_card_styles_v76",{p_target_ids:ids}),
     ]);
-    if(catalogue.error||summary.error||placements.error||styles.error)throw catalogue.error||summary.error||placements.error||styles.error;
+    if(catalogue.error||placements.error||styles.error)throw catalogue.error||placements.error||styles.error;
     if(!Array.isArray(catalogue.data)||!catalogue.data.every(isRow)
-      ||!Array.isArray(summary.data)||!summary.data.every(isRow)
       ||!Array.isArray(placements.data)||!placements.data.every(isRow)
       ||!Array.isArray(styles.data)||!styles.data.every(isRow))throw new Error("Incomplete club catalogue payload");
 
     const cardByTarget=new Map<string,Row>();
     for(const row of catalogue.data as Row[]){const id=targetId(row,"canonical_target_id");if(id)cardByTarget.set(id,row)}
-    const summaryByTarget=new Map<string,Row>();
-    for(const row of summary.data as Row[]){const id=targetId(row);if(id)summaryByTarget.set(id,row)}
     const styleByTarget=new Map<string,Row>();
     for(const row of styles.data as Row[]){const id=targetId(row);if(id)styleByTarget.set(id,row)}
     const placementByTarget=new Map<string,Row>();
@@ -72,7 +68,7 @@ export async function GET(){
     });
     const incompleteIds=visibleRows.map(row=>targetId(row)).filter(id=>{
       const placement=placementByTarget.get(id);
-      return !summaryByTarget.has(id)||!placement||typeof placement.id!=="string"||!UUID_PATTERN.test(placement.id)||!styleByTarget.has(id);
+      return !placement||typeof placement.id!=="string"||!UUID_PATTERN.test(placement.id)||!styleByTarget.has(id);
     });
     if(incompleteIds.length)throw new Error("Club catalogue projections are incomplete");
 
@@ -87,8 +83,7 @@ export async function GET(){
 
     const clubs=visibleRows.map(row=>{
       const id=targetId(row);
-      const card=cardByTarget.get(id);
-      const stats=summaryByTarget.get(id)!;
+      const card=cardByTarget.get(id)!;
       const style=styleByTarget.get(id);
       const placement=placementByTarget.get(id);
       const displayName=String(row.display_name||card?.title||row.title||"").trim();
@@ -105,9 +100,9 @@ export async function GET(){
         coverUrl:card?.catalog_cover_url||card?.cover_url||row.logo_url||null,
         logoUrl:typeof row.logo_url==="string"?row.logo_url:null,
         catalogItemId:String(placement?.id),
-        wanting:count(stats,"wanting"),
-        done:count(stats,"done"),
-        active:count(stats,"active"),
+        wanting:count(card,"intent_people_count"),
+        done:count(card,"experience_people_count"),
+        active:count(card,"active_event_count"),
       };
     });
 

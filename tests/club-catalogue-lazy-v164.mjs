@@ -22,13 +22,12 @@ test("club catalogue endpoint stays bounded and parallel",()=>{
   assert.doesNotMatch(source,/get_uin_catalogue_fast_v122/);
   assert.doesNotMatch(source,/for\s*\(let offset/);
   assert.match(source,/const ids=\[\.\.\.new Set\(hierarchyRows\.map\(row=>targetId\(row\)\)\)\]/);
-  const parallel=source.match(/const \[catalogue,summary,placements,styles\]=await Promise\.all\(\[([\s\S]*?)\]\);/)?.[1]||"";
+  const parallel=source.match(/const \[catalogue,placements,styles\]=await Promise\.all\(\[([\s\S]*?)\]\);/)?.[1]||"";
   assert.match(parallel,/get_uin_catalogue_for_targets_v123/);
-  assert.match(parallel,/get_uin_card_summary_v129/);
+  assert.doesNotMatch(source,/get_uin_card_summary_v129/);
   assert.match(parallel,/seed_catalog_items/);
   assert.match(parallel,/get_uin_card_styles_v76/);
   assert.match(source,/const cardByTarget=new Map/);
-  assert.match(source,/const summaryByTarget=new Map/);
   assert.match(source,/const styleByTarget=new Map/);
   assert.match(source,/const placementByTarget=new Map/);
   assert.doesNotMatch(source,/\.find\(/);
@@ -36,19 +35,18 @@ test("club catalogue endpoint stays bounded and parallel",()=>{
   assert.doesNotMatch(source,/Number\(stats\?\.(?:wanting|done|active)\s*\|\|\s*0\)/);
 });
 
-function endpointDb({dropSummary=false}={}){
+function endpointDb({dropCatalogueCount=false}={}){
   const calls=[];
   const hierarchy=[
     {target_id:validClub.target_id,parent_target_id:null,sport:"FUTBOL",division:"ERKEK",league:"Süper Lig",season:"2026",display_name:"Örnek Kulüp",logo_url:null},
     {target_id:secondId,parent_target_id:validClub.target_id,sport:"FUTBOL",division:"KADIN",league:"Süper Lig",season:"2026",display_name:"Örnek Takım",logo_url:null},
   ];
-  const catalogue=hierarchy.map(row=>({canonical_target_id:row.target_id,title:row.display_name,catalog_cover_url:null,cover_url:null}));
-  const summaries=hierarchy.filter((_,index)=>!dropSummary||index===0).map((row,index)=>({target_id:row.target_id,wanting:index+1,done:index+2,active:index}));
+  const catalogue=hierarchy.map((row,index)=>({canonical_target_id:row.target_id,title:row.display_name,catalog_cover_url:null,cover_url:null,intent_people_count:index+1,experience_people_count:dropCatalogueCount&&index===1?null:index+2,active_event_count:index}));
   const styles=hierarchy.map(row=>({target_id:row.target_id,card_style:null,own_style:null}));
   const placements=hierarchy.map((row,index)=>({id:catalogueIds[index],canonical_target_id:row.target_id,status:"active"}));
   return{
     calls,
-    rpc:async name=>{calls.push(name);if(name==="get_club_hierarchy_v78")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_summary_v129")return{data:summaries,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
+    rpc:async name=>{calls.push(name);if(name==="get_club_hierarchy_v78")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
     from:()=>({select:()=>({in:async()=>({data:placements,error:null})})}),
   };
 }
@@ -61,7 +59,7 @@ test("club endpoint keeps complete rows and fails closed when a projection is mi
   assert.deepEqual(Array.from(complete.body.clubs,club=>[club.wanting,club.done,club.active]),[[1,2,0],[2,3,1]]);
   assert.ok(!completeDb.calls.includes("get_uin_catalogue_fast_v122"));
 
-  const incomplete=await compileRoute(endpointDb({dropSummary:true})).GET();
+  const incomplete=await compileRoute(endpointDb({dropCatalogueCount:true})).GET();
   assert.equal(incomplete.status,503);
   assert.equal(incomplete.body.error,"Kulüp ve takım bilgileri yüklenemedi.");
 });
