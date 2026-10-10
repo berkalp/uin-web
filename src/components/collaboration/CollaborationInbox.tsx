@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import {
+  getCollaborationActivityPresentation,
+  type CollaborationActivitySummary,
+  type CollaborationActivityTone,
+} from "@/lib/collaborationActivity";
 import { supabase } from "@/utils/supabase/client";
 
 export type CollaborationRequest = {
@@ -18,7 +23,8 @@ export type CollaborationRequest = {
 
 export type CollaborationChatSummary = {
   chat_id: string;
-  seed_id: string;
+  seed_id: string | null;
+  canonical_target_id: string | null;
   seed_title: string;
   other_user_id: string;
   other_full_name: string;
@@ -30,6 +36,15 @@ export type CollaborationChatSummary = {
   unread_count: number | string;
   last_message_body: string | null;
   last_message_at: string | null;
+  activity: CollaborationActivitySummary | null;
+};
+
+const rowToneClasses: Record<CollaborationActivityTone, { row: string; badge: string }> = {
+  amber: { row: "border-amber-200 bg-amber-50/70 hover:bg-amber-50", badge: "bg-amber-100 text-amber-900" },
+  green: { row: "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-50", badge: "bg-emerald-100 text-emerald-900" },
+  slate: { row: "border-slate-200 bg-slate-50 hover:bg-slate-100", badge: "bg-slate-200 text-slate-800" },
+  purple: { row: "border-violet-200 bg-violet-50/70 hover:bg-violet-50", badge: "bg-violet-100 text-violet-900" },
+  red: { row: "border-red-200 bg-red-50/70 hover:bg-red-50", badge: "bg-red-100 text-red-800" },
 };
 
 export default function CollaborationInbox({ initialRequests, initialChats, focusedId }: { initialRequests: CollaborationRequest[]; initialChats: CollaborationChatSummary[]; focusedId: string | null }) {
@@ -66,10 +81,18 @@ export default function CollaborationInbox({ initialRequests, initialChats, focu
     </section>
     <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
       <header className="border-b p-5 md:p-7"><h2 className="text-2xl font-black">Tanışma sohbetleri</h2><p className="mt-1 text-sm text-gray-500">Önce konuşun; ikiniz de hazır olduğunuzda planlamaya geçin.</p></header>
-      <div className="divide-y divide-gray-100">{initialChats.length ? initialChats.map((chat) => <Link key={chat.chat_id} href={`/collaboration-chat/${encodeURIComponent(chat.chat_id)}`} className="flex items-center gap-4 p-5 transition hover:bg-gray-50 md:px-7">
-        {chat.other_avatar_url ? <img src={chat.other_avatar_url} alt="" className="h-12 w-12 rounded-full object-cover"/> : <span className="grid h-12 w-12 place-items-center rounded-full bg-gray-100 font-black">{chat.other_full_name.charAt(0)}</span>}
-        <div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate font-black">{chat.other_full_name}</p>{Number(chat.unread_count) > 0 && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">{chat.unread_count} yeni</span>}</div><p className="truncate text-sm text-gray-500">{chat.seed_title} · {chat.last_message_body || "Sohbet hazır"}</p></div><span className="text-xl text-gray-400">›</span>
-      </Link>) : <p className="p-8 text-center text-sm text-gray-500">Henüz açık tanışma sohbetin yok.</p>}</div>
+      <div className="space-y-3 bg-gray-50/60 p-3 md:p-5">{initialChats.length ? initialChats.map((chat) => {
+        const presentation = chat.activity ? getCollaborationActivityPresentation(chat.activity) : null;
+        const tone = presentation ? rowToneClasses[presentation.tone] : null;
+        return <Link key={chat.chat_id} href={`/collaboration-chat/${encodeURIComponent(chat.chat_id)}`} className={`flex items-center gap-4 rounded-2xl border p-4 transition md:px-5 ${tone?.row ?? "border-gray-200 bg-white hover:bg-gray-50"}`}>
+          {chat.other_avatar_url ? <img src={chat.other_avatar_url} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover"/> : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white font-black shadow-sm">{chat.other_full_name.charAt(0)}</span>}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2"><p className="truncate font-black">{chat.other_full_name}</p>{presentation && tone && <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${tone.badge}`}>{presentation.label}</span>}{Number(chat.unread_count) > 0 && <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-black text-white">{chat.unread_count} yeni</span>}</div>
+            {chat.activity && <p className="mt-1 truncate text-sm font-bold text-gray-900">{chat.activity.title}</p>}
+            <p className="mt-0.5 truncate text-sm text-gray-600">{chat.seed_title} · {chat.last_message_body || "Sohbet hazır"}</p>
+          </div><span className="text-xl text-gray-400">›</span>
+        </Link>;
+      }) : <p className="p-8 text-center text-sm text-gray-500">Henüz açık tanışma sohbetin yok.</p>}</div>
     </section>
   </div>;
 }

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 import AppNavigation from "@/components/navigation/AppNavigation";
 import CollaborationChat, { type ChatCardContext, type ChatDetail, type ChatPlan } from "@/components/collaboration/CollaborationChat";
+import { parseCollaborationActivity } from "@/lib/collaborationActivity";
 import { targetLanguage } from "@/utils/targetLanguage";
 import { createClient } from "@/utils/supabase/server";
 
@@ -52,8 +53,9 @@ function parseChat(value: unknown): ChatDetail {
   if (
     !isRecord(value)
     || !isUuid(value.chat_id)
-    || !isUuid(value.seed_id)
+    || !isNullableUuid(value.seed_id)
     || !isNullableUuid(value.canonical_target_id ?? null)
+    || (value.seed_id === null && (value.canonical_target_id ?? null) === null)
     || !isNonEmptyString(value.seed_title)
     || !isNonEmptyString(value.status)
     || !isNullableUuid(value.planning_proposed_by)
@@ -80,15 +82,21 @@ function parseChat(value: unknown): ChatDetail {
   return value as ChatDetail;
 }
 
-function parsePlan(value: unknown): ChatPlan {
+function parsePlan(value: unknown, fallbackTitle: string): ChatPlan {
   if (!isRecord(value)
     || !isNullableUuid(value.planning_creator_user_id)
     || !isNullableUuid(value.planning_intent_id)) {
     throw new Error("Planlama bilgileri eksik. Lütfen yeniden deneyin.");
   }
+  const activity = parseCollaborationActivity(value, fallbackTitle);
+  if ((activity?.intentId ?? null) !== value.planning_intent_id) {
+    throw new Error("Planlama ve etkinlik bağlantısı eşleşmiyor. Lütfen yeniden deneyin.");
+  }
   return {
     planning_creator_user_id: value.planning_creator_user_id,
     planning_intent_id: value.planning_intent_id,
+    activity,
+    activityVerification: "verified",
   };
 }
 
@@ -118,17 +126,25 @@ export default async function CollaborationChatPage({ params }: { params: Promis
   if (!user) redirect("/");
   const [chatResult, planResult] = await Promise.all([
     supabase.rpc("get_personal_intent_collaboration_chat_v34", { p_suggestion_id: suggestionId }),
-    supabase.rpc("get_personal_intent_collaboration_plan_v35", { p_suggestion_id: suggestionId }),
+    supabase.rpc("get_personal_intent_collaboration_plan_v170", { p_suggestion_id: suggestionId }),
   ]);
   if (chatResult.error) {
     if (chatResult.error.message?.includes("Tanışma sohbeti bulunamadı")) notFound();
     throw new Error("Sohbet yüklenemedi. Lütfen yeniden deneyin.");
   }
   if (chatResult.data === null) notFound();
-  if (planResult.error) throw new Error("Planlama bilgileri yüklenemedi. Lütfen yeniden deneyin.");
   const chat = parseChat(chatResult.data);
-  const initialPlan = parsePlan(planResult.data);
-  const canonicalResult = await supabase.rpc("get_canonical_seed_detail_v31", { p_source_seed_id: chat.seed_id });
+  let initialPlan: ChatPlan;
+  try {
+    if (planResult.error || planResult.data === null) throw new Error("Etkinlik özeti alınamadı.");
+    initialPlan = parsePlan(planResult.data, chat.seed_title);
+  } catch (problem) {
+    console.error("Collaboration activity summary unavailable", problem);
+    initialPlan = { planning_creator_user_id: null, planning_intent_id: null, activity: null, activityVerification: "unavailable" };
+  }
+  const canonicalResult = chat.seed_id
+    ? await supabase.rpc("get_canonical_seed_detail_v31", { p_source_seed_id: chat.seed_id })
+    : { data: [], error: null };
   if (canonicalResult.error) throw new Error("Kart bağlantısı yüklenemedi. Lütfen yeniden deneyin.");
   const canonical = parseCanonical(canonicalResult.data);
   const targetId = chat.canonical_target_id || canonical?.canonical_target_id || null;

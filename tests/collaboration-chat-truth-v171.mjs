@@ -6,11 +6,16 @@ const page = readFileSync(
   new URL("../src/app/collaboration-chat/[suggestionId]/page.tsx", import.meta.url),
   "utf8",
 );
+const component = readFileSync(
+  new URL("../src/components/collaboration/CollaborationChat.tsx", import.meta.url),
+  "utf8",
+);
 
 test("collaboration chat distinguishes a missing chat from unavailable transport", () => {
   assert.match(page, /if \(chatResult\.error\) \{[\s\S]*includes\("Tanışma sohbeti bulunamadı"\)\) notFound\(\);[\s\S]*throw new Error\("Sohbet yüklenemedi/);
   assert.match(page, /if \(chatResult\.data === null\) notFound\(\)/);
-  assert.match(page, /if \(planResult\.error\) throw new Error\("Planlama bilgileri yüklenemedi/);
+  assert.match(page, /planResult\.error \|\| planResult\.data === null/);
+  assert.match(page, /Collaboration activity summary unavailable/);
   assert.match(page, /if \(canonicalResult\.error\) throw new Error\("Kart bağlantısı yüklenemedi/);
   assert.match(page, /userError && !isAuthSessionMissingError\(userError\)/);
   assert.doesNotMatch(page, /chatResult\.error \|\| !chatResult\.data\) notFound/);
@@ -19,8 +24,12 @@ test("collaboration chat distinguishes a missing chat from unavailable transport
 test("planning state must come from the successful plan read", () => {
   assert.doesNotMatch(page, /const EMPTY_PLAN/);
   assert.doesNotMatch(page, /if \(value === null/);
-  assert.match(page, /const initialPlan = parsePlan\(planResult\.data\)/);
+  assert.match(page, /initialPlan = parsePlan\(planResult\.data, chat\.seed_title\)/);
   assert.doesNotMatch(page, /planResult\.data \|\| \{ planning_creator_user_id/);
+  assert.match(page, /activityVerification: "unavailable"/);
+  assert.match(component, /plan\.activityVerification === "unavailable"/);
+  assert.match(component, /const nextChat = parseReloadedChat\(chatResult\.data\);\s*setChat\(nextChat\);\s*if \(planResult\.error/);
+  assert.match(component, /\["chat", "planning_proposed"\]\.includes\(chat\.status\)/);
 });
 
 test("card context uses the bounded catalogue projection and validates every rendered metric", () => {
@@ -43,10 +52,6 @@ test("card context uses the bounded catalogue projection and validates every ren
 });
 
 test("optional card enrichment cannot make a verified chat unavailable", () => {
-  const component = readFileSync(
-    new URL("../src/components/collaboration/CollaborationChat.tsx", import.meta.url),
-    "utf8",
-  );
   assert.match(page, /try \{[\s\S]*Collaboration card context unavailable[\s\S]*cardContextUnavailable = true/);
   assert.match(page, /cardContextUnavailable=\{cardContextUnavailable\}/);
   assert.match(component, /cardContextUnavailable && <section role="alert"/);
