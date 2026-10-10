@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { PlanWeatherResponse } from "@/utils/planWeather";
 
@@ -45,8 +45,44 @@ export default function PlanWeatherBadges({
   const [weather, setWeather] = useState<PlanWeatherResponse | null>(
     () => cache.get(planId)?.data ?? null
   );
+  const visibilityRef = useRef<HTMLSpanElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(
+    () => Boolean(cache.get(planId)?.data)
+  );
+  const [currentPlanId, setCurrentPlanId] = useState(planId);
+
+  if (currentPlanId !== planId) {
+    const cached = cache.get(planId)?.data ?? null;
+    setCurrentPlanId(planId);
+    setWeather(cached);
+    setShouldLoad(Boolean(cached));
+  }
 
   useEffect(() => {
+    const cached = cache.get(planId)?.data ?? null;
+    if (cached) return;
+
+    const element = visibilityRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => setShouldLoad(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "320px 0px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [planId]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
     let active = true;
     const refresh = (force = false) => {
       void load(planId, force).then((data) => {
@@ -63,10 +99,10 @@ export default function PlanWeatherBadges({
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [planId]);
+  }, [planId, shouldLoad]);
 
   if (!weather || weather.status !== "available" || weather.locations.length === 0) {
-    return null;
+    return <span ref={visibilityRef} aria-hidden="true" className="block h-px w-px" />;
   }
 
   return (

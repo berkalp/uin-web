@@ -39,6 +39,8 @@ test("sports pages explain successful empty catalogue results without extra read
 test("league team cards open their club profile", () => {
   const page = source("src/app/sports/[sportSlug]/[leagueSlug]/page.tsx");
 
+  assert.match(page, /Array\.isArray\(data\)&&data\.every\(isSportTeamCard\)/);
+  assert.match(page, /readFailed\?[^:]*Takımlar şu anda yüklenemedi/s);
   assert.match(page, /`\/clubs\/\$\{encodeURIComponent\(item\.canonical_target_id\)\}`/);
   assert.doesNotMatch(page, /`\/intentions\/\$\{encodeURIComponent\(item\.canonical_target_id\)\}`/);
 });

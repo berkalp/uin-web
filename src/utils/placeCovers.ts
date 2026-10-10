@@ -11,15 +11,19 @@ function lookupTitle(node:PlaceCoverNode,nodes:PlaceCoverNode[]){
   return clean;
 }
 
-export async function placeCoverUrls(nodes:PlaceCoverNode[]){
+export async function placeCoverUrls(nodes:PlaceCoverNode[],options:{throwOnError?:boolean}={}){
   const result=new Map<string,string>();
   const queries=[...new Set(nodes.map(node=>lookupTitle(node,nodes)).filter(Boolean))].slice(0,50);
   if(!queries.length)return result;
   try{
     const params=new URLSearchParams({action:"query",format:"json",formatversion:"2",redirects:"1",prop:"pageimages",piprop:"thumbnail",pithumbsize:"1000",pilicense:"any",titles:queries.join("|")});
     const response=await fetch(`https://tr.wikipedia.org/w/api.php?${params}`,{headers:{"User-Agent":"UIN/1.0 place-covers"},signal:AbortSignal.timeout(5000),next:{revalidate:604800}});
-    if(!response.ok)return result;
+    if(!response.ok){
+      if(options.throwOnError)throw new Error(`Yer kapak kaynağı ${response.status} yanıtı verdi.`);
+      return result;
+    }
     const body=await response.json() as WikiPayload;
+    if(options.throwOnError&&(!body.query||!Array.isArray(body.query.pages)))throw new Error("Yer kapak kaynağı eksik veri döndürdü.");
     const aliases=new Map<string,string>();
     for(const alias of [...(body.query?.normalized||[]),...(body.query?.redirects||[])])if(alias.from&&alias.to)aliases.set(key(alias.from),key(alias.to));
     const images=new Map<string,string>();
@@ -28,5 +32,5 @@ export async function placeCoverUrls(nodes:PlaceCoverNode[]){
     for(const node of nodes){const image=imageFor(lookupTitle(node,nodes));if(image)result.set(node.target_id,image)}
     for(let pass=0;pass<3;pass++)for(const node of nodes)if(!result.has(node.target_id)&&node.parent_target_id&&result.has(node.parent_target_id))result.set(node.target_id,result.get(node.parent_target_id)!);
     return result;
-  }catch{return result}
+  }catch(error){if(options.throwOnError)throw error;return result}
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import type { DirectConversationSummary } from "@/services/directMessageService";
@@ -11,6 +11,15 @@ type DirectConversationListProps = {
   initialLoadFailed?: boolean;
   page?: number;
   roomPage?: number;
+};
+
+type ConversationListState = {
+  conversations: DirectConversationSummary[];
+  loadFailed: boolean;
+  previousInitialConversations: DirectConversationSummary[];
+  previousInitialLoadFailed: boolean;
+  hasClientSnapshotSinceServer: boolean;
+  serverGeneration: number;
 };
 
 const PAGE_SIZE = 5;
@@ -37,23 +46,95 @@ function toNumber(value: number | string | null | undefined) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isConversationSummary(value: unknown): value is DirectConversationSummary {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  const unreadCount = row.unread_count;
+  const parsedUnread = unreadCount === null ||
+    ((typeof unreadCount === "number" || typeof unreadCount === "string") &&
+      Number.isFinite(Number(unreadCount)) && Number(unreadCount) >= 0);
+
+  return typeof row.conversation_id === "string" &&
+    typeof row.other_user_id === "string" &&
+    isNullableString(row.other_full_name) &&
+    isNullableString(row.other_username) &&
+    isNullableString(row.other_avatar_url) &&
+    isNullableString(row.last_message_body) &&
+    isNullableString(row.last_message_at) &&
+    isNullableString(row.last_message_sender_id) &&
+    parsedUnread &&
+    typeof row.viewer_can_send === "boolean" &&
+    (row.viewer_access_kind === null || row.viewer_access_kind === "staff" || row.viewer_access_kind === "granted") &&
+    isNullableString(row.viewer_access_expires_at);
+}
+
+function sameConversation(
+  previous: DirectConversationSummary,
+  next: DirectConversationSummary | undefined
+) {
+  return next?.conversation_id === previous.conversation_id &&
+    next.other_user_id === previous.other_user_id &&
+    next.other_full_name === previous.other_full_name &&
+    next.other_username === previous.other_username &&
+    next.other_avatar_url === previous.other_avatar_url &&
+    next.last_message_at === previous.last_message_at &&
+    next.last_message_body === previous.last_message_body &&
+    next.last_message_sender_id === previous.last_message_sender_id &&
+    toNumber(next.unread_count) === toNumber(previous.unread_count) &&
+    next.viewer_can_send === previous.viewer_can_send &&
+    next.viewer_access_kind === previous.viewer_access_kind &&
+    next.viewer_access_expires_at === previous.viewer_access_expires_at;
+}
+
 function sameConversationSnapshot(
   previous: DirectConversationSummary[],
   next: DirectConversationSummary[]
 ) {
-  if (previous.length !== next.length) return false;
+  return previous.length === next.length &&
+    previous.every((conversation, index) => sameConversation(conversation, next[index]));
+}
 
-  return previous.every((conversation, index) => {
-    const candidate = next[index];
+function messageTimestamp(value: string | null) {
+  if (!value) return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
+}
 
-    return (
-      candidate?.conversation_id === conversation.conversation_id &&
-      candidate?.last_message_at === conversation.last_message_at &&
-      candidate?.last_message_body === conversation.last_message_body &&
-      toNumber(candidate?.unread_count) === toNumber(conversation.unread_count) &&
-      candidate?.viewer_can_send === conversation.viewer_can_send &&
-      candidate?.viewer_access_expires_at === conversation.viewer_access_expires_at
+function isConversationSnapshotAtLeastAsFresh(
+  current: DirectConversationSummary[],
+  candidate: DirectConversationSummary[]
+) {
+  const candidateById = new Map(
+    candidate.map((conversation) => [conversation.conversation_id, conversation])
+  );
+
+  return current.every((conversation) => {
+    const next = candidateById.get(conversation.conversation_id);
+    return Boolean(
+      next &&
+      messageTimestamp(next.last_message_at) >= messageTimestamp(conversation.last_message_at)
     );
+  });
+}
+
+function canServerSnapshotReplaceClient(
+  current: DirectConversationSummary[],
+  candidate: DirectConversationSummary[]
+) {
+  const candidateById = new Map(
+    candidate.map((conversation) => [conversation.conversation_id, conversation])
+  );
+
+  return current.every((conversation) => {
+    const next = candidateById.get(conversation.conversation_id);
+    if (!next) return false;
+    const nextTimestamp = messageTimestamp(next.last_message_at);
+    const currentTimestamp = messageTimestamp(conversation.last_message_at);
+    return nextTimestamp > currentTimestamp || sameConversation(conversation, next);
   });
 }
 
@@ -63,30 +144,91 @@ export default function DirectConversationList({
   page = 1,
   roomPage = 1,
 }: DirectConversationListProps) {
-  const [conversations, setConversations] = useState(initialConversations);
-  const [loadFailed, setLoadFailed] = useState(initialLoadFailed);
+  const [listState, setListState] = useState<ConversationListState>(() => ({
+    conversations: initialConversations,
+    loadFailed: initialLoadFailed,
+    previousInitialConversations: initialConversations,
+    previousInitialLoadFailed: initialLoadFailed,
+    hasClientSnapshotSinceServer: false,
+    serverGeneration: 0,
+  }));
+  const refreshGenerationRef = useRef(0);
 
-  useEffect(() => {
-    setConversations(initialConversations);
-    setLoadFailed(initialLoadFailed);
-  }, [initialConversations, initialLoadFailed]);
+  if (
+    listState.previousInitialConversations !== initialConversations ||
+    listState.previousInitialLoadFailed !== initialLoadFailed
+  ) {
+    if (initialLoadFailed || !initialConversations.every(isConversationSummary)) {
+      // A server refresh may transiently fail and send an empty placeholder.
+      // Keep the last verified client snapshot instead of erasing the inbox.
+      setListState({
+        ...listState,
+        loadFailed: true,
+        previousInitialConversations: initialConversations,
+        previousInitialLoadFailed: initialLoadFailed,
+      });
+    } else if (!listState.hasClientSnapshotSinceServer ||
+      canServerSnapshotReplaceClient(listState.conversations, initialConversations)) {
+      // A server refresh can finish after a newer realtime client read. Only a
+      // snapshot that preserves identical rows or advances their last-message
+      // timestamp may replace that newer client snapshot.
+      setListState({
+        conversations: initialConversations,
+        loadFailed: false,
+        previousInitialConversations: initialConversations,
+        previousInitialLoadFailed: initialLoadFailed,
+        hasClientSnapshotSinceServer: false,
+        serverGeneration: listState.serverGeneration + 1,
+      });
+    } else {
+      setListState({
+        ...listState,
+        previousInitialConversations: initialConversations,
+        previousInitialLoadFailed: initialLoadFailed,
+      });
+    }
+  }
+
+  const { conversations, loadFailed, serverGeneration } = listState;
 
   const refreshConversations = useCallback(async () => {
+    const requestGeneration = ++refreshGenerationRef.current;
+    const requestServerGeneration = serverGeneration;
     const { data, error } = await supabase.rpc("get_my_direct_conversations");
 
-    if (error) {
-      console.error("Live direct conversations refresh failed:", error);
-      setLoadFailed(true);
+    if (requestGeneration !== refreshGenerationRef.current) return;
+
+    if (error || !Array.isArray(data) || !data.every(isConversationSummary)) {
+      console.error(
+        "Live direct conversations refresh failed:",
+        error ?? "Incomplete conversation payload"
+      );
+      setListState((current) => requestServerGeneration === current.serverGeneration
+        ? { ...current, loadFailed: true }
+        : current);
       return;
     }
 
-    const next = (data ?? []) as unknown as DirectConversationSummary[];
+    const next = data as DirectConversationSummary[];
 
-    setLoadFailed(false);
-    setConversations((previous) =>
-      sameConversationSnapshot(previous, next) ? previous : next
-    );
-  }, []);
+    setListState((current) => {
+      if (requestServerGeneration !== current.serverGeneration) return current;
+      const conversations = isConversationSnapshotAtLeastAsFresh(
+        current.conversations,
+        next
+      )
+        ? sameConversationSnapshot(current.conversations, next)
+          ? current.conversations
+          : next
+        : current.conversations;
+      return {
+        ...current,
+        conversations,
+        loadFailed: false,
+        hasClientSnapshotSinceServer: true,
+      };
+    });
+  }, [serverGeneration]);
 
   useEffect(() => {
     const channel = supabase
@@ -117,6 +259,7 @@ export default function DirectConversationList({
     const fallbackTimer = window.setInterval(reconcile, 30_000);
 
     return () => {
+      refreshGenerationRef.current += 1;
       window.clearInterval(fallbackTimer);
       window.removeEventListener("focus", reconcile);
       document.removeEventListener("visibilitychange", reconcile);
@@ -161,14 +304,21 @@ export default function DirectConversationList({
         </div>
 
         <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
-          {unreadTotal} unread
+          {loadFailed ? "— unread" : `${unreadTotal} unread`}
         </span>
       </div>
 
       <div className="mt-4 space-y-3">
         {loadFailed && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            Conversations could not be refreshed.
+            <p>Conversations could not be refreshed. The previous verified list is kept on screen.</p>
+            <button
+              type="button"
+              onClick={() => void refreshConversations()}
+              className="mt-3 rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white"
+            >
+              Retry
+            </button>
           </div>
         )}
 

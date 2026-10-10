@@ -29,6 +29,15 @@ type DirectConversationThreadProps = {
   messages: DirectConversationMessage[];
 };
 
+type ThreadSnapshotState = {
+  conversationId: string;
+  liveMessages: DirectConversationMessage[];
+  previousMessages: DirectConversationMessage[];
+  refreshError: boolean;
+  hasClientSnapshotSinceServer: boolean;
+  serverGeneration: number;
+};
+
 function getInitial(value: string) {
   return value.trim().charAt(0).toUpperCase() || "?";
 }
@@ -64,15 +73,51 @@ function sameMessageSnapshot(
   next: DirectConversationMessage[]
 ) {
   if (previous.length !== next.length) return false;
-  if (previous.length === 0) return true;
+  return previous.every((message, index) => {
+    const candidate = next[index];
+    return candidate?.message_id === message.message_id &&
+      candidate?.sender_id === message.sender_id &&
+      candidate?.sender_full_name === message.sender_full_name &&
+      candidate?.sender_username === message.sender_username &&
+      candidate?.sender_avatar_url === message.sender_avatar_url &&
+      candidate?.body === message.body &&
+      candidate?.created_at === message.created_at;
+  });
+}
 
-  const previousLast = previous[previous.length - 1];
-  const nextLast = next[next.length - 1];
+function messageVersion(message: DirectConversationMessage | undefined) {
+  if (!message) return { timestamp: 0, id: "" };
+  const parsed = Date.parse(message.created_at);
+  return {
+    timestamp: Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY,
+    id: message.message_id,
+  };
+}
 
-  return (
-    previousLast?.message_id === nextLast?.message_id &&
-    previousLast?.created_at === nextLast?.created_at
-  );
+function compareMessageSnapshots(
+  current: DirectConversationMessage[],
+  candidate: DirectConversationMessage[]
+) {
+  const currentVersion = messageVersion(current[current.length - 1]);
+  const candidateVersion = messageVersion(candidate[candidate.length - 1]);
+  if (candidateVersion.timestamp !== currentVersion.timestamp) {
+    return candidateVersion.timestamp - currentVersion.timestamp;
+  }
+  if (candidateVersion.id === currentVersion.id) return 0;
+  return candidateVersion.id > currentVersion.id ? 1 : -1;
+}
+
+function isConversationMessage(value: unknown): value is DirectConversationMessage {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+
+  return typeof row.message_id === "string" &&
+    typeof row.sender_id === "string" &&
+    (row.sender_full_name === null || typeof row.sender_full_name === "string") &&
+    (row.sender_username === null || typeof row.sender_username === "string") &&
+    (row.sender_avatar_url === null || typeof row.sender_avatar_url === "string") &&
+    typeof row.body === "string" &&
+    typeof row.created_at === "string";
 }
 
 export default function DirectConversationThread({
@@ -83,7 +128,14 @@ export default function DirectConversationThread({
   const router = useRouter();
   const messageListRef = useRef<HTMLDivElement | null>(null);
 
-  const [liveMessages, setLiveMessages] = useState(messages);
+  const [snapshotState, setSnapshotState] = useState<ThreadSnapshotState>(() => ({
+    conversationId: detail.conversation_id,
+    liveMessages: messages,
+    previousMessages: messages,
+    refreshError: false,
+    hasClientSnapshotSinceServer: false,
+    serverGeneration: 0,
+  }));
   const [body, setBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -92,33 +144,89 @@ export default function DirectConversationThread({
     toLocalDateTimeInput(addPreset(new Date(), "1d"))
   );
   const [isUpdatingAccess, setIsUpdatingAccess] = useState(false);
+  const refreshGenerationRef = useRef(0);
 
-  useEffect(() => {
-    setLiveMessages(messages);
-  }, [messages]);
+  if (snapshotState.conversationId !== detail.conversation_id) {
+    // Invalidate every request captured by the previous route before showing
+    // the next conversation's server-verified snapshot.
+    setSnapshotState({
+      conversationId: detail.conversation_id,
+      liveMessages: messages,
+      previousMessages: messages,
+      refreshError: false,
+      hasClientSnapshotSinceServer: false,
+      serverGeneration: snapshotState.serverGeneration + 1,
+    });
+  } else if (snapshotState.previousMessages !== messages) {
+    const comparison = compareMessageSnapshots(snapshotState.liveMessages, messages);
+    if ((!snapshotState.hasClientSnapshotSinceServer && comparison >= 0) ||
+      comparison > 0 || sameMessageSnapshot(snapshotState.liveMessages, messages)) {
+      // An RSC refresh may resolve behind the realtime read. Last message
+      // timestamp + UUID is the database ordering/version for this append-only
+      // message window, so an older server snapshot must not roll it back.
+      setSnapshotState({
+        conversationId: detail.conversation_id,
+        liveMessages: messages,
+        previousMessages: messages,
+        refreshError: false,
+        hasClientSnapshotSinceServer: false,
+        serverGeneration: snapshotState.serverGeneration + 1,
+      });
+    } else {
+      setSnapshotState({ ...snapshotState, previousMessages: messages });
+    }
+  }
+
+  const { liveMessages, refreshError, serverGeneration } = snapshotState;
 
   const refreshMessages = useCallback(async () => {
+    const conversationId = detail.conversation_id;
+    const requestGeneration = ++refreshGenerationRef.current;
+    const requestServerGeneration = serverGeneration;
     const { data, error } = await supabase.rpc(
       "get_direct_conversation_messages",
       {
-        p_conversation_id: detail.conversation_id,
+        p_conversation_id: conversationId,
         p_limit: 300,
       }
     );
 
-    if (error) {
-      console.error("Live direct message refresh failed:", error);
+    if (requestGeneration !== refreshGenerationRef.current) return null;
+
+    if (error || !Array.isArray(data) || !data.every(isConversationMessage)) {
+      console.error(
+        "Live direct message refresh failed:",
+        error ?? "Incomplete message payload"
+      );
+      setSnapshotState((current) =>
+        requestServerGeneration === current.serverGeneration &&
+        conversationId === current.conversationId
+          ? { ...current, refreshError: true }
+          : current
+      );
       return null;
     }
 
-    const next = (data ?? []) as unknown as DirectConversationMessage[];
+    const next = data as DirectConversationMessage[];
 
-    setLiveMessages((previous) =>
-      sameMessageSnapshot(previous, next) ? previous : next
-    );
+    setSnapshotState((current) => {
+      if (requestServerGeneration !== current.serverGeneration ||
+        conversationId !== current.conversationId) return current;
+      const liveMessages = compareMessageSnapshots(current.liveMessages, next) < 0
+        ? current.liveMessages
+        : sameMessageSnapshot(current.liveMessages, next)
+          ? current.liveMessages
+          : next;
+      return {
+        ...current,
+        liveMessages,
+        refreshError: false,
+        hasClientSnapshotSinceServer: true,
+      };
+    });
 
     return next;
-  }, [detail.conversation_id]);
+  }, [detail.conversation_id, serverGeneration]);
 
   useEffect(() => {
     void markDirectConversationRead(detail.conversation_id).catch(() => {
@@ -179,6 +287,7 @@ export default function DirectConversationThread({
     void reconcile();
 
     return () => {
+      refreshGenerationRef.current += 1;
       window.clearInterval(fallbackTimer);
       window.removeEventListener("focus", reconcile);
       document.removeEventListener("visibilitychange", reconcile);
@@ -415,6 +524,19 @@ export default function DirectConversationThread({
             <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
               {errorMessage}
             </p>
+          )}
+
+          {refreshError && (
+            <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              <p>New messages could not be verified. The previous verified conversation is still shown.</p>
+              <button
+                type="button"
+                onClick={() => void refreshMessages()}
+                className="mt-2 rounded-lg bg-amber-800 px-3 py-1.5 text-xs font-bold text-white"
+              >
+                Retry
+              </button>
+            </div>
           )}
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

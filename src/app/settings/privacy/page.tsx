@@ -1,10 +1,29 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import UserDiscoveryControlsManager, {
   type UserDiscoveryControlRow,
 } from "@/components/privacy/UserDiscoveryControlsManager";
 import { createClient } from "@/utils/supabase/server";
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isDiscoveryControl(value: unknown): value is UserDiscoveryControlRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+
+  return typeof row.target_user_id === "string" &&
+    isNullableString(row.target_full_name) &&
+    isNullableString(row.target_username) &&
+    isNullableString(row.target_avatar_url) &&
+    (row.control_type === "ignore" || row.control_type === "block") &&
+    typeof row.created_at === "string" &&
+    typeof row.updated_at === "string";
+}
 
 export default async function PrivacySettingsPage() {
   const supabase =
@@ -12,8 +31,21 @@ export default async function PrivacySettingsPage() {
 
   const {
     data: { user },
+    error: userError,
   } =
     await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Privacy settings session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Gizlilik ayarların şu anda yüklenemedi"
+        retryHref="/settings/privacy"
+        backHref="/timeline"
+        backLabel="Ana sayfaya dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -26,31 +58,32 @@ export default async function PrivacySettingsPage() {
     "get_my_user_discovery_controls"
   );
 
-  if (error) {
+  const readFailed = Boolean(
+    error || !Array.isArray(data) || !data.every(isDiscoveryControl)
+  );
+
+  if (readFailed) {
     console.error(
       "User discovery control query failed:",
-      error
+      error ?? "Incomplete privacy-control payload"
     );
   }
 
-  const controls =
-    (
-      data ?? []
-    ) as UserDiscoveryControlRow[];
+  const controls = readFailed ? [] : data as UserDiscoveryControlRow[];
 
+  const serverIgnoredCount =
+    error ? null : controls.filter(
+      (item) => item.control_type === "ignore"
+    ).length;
   const ignoredCount =
-    error ? null : controls.filter(
-      (item) =>
-        item.control_type ===
-        "ignore"
-    ).length;
+    readFailed ? null : serverIgnoredCount;
 
-  const blockedCount =
+  const serverBlockedCount =
     error ? null : controls.filter(
-      (item) =>
-        item.control_type ===
-        "block"
+      (item) => item.control_type === "block"
     ).length;
+  const blockedCount =
+    readFailed ? null : serverBlockedCount;
 
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
@@ -111,7 +144,7 @@ export default async function PrivacySettingsPage() {
         </section>
 
         <section className="mt-6">
-          {error ? (
+          {readFailed ? (
             <div className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm">
               <p className="font-black text-red-900">
                 Gizlilik tercihlerin yüklenemedi.

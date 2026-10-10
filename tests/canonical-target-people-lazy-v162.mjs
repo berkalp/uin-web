@@ -200,7 +200,7 @@ test("a metric click requests detail lazily so the modal can open", async () => 
   assert.equal(fetchCalls, 1);
 });
 
-test("cards without initial counters retain the existing mount load", async () => {
+test("cards without initial counters wait for an explicit metric click", async () => {
   let fetchCalls = 0;
   const rendered = renderCounter({
     stateValues: [null, "target-1", false, 0, null],
@@ -222,7 +222,44 @@ test("cards without initial counters retain the existing mount load", async () =
 
   rendered.effect?.();
   await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(fetchCalls, 0);
+  assert.match(rendered.html, /Göster/);
+  assert.doesNotMatch(rendered.html, />0</);
+});
+
+test("a malformed detail response cannot turn missing counters into zeros", async () => {
+  let fetchCalls = 0;
+  const rendered = renderCounter({
+    stateValues: [null, "target-1", false, 0, "want"],
+    props: { targetId: "target-1" },
+    fetchImpl: async () => {
+      fetchCalls += 1;
+      return {
+        json: async () => ({
+          card: { catalog_item_id: "catalog-1", cover_url: null, subtitle: null, title: "Kart" },
+          events: [],
+          people: [],
+          reviews: [],
+        }),
+        ok: true,
+      };
+    },
+  });
+
+  rendered.effect?.();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.equal(fetchCalls, 1);
+  assert.ok(
+    rendered.stateUpdates.some(
+      (update) => update.index === 2 && update.next === "target:target-1"
+    ),
+    "missing counters should put the component in an explicit error state"
+  );
+  assert.equal(
+    rendered.stateUpdates.some((update) => update.index === 0),
+    false,
+    "malformed detail must not be accepted as an authoritative zero payload"
+  );
 });
 
 test("a failed lazy detail request waits for an explicit retry", async () => {
@@ -258,4 +295,10 @@ test("a failed lazy detail request waits for an explicit retry", async () => {
   failedRender.effect?.();
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(fetchCalls, 1, "failure must not start an automatic retry loop");
+});
+
+test("a successful card mutation refreshes parent counters without refetching on every close", () => {
+  const source = fs.readFileSync("src/components/seeds/CanonicalTargetPeople.tsx", "utf8");
+  assert.match(source, /onChanged=\{\(\) => setRetry\(\(current\) => current \+ 1\)\}/);
+  assert.doesNotMatch(source, /onClose=\{\(\) => \{\s*setView\(null\);\s*setRetry/);
 });

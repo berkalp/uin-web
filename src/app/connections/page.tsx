@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import TimelineHomeLogo from "@/components/navigation/TimelineHomeLogo";
 import { createClient } from "@/utils/supabase/server";
 
@@ -16,6 +18,26 @@ type ConnectionRow = {
   country: string | null;
   connected_at: string;
 };
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isConnectionRow(value: unknown): value is ConnectionRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+
+  return (row.connection_type === "follower" ||
+      row.connection_type === "following" ||
+      row.connection_type === "friend") &&
+    typeof row.user_id === "string" &&
+    isNullableString(row.full_name) &&
+    isNullableString(row.username) &&
+    isNullableString(row.avatar_url) &&
+    isNullableString(row.city) &&
+    isNullableString(row.country) &&
+    typeof row.connected_at === "string";
+}
 
 type ConnectionsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -127,7 +149,20 @@ export default async function ConnectionsPage({
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Profile connections session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Bağlantıların şu anda yüklenemedi"
+        retryHref={`/connections?view=${selectedView}`}
+        backHref="/timeline"
+        backLabel="Ana sayfaya dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -135,7 +170,9 @@ export default async function ConnectionsPage({
 
   const { data, error } = await supabase.rpc("get_my_profile_connections");
 
-  const readFailed = Boolean(error || !Array.isArray(data));
+  let readFailed = Boolean(error || !Array.isArray(data));
+  const incompleteRows = !readFailed && !(data as unknown[]).every(isConnectionRow);
+  readFailed = readFailed || incompleteRows;
 
   if (readFailed) {
     console.error("Profile connection-list query failed:", error ?? "Unexpected payload");

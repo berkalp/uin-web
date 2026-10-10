@@ -4,7 +4,9 @@ import Link from "next/link";
 import {
   redirect,
 } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import CommunityContextChip from "@/components/communities/CommunityContextChip";
 import DiscoverFiltersForm from "@/components/discover/DiscoverFiltersForm";
 import DiscoverQuickFilters from "@/components/discover/DiscoverQuickFilters";
@@ -713,8 +715,21 @@ export default async function DiscoverPage({
     data: {
       user,
     },
+    error: userError,
   } =
     await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Discover session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Etkinlikler şu anda yüklenemedi"
+        retryHref="/discover"
+        backHref="/timeline"
+        backLabel="Ana sayfaya dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -788,7 +803,9 @@ export default async function DiscoverPage({
       Promise.resolve({ data: [], error: null }),
 
       runDiscoverSearch(resultLimit, resultOffset),
-      runDiscoverSearch(80, 0, "history"),
+      view === "cards"
+        ? runDiscoverSearch(80, 0, "history")
+        : Promise.resolve({ data: [], error: null }),
     ]);
 
   const rawFilterPayload = filterResponse.data as unknown;

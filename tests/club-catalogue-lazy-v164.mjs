@@ -88,6 +88,10 @@ test("ideas page loads club data only when club UI needs it",()=>{
   assert.match(source,/useEffect\(\(\)=>\{if\(!needsClubCatalogue\)/);
   assert.match(source,/loadClubCatalogue\(geoRetry>0\)/);
   assert.doesNotMatch(source,/fetch\("\/api\/clubs\/catalogue"/);
+  assert.match(source,/scopeCount=\(value:LibraryScope\).*Number\(liveCategoryCounts\[kind\]\?\?categoryCounts\[kind\]\?\?0\)/s);
+  assert.match(source,/if\(value==="library"\)[\s\S]{0,400}return kind!=="all"&&effectiveKind==="club"\?`\$\{count\} kart`/);
+  assert.match(source,/clubStructureCounts\.roots} ana kulüp · \{clubStructureCounts\.teams} bağlı takım/);
+  assert.match(source,/`\$\{suggestions\.length\} ana kulüp`/);
 });
 
 test("club modals share the same validated catalogue request",()=>{

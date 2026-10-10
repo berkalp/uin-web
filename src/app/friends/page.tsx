@@ -2,7 +2,9 @@ import AppNavigation from "@/components/navigation/AppNavigation";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import FriendRequestActions from "@/components/profile/FriendRequestActions";
 import { createClient } from "@/utils/supabase/server";
 
@@ -25,6 +27,27 @@ type FriendshipRow = {
   other_city: string | null;
   other_country: string | null;
 };
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isFriendshipRow(value: unknown): value is FriendshipRow {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+
+  return typeof row.friendship_id === "string" &&
+    (row.friendship_status === "pending" || row.friendship_status === "accepted") &&
+    (row.direction === "incoming" || row.direction === "outgoing" || row.direction === "friend") &&
+    typeof row.created_at === "string" &&
+    isNullableString(row.responded_at) &&
+    typeof row.other_user_id === "string" &&
+    isNullableString(row.other_full_name) &&
+    isNullableString(row.other_username) &&
+    isNullableString(row.other_avatar_url) &&
+    isNullableString(row.other_city) &&
+    isNullableString(row.other_country);
+}
 
 function getInitial(
   value: string
@@ -119,8 +142,21 @@ export default async function FriendsPage() {
 
   const {
     data: { user },
+    error: userError,
   } =
     await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Friendship session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Arkadaşların şu anda yüklenemedi"
+        retryHref="/friends"
+        backHref="/timeline"
+        backLabel="Ana sayfaya dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");
@@ -133,7 +169,9 @@ export default async function FriendsPage() {
     "get_my_friendships"
   );
 
-  const readFailed = Boolean(error || !Array.isArray(data));
+  let readFailed = Boolean(error || !Array.isArray(data));
+  const incompleteRows = !readFailed && !(data as unknown[]).every(isFriendshipRow);
+  readFailed = readFailed || incompleteRows;
 
   if (readFailed) {
     console.error(
@@ -142,8 +180,7 @@ export default async function FriendsPage() {
     );
   }
 
-  const rows =
-    readFailed ? [] : data as FriendshipRow[];
+  const rows = readFailed ? [] : data as FriendshipRow[];
 
   const incoming =
     rows.filter(

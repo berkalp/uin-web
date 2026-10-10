@@ -44,7 +44,9 @@ export default function NotificationBellButton({
         "get_my_unread_update_notification_count"
       );
 
-      if (!isMounted || error) {
+      if (!isMounted) return;
+      if (error) {
+        setCount(null);
         return;
       }
 
@@ -65,11 +67,15 @@ export default function NotificationBellButton({
     async function subscribe() {
       const {
         data: { user },
+        error: userError,
       } = await supabase.auth.getUser();
 
-      if (!isMounted || !user) {
+      if (!isMounted) return;
+      if (userError) {
+        setCount(null);
         return;
       }
+      if (!user) return;
 
       channel = supabase
         .channel(`web-notifications:${user.id}`)

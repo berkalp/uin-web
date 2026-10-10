@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   formatIntentWeatherTemperatureRange,
@@ -42,8 +42,42 @@ async function load(intentId: string, force = false) {
 
 export default function IntentWeatherBadge({ intentId, className = "", compact = false }: Props) {
   const [weather, setWeather] = useState<IntentWeatherResponse | null>(() => cache.get(intentId)?.data ?? null);
+  const visibilityRef = useRef<HTMLSpanElement | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(() => Boolean(cache.get(intentId)?.data));
+  const [currentIntentId, setCurrentIntentId] = useState(intentId);
+
+  if (currentIntentId !== intentId) {
+    const cached = cache.get(intentId)?.data ?? null;
+    setCurrentIntentId(intentId);
+    setWeather(cached);
+    setShouldLoad(Boolean(cached));
+  }
 
   useEffect(() => {
+    const cached = cache.get(intentId)?.data ?? null;
+    if (cached) return;
+
+    const element = visibilityRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") {
+      const timer = window.setTimeout(() => setShouldLoad(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "320px 0px" }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [intentId]);
+
+  useEffect(() => {
+    if (!shouldLoad) return;
     let active = true;
     const refresh = (force = false) => {
       void load(intentId, force).then((data) => {
@@ -60,9 +94,11 @@ export default function IntentWeatherBadge({ intentId, className = "", compact =
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [intentId]);
+  }, [intentId, shouldLoad]);
 
-  if (!weather || weather.status !== "available" || !weather.icon) return null;
+  if (!weather || weather.status !== "available" || !weather.icon) {
+    return <span ref={visibilityRef} aria-hidden="true" className="block h-px w-px" />;
+  }
 
   const temperature = formatIntentWeatherTemperatureRange(
     weather.minTemperatureC,

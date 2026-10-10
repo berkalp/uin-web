@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
+import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import DirectConversationList from "@/components/messages/DirectConversationList";
 import RoomConversationList, {
   type RoomConversationPlan,
@@ -88,7 +90,20 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   const supabase = await createClient();
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
+
+  if (userError && !isAuthSessionMissingError(userError)) {
+    console.error("Message-center session query failed:", userError);
+    return (
+      <PageDataUnavailable
+        title="Mesajların şu anda yüklenemedi"
+        retryHref="/messages"
+        backHref="/timeline"
+        backLabel="Ana sayfaya dön"
+      />
+    );
+  }
 
   if (!user) {
     redirect("/");

@@ -165,11 +165,11 @@ test("card details parallelize bounded readers and preserve canonical aggregates
 
   assert.match(route, /let typeId=typeof card\.content_type_id==="string"\?card\.content_type_id:typeof metadata\.content_type_id==="string"\?metadata\.content_type_id:""/);
   assert.match(route, /supabase\.rpc\("get_place_hierarchy_v74",\{p_target_ids:\[targetId\]\}\)/);
-  assert.match(route, /if\(typeResult\.data\?\.base_kind==="place"&&hierarchyResult\.error\)\{[\s\S]*status:503/);
+  assert.match(route, /if\(typeData\.base_kind==="place"&&hierarchyResult\.error\)\{[\s\S]*status:503/);
   assert.match(route, /const hierarchyRow=/);
   assert.match(route, /const placeKind=String\(hierarchyRow\?\.place_hierarchy\?\.kind\|\|""\)/);
   assert.match(route, /const boundedPlaceKinds=\["il","şehir","city","ilçe","district","yer","place"\]/);
-  assert.match(route, /const mustSerializePlaceReaders=typeResult\.data\?\.base_kind==="place"&&!boundedPlaceKinds\.includes\(placeKind\)/);
+  assert.match(route, /const mustSerializePlaceReaders=typeData\.base_kind==="place"&&!boundedPlaceKinds\.includes\(placeKind\)/);
   assert.doesNotMatch(route, /metadata\.global_place_kind/);
   assert.match(route, /\[peoplePage,reviewPage,eventPage\]=mustSerializePlaceReaders\s*\?\s*\[await readPeople\(\),await readReviews\(\),await readEvents\(\)\]/);
   assert.match(route, /:\s*await Promise\.all\(\[readPeople\(\),readReviews\(\),readEvents\(\)\]\)/);
@@ -180,7 +180,8 @@ test("card details parallelize bounded readers and preserve canonical aggregates
   assert.ok(canonicalHeader >= 0, "full details must read the same catalogue projection as the list");
   assert.ok(modalReaders > canonicalHeader, "canonical counters must be loaded before detail rows");
   assert.match(route, /\["intent_people_count","experience_people_count","active_event_count"\]/);
-  assert.match(route, /communityCounts:\[Number\(card\.intent_people_count\|\|0\),Number\(card\.experience_people_count\|\|0\),Number\(card\.active_event_count\?\?card\.social_intent_count\?\?0\)\]/);
+  assert.match(route, /communityCounts:\[Number\(card\.intent_people_count\),Number\(card\.experience_people_count\),Number\(card\.active_event_count\)\]/);
+  assert.doesNotMatch(route, /communityCounts:\[[^\]]*(?:\|\|0|\?\?0)/);
 
   assert.match(modal, /loading&&!detail/);
   assert.match(modal, /detail\?\.communityCounts\?\.\[0\]\?\?selected\.aggregateWanting/);

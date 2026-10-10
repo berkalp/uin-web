@@ -74,13 +74,11 @@ export default function CanonicalTargetPeople({
         : Boolean(resolved)
       : resolved.sourceKey === sourceKey;
   const currentDetail = resolutionMatches ? detail : null;
-  const hasInitial = initial !== null;
   const hasError = error === sourceKey;
 
   useEffect(() => {
     const needsDetail =
-      retry > 0 ||
-      (!hasError && !currentDetail && (!hasInitial || view !== null));
+      retry > 0 || (!hasError && !currentDetail && view !== null);
     if (!needsDetail) return;
 
     let alive = true;
@@ -103,6 +101,23 @@ export default function CanonicalTargetPeople({
         );
         if (!response.ok) throw new Error("Kart yüklenemedi");
         const data = (await response.json()) as CommunityDetail;
+        if (
+          !data ||
+          typeof data !== "object" ||
+          !data.card ||
+          typeof data.card.title !== "string" ||
+          !Array.isArray(data.people) ||
+          !Array.isArray(data.reviews) ||
+          !Array.isArray(data.events) ||
+          !data.communityCounts ||
+          parseCommunityCounts(
+            data.communityCounts[0],
+            data.communityCounts[1],
+            data.communityCounts[2]
+          ) === null
+        ) {
+          throw new Error("Kart sayaçları eksik döndü");
+        }
         if (alive) {
           setResolved({ sourceKey, targetId: id });
           setDetail(data);
@@ -123,7 +138,6 @@ export default function CanonicalTargetPeople({
   }, [
     currentDetail,
     hasError,
-    hasInitial,
     retry,
     seedId,
     sourceKey,
@@ -154,21 +168,11 @@ export default function CanonicalTargetPeople({
     w && (w.action !== "YAP" || Boolean(p?.ui_labels?.wanting) || !seedType);
   const wanting = contextual ? w.wanting : fallback.want;
   const doers = contextual ? w.doers : fallback.done;
-  const today = new Date().toLocaleDateString("sv-SE", {
-    timeZone: "Europe/Istanbul",
-  });
   const detailCounts = currentDetail
     ? parseCommunityCounts(
-        currentDetail.communityCounts?.[0] ??
-          currentDetail.people.filter((person) => person.is_current !== false).length,
-        currentDetail.communityCounts?.[1] ?? currentDetail.reviews.length,
-        currentDetail.communityCounts?.[2] ??
-          currentDetail.events.filter(
-            (event) =>
-              !["cancelled", "canceled", "completed"].includes(event.status || "") &&
-              !["cancelled", "completed"].includes(event.plan_status || "") &&
-              (!event.end_date || event.end_date.slice(0, 10) >= today)
-          ).length
+        currentDetail.communityCounts?.[0],
+        currentDetail.communityCounts?.[1],
+        currentDetail.communityCounts?.[2]
       )
     : null;
   const counts = detailCounts || initial;
@@ -207,7 +211,13 @@ export default function CanonicalTargetPeople({
             <span
               className={compact ? "font-bold" : "mt-1 block text-xl font-black leading-none"}
             >
-              {counts ? counts[index] : hasError ? "—" : "…"}
+              {counts
+                ? counts[index]
+                : hasError
+                  ? "—"
+                  : loadingDetail && view === metricView
+                    ? "…"
+                    : "Göster"}
             </span>
           </button>
         ))}
@@ -264,9 +274,9 @@ export default function CanonicalTargetPeople({
           onSelectType={(id) => {
             window.location.href = `/ideas?kind=${encodeURIComponent(id)}`;
           }}
+          onChanged={() => setRetry((current) => current + 1)}
           onClose={() => {
             setView(null);
-            setRetry((current) => current + 1);
           }}
         />
       )}
