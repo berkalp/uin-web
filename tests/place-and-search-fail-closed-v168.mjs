@@ -13,7 +13,10 @@ test("place hierarchy never turns failed or partial card reads into zero-valued 
   assert.match(route,/const TARGET_BATCH_CONCURRENCY=2/);
   assert.match(route,/const batchTargets=includeCards&&targetIds\.length>TARGET_BATCH_THRESHOLD/);
   assert.match(route,/targetIds\.length&&!batchTargets\?db\.rpc\("get_uin_catalogue_for_targets_v123"/);
-  assert.match(route,/targetIds\.length&&!batchTargets\?db\.rpc\("get_uin_card_social_v87"/);
+  assert.match(route,/targetIds\.length\?db\.rpc\("get_uin_card_social_v87"/);
+  assert.match(route,/const readSocialBatches=Boolean\(socialResult\.error\)/);
+  assert.match(route,/const coverPromise=includeCards\?placeCoverUrls\(nodes as PlaceCoverNode\[\]\)/);
+  assert.match(route,/const coverUrls=await coverPromise/);
   assert.match(route,/Math\.min\(TARGET_BATCH_CONCURRENCY,jobs\.length\)/);
   assert.match(route,/cardBatches\[job\.batchIndex\]=batch\.data/);
   assert.match(route,/socialBatches\[job\.batchIndex\]=batch\.data/);
