@@ -110,6 +110,7 @@ test("catalogue entry and subject detail pages reject malformed success payloads
   assert.match(ideas, /seedTypeResult\.data\.every\(isSeedType\)/);
   assert.match(explore, /Array\.isArray\(data\) && data\.every\(isSeedType\)/);
   assert.match(create, /Array\.isArray\(data\) && data\.every\(isSeedTypeOption\)/);
+  assert.match(create, /row\.description === null \|\| typeof row\.description === "string"/);
   assert.match(create, /readFailed \? "Seed Types could not be loaded"/);
 
   assert.match(seed, /if \(detailResult\.data === null\)[\s\S]{0,50}notFound\(\)/);

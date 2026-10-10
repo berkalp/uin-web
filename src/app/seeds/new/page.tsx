@@ -37,7 +37,7 @@ function isSeedTypeOption(value: unknown): value is SeedTypeOption {
     typeof row.name === "string" &&
     typeof row.slug === "string" &&
     typeof row.icon === "string" &&
-    typeof row.description === "string";
+    (row.description === null || typeof row.description === "string");
 }
 
 export default async function NewSeedPage({
