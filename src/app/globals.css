@@ -310,17 +310,6 @@ html[data-uin-card-layout="compact"] .uin-layout-card h3 {
     font-size: 0.52rem !important;
     line-height: 1.05 !important;
   }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-admin {
-    flex-shrink: 0;
-    padding: 0.3rem 0.4rem !important;
-  }
-
-  html[data-uin-card-layout="square"] .uin-layout-card-admin button {
-    padding: 0.25rem !important;
-    font-size: 0.52rem !important;
-    line-height: 1.05 !important;
-  }
 }
 
 html:not([data-uin-card-layout]) .uin-layout-card,
