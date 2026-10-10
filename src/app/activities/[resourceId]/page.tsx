@@ -53,6 +53,10 @@ import type {
   ReputationFeedbackTarget,
 } from "@/utils/reputation";
 import {
+  getEventStatusPresentation,
+  type CollaborationActivityTone,
+} from "@/lib/collaborationActivity";
+import {
   normalizeParticipantEligibility,
 } from "@/utils/participationEligibility";
 import {
@@ -286,45 +290,12 @@ function formatDateTime(
   }
 }
 
-function getStatusPresentation(status: string) {
-  if (status === "forming") {
-    return {
-      label: "Şekillenen Etkinlik",
-      helper: "Planlama devam ediyor",
-      classes: "bg-violet-100 text-violet-800",
-    };
-  }
-
-  if (status === "planned") {
-    return {
-      label: "Planlanmış Etkinlik",
-      helper: "Program kesinleşti",
-      classes: "bg-indigo-100 text-indigo-800",
-    };
-  }
-
-  if (status === "completed") {
-    return {
-      label: "Tamamlandı",
-      helper: "Bu etkinlik tamamlandı",
-      classes: "bg-purple-100 text-purple-800",
-    };
-  }
-
-  if (status === "cancelled") {
-    return {
-      label: "İptal Edildi",
-      helper: "Bu etkinlik iptal edildi",
-      classes: "bg-red-100 text-red-800",
-    };
-  }
-
-  return {
-    label: "Açık Etkinlik",
-    helper: "Bu etkinliğe katılım hâlâ açık",
-    classes: "bg-green-100 text-green-800",
-  };
-}
+const STATUS_TONE_CLASSES: Record<CollaborationActivityTone, string> = {
+  amber: "bg-amber-100 text-amber-900",
+  green: "bg-emerald-100 text-emerald-900",
+  slate: "bg-slate-200 text-slate-800",
+  red: "bg-red-100 text-red-800",
+};
 
 function getCategoryCoverRecord(
   row: CatalogueCoverRow | null
@@ -1390,9 +1361,20 @@ export default async function ActivityDetailPage({
     privatePresentation?.visible_cover_url ||
     fallbackCoverUrl;
 
-  const status = getStatusPresentation(
-    activity.status
-  );
+  const canonicalStatus = activity.status === "completed" || activity.status === "cancelled"
+    ? activity.status
+    : activityTimeline.expired_at
+      ? "expired"
+      : activity.status;
+  const statusPresentation = getEventStatusPresentation({
+    status: canonicalStatus,
+    scheduledStart: activity.scheduled_start,
+    scheduledEnd: activity.scheduled_end,
+  });
+  const status = {
+    ...statusPresentation,
+    classes: STATUS_TONE_CLASSES[statusPresentation.tone],
+  };
 
   const isForming = activity.status === "forming";
 

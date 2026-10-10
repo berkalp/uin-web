@@ -35,7 +35,34 @@ export type CollaborationActivityStage =
   | "completed"
   | "cancelled";
 
-export type CollaborationActivityTone = "amber" | "green" | "slate" | "purple" | "red";
+export type EventStatusKind =
+  | "planning"
+  | "planned"
+  | "active"
+  | "awaiting_result"
+  | "completed"
+  | "cancelled"
+  | "expired"
+  | "unverified";
+
+export type CollaborationActivityTone = "amber" | "green" | "slate" | "red";
+
+export type EventStatusPresentation = {
+  kind: EventStatusKind;
+  label: string;
+  tone: CollaborationActivityTone;
+};
+
+export const EVENT_STATUS_PRESENTATIONS: Record<EventStatusKind, EventStatusPresentation> = {
+  planning: { kind: "planning", label: "Planlanıyor", tone: "amber" },
+  planned: { kind: "planned", label: "Planlandı", tone: "amber" },
+  active: { kind: "active", label: "Aktif", tone: "green" },
+  awaiting_result: { kind: "awaiting_result", label: "Sonuç bekleniyor", tone: "slate" },
+  completed: { kind: "completed", label: "Tamamlandı", tone: "slate" },
+  cancelled: { kind: "cancelled", label: "Gerçekleşmedi / İptal", tone: "red" },
+  expired: { kind: "expired", label: "Süresi doldu", tone: "slate" },
+  unverified: { kind: "unverified", label: "Durum doğrulanamadı", tone: "red" },
+};
 
 export type CollaborationActivityPresentation = {
   stage: CollaborationActivityStage;
@@ -229,6 +256,44 @@ function timestamp(value: string | null): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+export function getEventStatusPresentation({
+  status,
+  scheduledStart = null,
+  scheduledEnd = null,
+  outcomeUnknown = false,
+  now = Date.now(),
+}: {
+  status: string | null | undefined;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  outcomeUnknown?: boolean;
+  now?: number | string | Date;
+}): EventStatusPresentation {
+  const normalized = status?.trim().toLowerCase() ?? "";
+  if (normalized === "cancelled" || normalized === "canceled") return EVENT_STATUS_PRESENTATIONS.cancelled;
+  if (normalized === "completed") return EVENT_STATUS_PRESENTATIONS.completed;
+  if (normalized === "expired") return EVENT_STATUS_PRESENTATIONS.expired;
+  if (normalized === "unresolved" || normalized === "unverified") return EVENT_STATUS_PRESENTATIONS.unverified;
+  if (normalized === "active" || normalized === "current") return EVENT_STATUS_PRESENTATIONS.active;
+  if (normalized === "awaiting_result") return EVENT_STATUS_PRESENTATIONS.awaiting_result;
+  if (normalized === "forming" || normalized === "open" || normalized === "preparing") {
+    return EVENT_STATUS_PRESENTATIONS.planning;
+  }
+  if (outcomeUnknown) return EVENT_STATUS_PRESENTATIONS.awaiting_result;
+
+  const current = nowTimestamp(now);
+  const start = timestamp(scheduledStart);
+  const end = timestamp(scheduledEnd);
+  if (end !== null && current > end) return EVENT_STATUS_PRESENTATIONS.awaiting_result;
+  if (start !== null && end !== null && current >= start && current <= end) {
+    return EVENT_STATUS_PRESENTATIONS.active;
+  }
+  if (normalized === "planned" || normalized === "closed" || normalized === "future") {
+    return EVENT_STATUS_PRESENTATIONS.planned;
+  }
+  return EVENT_STATUS_PRESENTATIONS.planning;
+}
+
 function nowTimestamp(value: number | string | Date): number {
   const parsed = value instanceof Date ? value.getTime() : typeof value === "string" ? Date.parse(value) : value;
   if (!Number.isFinite(parsed)) throw new TypeError("Geçerli bir zaman damgası gerekli.");
@@ -326,10 +391,7 @@ function resolveStage(activity: CollaborationActivitySummary, now: number): Coll
   const timezone = resolveTimezone(activity.timezone);
   if (start !== null && now < start) return "future";
   if (end !== null && now > end) return "awaiting_result";
-  if (start !== null && now >= start) {
-    if (activity.windowEnd && dayKey(now, timezone) > activity.windowEnd) return "awaiting_result";
-    return "current";
-  }
+  if (start !== null && end !== null && now >= start && now <= end) return "current";
   if (activity.windowEnd && dayKey(now, timezone) > activity.windowEnd) return "awaiting_result";
   return "future";
 }
@@ -352,21 +414,12 @@ export function getCollaborationActivityPresentation(
   now: number | string | Date = Date.now(),
 ): CollaborationActivityPresentation {
   const stage = resolveStage(activity, nowTimestamp(now));
-  const label = stage === "unresolved" ? "Etkinlik bağlantısı doğrulanamadı"
-    : stage === "cancelled"
-    ? activity.cancellationPhase === "planning" ? "Plan iptal edildi" : "Gerçekleşmedi / İptal"
-    : stage === "completed" ? "Yaşandı"
-      : stage === "current" ? "Şu an aktif"
-        : stage === "expired" ? "Süresi doldu"
-        : stage === "awaiting_result" ? "Sonuç bekleniyor"
-          : stage === "future" ? "Planlandı"
-            : stage === "forming" ? "Planlanıyor"
-              : "Etkinlik hazırlanıyor";
-  const tone: CollaborationActivityTone = stage === "cancelled" || stage === "unresolved" ? "red"
-    : stage === "current" ? "green"
-      : stage === "awaiting_result" || stage === "expired" ? "slate"
-        : stage === "completed" ? "purple"
-          : "amber";
+  const statusKind: EventStatusKind = stage === "unresolved" ? "unverified"
+    : stage === "preparing" || stage === "forming" ? "planning"
+      : stage === "future" ? "planned"
+        : stage === "current" ? "active"
+          : stage;
+  const { label, tone } = EVENT_STATUS_PRESENTATIONS[statusKind];
   const timezone = resolveTimezone(activity.timezone);
   const exactDate = activity.scheduledStart
     ? exactDateLabel(activity.scheduledStart, activity.scheduledEnd, timezone)

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import AppNavigation from "@/components/navigation/AppNavigation";
+import InboxSectionNav from "@/components/inbox/InboxSectionNav";
 import CollaborationInbox, { type CollaborationChatSummary, type CollaborationRequest } from "@/components/collaboration/CollaborationInbox";
 import { parseCollaborationActivity } from "@/lib/collaborationActivity";
 import { createClient } from "@/utils/supabase/server";
@@ -103,5 +104,5 @@ export default async function CollaborationSuggestionsPage({ searchParams }: { s
   }
   const readFailed=Boolean(requests.error||chats.error||!requestsValid||!chatsValid);
   if(readFailed)console.error("Collaboration inbox queries failed or returned malformed payloads.");
-  return <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6"><div className="relative z-50 mx-auto mb-8 max-w-[1500px]"><AppNavigation/></div><div className="mx-auto max-w-5xl"><Link href="/timeline" className="mb-5 inline-block text-sm font-bold text-emerald-800">← Niyetlerime dön</Link>{readFailed ? <p role="alert" className="rounded-2xl bg-red-50 p-5 font-semibold text-red-700">Öneriler ve sohbetler yüklenemedi. Lütfen yeniden dene.</p> : <CollaborationInbox initialRequests={requests.data as CollaborationRequest[]} initialChats={parsedChats} focusedId={focus || null}/>}</div></main>;
+  return <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6"><div className="relative z-50 mx-auto mb-8 max-w-[1500px]"><AppNavigation/></div><div className="mx-auto max-w-5xl"><Link href="/timeline" className="inline-block text-sm font-bold text-emerald-800">← Niyetlerime dön</Link><InboxSectionNav active="messages"/><div className="mt-8">{readFailed ? <p role="alert" className="rounded-2xl bg-red-50 p-5 font-semibold text-red-700">Öneriler ve sohbetler yüklenemedi. Lütfen yeniden dene.</p> : <CollaborationInbox initialRequests={requests.data as CollaborationRequest[]} initialChats={parsedChats} focusedId={focus || null}/>}</div></div></main>;
 }

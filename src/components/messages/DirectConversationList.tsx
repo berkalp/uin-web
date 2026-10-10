@@ -29,9 +29,9 @@ function getInitial(value: string) {
 }
 
 function formatDateTime(value: string | null) {
-  if (!value) return "No messages yet";
+  if (!value) return "Henüz mesaj yok";
 
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -295,38 +295,38 @@ export default function DirectConversationList({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-            Direct conversations
+            Doğrudan sohbetler
           </p>
-          <h2 className="mt-2 text-2xl font-bold text-gray-950">Direct Messages</h2>
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">Bire bir mesajlar</h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            Staff-created one-to-one conversations. General member-to-member DMs remain closed.
+            UIN ekibiyle veya sana özel olarak açılmış bire bir konuşmalar burada görünür.
           </p>
         </div>
 
         <span className="rounded-full bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700">
-          {loadFailed ? "— unread" : `${unreadTotal} unread`}
+          {loadFailed ? "Okunmamış sayısı yüklenemedi" : `${unreadTotal} okunmamış`}
         </span>
       </div>
 
       <div className="mt-4 space-y-3">
         {loadFailed && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700">
-            <p>Conversations could not be refreshed. The previous verified list is kept on screen.</p>
+            <p>Sohbetler yenilenemedi. Son doğrulanmış liste ekranda tutuluyor.</p>
             <button
               type="button"
               onClick={() => void refreshConversations()}
               className="mt-3 rounded-xl bg-red-700 px-4 py-2 text-xs font-bold text-white"
             >
-              Retry
+              Yeniden dene
             </button>
           </div>
         )}
 
         {!loadFailed && conversations.length === 0 && (
           <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center shadow-sm">
-            <p className="text-lg font-bold text-gray-900">No conversations yet</p>
+            <p className="text-lg font-bold text-gray-900">Henüz bire bir sohbet yok</p>
             <p className="mt-2 text-sm text-gray-500">
-              A staff member can open a direct channel when there is a reason to talk.
+              Sana özel bir konuşma açıldığında burada görünür.
             </p>
           </div>
         )}
@@ -335,7 +335,7 @@ export default function DirectConversationList({
           const displayName =
             conversation.other_full_name ||
             conversation.other_username ||
-            "UIN member";
+            "UIN üyesi";
           const unreadCount = toNumber(conversation.unread_count);
 
           return (
@@ -362,19 +362,19 @@ export default function DirectConversationList({
 
                   {conversation.viewer_access_kind === "staff" && (
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
-                      STAFF CHANNEL
+                      UIN EKİBİ
                     </span>
                   )}
 
                   {!conversation.viewer_can_send && (
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-700">
-                      READ ONLY
+                      YALNIZCA OKUNABİLİR
                     </span>
                   )}
                 </div>
 
                 <p className="mt-1 truncate text-sm text-gray-500">
-                  {conversation.last_message_body || "Conversation opened"}
+                  {conversation.last_message_body || "Sohbet açıldı"}
                 </p>
                 <p className="mt-2 text-xs text-gray-400">
                   {formatDateTime(conversation.last_message_at)}
@@ -394,7 +394,7 @@ export default function DirectConversationList({
 
         {conversations.length > PAGE_SIZE && (
           <nav
-            aria-label="Direct conversation pages"
+            aria-label="Bire bir sohbet sayfaları"
             className="flex flex-wrap items-center justify-between gap-3 pt-2"
           >
             <p className="text-xs font-semibold text-gray-400">

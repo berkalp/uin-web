@@ -43,7 +43,6 @@ const rowToneClasses: Record<CollaborationActivityTone, { row: string; badge: st
   amber: { row: "border-amber-200 bg-amber-50/70 hover:bg-amber-50", badge: "bg-amber-100 text-amber-900" },
   green: { row: "border-emerald-200 bg-emerald-50/70 hover:bg-emerald-50", badge: "bg-emerald-100 text-emerald-900" },
   slate: { row: "border-slate-200 bg-slate-50 hover:bg-slate-100", badge: "bg-slate-200 text-slate-800" },
-  purple: { row: "border-violet-200 bg-violet-50/70 hover:bg-violet-50", badge: "bg-violet-100 text-violet-900" },
   red: { row: "border-red-200 bg-red-50/70 hover:bg-red-50", badge: "bg-red-100 text-red-800" },
 };
 

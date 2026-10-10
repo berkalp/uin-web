@@ -115,7 +115,6 @@ const activityToneClasses: Record<CollaborationActivityTone, { panel: string; ba
   amber: { panel: "border-amber-300 bg-amber-50", badge: "bg-amber-100 text-amber-900", button: "bg-amber-700 text-white" },
   green: { panel: "border-emerald-300 bg-emerald-50", badge: "bg-emerald-100 text-emerald-900", button: "bg-emerald-700 text-white" },
   slate: { panel: "border-slate-300 bg-slate-50", badge: "bg-slate-200 text-slate-800", button: "bg-slate-800 text-white" },
-  purple: { panel: "border-violet-300 bg-violet-50", badge: "bg-violet-100 text-violet-900", button: "bg-violet-700 text-white" },
   red: { panel: "border-red-300 bg-red-50", badge: "bg-red-100 text-red-800", button: "bg-red-700 text-white" },
 };
 

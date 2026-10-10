@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import InboxSectionNav from "@/components/inbox/InboxSectionNav";
 import { createClient } from "@/utils/supabase/server";
 
 type ManagedProfileRow = {
@@ -270,13 +271,15 @@ export default async function InboxPage() {
 
         <header className="mt-8">
           <h1 className="text-4xl font-bold text-gray-950">
-            Karar Merkezi
+            İstekler
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Karar vermen gereken istekler, davetler ve yönetilen profil işlemleri burada. Mesajlar ve Bildirimler ayrı tutulur.
+            Yanıt vermen gereken niyet istekleri, etkinlik davetleri, katılım istekleri ve yönetilen profil işlemleri burada.
           </p>
         </header>
+
+        <InboxSectionNav active="requests" />
 
         {loadFailed && (
           <section role="alert" className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-6 text-amber-900">

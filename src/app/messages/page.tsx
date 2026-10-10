@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
 import PageDataUnavailable from "@/components/common/PageDataUnavailable";
+import InboxSectionNav from "@/components/inbox/InboxSectionNav";
 import DirectConversationList from "@/components/messages/DirectConversationList";
 import RoomConversationList, {
   type RoomConversationPlan,
@@ -217,7 +218,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
             href="/inbox"
             className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
           >
-            Karar Merkezi
+            İstekler
           </Link>
         </div>
 
@@ -238,6 +239,21 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
             </span>
           </div>
         </header>
+
+        <InboxSectionNav active="messages" />
+
+        <Link
+          href="/collaboration-suggestions"
+          className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 transition hover:border-violet-400 hover:bg-violet-50"
+        >
+          <span>
+            <span className="block text-sm font-black text-violet-950">Tanışma sohbetleri</span>
+            <span className="mt-1 block text-xs leading-5 text-violet-700">
+              Birlikte yapma önerilerini yanıtla ve planlamadan önce konuş.
+            </span>
+          </span>
+          <span className="shrink-0 text-xl text-violet-700" aria-hidden="true">→</span>
+        </Link>
 
         <RoomConversationList
           currentUserId={user.id}

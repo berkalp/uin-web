@@ -8,6 +8,7 @@ import {
   MarkAllNotificationsReadButton,
   NotificationOpenButton,
 } from "@/components/notifications/NotificationActions";
+import InboxSectionNav from "@/components/inbox/InboxSectionNav";
 import NotificationsRealtimeRefresh from "@/components/notifications/NotificationsRealtimeRefresh";
 import { createClient } from "@/utils/supabase/server";
 import { commonIntentTitle } from "@/utils/commonIntentTitle";
@@ -42,6 +43,11 @@ type NotificationsPageProps = {
 };
 
 const PAGE_SIZE = 10;
+const CARD_UPDATE_TYPES = new Set([
+  "uin_card_new_intent",
+  "uin_card_new_experience",
+  "uin_card_new_event",
+]);
 
 function toNumber(value: unknown, fallback = 0) {
   const parsed = Number(value ?? fallback);
@@ -116,7 +122,35 @@ function formatDateTime(value: string) {
   }).format(date);
 }
 
+function isCardUpdateNotification(type: string) {
+  return CARD_UPDATE_TYPES.has(type);
+}
+
 function getNotificationTone(type: string) {
+  if (type === "uin_card_new_intent") {
+    return {
+      border: "border-emerald-200",
+      badge: "bg-emerald-50 text-emerald-700",
+      label: "Kart · Yeni niyet",
+    };
+  }
+
+  if (type === "uin_card_new_experience") {
+    return {
+      border: "border-violet-200",
+      badge: "bg-violet-50 text-violet-700",
+      label: "Kart · Yeni deneyim",
+    };
+  }
+
+  if (type === "uin_card_new_event") {
+    return {
+      border: "border-amber-200",
+      badge: "bg-amber-50 text-amber-800",
+      label: "Kart · Yeni etkinlik",
+    };
+  }
+
   if (type.includes("feedback")) {
     return {
       border: "border-purple-200",
@@ -280,11 +314,11 @@ export default async function NotificationsPage({
     }
   }
 
-  const unreadNotifications = notifications.filter(
-    (notification) => !notification.is_read
+  const cardNotifications = notifications.filter((notification) =>
+    isCardUpdateNotification(notification.notification_type)
   );
-  const readNotifications = notifications.filter(
-    (notification) => notification.is_read
+  const otherNotifications = notifications.filter((notification) =>
+    !isCardUpdateNotification(notification.notification_type)
   );
 
   function renderNotification(notification: NotificationRow) {
@@ -357,6 +391,71 @@ export default async function NotificationsPage({
     );
   }
 
+  function renderNotificationSection({
+    id,
+    eyebrow,
+    title,
+    description,
+    items,
+    emptyTitle,
+    emptyDescription,
+    accent,
+  }: {
+    id: string;
+    eyebrow: string;
+    title: string;
+    description: string;
+    items: NotificationRow[];
+    emptyTitle: string;
+    emptyDescription: string;
+    accent: "emerald" | "slate";
+  }) {
+    const unreadItems = items.filter((notification) => !notification.is_read);
+    const readItems = items.filter((notification) => notification.is_read);
+    const accentClasses = accent === "emerald"
+      ? "border-emerald-200 bg-emerald-50/60 text-emerald-800"
+      : "border-slate-200 bg-slate-50 text-slate-700";
+
+    return (
+      <section id={id} className="scroll-mt-24 pt-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className={`text-xs font-bold uppercase tracking-[0.16em] ${accent === "emerald" ? "text-emerald-700" : "text-slate-500"}`}>
+              {eyebrow}
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">{title}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500">{description}</p>
+          </div>
+          <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${accentClasses}`}>
+            {items.length} bu sayfada{unreadItems.length > 0 ? ` · ${unreadItems.length} yeni` : ""}
+          </span>
+        </div>
+
+        {items.length === 0 ? (
+          <div className="mt-4 rounded-3xl border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm">
+            <h3 className="font-bold text-gray-950">{emptyTitle}</h3>
+            <p className="mt-2 text-sm leading-6 text-gray-500">{emptyDescription}</p>
+          </div>
+        ) : (
+          <div className="mt-5 space-y-7">
+            {unreadItems.length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-gray-900">Yeni</h3>
+                <div className="mt-3 space-y-4">{unreadItems.map(renderNotification)}</div>
+              </div>
+            )}
+            {readItems.length > 0 && (
+              <div>
+                <h3 className="text-sm font-black text-gray-500">Öncekiler</h3>
+                <div className="mt-3 space-y-4">{readItems.map(renderNotification)}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 px-4 py-8 md:px-6">
       <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
@@ -373,7 +472,7 @@ export default async function NotificationsPage({
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
           <p className="text-xs font-semibold uppercase tracking-wide text-green-700">
-            Etkinlik güncellemeleri
+            Gelen kutusu
           </p>
 
           <h1 className="mt-3 text-3xl font-bold text-gray-950 md:text-4xl">
@@ -381,8 +480,8 @@ export default async function NotificationsPage({
           </h1>
 
           <p className="mt-3 max-w-3xl text-sm leading-7 text-gray-500">
-            Niyetlerin, planların, etkinliklerin ve takip ettiğin kişilerle ilgili önemli
-            gelişmeler burada görünür. Oda konuşmalarını Mesajlar bölümünde bulabilirsin.
+            Takip ettiğin kartlardaki gelişmeleri ve niyet, plan, etkinlik bildirimlerini
+            ayrı bölümlerde görebilirsin. Oda konuşmaları Sohbetler bölümünde kalır.
           </p>
 
           {!error && (
@@ -404,6 +503,8 @@ export default async function NotificationsPage({
           )}
         </header>
 
+        <InboxSectionNav active="updates" />
+
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
             <p className="font-semibold text-red-800">Bildirimler yüklenemedi.</p>
@@ -416,37 +517,27 @@ export default async function NotificationsPage({
           </div>
         )}
 
-        {!error && totalCount === 0 && (
-          <section className="mt-8 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-green-50 text-xl font-bold text-green-700">
-              ✓
-            </div>
-            <h2 className="mt-5 text-xl font-bold text-gray-950">Henüz güncelleme yok</h2>
-            <p className="mt-3 text-sm leading-7 text-gray-500">
-              Niyet, plan ve etkinliklerle ilgili gelişmeler burada görünecek.
-            </p>
-          </section>
-        )}
+        {!error && renderNotificationSection({
+          id: "kart-gelismeleri",
+          eyebrow: "Takip ettiğin kartlar",
+          title: "Kart gelişmeleri",
+          description: "Takip ettiğin kartlara yeni bir niyet, deneyim veya etkinlik eklendiğinde burada görünür.",
+          items: cardNotifications,
+          emptyTitle: "Bu sayfada kart gelişmesi yok",
+          emptyDescription: "Takip ettiğin kartlardaki yeni niyet, deneyim ve etkinlik bildirimleri geldiği sayfada bu bölümde görünür.",
+          accent: "emerald",
+        })}
 
-        {!error && unreadNotifications.length > 0 && (
-          <section className="mt-8">
-            <p className="text-xs font-semibold uppercase tracking-wide text-green-700">Yeni</p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-950">Okunmamış bildirimler</h2>
-            <div className="mt-5 space-y-4">
-              {unreadNotifications.map(renderNotification)}
-            </div>
-          </section>
-        )}
-
-        {!error && readNotifications.length > 0 && (
-          <section className="mt-10">
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Geçmiş</p>
-            <h2 className="mt-2 text-2xl font-bold text-gray-950">Önceki bildirimler</h2>
-            <div className="mt-5 space-y-4">
-              {readNotifications.map(renderNotification)}
-            </div>
-          </section>
-        )}
+        {!error && renderNotificationSection({
+          id: "diger-gelismeler",
+          eyebrow: "Niyet, plan ve etkinlikler",
+          title: "Diğer bildirimler",
+          description: "Davetler, katılım istekleri, plan kararları ve etkinlik durumları burada kalır.",
+          items: otherNotifications,
+          emptyTitle: "Bu sayfada başka bildirim yok",
+          emptyDescription: "Bir davet, katılım isteği veya plan gelişmesi olduğunda bu bölümde göreceksin.",
+          accent: "slate",
+        })}
 
         {!error && totalCount > PAGE_SIZE && (
           <nav

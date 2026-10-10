@@ -136,13 +136,13 @@ export default function RoomConversationList({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-green-700">
-            Oda sohbetleri
+            Plan ve etkinlik sohbetleri
           </p>
           <h2 className="mt-2 text-2xl font-bold text-gray-950">
-            Niyet & Aktivite Odaları
+            Planlama & Aktivite Odaları
           </h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            Her Niyet, planlama ve Aktivite boyunca tek konuşma olarak devam eder. Mesajlar kendi Odasında gruplanır.
+            Bir planın konuşması planlama ve etkinlik boyunca aynı odada devam eder.
           </p>
         </div>
 
