@@ -126,6 +126,22 @@ function isCardUpdateNotification(type: string) {
   return CARD_UPDATE_TYPES.has(type);
 }
 
+function isActivityUpdateNotification(notification: NotificationRow) {
+  if (isCardUpdateNotification(notification.notification_type)) return false;
+
+  const type = notification.notification_type.trim().toLowerCase();
+  const entityType = notification.entity_type?.trim().toLowerCase() ?? "";
+  return entityType === "plan" ||
+    entityType === "activity" ||
+    entityType === "event" ||
+    type.includes("planned_activity") ||
+    type.includes("activity_") ||
+    type.includes("event_") ||
+    type.includes("_event") ||
+    type.includes("plan_") ||
+    type.includes("_plan");
+}
+
 function getNotificationTone(type: string) {
   if (type === "uin_card_new_intent") {
     return {
@@ -212,14 +228,23 @@ function localizedNotificationBody(type: string, body: string | null) {
   return body;
 }
 
-function pageHref(page: number) {
-  return page <= 1 ? "/notifications" : `/notifications?page=${page}`;
+function pageHref(page: number, section?: string) {
+  const params = new URLSearchParams();
+  if (page > 1) params.set("page", String(page));
+  if (section === "cards") params.set("section", "cards");
+  const query = params.toString();
+  const anchor = section === "cards" ? "#kart-gelismeleri" : "";
+  return `/notifications${query ? `?${query}` : ""}${anchor}`;
 }
 
 export default async function NotificationsPage({
   searchParams,
 }: NotificationsPageProps) {
   const resolvedSearchParams = await searchParams;
+  const requestedSection = Array.isArray(resolvedSearchParams.section)
+    ? resolvedSearchParams.section[0]
+    : resolvedSearchParams.section;
+  const activeInboxSection = requestedSection === "cards" ? "cards" : "all";
   const requestedPage = Math.max(
     1,
     Math.trunc(
@@ -243,7 +268,7 @@ export default async function NotificationsPage({
     return (
       <PageDataUnavailable
         title="Bildirimler şu anda yüklenemedi"
-        retryHref={pageHref(requestedPage)}
+        retryHref={pageHref(requestedPage, requestedSection)}
         backHref="/timeline"
         backLabel="Listeye dön"
       />
@@ -285,7 +310,7 @@ export default async function NotificationsPage({
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   if (!error && totalCount > 0 && requestedPage > pageCount) {
-    redirect(pageHref(pageCount));
+    redirect(pageHref(pageCount, requestedSection));
   }
 
   const collaborationIds = notifications
@@ -317,8 +342,12 @@ export default async function NotificationsPage({
   const cardNotifications = notifications.filter((notification) =>
     isCardUpdateNotification(notification.notification_type)
   );
+  const activityNotifications = notifications.filter((notification) =>
+    isActivityUpdateNotification(notification)
+  );
   const otherNotifications = notifications.filter((notification) =>
-    !isCardUpdateNotification(notification.notification_type)
+    !isCardUpdateNotification(notification.notification_type) &&
+    !isActivityUpdateNotification(notification)
   );
 
   function renderNotification(notification: NotificationRow) {
@@ -503,7 +532,7 @@ export default async function NotificationsPage({
           )}
         </header>
 
-        <InboxSectionNav active="updates" />
+        <InboxSectionNav active={activeInboxSection} />
 
         {error && (
           <div className="mt-6 rounded-3xl border border-red-200 bg-red-50 p-6">
@@ -511,11 +540,22 @@ export default async function NotificationsPage({
             <p className="mt-2 text-sm text-red-700">
               Kayıtların eksik görünmemesi için listeyi göstermiyoruz. Lütfen yeniden dene.
             </p>
-            <Link href={pageHref(requestedPage)} className="mt-4 inline-flex rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">
+            <Link href={pageHref(requestedPage, requestedSection)} className="mt-4 inline-flex rounded-xl bg-red-700 px-4 py-2 text-sm font-bold text-white">
               Yeniden dene
             </Link>
           </div>
         )}
+
+        {!error && renderNotificationSection({
+          id: "etkinlik-gelismeleri",
+          eyebrow: "Plan ve etkinlikler",
+          title: "Etkinlik gelişmeleri",
+          description: "Planlama kararları, etkinlik durumları ve etkinlik geri bildirimleri burada görünür.",
+          items: activityNotifications,
+          emptyTitle: "Bu sayfada etkinlik gelişmesi yok",
+          emptyDescription: "Bir plan veya etkinlik güncellendiğinde geldiği sayfada bu bölümde görünür.",
+          accent: "slate",
+        })}
 
         {!error && renderNotificationSection({
           id: "kart-gelismeleri",
@@ -530,9 +570,9 @@ export default async function NotificationsPage({
 
         {!error && renderNotificationSection({
           id: "diger-gelismeler",
-          eyebrow: "Niyet, plan ve etkinlikler",
+          eyebrow: "Diğer işlemler",
           title: "Diğer bildirimler",
-          description: "Davetler, katılım istekleri, plan kararları ve etkinlik durumları burada kalır.",
+          description: "Davetler, katılım istekleri ve diğer hesap bildirimleri burada kalır.",
           items: otherNotifications,
           emptyTitle: "Bu sayfada başka bildirim yok",
           emptyDescription: "Bir davet, katılım isteği veya plan gelişmesi olduğunda bu bölümde göreceksin.",
@@ -545,7 +585,7 @@ export default async function NotificationsPage({
             className="mt-10 flex items-center justify-between gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm"
           >
             <Link
-              href={pageHref(Math.max(1, requestedPage - 1))}
+              href={pageHref(Math.max(1, requestedPage - 1), requestedSection)}
               aria-disabled={requestedPage <= 1}
               className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
                 requestedPage <= 1
@@ -561,7 +601,7 @@ export default async function NotificationsPage({
             </span>
 
             <Link
-              href={pageHref(Math.min(pageCount, requestedPage + 1))}
+              href={pageHref(Math.min(pageCount, requestedPage + 1), requestedSection)}
               aria-disabled={requestedPage >= pageCount}
               className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition ${
                 requestedPage >= pageCount

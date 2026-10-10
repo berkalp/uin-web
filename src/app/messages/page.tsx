@@ -6,13 +6,13 @@ import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import InboxSectionNav from "@/components/inbox/InboxSectionNav";
 import DirectConversationList from "@/components/messages/DirectConversationList";
 import RoomConversationList, {
+  isArchivedRoomConversationPlan,
   type RoomConversationPlan,
   type RoomConversationSummary,
 } from "@/components/messages/RoomConversationList";
 import RoomMessagesRealtimeRefresh from "@/components/messages/RoomMessagesRealtimeRefresh";
 import type { DirectConversationSummary } from "@/services/directMessageService";
 import { createClient } from "@/utils/supabase/server";
-import { isRoomConversationOpen } from "@/utils/roomConversationLifecycle";
 
 function toNumber(value: unknown) {
   const parsed = Number(value ?? 0);
@@ -69,6 +69,10 @@ function isRoomConversationPlan(value: unknown): value is RoomConversationPlan {
     isNullableString(row.creation_mode) &&
     isNullableString(row.status) &&
     isNullableString(row.planned_at) &&
+    isNullableString(row.scheduled_start) &&
+    isNullableString(row.scheduled_end) &&
+    isNullableString(row.completed_at) &&
+    isNullableString(row.cancelled_at) &&
     isNullableString(row.expired_at) &&
     isNullableString(row.window_end) &&
     isNullableString(row.timezone);
@@ -88,6 +92,9 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   const params = await searchParams;
   const roomPage = pageNumber(params.roomPage);
   const directPage = pageNumber(params.directPage);
+  const archivePage = pageNumber(params.archivePage);
+  const requestedSection = Array.isArray(params.section) ? params.section[0] : params.section;
+  const activeInboxSection = requestedSection === "staff" ? "staff" : "activities";
   const supabase = await createClient();
   const {
     data: { user },
@@ -164,7 +171,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
   if (planIds.length > 0) {
     const planResult = await supabase
       .from("plans")
-      .select("id, title, creation_mode, status, planned_at, expired_at, window_end, timezone")
+      .select("id, title, creation_mode, status, planned_at, scheduled_start, scheduled_end, completed_at, cancelled_at, expired_at, window_end, timezone")
       .in("id", planIds);
 
     if (
@@ -179,7 +186,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
     }
   }
 
-  const openPlans = plans.filter(isRoomConversationOpen);
+  const openPlans = plans.filter((plan) => !isArchivedRoomConversationPlan(plan));
   const openPlanIds = new Set(openPlans.map((plan) => plan.id));
   const activeRoomSummaries = roomSummaries.filter((summary) =>
     openPlanIds.has(summary.plan_id)
@@ -214,12 +221,6 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
             <img src="/uin-logo.png" alt="uin? logo" className="h-9 w-auto" />
           </Link>
 
-          <Link
-            href="/inbox"
-            className="rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-green-400 hover:text-green-700"
-          >
-            İstekler
-          </Link>
         </div>
 
         <header className="mt-8 rounded-[32px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
@@ -240,28 +241,16 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
           </div>
         </header>
 
-        <InboxSectionNav active="messages" />
-
-        <Link
-          href="/collaboration-suggestions"
-          className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 transition hover:border-violet-400 hover:bg-violet-50"
-        >
-          <span>
-            <span className="block text-sm font-black text-violet-950">Tanışma sohbetleri</span>
-            <span className="mt-1 block text-xs leading-5 text-violet-700">
-              Birlikte yapma önerilerini yanıtla ve planlamadan önce konuş.
-            </span>
-          </span>
-          <span className="shrink-0 text-xl text-violet-700" aria-hidden="true">→</span>
-        </Link>
+        <InboxSectionNav active={activeInboxSection} />
 
         <RoomConversationList
           currentUserId={user.id}
-          summaries={activeRoomSummaries}
-          plans={openPlans}
+          summaries={roomSummaries}
+          plans={plans}
           loadFailed={roomLoadFailed}
           page={roomPage}
           directPage={directPage}
+          archivePage={archivePage}
         />
 
         <DirectConversationList
@@ -269,6 +258,7 @@ export default async function MessagesPage({ searchParams }: MessagesPageProps) 
           initialLoadFailed={directLoadFailed}
           page={directPage}
           roomPage={roomPage}
+          archivePage={archivePage}
         />
       </div>
     </main>

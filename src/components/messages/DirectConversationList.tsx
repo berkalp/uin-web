@@ -11,6 +11,7 @@ type DirectConversationListProps = {
   initialLoadFailed?: boolean;
   page?: number;
   roomPage?: number;
+  archivePage?: number;
 };
 
 type ConversationListState = {
@@ -143,6 +144,7 @@ export default function DirectConversationList({
   initialLoadFailed = false,
   page = 1,
   roomPage = 1,
+  archivePage = 1,
 }: DirectConversationListProps) {
   const [listState, setListState] = useState<ConversationListState>(() => ({
     conversations: initialConversations,
@@ -287,19 +289,21 @@ export default function DirectConversationList({
     const params = new URLSearchParams();
     params.set("roomPage", String(roomPage));
     params.set("directPage", String(targetPage));
-    return `/messages?${params.toString()}`;
+    params.set("archivePage", String(archivePage));
+    params.set("section", "staff");
+    return `/messages?${params.toString()}#uin-ekibinden`;
   }
 
   return (
-    <section className="mt-10">
+    <section id="uin-ekibinden" className="scroll-mt-24 pt-10">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-700">
-            Doğrudan sohbetler
+            UIN ekibinden
           </p>
-          <h2 className="mt-2 text-2xl font-bold text-gray-950">Bire bir mesajlar</h2>
+          <h2 className="mt-2 text-2xl font-bold text-gray-950">Sana özel mesajlar</h2>
           <p className="mt-2 text-sm leading-6 text-gray-500">
-            UIN ekibiyle veya sana özel olarak açılmış bire bir konuşmalar burada görünür.
+            UIN ekibinin açtığı destek görüşmeleri ve yetkili bire bir konuşmalar burada görünür.
           </p>
         </div>
 
@@ -360,9 +364,15 @@ export default function DirectConversationList({
                 <div className="flex flex-wrap items-center gap-2">
                   <h2 className="truncate font-bold text-gray-950">{displayName}</h2>
 
-                  {conversation.viewer_access_kind === "staff" && (
+                  {conversation.viewer_access_kind === "granted" && (
                     <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700">
                       UIN EKİBİ
+                    </span>
+                  )}
+
+                  {conversation.viewer_access_kind === "staff" && (
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                      YÖNETİM KANALI
                     </span>
                   )}
 

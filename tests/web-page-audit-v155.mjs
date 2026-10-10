@@ -196,7 +196,7 @@ test("interactive detail reads always settle and offer a retry after an error", 
   assert.match(quickDetails, /catch[\s\S]*finally[\s\S]*setBusy\(false\)/);
   assert.match(quickDetails, /Tekrar dene/);
   assert.match(rooms, /loadFailed\?: boolean/);
-  assert.match(rooms, /!loadFailed && conversations\.length === 0/);
+  assert.match(rooms, /!loadFailed && activeConversations\.length === 0/);
   assert.match(rooms, /Yeniden dene/);
 });
 

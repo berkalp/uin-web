@@ -1,6 +1,12 @@
 import Link from "next/link";
 
-type InboxSection = "messages" | "requests" | "updates";
+export type InboxSection =
+  | "all"
+  | "chats"
+  | "requests"
+  | "activities"
+  | "cards"
+  | "staff";
 
 const SECTIONS: Array<{
   id: InboxSection;
@@ -9,28 +15,46 @@ const SECTIONS: Array<{
   description: string;
 }> = [
   {
-    id: "messages",
-    href: "/messages",
+    id: "all",
+    href: "/notifications",
+    label: "Tümü",
+    description: "Tüm bildirim akışı",
+  },
+  {
+    id: "chats",
+    href: "/collaboration-suggestions#sohbetler",
     label: "Sohbetler",
-    description: "Plan ve etkinlik konuşmaları",
+    description: "Tanışma konuşmaları",
   },
   {
     id: "requests",
-    href: "/inbox",
+    href: "/inbox#istekler",
     label: "İstekler",
     description: "Yanıt bekleyen kararlar",
   },
   {
-    id: "updates",
-    href: "/notifications#kart-gelismeleri",
-    label: "Gelişmeler",
-    description: "Kart ve etkinlik bildirimleri",
+    id: "activities",
+    href: "/messages?section=activities#etkinlikler",
+    label: "Etkinlikler",
+    description: "Planlama ve aktivite odaları",
+  },
+  {
+    id: "cards",
+    href: "/notifications?section=cards#kart-gelismeleri",
+    label: "Takip Ettiğim Kartlardan",
+    description: "Yeni niyet, deneyim ve etkinlik",
+  },
+  {
+    id: "staff",
+    href: "/messages?section=staff#uin-ekibinden",
+    label: "UIN Ekibinden",
+    description: "Sana özel destek mesajları",
   },
 ];
 
 export default function InboxSectionNav({ active }: { active: InboxSection }) {
   return (
-    <nav aria-label="Gelen kutusu bölümleri" className="mt-6 grid gap-3 sm:grid-cols-3">
+    <nav aria-label="Gelen kutusu bölümleri" className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
       {SECTIONS.map((section) => {
         const selected = section.id === active;
 

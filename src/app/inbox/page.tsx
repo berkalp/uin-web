@@ -293,7 +293,14 @@ export default async function InboxPage() {
           </section>
         )}
 
-        <section className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2">
+        <section id="istekler" className="scroll-mt-24 pt-8">
+          <div className="mb-5">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700">
+              Yanıt bekleyenler
+            </p>
+            <h2 className="mt-2 text-2xl font-bold text-gray-950">İstekler</h2>
+          </div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {actionCards.map(
             (card) => (
               <Link
@@ -328,6 +335,7 @@ export default async function InboxPage() {
               </Link>
             )
           )}
+          </div>
         </section>
 
         {managedProfiles.length >

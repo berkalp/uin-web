@@ -38,7 +38,7 @@ test("message center and live refreshes keep verified data when a refresh is inc
   assert.doesNotMatch(list, /const next = \(data \?\? \[\]\)/);
   assert.match(list, /if \(initialLoadFailed \|\| !initialConversations\.every\(isConversationSummary\)\)[\s\S]{0,350}loadFailed: true/);
   assert.match(list, /\.\.\.listState,[\s\S]{0,120}loadFailed: true,[\s\S]{0,180}previousInitialConversations: initialConversations/);
-  assert.match(list, /The previous verified list is kept on screen/);
+  assert.match(list, /Son doğrulanmış liste ekranda tutuluyor/);
   assert.match(list, /onClick=\{\(\) => void refreshConversations\(\)\}/);
   assert.match(list, /const requestGeneration = \+\+refreshGenerationRef\.current/);
   assert.match(list, /requestGeneration !== refreshGenerationRef\.current/);
