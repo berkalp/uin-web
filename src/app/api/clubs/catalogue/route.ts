@@ -64,11 +64,11 @@ export async function GET(){
     // otherwise the endpoint fails instead of inventing empty ids or counters.
     const visibleRows=hierarchyRows.filter(row=>{
       const id=targetId(row),placement=placementByTarget.get(id);
-      return cardByTarget.has(id)&&Boolean(row.parent_target_id||placement?.status==="active");
+      return Boolean(row.parent_target_id||placement?.status==="active");
     });
     const incompleteIds=visibleRows.map(row=>targetId(row)).filter(id=>{
       const placement=placementByTarget.get(id);
-      return !placement||typeof placement.id!=="string"||!UUID_PATTERN.test(placement.id)||!styleByTarget.has(id);
+      return !cardByTarget.has(id)||!placement||typeof placement.id!=="string"||!UUID_PATTERN.test(placement.id)||!styleByTarget.has(id);
     });
     if(incompleteIds.length)throw new Error("Club catalogue projections are incomplete");
 

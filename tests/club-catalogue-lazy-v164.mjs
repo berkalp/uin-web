@@ -35,13 +35,25 @@ test("club catalogue endpoint stays bounded and parallel",()=>{
   assert.doesNotMatch(source,/Number\(stats\?\.(?:wanting|done|active)\s*\|\|\s*0\)/);
 });
 
-function endpointDb({dropCatalogueCount=false}={}){
+test("club hierarchy uses its content-type index and evaluates viewer access once",()=>{
+  const migration=read("supabase/migrations/202610100003_fast_club_hierarchy_v167.sql");
+  assert.match(migration,/canonical_targets_content_type_id_v167_idx/);
+  assert.match(migration,/\(\(editorial_metadata->>'content_type_id'\)\)/);
+  assert.match(migration,/with viewer as materialized/);
+  assert.match(migration,/select public\.is_admin\(\) is_admin/);
+  assert.match(migration,/viewer\.is_admin/);
+  const hierarchyBody=migration.match(/create or replace function public\.get_club_hierarchy_v78\(\)([\s\S]*?)\$function\$;/)?.[1]||"";
+  assert.equal((hierarchyBody.match(/public\.is_admin\(\)/g)||[]).length,1);
+});
+
+function endpointDb({dropCatalogueCount=false,dropCatalogueRow=false}={}){
   const calls=[];
   const hierarchy=[
     {target_id:validClub.target_id,parent_target_id:null,sport:"FUTBOL",division:"ERKEK",league:"Süper Lig",season:"2026",display_name:"Örnek Kulüp",logo_url:null},
     {target_id:secondId,parent_target_id:validClub.target_id,sport:"FUTBOL",division:"KADIN",league:"Süper Lig",season:"2026",display_name:"Örnek Takım",logo_url:null},
   ];
   const catalogue=hierarchy.map((row,index)=>({canonical_target_id:row.target_id,title:row.display_name,catalog_cover_url:null,cover_url:null,intent_people_count:index+1,experience_people_count:dropCatalogueCount&&index===1?null:index+2,active_event_count:index}));
+  if(dropCatalogueRow)catalogue.pop();
   const styles=hierarchy.map(row=>({target_id:row.target_id,card_style:null,own_style:null}));
   const placements=hierarchy.map((row,index)=>({id:catalogueIds[index],canonical_target_id:row.target_id,status:"active"}));
   return{
@@ -58,10 +70,15 @@ test("club endpoint keeps complete rows and fails closed when a projection is mi
   assert.equal(complete.body.clubs.length,2);
   assert.deepEqual(Array.from(complete.body.clubs,club=>[club.wanting,club.done,club.active]),[[1,2,0],[2,3,1]]);
   assert.ok(!completeDb.calls.includes("get_uin_catalogue_fast_v122"));
+  assert.deepEqual(completeDb.calls,["get_club_hierarchy_v78","get_uin_catalogue_for_targets_v123","get_uin_card_styles_v76"]);
 
   const incomplete=await compileRoute(endpointDb({dropCatalogueCount:true})).GET();
   assert.equal(incomplete.status,503);
   assert.equal(incomplete.body.error,"Kulüp ve takım bilgileri yüklenemedi.");
+
+  const missingCard=await compileRoute(endpointDb({dropCatalogueRow:true})).GET();
+  assert.equal(missingCard.status,503,"a missing card projection must not silently remove a club");
+  assert.equal(missingCard.body.error,"Kulüp ve takım bilgileri yüklenemedi.");
 });
 
 test("ideas page loads club data only when club UI needs it",()=>{
