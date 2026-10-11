@@ -52,3 +52,30 @@ test('card parity reads stay batched and sorting does not issue requests',()=>{
  for(const path of ['src/components/cards/LibraryTopicCard.tsx','src/components/profile/ProfileLibraryActivityCard.tsx'])assert.doesNotMatch(fs.readFileSync(path,'utf8'),/useEffect|fetch\s*\(|supabase\.rpc/);
  const migration=fs.readFileSync('supabase/migrations/20261011130000_shared_library_profile_parity_v171.sql','utf8');assert.match(migration,/cardinality\(v_all\), 0\) > 6/);assert.match(migration,/s\.user_id=auth\.uid\(\)/);assert.match(migration,/ps\.seed_id=s\.id and ps\.user_id=s\.user_id/);
 });
+
+test('sports branch cards distinguish team, group, league and season using the shared Library renderer',()=>{
+ const team={target_id:'team',parent_target_id:'root',displayName:'Beşiktaş A.Ş.',sport:'Futbol',division:'Erkek',league:'Trendyol Süper Lig',season:'2026–2027'};
+ const html=renderCard({item:{...item,title:'Beşiktaş A.Ş. · Futbol · Erkek',item_kind:'club',content_type_id:'club'},club:team});
+ assert.ok(html.includes('Beşiktaş A.Ş.'));assert.ok(html.includes('text-amber-300'));assert.ok(html.includes('⚽ Futbol – Erkek'));
+ assert.equal((html.match(/Trendyol Süper Lig/g)||[]).length,1);assert.ok(html.includes('2026–2027'));
+ for(const text of ['Maç izlemek istiyorum','Maç izledim','Maç izleme etkinliği'])assert.ok(html.includes(text),text);
+ const {clubMatches}=load('src/utils/clubHierarchy.ts');
+ assert.equal(clubMatches({...team,parent_target_id:null,sport:''},'','',''),false);
+ assert.equal(clubMatches(team,'Futbol','Trendyol Süper Lig','Erkek'),true);
+ assert.equal(clubMatches(team,'Basketbol','',''),false);
+ const {clubCardLabels}=load('src/utils/club-card-labels.ts');
+ assert.equal(clubCardLabels('Beşiktaş A.Ş.').branch,'','an unspecified old club wish must not become football');
+ assert.equal(clubCardLabels('Beşiktaş A.Ş. · Basketbol · Kadın').branch,'🏀 Basketbol – Kadın');
+});
+
+test('linked Library projection verifies every target and count before showing a list',async()=>{
+ const {loadLinkedLibraryCards}=load('src/utils/linkedLibraryCards.ts');
+ const requests=[];
+ const client={rpc:async(name,args)=>{requests.push(args.p_target_ids.length);return{error:null,data:args.p_target_ids.map(id=>name.includes('catalogue')?{...item,canonical_target_id:id}:name.includes('ratings')?{target_id:id,rating_count:0,average_rating:null}:{target_id:id,follower_count:0,related_count:0})}}};
+ const ids=Array.from({length:205},(_,i)=>'card-'+i),rows=await loadLinkedLibraryCards(client,ids);
+ assert.equal(rows.length,205);assert.equal(rows[204].canonical_target_id,ids[204]);assert.deepEqual(requests,[100,100,100,100,100,100,5,5,5]);
+ const broken=(change)=>({rpc:async(name,args)=>{const reply=await client.rpc(name,args);return{...reply,data:change(name,reply.data)}}});
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('social')?[]:rows),['one']),/yüklenemedi/);
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?rows.map(r=>({...r,intent_people_count:-1})):rows),['one']),/doğrulanamadı/);
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?[rows[0],rows[0]]:rows),['one','two']),/kimlikleri/);
+});

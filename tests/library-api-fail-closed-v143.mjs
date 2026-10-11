@@ -113,7 +113,7 @@ test("global Library search works without preloading the entire catalogue", () =
 test("personal child cards bypass Library-only hierarchy hiding", () => {
   const source = read("src/components/ideas/InlineTopicSearch.tsx");
 
-  assert.match(source, /scope==="library"&&effectiveKind!=="place"&&hasSameCategoryParent\(item\)/);
+  assert.match(source, /scope==="library"&&effectiveKind!=="place"&&cardKind\(item\)!=="club"&&hasSameCategoryParent\(item\)/);
   assert.match(source, /scope==="library"&&cardKind\(item\)==="club"/);
   assert.match(source, /scope==="library"&&kind==="all"\?\[\]/);
   assert.doesNotMatch(source, /kind==="all"\|\|Boolean\(categoryCardsError\)/);

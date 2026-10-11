@@ -1,4 +1,5 @@
-import {NextResponse} from "next/server";
+import {NextRequest,NextResponse} from "next/server";
+import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 import {createClient} from "@/utils/supabase/server";
 
 type Row=Record<string,unknown>;
@@ -22,9 +23,10 @@ function count(row:Row,key:"intent_people_count"|"experience_people_count"|"acti
   return value;
 }
 
-export async function GET(){
+export async function GET(request:NextRequest){
   try{
-    const db=await createClient();
+    const token=request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const db=token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):await createClient();
     const hierarchy=await db.rpc("get_club_hierarchy_v78");
     if(hierarchy.error)throw hierarchy.error;
     if(!Array.isArray(hierarchy.data)||!hierarchy.data.every(isRow))throw new Error("Invalid club hierarchy payload");
