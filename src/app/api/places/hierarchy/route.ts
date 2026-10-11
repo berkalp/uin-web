@@ -28,6 +28,15 @@ export async function GET(request:NextRequest){
     const limit=Math.max(1,Math.min(Number(params.get("limit")||500)||500,500));
     const citySort=params.get("city_sort")==="population_asc"?"population_asc":"population_desc";
     const includeCountries=params.get("include_countries")==="1";
+    if(!city&&!district){
+      const [directory,countries]=await Promise.all([
+        db.rpc('get_uin_place_directory_v172',{p_country:country,p_region:params.get('region')||null,p_query:query,p_sort:citySort,p_limit:Math.min(limit,100),p_offset:Math.max(0,Number(params.get('offset'))||0)}),
+        includeCountries?db.rpc('get_uin_place_countries_v123'):Promise.resolve({data:[],error:null}),
+      ]);
+      if(directory.error||countries.error)throw directory.error||countries.error;
+      if(!directory.data||!Array.isArray(directory.data.nodes)||!Number.isSafeInteger(directory.data.total))throw new Error('Şehir dizini doğrulanamadı.');
+      return NextResponse.json({...directory.data,cards:[],countries:(countries.data||[]).map((r:Record<string,unknown>)=>({...r,population:COUNTRY_POPULATIONS[String(r.country_code)]??null}))},{headers:{'Cache-Control':'private, max-age=30'}});
+    }
     const includeCards=params.get("include_cards")!=="0"&&Boolean(city||district||country==="TR");
     const usePopulationCatalogue=country!=="TR"&&!city&&!district&&!query;
     const [countriesResult,levelResult]=await Promise.all([

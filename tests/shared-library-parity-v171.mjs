@@ -30,6 +30,10 @@ test('unavailable summaries never become zero totals or unrated badges',()=>{
  assert.ok(!html.includes('Henüz puan yok'));assert.ok(!html.includes('0 tamamlandı'));
  assert.equal((html.match(/>—<\/span>/g)||[]).length,3);
 });
+test('experience cards also show the existing owner plan and its actions',()=>{
+ const html=renderCard({scope:'experiences',item:{...item,own_seed_id:'experience',own_seed_status:'completed',personal_event:{resource_id:'event-1',plan_id:'plan-1',viewer_role:'owner',title:'Araba Yolculuğu',start_date:'2027-05-19'}}});
+ for(const label of ['Araba Yolculuğu','Etkinliği iptal et','Deneyimimi düzenle','Gezi etkinliği'])assert.ok(html.includes(label),label);
+});
 test('plans enforce different owner, member, visitor and archived actions',()=>{
  const Actions=load('src/components/cards/LibraryPlanActions.tsx').default;
  const render=role=>renderToStaticMarkup(React.createElement(Actions,{event:{plan_id:'plan-1',viewer_role:role,lifecycle_status:'forming'}}));

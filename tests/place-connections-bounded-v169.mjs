@@ -44,13 +44,13 @@ test("unknown coordinates and child totals stay unknown instead of becoming fals
 test("place connections never download the full place catalogue or hide missing data",()=>{
   const component=read("src/components/media/PlaceConnections.tsx");
   assert.doesNotMatch(component,/api\/places\/catalogue/);
-  assert.doesNotMatch(component,/\bfetch\s*\(/);
-  assert.doesNotMatch(component,/catch\(\(\)=>\{\}\)/);
-  assert.match(component,/places\.find\(item=>item\.id===targetId\)\|\|context\?\.place/);
-  assert.match(component,/item\.parentTargetId===place\.id\|\|item\.cityId===place\.id\|\|item\.cityId===place\.wikiId/);
+  assert.match(component,/api\/places\/children\?target=/);
+  assert.match(component,/offset=\$\{offset\}/);
+  assert.match(component,/Number.isSafeInteger\(body.total\)/);
   assert.match(component,/role="alert"/);
-  assert.match(component,/const childrenKnown=knownChildCount!==null&&knownChildCount!==undefined/);
-  assert.match(component,/Bağlı yer listesi bu görünümde doğrulanamadı/);
+  assert.match(component,/version!==generation.current/);
+  assert.match(component,/total===0/);
+  assert.match(component,/rows.length<total/);
 });
 
 test("card detail reads only the selected place metadata and returns it with the existing detail",()=>{

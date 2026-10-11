@@ -252,7 +252,7 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   function reset(next:Kind|"all"){setSportFilter("");setLeagueFilter("");setDivisionFilter("");setCityFilter("");setCountryFilter("");setPage(1);setKind(next);if(scope==="library")setSort("wanting");setQuery("");setInternal([]);setExternal([]);setSelected(null);setSearched(false);setManual(false);setAdminDirectManual(false);setArtistAdding(false);setPreviewArtist(null);setPreviewBook(null);setPreviewGame(null);setCategoryCardsLoading(false);setCategoryCardsError("");setMessage("")}
   function chooseCategory(next:Kind|"all"){reset(next);setCategoryLanding(false)}
   function returnToCategories(){reset("all");setCategoryLanding(true)}
-  function openPlace(p:Place){const card=catalogue.find(c=>c.canonical_target_id===p.id);if(card)openCard(card)}
+  function openPlace(p:Place){const card=catalogue.find(c=>c.canonical_target_id===p.id);if(card)openCard(card);else setSelected({canonicalTargetId:p.id,catalogItemId:p.catalogItemId,title:p.title,subtitle:null,coverUrl:p.coverUrl,itemKind:"place",contentTypeId:"place",initialView:"overview"})}
   function selectCity(id:string){setArtistAdding(false);setKind("place");setCityFilter(id);setPage(1);setSearched(false);setSelected(null);document.getElementById("uin-card-results")?.scrollIntoView({block:"start",behavior:"smooth"})}
   async function search(){
     setPage(1);setCityFilter("");setCountryFilter("");

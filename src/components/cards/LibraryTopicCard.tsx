@@ -51,7 +51,7 @@ export default function LibraryTopicCard({item,onOpen,onCancel,contentTypes,club
   const imageUrl=item.catalog_cover_url||item.cover_url;
   const clubLogoUrl=itemKind==="club"?(club?.logoUrl||imageUrl):null;
   const isLogoCard=itemKind==="club";
-  const completed=item.own_seed_status==="completed";const canWant=true;const plannedScope=scope==="plans";
+  const completed=item.own_seed_status==="completed";const canWant=true;const plannedScope=scope==="plans"||scope==="experiences"&&Boolean(item.personal_event);
   const wantingAlready=Boolean(item.own_common_intent_id||(!completed&&item.own_seed_id));
   const eventPreview=plannedScope?item.personal_event:null;
   const wishDate=scope==="wishes"&&item.personal_start_date?personalDateRange(item.personal_start_date,item.personal_end_date):null;

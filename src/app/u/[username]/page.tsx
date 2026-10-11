@@ -1050,8 +1050,8 @@ export default async function PublicProfilePage({
 
   const profileLibraryCardsPromise=(async()=>{
     const presentations=await profilePresentationBatchResponsesPromise;
-    const eventTargets=new Map<string,string>();
-    for(const response of presentations){if(response.error||!Array.isArray(response.data))continue;for(const raw of response.data){const p=raw.presentation;const targetId=p?.mainTarget?.targetId??p?.primaryDna?.targetId;if(typeof targetId==='string')eventTargets.set(raw.resource_id,targetId);}}
+    const eventTargets=new Map<string,string>();const eventDnaTargets=new Map<string,string[]>();
+    for(const response of presentations){if(response.error||!Array.isArray(response.data))continue;for(const raw of response.data){const p=raw.presentation;eventDnaTargets.set(raw.resource_id,[p?.mainTarget?.targetId,p?.primaryDna?.targetId,...(p?.dnaCards??[]).map((c:{targetId?:string})=>c.targetId)].filter((id):id is string=>typeof id==='string'));const targetId=p?.mainTarget?.targetId??p?.primaryDna?.targetId;if(typeof targetId==='string')eventTargets.set(raw.resource_id,targetId);}}
     const targetIds=[...new Set([...baseVisibleSeeds.flatMap(seed=>seed.canonical_target_id?[seed.canonical_target_id]:[]),...eventTargets.values()])];
     const batches=Array.from({length:Math.ceil(targetIds.length/100)},(_,i)=>targetIds.slice(i*100,(i+1)*100));
     const responses=await Promise.all(batches.flatMap(ids=>[supabase.rpc('get_uin_catalogue_for_targets_v123',{p_target_ids:ids}),supabase.rpc('get_uin_card_ratings_v85',{p_target_ids:ids}),supabase.rpc('get_uin_card_social_v87',{p_target_ids:ids})]));
@@ -1059,8 +1059,8 @@ export default async function PublicProfilePage({
     let error:string|null=null;
     for(let i=0;i<responses.length;i+=3){const [catalogue,ratings,social]=responses.slice(i,i+3);if(catalogue.error||ratings.error||social.error){error='Kart istatistikleri şu anda doğrulanamadı.';continue;}const ratingMap=new Map<unknown,Record<string,unknown>>((ratings.data??[]).map((r:Record<string,unknown>)=>[r.target_id,r]));const socialMap=new Map<unknown,Record<string,unknown>>((social.data??[]).map((r:Record<string,unknown>)=>[r.target_id,r]));for(const raw of catalogue.data??[]){if(ratingMap.get(raw.canonical_target_id)?.rating_count==null||socialMap.get(raw.canonical_target_id)?.follower_count==null){error='Bazı kart istatistikleri doğrulanamadı.';continue;}cards.push({...raw,...(ratingMap.get(raw.canonical_target_id)??{}),...(socialMap.get(raw.canonical_target_id)??{})})}}
     const loaded=new Set(cards.map(c=>c.canonical_target_id));if(targetIds.some(id=>!loaded.has(id)))error='Bazı kart istatistikleri doğrulanamadı. Henüz yüklenmeyen değerler — olarak gösteriliyor.';
-    return{cards,eventTargets,error};
-  })().catch(()=>({cards:[] as import('@/components/cards/LibraryTopicCard').Catalogue[],eventTargets:new Map<string,string>(),error:'Kart istatistikleri yüklenemedi. Bilinmeyen değerler — olarak gösteriliyor.'}));
+    return{cards,eventTargets,eventDnaTargets,error};
+  })().catch(()=>({cards:[] as import('@/components/cards/LibraryTopicCard').Catalogue[],eventTargets:new Map<string,string>(),eventDnaTargets:new Map<string,string[]>(),error:'Kart istatistikleri yüklenemedi. Bilinmeyen değerler — olarak gösteriliyor.'}));
   const visibleSeedReactionResult = await visibleSeedReactionResultPromise;
 
   if (visibleSeedReactionResult.error) {
@@ -2114,6 +2114,10 @@ export default async function PublicProfilePage({
   );
 
   const profileLibrary=await profileLibraryCardsPromise;
+  if(page.viewer.is_owner)for(const card of profileLibrary.cards){
+    const matchingEvents=[...activeCards,...formingCards,...upcomingCards].filter(row=>{const id=row.plan_id??row.resource_id??row.intent_id;return profileLibrary.eventDnaTargets.get(id)?.includes(card.canonical_target_id)});
+    const event=matchingEvents[0];if(event)card.personal_event={count:matchingEvents.length,resource_id:event.plan_id??event.resource_id??event.intent_id,intent_id:event.intent_id,plan_id:event.plan_id,title:profileDisplayTitleByResourceId.get(event.plan_id??event.resource_id??event.intent_id)??event.activity_name,start_date:event.scheduled_start??event.start_date,end_date:event.scheduled_end??event.end_date,location:[event.district,event.city].filter(Boolean).join(', '),organizer_name:event.owner_full_name,organizer_avatar_url:event.owner_avatar_url,viewer_role:event.owner_user_id===viewerUserId?'owner':'participant',lifecycle_status:event.lifecycle_status==='planned'?'upcoming':event.lifecycle_status};
+  }
   const profileLibraryByTarget=new Map(profileLibrary.cards.map(card=>[card.canonical_target_id,card]));
   function enrichProfileCard(card: DiscoverIntentRow): DiscoverIntentRow {
     return {
