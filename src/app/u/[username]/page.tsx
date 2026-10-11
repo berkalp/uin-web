@@ -1048,6 +1048,19 @@ export default async function PublicProfilePage({
     displayOrderMaps.seed
   );
 
+  const profileLibraryCardsPromise=(async()=>{
+    const presentations=await profilePresentationBatchResponsesPromise;
+    const eventTargets=new Map<string,string>();
+    for(const response of presentations){if(response.error||!Array.isArray(response.data))continue;for(const raw of response.data){const p=raw.presentation;const targetId=p?.mainTarget?.targetId??p?.primaryDna?.targetId;if(typeof targetId==='string')eventTargets.set(raw.resource_id,targetId);}}
+    const targetIds=[...new Set([...baseVisibleSeeds.flatMap(seed=>seed.canonical_target_id?[seed.canonical_target_id]:[]),...eventTargets.values()])];
+    const batches=Array.from({length:Math.ceil(targetIds.length/100)},(_,i)=>targetIds.slice(i*100,(i+1)*100));
+    const responses=await Promise.all(batches.flatMap(ids=>[supabase.rpc('get_uin_catalogue_for_targets_v123',{p_target_ids:ids}),supabase.rpc('get_uin_card_ratings_v85',{p_target_ids:ids}),supabase.rpc('get_uin_card_social_v87',{p_target_ids:ids})]));
+    const cards:import('@/components/cards/LibraryTopicCard').Catalogue[]=[];
+    let error:string|null=null;
+    for(let i=0;i<responses.length;i+=3){const [catalogue,ratings,social]=responses.slice(i,i+3);if(catalogue.error||ratings.error||social.error){error='Kart istatistikleri şu anda doğrulanamadı.';continue;}const ratingMap=new Map<unknown,Record<string,unknown>>((ratings.data??[]).map((r:Record<string,unknown>)=>[r.target_id,r]));const socialMap=new Map<unknown,Record<string,unknown>>((social.data??[]).map((r:Record<string,unknown>)=>[r.target_id,r]));for(const raw of catalogue.data??[]){if(ratingMap.get(raw.canonical_target_id)?.rating_count==null||socialMap.get(raw.canonical_target_id)?.follower_count==null){error='Bazı kart istatistikleri doğrulanamadı.';continue;}cards.push({...raw,...(ratingMap.get(raw.canonical_target_id)??{}),...(socialMap.get(raw.canonical_target_id)??{})})}}
+    const loaded=new Set(cards.map(c=>c.canonical_target_id));if(targetIds.some(id=>!loaded.has(id)))error='Bazı kart istatistikleri doğrulanamadı. Henüz yüklenmeyen değerler — olarak gösteriliyor.';
+    return{cards,eventTargets,error};
+  })().catch(()=>({cards:[] as import('@/components/cards/LibraryTopicCard').Catalogue[],eventTargets:new Map<string,string>(),error:'Kart istatistikleri yüklenemedi. Bilinmeyen değerler — olarak gösteriliyor.'}));
   const visibleSeedReactionResult = await visibleSeedReactionResultPromise;
 
   if (visibleSeedReactionResult.error) {
@@ -2100,9 +2113,12 @@ export default async function PublicProfilePage({
     scheduledCard(activity, "completed")
   );
 
+  const profileLibrary=await profileLibraryCardsPromise;
+  const profileLibraryByTarget=new Map(profileLibrary.cards.map(card=>[card.canonical_target_id,card]));
   function enrichProfileCard(card: DiscoverIntentRow): DiscoverIntentRow {
     return {
       ...card,
+      library_card:profileLibraryByTarget.get(profileLibrary.eventTargets.get(card.plan_id??card.resource_id??card.intent_id)??'')??null,
       event_display_title: profileDisplayTitleByResourceId.get(
         card.plan_id ?? card.resource_id ?? card.intent_id
       ) ?? null,
@@ -2509,6 +2525,8 @@ export default async function PublicProfilePage({
           <PublicSeedsPanel
             key={`${profile.id}-active-personal`}
             displayName={displayName}
+            libraryCards={profileLibrary.cards}
+            libraryError={profileLibrary.error}
             seeds={visibleSeeds}
             isOwner={page.viewer.is_owner}
             mode="active"

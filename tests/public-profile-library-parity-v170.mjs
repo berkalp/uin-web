@@ -55,7 +55,7 @@ function loadProfileActivityHelpers() {
     require(specifier) {
       if (specifier === "react") return reactStub;
       if (specifier === "react/jsx-runtime") return jsxStub;
-      if (specifier === "@/components/discover/DiscoverIntentCard") {
+      if (specifier === "@/components/discover/DiscoverIntentCard" || specifier === "@/components/profile/ProfileLibraryActivityCard") {
         return { __esModule: true, default: () => null };
       }
       throw new Error(`Unexpected ProfileActivityTabs import: ${specifier}`);
@@ -309,13 +309,13 @@ test("profile controls mirror Library cards and expose meaningful navigation", (
   assert.equal((profile.match(/UIN Güven Özeti/g) ?? []).length, 1);
   assert.doesNotMatch(profile, /PublicFavoritesPanel|get_public_preferences_v2921/);
   assert.match(panel, /Puanı yüksek/);
-  assert.match(panel, /En yeni deneyim/);
+  assert.match(panel, /En yeni/);
   assert.match(panel, /uin-card-grid/);
   assert.match(panel, /const byId = new Map\(seeds\.map/);
   assert.match(panel, /return \[\.\.\.ordered, \.\.\.byId\.values\(\)\]/);
   assert.doesNotMatch(panel, /useEffect\([\s\S]{0,120}setOrderedSeeds/);
-  assert.match(card, /<PersonalLibraryCard/);
-  assert.match(card, /personalRating=\{seed\.personal_rating\}/);
+  assert.match(card, /<LibraryTopicCard/);
+  assert.match(card, /personalRating=\{done\?seed\.personal_rating:undefined\}/);
   assert.match(card, /\?editExperience=1/);
 });
 

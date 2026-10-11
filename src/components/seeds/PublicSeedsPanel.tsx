@@ -1,4 +1,5 @@
 "use client";
+import type {Catalogue} from '@/components/cards/LibraryTopicCard';
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -15,6 +16,8 @@ type PublicSeedsMode =
   | "completed";
 
 type PublicSeedsPanelProps = {
+  libraryCards?:Catalogue[];
+  libraryError?:string|null;
   displayName: string;
   seeds: PublicProfileSeedRecord[];
   isOwner: boolean;
@@ -94,8 +97,8 @@ function sortExperiences(
           sort.endsWith("asc") ? "asc" : "desc"
         )
       : compareNullableNumbers(
-          experienceTimestamp(left),
-          experienceTimestamp(right),
+          left.status==="active"?new Date(left.created_at).getTime():experienceTimestamp(left),
+          right.status==="active"?new Date(right.created_at).getTime():experienceTimestamp(right),
           sort.endsWith("asc") ? "asc" : "desc"
         );
 
@@ -106,6 +109,8 @@ function sortExperiences(
 
 export default function PublicSeedsPanel({
   displayName,
+  libraryCards=[],
+  libraryError,
   seeds,
   isOwner,
   mode = "all",
@@ -146,7 +151,7 @@ export default function PublicSeedsPanel({
 
   const filteredSeeds = useMemo(() => {
     if (mode === "active") {
-      return orderedSeeds.filter((seed) => seed.status === "active");
+      return sortExperiences(orderedSeeds.filter(seed=>seed.status==='active').map(seed=>({...seed,personal_rating:libraryCards.find(c=>c.canonical_target_id===seed.canonical_target_id)?.average_rating??null})),experienceSort);
     }
 
     if (mode === "completed") {
@@ -156,8 +161,8 @@ export default function PublicSeedsPanel({
       );
     }
 
-    return orderedSeeds.filter((seed) => matchesFilter(seed, filter));
-  }, [experienceSort, filter, mode, orderedSeeds]);
+    return reordering?orderedSeeds.filter((seed) => matchesFilter(seed, filter)):sortExperiences(orderedSeeds.filter((seed) => matchesFilter(seed, filter)),experienceSort);
+  }, [experienceSort, filter, mode, orderedSeeds,libraryCards,reordering]);
 
 
   const visibleSeeds = reordering
@@ -217,7 +222,7 @@ export default function PublicSeedsPanel({
   }
 
   return (
-    <section className="mt-8 scroll-mt-8">
+    <section className="mt-8 scroll-mt-8">{libraryError?<p role="status" className="mb-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{libraryError}</p>:null}
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">
@@ -263,7 +268,7 @@ export default function PublicSeedsPanel({
             </div>
           )}
 
-          {mode === "completed" && counts.completed > 0 && (
+          {filteredSeeds.length > 0 && (
             <label className="flex min-w-[220px] items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
               <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
                 Sırala
@@ -275,10 +280,10 @@ export default function PublicSeedsPanel({
                   setVisibleCount(PAGE_SIZE);
                 }}
                 className="min-w-0 flex-1 border-0 bg-transparent p-1 text-sm font-bold text-gray-700 outline-none"
-                aria-label="Deneyimleri sırala"
+                aria-label="Kartları sırala"
               >
-                <option value="date-desc">En yeni deneyim</option>
-                <option value="date-asc">En eski deneyim</option>
+                <option value="date-desc">En yeni</option>
+                <option value="date-asc">En eski</option>
                 <option value="rating-desc">Puanı yüksek</option>
                 <option value="rating-asc">Puanı düşük</option>
               </select>
@@ -362,6 +367,7 @@ export default function PublicSeedsPanel({
                 )}
 
                 <ProfileSeedCard
+                  card={libraryCards.find(card=>card.canonical_target_id===seed.canonical_target_id)}
                   seed={seed}
                   displayName={displayName}
                   isOwner={isOwner}

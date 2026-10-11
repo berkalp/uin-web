@@ -54,7 +54,7 @@ export type DiscoverIntentRow = {
 
   activity_id: string;
   activity_name: string;
-  event_display_title?: string | null;
+  event_display_title?: string | null;event_dna_titles?:string[];
   activity_cover_url: string | null;
 
   sport_id?: string | null;
@@ -146,6 +146,7 @@ export type DiscoverIntentRow = {
     | number
     | string;
 
+  library_card?:import('@/components/cards/LibraryTopicCard').Catalogue|null;
   resource_id?: string | null;
   plan_cover_url?: string | null;
 
@@ -360,6 +361,7 @@ export default function DiscoverIntentCard({
   relatedLinks = [],
   communities = [],
   displayTitle = null,
+  dnaTitles,
   privateCoverUrl,
   contextCoverUrl = null,
   publicActivityLocationName = null,
@@ -379,6 +381,7 @@ export default function DiscoverIntentCard({
   relatedLinks?: IntentLinkView[];
   communities?: IntentCommunityContext[];
   displayTitle?: string | null;
+  dnaTitles?:string[];
   privateCoverUrl?: string | null;
   contextCoverUrl?: string | null;
   publicActivityLocationName?: string | null;
@@ -645,6 +648,7 @@ export default function DiscoverIntentCard({
 
   return <PersonalLibraryCard
     title={cardTitle}
+    titleContent={(dnaTitles??intent.event_dna_titles)?.length?<>{cardTitle.split(" · ")[0]}<span className="text-yellow-300"> · 🧬 {(dnaTitles??intent.event_dna_titles??[]).join(" / ")}</span></>:cardTitle.includes(" · ")?<>{cardTitle.split(" · ")[0]}<span className="text-yellow-300"> · 🧬 {cardTitle.split(" · ").slice(1).join(" · ")}</span></>:undefined}
     coverUrl={coverUrl}
     badge="ETKİNLİK"
     icon={sportPresentation?.icon||"✦"}

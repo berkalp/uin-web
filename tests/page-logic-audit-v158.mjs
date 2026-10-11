@@ -100,5 +100,5 @@ test("notification route enrichment never replaces a valid stored route after a 
   );
   assert.match(notifications, /const error = queryError \?\?[\s\S]*Notification payload was incomplete/);
   assert.match(notifications, /userError && !isAuthSessionMissingError\(userError\)/);
-  assert.match(notifications, /retryHref=\{pageHref\(requestedPage\)\}/);
+  assert.match(notifications, /retryHref=\{pageHref\(requestedPage, requestedSection\)\}/);
 });

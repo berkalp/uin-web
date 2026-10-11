@@ -1,5 +1,6 @@
 "use client";
 
+import {useSearchParams} from "next/navigation";
 import {
   Children,
   type ReactNode,
@@ -83,8 +84,10 @@ export default function IntentRoomWorkspace({
   originCount = 0,
 }: IntentRoomWorkspaceProps) {
   const panels = Children.toArray(children);
-  const initialSection = navItems.some((item) => item.id === defaultSectionId)
-    ? defaultSectionId
+  const searchParams=useSearchParams();
+  const requestedSection=searchParams.get('manage')==='1'&&navItems.some(item=>item.id==='public-content')?'public-content':defaultSectionId;
+  const initialSection = navItems.some((item) => item.id === requestedSection)
+    ? requestedSection
     : navItems[0]?.id ?? "";
 
   const [activeSectionId, setActiveSectionId] = useState(initialSection);

@@ -2,8 +2,8 @@
 import Link from "next/link";
 import type {ReactNode} from "react";
 
-export default function PersonalLibraryCard({title,subtitle,coverUrl,coverPositionY=50,badge,icon,href,onOpen,cornerMeta,topActionHref,topActionLabel="Kulüp profilini aç ↗",summary,metrics,action,className=""}:{title:string;subtitle?:string|null;coverUrl?:string|null;coverPositionY?:number;badge:string;icon?:string|null;href?:string;onOpen?:()=>void;cornerMeta?:ReactNode;topActionHref?:string;topActionLabel?:string;summary?:ReactNode;metrics?:ReactNode;action?:ReactNode;className?:string}){
-  const heading=<h2 className="line-clamp-2 text-xl font-black leading-tight text-white">{title}</h2>;
+export default function PersonalLibraryCard({title,titleContent,subtitle,coverUrl,coverPositionY=50,badge,icon,href,onOpen,cornerMeta,topActionHref,topActionLabel="Kulüp profilini aç ↗",summary,metrics,action,className=""}:{title:string;titleContent?:ReactNode;subtitle?:string|null;coverUrl?:string|null;coverPositionY?:number;badge:string;icon?:string|null;href?:string;onOpen?:()=>void;cornerMeta?:ReactNode;topActionHref?:string;topActionLabel?:string;summary?:ReactNode;metrics?:ReactNode;action?:ReactNode;className?:string}){
+  const heading=<h2 className="line-clamp-2 text-xl font-black leading-tight text-white">{titleContent??title}</h2>;
   return <article className={`uin-perfect-card uin-layout-card group relative flex min-h-[510px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 bg-slate-950 shadow-[0_14px_34px_-20px_rgba(15,23,42,.65)] transition-shadow hover:shadow-[0_22px_46px_-20px_rgba(15,23,42,.7)] ${className}`}>
     {coverUrl?<img src={coverUrl} alt="" loading="lazy" style={{objectPosition:`50% ${coverPositionY}%`}} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"/>:<div className="absolute inset-0 grid place-items-center bg-black text-7xl">{icon||"🌱"}</div>}
     <div className="pointer-events-none absolute inset-0 bg-slate-950/25"/>

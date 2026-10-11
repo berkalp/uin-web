@@ -47,7 +47,7 @@ export default async function PlanRedirectPage({
 
   const forwardedParams = new URLSearchParams();
 
-  for (const key of ["from", "returnTo", "returnLabel"]) {
+  for (const key of ["from", "returnTo", "returnLabel", "manage"]) {
     const value = resolvedSearchParams[key];
     const firstValue = Array.isArray(value) ? value[0] : value;
     if (firstValue) {

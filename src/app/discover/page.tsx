@@ -1238,6 +1238,7 @@ export default async function DiscoverPage({
 
   async function loadEventDisplayTitles() {
     const eventDisplayTitleByIntentId = new Map<string, string | null>();
+    const dnaTitles=new Map<string,string[]>();
     let fallbackError: DiscoverReadError | null = null;
     const presentationBatches = Array.from(
       { length: Math.ceil(commonTargetIntentIds.length / 100) },
@@ -1298,6 +1299,7 @@ export default async function DiscoverPage({
             result.data && typeof result.data === "object" && !Array.isArray(result.data)
               ? (result.data as { displayTitle?: unknown }).displayTitle
               : null;
+          const dna=(result.data as {dnaCards?:Array<{title:string}>}|null)?.dnaCards; if(Array.isArray(dna))dnaTitles.set(intentId,[...new Set(dna.map(c=>c.title).filter(Boolean))]);
           eventDisplayTitleByIntentId.set(
             intentId,
             typeof displayTitle === "string" ? displayTitle : null
@@ -1308,9 +1310,10 @@ export default async function DiscoverPage({
 
       for (const row of response.data as Array<{
         resource_id: string;
-        presentation: { displayTitle?: unknown } | null;
+        presentation: { displayTitle?: unknown;dnaCards?:Array<{title:string}> } | null;
       }>) {
         const displayTitle = row.presentation?.displayTitle;
+        if(Array.isArray(row.presentation?.dnaCards))dnaTitles.set(row.resource_id,[...new Set(row.presentation.dnaCards.map(c=>c.title).filter(Boolean))]);
         eventDisplayTitleByIntentId.set(
           row.resource_id,
           typeof displayTitle === "string" ? displayTitle : null
@@ -1318,7 +1321,7 @@ export default async function DiscoverPage({
       }
     }
 
-    return { titles: eventDisplayTitleByIntentId, error: fallbackError };
+    return { titles: eventDisplayTitleByIntentId,dnaTitles, error: fallbackError };
   }
 
   async function loadPrivatePresentations() {
@@ -2123,6 +2126,7 @@ export default async function DiscoverPage({
                         commonTarget={
                           commonTargetByIntentId.get(intent.intent_id) ?? null
                         }
+                        dnaTitles={eventPresentationLoad.dnaTitles.get(intent.intent_id)}
                         displayTitle={
                           eventDisplayTitleByIntentId.get(intent.intent_id) ?? null
                         }
@@ -2350,7 +2354,7 @@ export default async function DiscoverPage({
                       commonTarget={
                         commonTargetByIntentId.get(intent.intent_id) ?? null
                       }
-                      displayTitle={eventDisplayTitleByIntentId.get(intent.intent_id) ?? null}
+                      dnaTitles={eventPresentationLoad.dnaTitles.get(intent.intent_id)} displayTitle={eventDisplayTitleByIntentId.get(intent.intent_id) ?? null}
                     />
                   ))}
                 </div>

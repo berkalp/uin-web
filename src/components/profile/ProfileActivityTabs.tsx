@@ -1,8 +1,9 @@
 "use client";
+import ProfileLibraryActivityCard from '@/components/profile/ProfileLibraryActivityCard';
 
 import { useMemo, useState } from "react";
 
-import DiscoverIntentCard, {
+import {
   type DiscoverIntentRow,
   type IntentLifecycleStatus,
 } from "@/components/discover/DiscoverIntentCard";
@@ -18,7 +19,8 @@ type ProfileActivitySortMode =
 
 type ExperienceDateSort =
   | "date-desc"
-  | "date-asc";
+  | "date-asc"
+  | "rating-desc";
 
 type ProfileLifecycleMode =
   | "all"
@@ -61,18 +63,6 @@ function deduplicateCards(cards: DiscoverIntentRow[]) {
   );
 }
 
-function dateTimestamp(value: string | null | undefined) {
-  if (!value) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  const timestamp = new Date(value).getTime();
-
-  return Number.isFinite(timestamp)
-    ? timestamp
-    : Number.POSITIVE_INFINITY;
-}
-
 function nullableDateTimestamp(value: string | null | undefined) {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
@@ -90,40 +80,21 @@ function compareExperienceDates(
   return direction === "date-asc" ? left - right : right - left;
 }
 
-function activeJourneyRank(card: DiscoverIntentRow) {
-  if (
-    card.lifecycle_status === "planned" &&
-    card.scheduled_start
-  ) {
-    return 0;
-  }
-
-  if (card.lifecycle_status === "forming") {
-    return 1;
-  }
-
-  if (
-    card.lifecycle_status === "open" ||
-    card.lifecycle_status === "future"
-  ) {
-    return 2;
-  }
-
-  return 3;
-}
-
-function sortProfileCards(
+export function sortProfileCards(
   cards: DiscoverIntentRow[],
   mode: ProfileActivitySortMode,
   experienceDateSort: ExperienceDateSort = "date-desc"
 ) {
   return [...cards].sort((left, right) => {
-    if (mode === "experience") {
+    if(experienceDateSort==='rating-desc'){
+      const comparison=compareExperienceDates(left.library_card?.average_rating??null,right.library_card?.average_rating??null,'date-desc');if(comparison)return comparison;
+    }
+    {
       const leftTimestamp = nullableDateTimestamp(
-        left.completed_at ?? left.scheduled_end ?? left.end_date
+        mode === "experience" ? left.completed_at ?? left.scheduled_end ?? left.end_date : left.scheduled_start ?? left.start_date
       );
       const rightTimestamp = nullableDateTimestamp(
-        right.completed_at ?? right.scheduled_end ?? right.end_date
+        mode === "experience" ? right.completed_at ?? right.scheduled_end ?? right.end_date : right.scheduled_start ?? right.start_date
       );
 
       const dateComparison = compareExperienceDates(
@@ -140,25 +111,6 @@ function sortProfileCards(
       );
     }
 
-    const rankComparison =
-      activeJourneyRank(left) - activeJourneyRank(right);
-
-    if (rankComparison !== 0) {
-      return rankComparison;
-    }
-
-    const leftTimestamp = dateTimestamp(
-      left.scheduled_start ?? left.start_date
-    );
-    const rightTimestamp = dateTimestamp(
-      right.scheduled_start ?? right.start_date
-    );
-
-    if (leftTimestamp !== rightTimestamp) {
-      return leftTimestamp - rightTimestamp;
-    }
-
-    return dateTimestamp(left.created_at) - dateTimestamp(right.created_at);
   });
 }
 
@@ -207,7 +159,6 @@ export default function ProfileActivityTabs({
   hostedCards,
   participatingCards,
   currentUserId,
-  isAuthenticated,
   hostingLabel = "Yürüttükleri",
   participatingLabel = "Katıldıkları",
   emptyTitle,
@@ -403,7 +354,7 @@ export default function ProfileActivityTabs({
             })}
           </div>
 
-          {sortMode === "experience" && filteredCards.length > 0 && (
+          {filteredCards.length > 0 && (
             <label className="flex min-w-[205px] items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-sm">
               <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.14em] text-gray-400">
                 Sırala
@@ -417,6 +368,7 @@ export default function ProfileActivityTabs({
                 className="min-w-0 flex-1 border-0 bg-transparent p-1 text-sm font-bold text-gray-700 outline-none"
                 aria-label="Sosyal deneyimleri sırala"
               >
+                <option value="rating-desc">Puana göre</option>
                 <option value="date-desc">En yeni</option>
                 <option value="date-asc">En eski</option>
               </select>
@@ -459,12 +411,10 @@ export default function ProfileActivityTabs({
         <>
           <div className="uin-card-grid mt-5 grid gap-5">
             {visibleCards.map((intent) => (
-              <DiscoverIntentCard
+              <ProfileLibraryActivityCard
                 key={`${eyebrow}-${activeTab}-${cardKey(intent)}`}
                 intent={intent}
                 currentUserId={currentUserId}
-                isAuthenticated={isAuthenticated}
-                actionMode="profile"
               />
             ))}
           </div>
