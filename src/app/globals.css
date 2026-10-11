@@ -151,7 +151,7 @@ body {
 html[data-uin-card-layout="compact"] :is(.uin-card-grid,.uin-profile-grid){grid-template-columns:repeat(2,minmax(0,1fr))!important}
 @media(min-width:640px){html:not([data-uin-card-layout]) :is(.uin-card-grid,.uin-profile-grid),html[data-uin-card-layout="large"] :is(.uin-card-grid,.uin-profile-grid),html[data-uin-card-layout="square"] :is(.uin-card-grid,.uin-profile-grid){grid-template-columns:repeat(2,minmax(0,1fr))!important}}
 @media(min-width:1024px){html[data-uin-card-layout="compact"] :is(.uin-card-grid,.uin-profile-grid),html[data-uin-card-layout="square"] :is(.uin-card-grid,.uin-profile-grid){grid-template-columns:repeat(4,minmax(0,1fr))!important}}
-.uin-layout-card{min-height:430px!important}
+.uin-layout-card{width:100%;min-width:0;max-width:100%;min-height:430px!important}
 .uin-layout-card-panel :is(h2,h3){font-size:19px!important;line-height:22px!important}
 .uin-layout-card-badge,.uin-layout-card-header .rounded-full{font-size:8px!important;line-height:1.15!important}
 .uin-layout-card-details{font-size:9px!important;line-height:13px!important}
