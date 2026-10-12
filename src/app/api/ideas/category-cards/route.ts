@@ -47,7 +47,7 @@ export async function GET(request:NextRequest){
     let itemQuery=db.from("seed_catalog_items").select(CATEGORY_PLACEMENT_SELECT).eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).order("id",{ascending:false}).range(clubTargetIds?0:offset,clubTargetIds?999:offset+pageSize-1);
     if(clubTargetIds)itemQuery=itemQuery.in("canonical_target_id",clubTargetIds.slice(offset,offset+100));
     if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
-    else itemQuery=itemQuery.contains("metadata",{content_type_id:type.id});
+    else itemQuery=itemQuery.eq("metadata->>content_type_id",type.id);
     const itemResult=await itemQuery;
     if(itemResult.error){
       console.error("category catalogue placements unavailable",{kind,offset,error:itemResult.error});
