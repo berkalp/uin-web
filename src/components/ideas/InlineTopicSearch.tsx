@@ -177,7 +177,14 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const currentScopeError=scopeErrorKey===scopeRequestKey?scopeError:"";
   const personalCardsPending=scope!=="library"&&!categoryLanding&&(!scopeData||!personalCardsReady)&&(scopeLoading||!currentScopeError);
   const [page,setPage]=useState(1);const [placeView,setPlaceView]=useState<"cards"|"map">("cards");const [placeMapSelectedId,setPlaceMapSelectedId]=useState<string|null>(null);const [placeBrowseRootId,setPlaceBrowseRootId]=useState("");const [placeList,setPlaceList]=useState<Place[]>([]),[placeLoading,setPlaceLoading]=useState(false),[placeError,setPlaceError]=useState(""),[geoRetry,setGeoRetry]=useState(0),[cityFilter,setCityFilter]=useState(params.get("city")||""),[countryFilter,setCountryFilter]=useState(""),[sort,setSort]=useState<Sort>(()=>addingOnly||storedScope==="library"?params.get("kind")==="club"?"random":"wanting":"alphabetical");
-  useEffect(()=>{let alive=true;const applyViewer=(nextViewerId:string|null)=>{if(!alive||authViewerId.current===nextViewerId)return;const previousViewerId=authViewerId.current;authViewerId.current=nextViewerId;invalidateClubCatalogueCache();setViewerId(nextViewerId);if(previousViewerId!==undefined){setScopeData(null);setScopeDataKey(null);setScopeError("");setScopeErrorKey("");setScopeLoading(false)}if(nextViewerId===null){setScope("library");setSort(params.get("kind")==="club"?"random":"wanting");setPage(1);setSelected(null);setQuery("");setSearched(false)}};const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>applyViewer(session?.user.id??null));void supabase.auth.getSession().then(({data,error})=>applyViewer(error?null:data.session?.user.id??null),()=>applyViewer(null));return()=>{alive=false;subscription.unsubscribe()}},[]);
+  const [categoryCardsLoading,setCategoryCardsLoading]=useState(false);
+  const [categoryCardsError,setCategoryCardsError]=useState("");
+  const [categoryCardsRetry,setCategoryCardsRetry]=useState(0);
+  const categoryLoadedAt=useRef<Record<string,number>>({});
+  const categoryReadGeneration=useRef(0);
+  const [categoryTargetIds,setCategoryTargetIds]=useState<Record<string,Set<string>>>({});
+  const [loadedCategoryKinds,setLoadedCategoryKinds]=useState<Set<string>>(()=>new Set());
+  useEffect(()=>{let alive=true;const applyViewer=(nextViewerId:string|null)=>{if(!alive||authViewerId.current===nextViewerId)return;const previousViewerId=authViewerId.current;authViewerId.current=nextViewerId;invalidateClubCatalogueCache();setViewerId(nextViewerId);if(previousViewerId!==undefined){categoryReadGeneration.current+=1;categoryLoadedAt.current={};setLoadedCategoryKinds(new Set());setCategoryTargetIds({});setCatalogue([]);setCategoryCardsError("");setScopeData(null);setScopeDataKey(null);setScopeError("");setScopeErrorKey("");setScopeLoading(false)}if(nextViewerId===null){setScope("library");setSort(params.get("kind")==="club"?"random":"wanting");setPage(1);setSelected(null);setQuery("");setSearched(false)}};const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,session)=>applyViewer(session?.user.id??null));void supabase.auth.getSession().then(({data,error})=>applyViewer(error?null:data.session?.user.id??null),()=>applyViewer(null));return()=>{alive=false;subscription.unsubscribe()}},[]);
   useEffect(()=>{if(addingOnly||!viewerId)return;const controller=new AbortController();const includeCards=scope!=="library"&&!categoryLanding;const requestCardKey=includeCards?`${scope}:${kind}`:null;const requestKey=requestCardKey||"counts";const load=async()=>{setScopeLoading(true);setScopeError("");setScopeErrorKey("");const requestParams=new URLSearchParams({cards:includeCards?"1":"0",scope:scope==="library"?"wishes":scope,kind:kind==="all"?"all":kind});try{const response=await fetch(`/api/ideas/scopes?${requestParams}`,{cache:"no-store",signal:controller.signal});const body=await response.json() as ScopeData&{error?:string};if(!response.ok)throw new Error(body.error||"Kişisel kartlar yüklenemedi.");if(controller.signal.aborted)return;setScopeData(body);setScopeDataKey(requestCardKey);if(body.catalogue?.length)setCatalogue(current=>{const merged=new Map(current.map(card=>[card.canonical_target_id,card]));body.catalogue?.forEach(card=>merged.set(card.canonical_target_id,{...merged.get(card.canonical_target_id),...card}));return [...merged.values()]})}catch(cause){if(!controller.signal.aborted){setScopeErrorKey(requestKey);setScopeError(cause instanceof Error?cause.message:"Kişisel kartlar yüklenemedi.")}}finally{if(!controller.signal.aborted)setScopeLoading(false)}};void load();return()=>controller.abort()},[addingOnly,viewerId,scope,kind,categoryLanding,scopeRetry]);
   useEffect(()=>{if(addingOnly||viewerId!==null)return;const urlScope=params.get("scope");if(urlScope!=="wishes"&&urlScope!=="plans"&&urlScope!=="experiences")return;const nextParams=new URLSearchParams(params.toString());nextParams.delete("scope");router.replace(`/ideas${nextParams.size?`?${nextParams}`:""}`,{scroll:false})},[addingOnly,viewerId,params,router]);
   const [artistAdding,setArtistAdding]=useState(false);const [previewArtist,setPreviewArtist]=useState<External|null>(null);const [previewBook,setPreviewBook]=useState<External|null>(null);const [previewGame,setPreviewGame]=useState<External|null>(null);
@@ -221,12 +228,6 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const hasCategoryCounts=Object.keys(categoryCounts).length>0||Object.keys(liveCategoryCounts).length>0;
   const hasScopeCounts=scope==="library"?hasCategoryCounts:Boolean(scopeData);
   const scopeCountsLoading=scope==="library"?categoryCountsLoading:scopeLoading;
-  const [categoryCardsLoading,setCategoryCardsLoading]=useState(false);
-  const [categoryCardsError,setCategoryCardsError]=useState("");
-  const [categoryCardsRetry,setCategoryCardsRetry]=useState(0);
-  const categoryLoadedAt=useRef<Record<string,number>>({});
-  const [categoryTargetIds,setCategoryTargetIds]=useState<Record<string,Set<string>>>({});
-  const [loadedCategoryKinds,setLoadedCategoryKinds]=useState<Set<string>>(()=>new Set());
   const categoryRequestKey=kind==="club"?`${kind}:${sportFilter}:${leagueFilter}:${divisionFilter}`:kind;
   const hasLoadedCategoryCards=kind!=="all"&&loadedCategoryKinds.has(categoryRequestKey);
   const categoryCardsPending=scope==="library"&&kind!=="all"&&currentType?.base_kind!=="place"&&!hasLoadedCategoryCards&&(categoryCardsLoading||!categoryCardsError);
@@ -234,9 +235,11 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
     const key=next==="club"?`${next}:${sportFilter}:${leagueFilter}:${divisionFilter}`:next;
     if(!force&&Date.now()-Number(categoryLoadedAt.current[key]||0)<60_000)return;
     const categoryParams=new URLSearchParams({kind:next});if(next==="club"){categoryParams.set("sport",sportFilter);categoryParams.set("league",leagueFilter);categoryParams.set("division",divisionFilter)}
+    const generation=categoryReadGeneration.current;
     const response=await fetch(`/api/ideas/category-cards?${categoryParams}`,{cache:force?"no-store":"default",signal});
     const body=await response.json() as {catalogue?:Catalogue[];error?:string};
     if(!response.ok)throw new Error(body.error||"Kategori kartları yüklenemedi.");
+    if(signal?.aborted||generation!==categoryReadGeneration.current)return;
     const incoming=body.catalogue||[];
     if(next==="club")for(const previousKey of Object.keys(categoryLoadedAt.current))if(previousKey.startsWith("club:"))delete categoryLoadedAt.current[previousKey];
     categoryLoadedAt.current[key]=Date.now();
@@ -244,9 +247,9 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
     setLoadedCategoryKinds(current=>{const retained=next==="club"?new Set([...current].filter(value=>!value.startsWith("club:"))):new Set(current);retained.add(key);return retained});
     setCatalogue(current=>{const incomingIds=new Set(incoming.map(card=>card.canonical_target_id));return [...incoming,...current.filter(card=>!incomingIds.has(card.canonical_target_id)&&(!matches(card,next)||cardContentTypeIds(card.content_type_id||cardKind(card),card.content_type_ids).length>1))]});
   }
-  useEffect(()=>{const type=contentTypes.find(item=>item.id===kind);if(addingOnly||categoryLanding||scope!=="library"||kind==="all"||type?.base_kind==="place")return;const controller=new AbortController();const load=async()=>{setCategoryCardsLoading(true);setCategoryCardsError("");try{await loadCategoryCatalogue(kind as Kind,controller.signal)}catch(cause){if(!controller.signal.aborted)setCategoryCardsError(cause instanceof Error?cause.message:"Kategori kartları yüklenemedi.")}finally{if(!controller.signal.aborted)setCategoryCardsLoading(false)}};void load();return()=>controller.abort()},[addingOnly,categoryLanding,scope,kind,categoryCardsRetry,contentTypes,sportFilter,leagueFilter,divisionFilter]);
+  useEffect(()=>{const type=contentTypes.find(item=>item.id===kind);if(addingOnly||categoryLanding||scope!=="library"||kind==="all"||type?.base_kind==="place")return;const controller=new AbortController();const load=async()=>{setCategoryCardsLoading(true);setCategoryCardsError("");try{await loadCategoryCatalogue(kind as Kind,controller.signal)}catch(cause){if(!controller.signal.aborted)setCategoryCardsError(cause instanceof Error?cause.message:"Kategori kartları yüklenemedi.")}finally{if(!controller.signal.aborted)setCategoryCardsLoading(false)}};void load();return()=>controller.abort()},[addingOnly,categoryLanding,scope,kind,categoryCardsRetry,contentTypes,sportFilter,leagueFilter,divisionFilter,viewerId]);
   async function refreshCatalogue(){
-    categoryLoadedAt.current={};setLoadedCategoryKinds(new Set());setCategoryTargetIds({});setCategoryCountRetry(value=>value+1);
+    categoryReadGeneration.current+=1;categoryLoadedAt.current={};setLoadedCategoryKinds(new Set());setCategoryTargetIds({});setCategoryCountRetry(value=>value+1);
     try{
       const currentType=contentTypes.find(type=>type.id===kind);
       if(scope==="library"&&kind!=="all"&&currentType?.base_kind!=="place")await loadCategoryCatalogue(kind as Kind,undefined,true);
