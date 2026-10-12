@@ -1,0 +1,35 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import ts from 'typescript';
+function compile(path,modules={}){const compiled={exports:{}};const code=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{module:compiled,exports:compiled.exports,require:name=>modules[name]||{},URL,Number,Map,Set,Array,Error,Promise,console:{error(){}}});return compiled.exports}
+const titles=compile('src/utils/commonIntentTitle.ts');
+const pageModule=compile('src/utils/categoryCardPage.ts',{'@/utils/commonIntentTitle':titles});
+const {categoryCardPage}=pageModule;
+const cards=Array.from({length:57},(_,i)=>({canonical_target_id:`id-${i}`,title:['İzmir','Isparta','Ankara','Zonguldak'][i%4]+String(i),item_kind:'book',content_type_id:'book',intent_people_count:i%7,experience_people_count:(56-i)%9,active_event_count:i%3,average_rating:i%10,rating_count:2,parent_target_id:i===5?'id-2':null,child_count:i===2?1:0}));
+const legacySource=fs.readFileSync('src/components/ideas/InlineTopicSearch.tsx','utf8').match(/function compareCards\([^\n]+/)[0];
+const legacy=vm.runInNewContext(ts.transpileModule(legacySource+'\ncompareCards',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,{commonIntentTitle:titles.commonIntentTitle,bookListForSort:()=>null,seriesListForSort:()=>null,eventCount:c=>Number(c.active_event_count??c.social_intent_count??0)});
+for(const sort of pageModule.CATEGORY_PAGE_SORTS)test(`every ${sort} page matches complete legacy ranking and hierarchy`,()=>{
+ const baseline=cards.filter(c=>!c.parent_target_id).sort((a,b)=>legacy(a,b,sort));
+ const merged=[];
+ for(let n=1;n<=3;n++){const result=categoryCardPage(cards,n,sort);assert.equal(result.pagination.total,56);assert.equal(result.pagination.pages,3);assert.equal(result.pagination.page,n);assert.deepEqual(Array.from(result.catalogue),baseline.slice((n-1)*20,n*20));merged.push(...result.catalogue)}
+ assert.deepEqual(merged,baseline);assert.equal(new Set(merged.map(c=>c.canonical_target_id)).size,56);
+});
+test('cross-category parents and unavailable parents remain browseable; complete row data is retained',()=>{const rows=[{...cards[0],canonical_target_id:'parent',content_type_id:'writer'},{...cards[1],parent_target_id:'parent'},{...cards[2],parent_target_id:'hidden-parent'}];const result=categoryCardPage(rows,1,'alphabetical');assert.equal(result.pagination.total,3);for(const row of result.catalogue)assert.ok(rows.includes(row))});
+test('empty categories and out-of-range pages use the existing clamp semantics',()=>{assert.deepEqual(JSON.parse(JSON.stringify(categoryCardPage([],100,'wanting'))),{catalogue:[],pagination:{page:1,pages:1,total:0}});assert.equal(categoryCardPage(cards,100,'wanting').pagination.page,3)});
+test('mixed geography and team categories preserve the complete-data path',()=>{for(const kind of ['place','club'])assert.equal(categoryCardPage([...cards,{...cards[0],item_kind:kind}],1,'wanting'),null)});
+function categoryRoute(failure=null){
+ const calls=[];const chain={select:()=>chain,eq:()=>chain,not:()=>chain,order:()=>chain,range:()=>chain,in:()=>chain,maybeSingle:async()=>({data:{id:'book',base_kind:'book',active:true},error:null})};
+ const db={from:()=>chain,rpc:async(name)=>{calls.push(name);if(name===failure)return {data:null,error:{code:'57014'}};let data;
+ if(name==='get_uin_type_placements_v177')data=cards.map(c=>({id:c.canonical_target_id,canonical_target_id:c.canonical_target_id,item_kind:'book',content_type_id:'book'}));
+ else if(name==='get_uin_cover_positions_v62')data=cards.slice(0,-1).map(c=>({target_id:c.canonical_target_id,cover_position_y:50}));
+ else if(name==='get_uin_catalogue_for_targets_v123')data=cards.map(c=>({...c,completed_event_count:0,expired_event_count:0,cancelled_event_count:0}));
+ else if(name==='get_uin_card_social_v87')data=cards.map(c=>({target_id:c.canonical_target_id,average_rating:c.average_rating,rating_count:2,follower_count:1,related_count:0}));
+ else if(name==='get_uin_card_parent_edges_v143')data=cards.map(c=>({target_id:c.canonical_target_id,parent_target_id:c.parent_target_id}));
+ else throw Error(name);return {data,error:null}}};
+ const route=compile('src/app/api/ideas/category-cards/route.ts',{'next/server':{NextResponse:{json:(body,options={})=>({body,status:options.status||200,headers:options.headers})}},'@/supabase/supabase-js':{},'@/utils/supabase/server':{createClient:async()=>db},'@/utils/boundedTargetProjection':compile('src/utils/boundedTargetProjection.ts'),'@/utils/categoryCardPage':pageModule,'@/utils/imdbMetadata':{readImdbMetadata:()=>({})},'@/utils/bookListMetadata':{readBookListMetadata:()=>({})},'@/utils/seriesListMetadata':{readSeriesListMetadata:()=>({})}});
+ return {calls,request:params=>route.GET({headers:{get:()=>null},nextUrl:new URL('https://example.invalid/api/ideas/category-cards?kind=book&'+params)})};
+}
+test('paged API equals slicing the complete visibility-checked response; hidden targets do not enter totals',async()=>{const route=categoryRoute();const full=await route.request('');const paged=await route.request('page=2&sort=wanting');assert.equal(paged.status,200);const expected=categoryCardPage(full.body.catalogue,2,'wanting');assert.deepEqual(JSON.parse(JSON.stringify(paged.body)),JSON.parse(JSON.stringify(expected)));assert.equal(paged.body.catalogue.length,20);assert.equal(paged.body.pagination.total,55);assert.equal(paged.headers['Cache-Control'],'private, max-age=60, must-revalidate')});
+test('invalid paging is rejected and projection failures never produce a partial page',async()=>{for(const params of ['page=0','page=-1','page=1.5','page=9007199254740993','page=1&sort=friendsRating'])assert.equal((await categoryRoute().request(params)).status,400);for(const rpc of ['get_uin_cover_positions_v62','get_uin_catalogue_for_targets_v123','get_uin_card_social_v87','get_uin_card_parent_edges_v143']){const result=await categoryRoute(rpc).request('page=1');assert.equal(result.status,503);assert.equal(result.body.catalogue,undefined);assert.equal(result.body.pagination,undefined)}});

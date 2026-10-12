@@ -75,7 +75,7 @@ assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, 
   assert.doesNotMatch(route, /stale-while-revalidate/);
 
   assert.match(client, /const categoryLoadedAt=useRef<Record<string,number>>\(\{\}\)/);
-  assert.match(client, /if\(!force&&Date\.now\(\)-Number\(categoryLoadedAt\.current\[key\]\|\|0\)<60_000\)return/);
+  assert.match(client, /if\(!force&&!usesCategoryPages&&categoryDataKey===key&&Date\.now\(\)-Number\(categoryLoadedAt\.current\[key\]\|\|0\)<60_000\)return/);
   assert.match(client, /cache:force\?"no-store":"default",signal/);
   assert.match(client, /categoryLoadedAt\.current\[key\]=Date\.now\(\)/);
   assert.match(client, /await loadCategoryCatalogue\(kind as Kind,undefined,true\)/);
