@@ -63,24 +63,22 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     return [...direct,...peers];
   }
   if(request.nextUrl.searchParams.get("summary")==="1"){
-    const [profile,summary,rating,social,relations]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v129",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_ratings_v85",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]})]);
+    // Social already contains the authoritative rating projection. Read it once
+    // and validate the complete row before reusing its rating fields.
+    const [profile,summary,social,relations]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v129",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]})]);
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
-    if(profile.error||summary.error||rating.error||social.error||relations.error){
-      console.error("card summary unavailable",{profile:profile.error,summary:summary.error,rating:rating.error,social:social.error,relations:relations.error});
+    if(profile.error||summary.error||social.error||relations.error){
+      console.error("card summary unavailable",{profile:profile.error,summary:summary.error,social:social.error,relations:relations.error});
       return NextResponse.json({error:"Kart özeti yüklenemedi. Lütfen tekrar dene."},{status:503});
     }
     if(!row)return NextResponse.json({error:"Kart bulunamadı."},{status:404});
     if(!record(row)||typeof row.title!=="string"||!row.title.trim()||!optionalRecord(row.metadata))return NextResponse.json({error:"Kart profili eksik geldi. Lütfen tekrar dene."},{status:503});
-    const summaryRows=summary.data,ratingRows=rating.data,socialRows=social.data;
+    const summaryRows=summary.data,socialRows=social.data;
     const stats=Array.isArray(summaryRows)&&summaryRows.length===1?summaryRows[0]:null;
-    const ratingStats=Array.isArray(ratingRows)&&ratingRows.length===1?ratingRows[0]:null;
     const socialStats=Array.isArray(socialRows)&&socialRows.length===1?socialRows[0]:null;
     if(!targetMetricRow(stats,targetId)||!["wanting","done","active"].every(field=>finiteMetric(stats[field],{integer:true}))){
       console.error("card summary metrics missing",{targetId,stats});
       return NextResponse.json({error:"Kart sayaçları eksik geldi. Lütfen tekrar dene."},{status:503});
-    }
-    if(!targetMetricRow(ratingStats,targetId)||!finiteMetric(ratingStats.rating_count,{integer:true})||(ratingStats.average_rating!==null&&!finiteMetric(ratingStats.average_rating))||(ratingStats.viewer_rating!==null&&!finiteMetric(ratingStats.viewer_rating))){
-      return NextResponse.json({error:"Kart puanı eksik geldi. Lütfen tekrar dene."},{status:503});
     }
     if(!targetMetricRow(socialStats,targetId)||!["follower_count","rating_count","related_count"].every(field=>finiteMetric(socialStats[field],{integer:true}))||(socialStats.average_rating!==null&&!finiteMetric(socialStats.average_rating))||(socialStats.viewer_rating!==null&&!finiteMetric(socialStats.viewer_rating))){
       return NextResponse.json({error:"Kart sosyal bilgileri eksik geldi. Lütfen tekrar dene."},{status:503});
@@ -93,7 +91,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     if(type.error||!typeData||typeof typeData.id!=="string"||!typeData.id.trim()||typeof typeData.label!=="string"||!typeData.label.trim()||typeof typeData.icon!=="string"||!typeData.icon.trim()||typeof typeData.base_kind!=="string"||!typeData.base_kind.trim()||!optionalRecord(typeData.ui_labels))return NextResponse.json({error:"Kart kategorisi yüklenemedi. Lütfen tekrar dene."},{status:503});
     let displayRelations:CardRelation[];
     try{displayRelations=await expandDisplayRelations(relations.data)}catch(problem){console.error("card related works unavailable",problem);return NextResponse.json({error:"Kart bağlantıları yüklenemedi. Lütfen tekrar dene."},{status:503})}
-    return NextResponse.json({...categoryFields,canonicalTargetId:targetId,contentType:typeData,communityCounts:[Number(stats.wanting),Number(stats.done),Number(stats.active)],averageRating:ratingStats.average_rating==null?null:Number(ratingStats.average_rating),ratingCount:Number(ratingStats.rating_count),viewerRating:ratingStats.viewer_rating==null?null:Number(ratingStats.viewer_rating),social:socialStats,relations:relations.data,displayRelations,hierarchy:null,card:{title:row.title,subtitle:visibleSubtitle(typeId,typeData.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null,metadata:row.metadata||{}},people:[],reviews:[],events:[]});
+    return NextResponse.json({...categoryFields,canonicalTargetId:targetId,contentType:typeData,communityCounts:[Number(stats.wanting),Number(stats.done),Number(stats.active)],averageRating:socialStats.average_rating==null?null:Number(socialStats.average_rating),ratingCount:Number(socialStats.rating_count),viewerRating:socialStats.viewer_rating==null?null:Number(socialStats.viewer_rating),social:socialStats,relations:relations.data,displayRelations,hierarchy:null,card:{title:row.title,subtitle:visibleSubtitle(typeId,typeData.base_kind)?row.creator_name||null:null,cover_url:row.cover_url||null,catalog_item_id:row.catalog_item_id||null,metadata:row.metadata||{}},people:[],reviews:[],events:[]});
   }
   // The v81 readers follow the full card hierarchy (including legacy aliases),
   // so every modal uses the same descendant set as the catalogue summary.
