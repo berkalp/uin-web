@@ -5648,6 +5648,22 @@
           "https://api.thf.org.tr/api/v1/Public/CalculatePointByLeagueId?seasonId=3&leagueId=406",
           "https://api.thf.org.tr/api/v1/Public/CalculatePointByLeagueId?seasonId=3&leagueId=408"
         ]
+      },
+      {
+        "division": "Erkek",
+        "id": "legacy_football",
+        "league": "Trendyol Süper Lig",
+        "logo_url": "https://fys.tff.org/TFFUploadFolder/KulupLogolari/000148_120x120.png",
+        "map_url": "",
+        "name": "Beşiktaş A.Ş.",
+        "season": "2026-2027",
+        "sport": "Futbol",
+        "venue": "Tüpraş Stadyumu",
+        "venue_id": null,
+        "competitions": [
+          "Trendyol Süper Lig"
+        ],
+        "sources": []
       }
     ],
     "club_source": "https://en.wikipedia.org/wiki/Beşiktaş_J.K._(men's_basketball)"
@@ -6370,6 +6386,22 @@
           "https://en.wikipedia.org/wiki/2026%E2%80%9327_Basketbol_S%C3%BCper_Ligi",
           "https://en.wikipedia.org/wiki/2026%E2%80%9327_Basketball_Champions_League"
         ]
+      },
+      {
+        "division": "Erkek",
+        "id": "8edb7661-1635-4307-ba6e-d2acc47ed05a",
+        "league": "Trendyol Süper Lig",
+        "logo_url": "https://fys.tff.org/TFFUploadFolder/KulupLogolari/000154_120x120.png",
+        "map_url": "https://maps.app.goo.gl/2M97A1d4CnHAjr4a7",
+        "name": "Trabzonspor A.Ş.",
+        "season": "2026-2027",
+        "sport": "Futbol",
+        "venue": "Şenol Güneş Spor Kompleksi",
+        "venue_id": null,
+        "competitions": [
+          "Trendyol Süper Lig"
+        ],
+        "sources": []
       }
     ],
     "club_source": "https://en.wikipedia.org/wiki/Trabzonspor_B.K."
@@ -6945,6 +6977,19 @@
         "sources": [
           "https://en.wikipedia.org/wiki/2026%E2%80%9327_Turkish_Women%27s_Volleyball_League"
         ]
+      },
+      {
+        "division": "Erkek",
+        "id": "super-league-football-men-2981861a-e1ee-4097-a179-a1fa1f3e8147",
+        "league": "Trendyol Süper Lig",
+        "name": "Göztepe A.Ş.",
+        "season": "2026-2027",
+        "sport": "Futbol",
+        "venue": "",
+        "competitions": [
+          "Trendyol Süper Lig"
+        ],
+        "sources": []
       }
     ],
     "club_source": "https://en.wikipedia.org/wiki/Göztepe_S.K._(women's_volleyball)"
@@ -7539,6 +7584,19 @@
         "sources": [
           "https://en.wikipedia.org/wiki/2026%E2%80%9327_Turkish_Men%27s_Volleyball_League"
         ]
+      },
+      {
+        "division": "Erkek",
+        "id": "super-league-football-men-7361775f-a6a9-400a-91aa-6b18d1cc8722",
+        "league": "Trendyol Süper Lig",
+        "name": "Gaziantep FK",
+        "season": "2026-2027",
+        "sport": "Futbol",
+        "venue": "",
+        "competitions": [
+          "Trendyol Süper Lig"
+        ],
+        "sources": []
       }
     ],
     "club_source": "https://en.wikipedia.org/wiki/Gaziantep_GSK?action=edit&redlink=1"
