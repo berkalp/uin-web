@@ -13039,29 +13039,6 @@
     ]
   },
   {
-    "name": "",
-    "existing_root": null,
-    "references": [
-      "https://en.wikipedia.org/wiki/2026%E2%80%9327_EuroCup_Basketball"
-    ],
-    "teams": [
-      {
-        "name": "",
-        "sport": "Basketbol",
-        "division": "Erkek",
-        "league": "EuroCup",
-        "season": "2026-2027",
-        "competitions": [
-          "EuroCup"
-        ],
-        "sources": [
-          "https://en.wikipedia.org/wiki/2026%E2%80%9327_EuroCup_Basketball"
-        ]
-      }
-    ],
-    "club_source": "https://en.wikipedia.org/wiki/Israeli_Basketball_Association"
-  },
-  {
     "name": "Veszprém",
     "existing_root": null,
     "references": [

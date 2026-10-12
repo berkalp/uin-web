@@ -17,6 +17,6 @@ test("partial projection failure never returns fabricated or incomplete counters
 test("empty projections issue no database requests",async()=>{const result=await boundedTargetProjection([],()=>{throw Error("unexpected read")});assert.equal(result.data.length,0);assert.equal(result.error,null)});
 test("sport memberships remain unique within a club branch and exclude baseball",()=>{
  const groups=JSON.parse(fs.readFileSync("scripts/sports-expansion-v176.json","utf8"));assert.ok(groups.length>400);
- for(const group of groups){const keys=group.teams.map(team=>`${team.sport}:${team.division}`);assert.equal(new Set(keys).size,keys.length);assert.ok(group.teams.every(team=>team.sport!=="Beyzbol"));}
+ for(const group of groups){assert.ok(group.name.trim());assert.ok(group.teams.every(team=>team.name.trim()));const keys=group.teams.map(team=>`${team.sport}:${team.division}`);assert.equal(new Set(keys).size,keys.length);assert.ok(group.teams.every(team=>team.sport!=="Beyzbol"));}
  const leagues=new Set(groups.flatMap(group=>group.teams.flatMap(team=>team.competitions)));for(const league of ["Premier League","EFL Championship","UEFA Champions League","UEFA Europa League","NBA","Sultanlar Ligi","Efeler Ligi","Hentbol Erkekler Süper Lig"])assert.ok(leagues.has(league));
 });
