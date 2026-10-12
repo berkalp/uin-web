@@ -245,7 +245,7 @@ test("card wish mutations use the exact personal source target across aliases", 
     route,
     /const ownWishTargetId=ownRow\?\.status==="active"\?targetId:[^;]*ownPersonSourceTargetId[^;]*:ownPerson\?targetId:null/,
   );
-  assert.match(route, /return NextResponse\.json\(\{canonicalTargetId:targetId,ownWishTargetId,ownWish,ownIntentDraft/);
+  assert.match(route, /return NextResponse\.json\(\{\.\.\.categoryFields,canonicalTargetId:targetId,ownWishTargetId,ownWish,ownIntentDraft/);
   assert.match(modal, /ownWishTargetId\?:string\|null/);
   assert.match(modal, /const canonicalTargetId=validTargetId\(detail\?\.canonicalTargetId\)\|\|selected\.canonicalTargetId/);
   assert.match(modal, /const wishTargetId=hasWanted\?\(validTargetId\(detail\?\.ownWishTargetId\)[^;]*\):canonicalTargetId/);

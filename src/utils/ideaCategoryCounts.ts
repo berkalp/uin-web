@@ -29,6 +29,6 @@ async function loadPublicIdeaCategoryCounts(): Promise<IdeaCategoryCounts> {
 
 export const getCachedIdeaCategoryCounts = unstable_cache(
   loadPublicIdeaCategoryCounts,
-  ["uin-public-category-counts-v129"],
+  ["uin-public-category-counts-v177"],
   { revalidate: 60 },
 );

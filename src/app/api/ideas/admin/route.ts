@@ -17,6 +17,13 @@ export async function POST(request:NextRequest){
       return NextResponse.json({deleted:true,result:data});
     }
     const title=typeof body.title==="string"?body.title.trim():"";const itemKind=typeof body.itemKind==="string"?body.itemKind:"";
+    const contentTypeIds=body.contentTypeIds;
+    if(contentTypeIds!==undefined){
+      if(!Array.isArray(contentTypeIds)||contentTypeIds.length<1||contentTypeIds.length>3||contentTypeIds.some(id=>typeof id!=="string")||!contentTypeIds.includes(itemKind))return NextResponse.json({error:"Ana kategori dahil 1–3 kategori seç."},{status:400});
+      const types=await supabase.from("uin_content_types").select("id").eq("active",true).in("id",contentTypeIds);
+      if(types.error)return NextResponse.json({error:"Kategoriler doğrulanamadı."},{status:503});
+      if(types.data?.length!==new Set(contentTypeIds).size)return NextResponse.json({error:"Aktif kategorilerden seçim yap."},{status:400});
+    }
     const legacyReference=typeof body.referenceUrl==="string"?body.referenceUrl.trim():"";
     const rawReferenceLinks=body.referenceLinks===undefined?(legacyReference?[{label:"Kaynak",url:legacyReference}]:[]):body.referenceLinks;
     if(!Array.isArray(rawReferenceLinks)||rawReferenceLinks.length>20)return NextResponse.json({error:"En fazla 20 kaynak bağlantısı ekleyebilirsin."},{status:400});
@@ -56,6 +63,7 @@ export async function POST(request:NextRequest){
     if(sourceSave.error)return NextResponse.json({error:`Kaynak bağlantıları kaydedilemedi: ${sourceSave.error.message}`},{status:500});
     const typeSync=await supabase.rpc("admin_sync_uin_card_type_v87",{p_target_id:targetId,p_type_id:itemKind});
     if(typeSync.error)return NextResponse.json({error:`İçerik türü kaydedilemedi: ${typeSync.error.message}`},{status:500});
+    if(contentTypeIds!==undefined){const membership=await supabase.rpc("admin_save_uin_card_content_types_v177",{p_target_id:targetId,p_content_type_ids:contentTypeIds});if(membership.error)return NextResponse.json({error:`Kategoriler kaydedilemedi: ${membership.error.message}`},{status:500});}
     if(cardHierarchy){const hierarchySave=await supabase.rpc("admin_save_card_hierarchy_v81",{p_target_id:targetId,p_parent_target_id:cardHierarchy.parentTargetId||null,p_sort_order:Number(cardHierarchy.sortOrder||0),p_section_title:String(cardHierarchy.sectionTitle||"")||null});if(hierarchySave.error)return NextResponse.json({error:`Kart hiyerarşisi kaydedilemedi: ${hierarchySave.error.message}`},{status:500});}
     if(Object.prototype.hasOwnProperty.call(body,"cardRelations")){
       if(!Array.isArray(body.cardRelations))return NextResponse.json({error:"Bağlı kart listesi geçersiz."},{status:400});

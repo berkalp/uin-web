@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
   const supabase = await requestClient(request);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Konu aramak için giriş yapmalısın." }, { status: 401 });
-  let { data, error } = await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: seedTypeId || null, p_limit: 24 });
-  if (seedTypeId && !error && (!data || data.length === 0)) {
+  let { data, error } = requestedKind?await supabase.rpc("search_uin_category_topics_v177",{p_query:query,p_content_type_id:requestedKind,p_limit:24}):await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: seedTypeId || null, p_limit: 24 });
+  if (!requestedKind && seedTypeId && !error && (!data || data.length === 0)) {
     const fallback = await supabase.rpc("search_existing_topics_v44", { p_query: query, p_seed_type_id: null, p_limit: 12 });
     data = fallback.data;
     error = fallback.error;
@@ -34,7 +34,13 @@ export async function GET(request: NextRequest) {
     const missingIds = [...new Set(ids)].filter(id => !kinds.has(id));
     if (missingIds.length) return NextResponse.json({ error: "Bazı kart türleri çözümlenemedi." }, { status: 503 });
     items = items.map(row => ({ ...row, itemKind: kinds.get(clean(row.catalogItemId, 80))?.itemKind || null }));
-    if (requestedKind && KINDS.has(requestedKind)) items = items.filter(row => {
+    const targetIds=items.map(row=>clean(row.canonicalTargetId,80)).filter(Boolean);
+    const membership=targetIds.length?await supabase.rpc("get_uin_card_content_types_v177",{p_target_ids:targetIds}):{data:[],error:null};
+    if(membership.error)return NextResponse.json({error:"Kart kategorileri yüklenemedi."},{status:503});
+    const categories=new Map((membership.data||[]).map((row:{target_id:string;content_type_ids:string[]})=>[row.target_id,row.content_type_ids]));
+    items=items.map(row=>({...row,contentTypeIds:categories.get(clean(row.canonicalTargetId,80))||[],contentTypeId:requestedKind||kinds.get(clean(row.catalogItemId,80))?.metadata?.content_type_id||null}));
+    if (requestedKind) items = items.filter(row => {
+        if((row.contentTypeIds as string[]).includes(requestedKind))return true;
         const stored = clean(row.itemKind, 40).toLocaleLowerCase("tr-TR");
         if (requestedKind === "series") return stored === "series" || stored === "video";
         if (requestedKind === "movie") return stored === "movie";
