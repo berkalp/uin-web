@@ -1,0 +1,6 @@
+begin;
+update public.canonical_targets set editorial_cover_url=case when editorial_cover_url like '%/Kit_%' then null else editorial_cover_url end,
+ editorial_metadata=jsonb_set(editorial_metadata,'{club_profile}',(editorial_metadata->'club_profile')||jsonb_build_object('logo_url',case when editorial_metadata->'club_profile'->>'logo_url' like '%/Kit_%' then null else editorial_metadata->'club_profile'->>'logo_url' end,'teams',coalesce((select jsonb_agg(case when t->>'logo_url' like '%/Kit_%' then t-'logo_url' else t end) from jsonb_array_elements(coalesce(editorial_metadata->'club_profile'->'teams','[]'::jsonb)) t),'[]'::jsonb)))
+ where editorial_metadata->>'catalogue_as_of'='2026-10-12' and (editorial_cover_url like '%/Kit_%' or editorial_metadata->'club_profile'->>'logo_url' like '%/Kit_%');
+update public.seed_catalog_items set cover_url=null where status='active' and cover_url like '%/Kit_%' and canonical_target_id in(select id from public.canonical_targets where editorial_metadata->>'catalogue_as_of'='2026-10-12');
+commit;
