@@ -48,9 +48,9 @@ export async function GET(request:NextRequest){
     // Every dependent reader is bounded by the hierarchy ids and starts in the
     // same batch. This replaces the old full-catalogue pagination waterfall.
     const [catalogue,placements,styles]=await Promise.all([
-      boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch})),
+      boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),500),
       boundedTargetProjection(ids,batch=>db.from("seed_catalog_items").select("id,canonical_target_id,status").in("canonical_target_id",batch)),
-      boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_styles_v76",{p_target_ids:batch})),
+      boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_styles_v76",{p_target_ids:batch}),500),
     ]);
     if(catalogue.error||placements.error||styles.error)throw catalogue.error||placements.error||styles.error;
     if(!Array.isArray(catalogue.data)||!catalogue.data.every(isRow)

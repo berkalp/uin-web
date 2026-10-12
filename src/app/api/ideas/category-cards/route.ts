@@ -48,7 +48,9 @@ export async function GET(request:NextRequest){
     if(clubTargetIds)itemQuery=itemQuery.in("canonical_target_id",clubTargetIds.slice(offset,offset+100));
     if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
     else itemQuery=itemQuery.eq("metadata->>content_type_id",type.id);
-    const itemResult=await itemQuery;
+    const itemResult=type.id!==type.base_kind
+      ?await db.rpc("get_uin_custom_type_placements_v176",{p_content_type_id:type.id,p_limit:pageSize,p_offset:offset})
+      :await itemQuery;
     if(itemResult.error){
       console.error("category catalogue placements unavailable",{kind,offset,error:itemResult.error});
       return NextResponse.json({error:"Kategori kartları yüklenemedi."},{status:503});
@@ -64,15 +66,15 @@ export async function GET(request:NextRequest){
   // All four projections depend only on the placement ids. Running them in
   // parallel removes the old visibility -> counters -> enrichment waterfall.
   const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch})),
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch})),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}),500),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),500),
     // get_uin_card_social_v87 already includes the rating projection. Calling
     // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch})),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch}),500),
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:batch})),
   ]);
   let visibilityResult=initialVisibilityResult;
-  if(visibilityResult.error)visibilityResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}));
+  if(visibilityResult.error)visibilityResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}),500);
   if(visibilityResult.error){
     console.error("category card visibility unavailable",{kind,error:visibilityResult.error});
     return NextResponse.json({error:"Kategori kartlarının görünürlüğü doğrulanamadı. Lütfen tekrar dene."},{status:503});
@@ -85,7 +87,7 @@ export async function GET(request:NextRequest){
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
   let cardsResult=initialCardsResult;
-  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}));
+  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),500);
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
@@ -112,7 +114,7 @@ export async function GET(request:NextRequest){
   // other, then fail closed: an empty enrichment after a failed read would
   // fabricate zero followers/ratings or silently lose a parent relationship.
   const [socialResult,hierarchyResult]=await Promise.all([
-    initialSocialResult.error?boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch})):Promise.resolve(initialSocialResult),
+    initialSocialResult.error?boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch}),500):Promise.resolve(initialSocialResult),
     initialHierarchyResult.error?boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:batch})):Promise.resolve(initialHierarchyResult),
   ]);
   if(socialResult.error){

@@ -57,7 +57,7 @@ test("category cards reuse enrichment, fail closed, and throttle repeat catalogu
   assert.match(route, /let visibilityResult=initialVisibilityResult;\s*if\(visibilityResult\.error\)visibilityResult=await boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:batch\}\)/);
   assert.match(route, /let cardsResult=initialCardsResult;\s*if\(cardsResult\.error\)cardsResult=await boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:batch\}\)/);
   assert.match(route, /const \[socialResult,hierarchyResult\]=await Promise\.all\(\[/);
-  assert.match(route, /initialSocialResult\.error\?boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_card_social_v87",\{p_target_ids:batch\}\)\):Promise\.resolve\(initialSocialResult\)/);
+  assert.match(route, /initialSocialResult\.error\?boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_card_social_v87",\{p_target_ids:batch\}\),500\):Promise\.resolve\(initialSocialResult\)/);
   assert.match(route, /initialHierarchyResult\.error\?boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:batch\}\)\):Promise\.resolve\(initialHierarchyResult\)/);
   assert.match(route, /if\(socialResult\.error\)\{[\s\S]*status:503/);
   assert.match(route, /if\(hierarchyResult\.error\)\{[\s\S]*status:503/);
