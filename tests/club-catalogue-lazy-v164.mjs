@@ -11,9 +11,11 @@ const catalogueIds=["323e4567-e89b-42d3-a456-426614174000","423e4567-e89b-42d3-a
 function compileRoute(db,bearerClient=()=>db){
   const source=read("src/app/api/clubs/catalogue/route.ts");
   const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
+  const helperModule={exports:{}};const helperCode=ts.transpileModule(read("src/utils/boundedTargetProjection.ts"),{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText;
+  vm.runInNewContext(helperCode,{module:helperModule,exports:helperModule.exports,Promise,Array,Error});
   const compiledModule={exports:{}};
   const NextResponse={json:(body,init={})=>({body,status:init.status||200,headers:init.headers||{}})};
-  vm.runInNewContext(code,{module:compiledModule,exports:compiledModule.exports,console:{error:()=>{}},process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://example.invalid",NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:"public"}},Number,Map,Set,Error,Promise,require:name=>name==="next/server"?{NextResponse}:name==="@/utils/supabase/server"?{createClient:async()=>db}:name==="@supabase/supabase-js"?{createClient:bearerClient}:{}});
+  vm.runInNewContext(code,{module:compiledModule,exports:compiledModule.exports,console:{error:()=>{}},process:{env:{NEXT_PUBLIC_SUPABASE_URL:"https://example.invalid",NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:"public"}},Number,Map,Set,Error,Promise,require:name=>name==="@/utils/boundedTargetProjection"?helperModule.exports:name==="next/server"?{NextResponse}:name==="@/utils/supabase/server"?{createClient:async()=>db}:name==="@supabase/supabase-js"?{createClient:bearerClient}:{}});
   return compiledModule.exports;
 }
 
@@ -58,35 +60,35 @@ function endpointDb({dropCatalogueCount=false,dropCatalogueRow=false}={}){
   const placements=hierarchy.map((row,index)=>({id:catalogueIds[index],canonical_target_id:row.target_id,status:"active"}));
   return{
     calls,
-    rpc:async name=>{calls.push(name);if(name==="get_club_hierarchy_v78")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
+    rpc:async name=>{calls.push(name);if(name==="get_club_directory_v176")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
     from:()=>({select:()=>({in:async()=>({data:placements,error:null})})}),
   };
 }
 
 test("club endpoint keeps complete rows and fails closed when a projection is missing",async()=>{
   const completeDb=endpointDb();
-  const complete=await compileRoute(completeDb).GET({headers:{get:()=>null}});
+  const complete=await compileRoute(completeDb).GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>null}});
   assert.equal(complete.status,200);
   assert.equal(complete.body.clubs.length,2);
   assert.deepEqual(Array.from(complete.body.clubs,club=>[club.wanting,club.done,club.active]),[[1,2,0],[2,3,1]]);
   assert.ok(!completeDb.calls.includes("get_uin_catalogue_fast_v122"));
-  assert.deepEqual(completeDb.calls,["get_club_hierarchy_v78","get_uin_catalogue_for_targets_v123","get_uin_card_styles_v76"]);
+  assert.deepEqual(completeDb.calls,["get_club_directory_v176","get_uin_catalogue_for_targets_v123","get_uin_card_styles_v76"]);
 
-  const incomplete=await compileRoute(endpointDb({dropCatalogueCount:true})).GET({headers:{get:()=>null}});
+  const incomplete=await compileRoute(endpointDb({dropCatalogueCount:true})).GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>null}});
   assert.equal(incomplete.status,503);
   assert.equal(incomplete.body.error,"Kulüp ve takım bilgileri yüklenemedi.");
 
-  const missingCard=await compileRoute(endpointDb({dropCatalogueRow:true})).GET({headers:{get:()=>null}});
+  const missingCard=await compileRoute(endpointDb({dropCatalogueRow:true})).GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>null}});
   assert.equal(missingCard.status,503,"a missing card projection must not silently remove a club");
   assert.equal(missingCard.body.error,"Kulüp ve takım bilgileri yüklenemedi.");
 });
 
 test("ideas page loads club data only when club UI needs it",()=>{
   const source=read("src/components/ideas/InlineTopicSearch.tsx");
-  assert.match(source,/import \{invalidateClubCatalogueCache,loadClubCatalogue\} from "@\/utils\/clubCatalogueClient"/);
+  assert.match(source,/import \{invalidateClubCatalogueCache,loadClubDirectory\} from "@\/utils\/clubCatalogueClient"/);
   assert.match(source,/const needsClubCatalogue=viewerId!==undefined&&\(effectiveKind==="club"\|\|adminNeedsClubCatalogue\|\|clubSearchActive\)/);
   assert.match(source,/useEffect\(\(\)=>\{if\(!needsClubCatalogue\)/);
-  assert.match(source,/loadClubCatalogue\(geoRetry>0\)/);
+  assert.match(source,/loadClubDirectory\(geoRetry>0\)/);
   assert.doesNotMatch(source,/fetch\("\/api\/clubs\/catalogue"/);
   assert.match(source,/scopeCount=\(value:LibraryScope\).*Number\(liveCategoryCounts\[kind\]\?\?categoryCounts\[kind\]\?\?0\)/s);
   assert.match(source,/if\(value==="library"\)[\s\S]{0,400}return kind!=="all"&&effectiveKind==="club"\?[\s\S]{0,100}clubList\.filter\(c=>c\.parent_target_id\|\|c\.sport\)\.length} takım/);
@@ -96,10 +98,10 @@ test("ideas page loads club data only when club UI needs it",()=>{
 
 test("club modals share the same validated catalogue request",()=>{
   const source=read("src/components/ideas/TopicCardModal.tsx");
-  assert.match(source,/import \{loadClubCatalogue\} from "@\/utils\/clubCatalogueClient"/);
+  assert.match(source,/import \{loadClubDirectory\} from "@\/utils\/clubCatalogueClient"/);
   assert.match(source,/if\(!isClub\)return/);
-  assert.match(source,/loadClubCatalogue\(\)/);
-  assert.match(source,/loadClubCatalogue\(true\)/);
+  assert.match(source,/loadClubDirectory\(\)/);
+  assert.match(source,/loadClubDirectory\(true\)/);
   assert.doesNotMatch(source,/fetch\("\/api\/clubs\/catalogue"/);
 });
 
@@ -149,10 +151,10 @@ test("mobile bearer reads use the same viewer for hierarchy and all projections"
  const cookieDb={rpc(){throw Error('Cookie client must not be used for a bearer request')}},viewerDb=endpointDb();
  let authorization;
  const route=compileRoute(cookieDb,(url,key,options)=>{authorization=options.global.headers.Authorization;assert.equal(options.auth.persistSession,false);return viewerDb});
- const result=await route.GET({headers:{get:()=>"Bearer mobile-viewer-token"}});
+ const result=await route.GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>"Bearer mobile-viewer-token"}});
  assert.equal(result.status,200);assert.equal(authorization,'Bearer mobile-viewer-token');
  assert.equal(result.body.clubs.length,2);assert.equal(viewerDb.calls.length,3);
- const rejected=await compileRoute(cookieDb,()=>({rpc:async()=>({error:Error('Expired bearer'),data:null})})).GET({headers:{get:()=>"Bearer expired"}});
+ const rejected=await compileRoute(cookieDb,()=>({rpc:async()=>({error:Error('Expired bearer'),data:null})})).GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>"Bearer expired"}});
  assert.equal(rejected.status,503,'an invalid bearer never falls back to anonymous data');
 });
 

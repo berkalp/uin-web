@@ -64,3 +64,15 @@ export function invalidateClubCatalogueCache(){
   cached=null;
   inFlight=null;
 }
+
+let directoryCache:{clubs:ClubCard[];loadedAt:number;generation:number}|null=null;
+let directoryPending:{generation:number;promise:Promise<ClubCard[]>}|null=null;
+export function loadClubDirectory(force=false):Promise<ClubCard[]>{
+ if(!force&&directoryCache?.generation===generation&&Date.now()-directoryCache.loadedAt<CLUB_CATALOGUE_TTL_MS)return Promise.resolve(directoryCache.clubs);
+ const version=generation;if(directoryPending?.generation===version)return directoryPending.promise;
+ const promise=(async()=>{
+  const response=await fetch("/api/clubs/catalogue?metadata=1",{cache:force?"no-store":"default"});const body:unknown=await response.json();
+  if(!response.ok||!isRecord(body)||!Array.isArray(body.clubs)||!body.clubs.every(row=>isRecord(row)&&typeof row.target_id==="string"&&UUID_PATTERN.test(row.target_id)&&typeof row.catalogItemId==="string"&&UUID_PATTERN.test(row.catalogItemId)&&["sport","league","division","title","displayName"].every(key=>typeof row[key]==="string")))throw new Error("Kulüp dizini yüklenemedi. Lütfen tekrar dene.");
+  const clubs=body.clubs as ClubCard[];if(version===generation)directoryCache={clubs,loadedAt:Date.now(),generation:version};return clubs;
+ })().finally(()=>{if(directoryPending?.generation===version)directoryPending=null});directoryPending={generation:version,promise};return promise;
+}

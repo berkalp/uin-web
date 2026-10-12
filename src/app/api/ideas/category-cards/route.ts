@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 import {createClient} from "@/utils/supabase/server";
+import {boundedTargetProjection} from "@/utils/boundedTargetProjection";
 import {readImdbMetadata} from "@/utils/imdbMetadata";
 import {readBookListMetadata} from "@/utils/bookListMetadata";
 import {readSeriesListMetadata} from "@/utils/seriesListMetadata";
@@ -29,13 +30,22 @@ export async function GET(request:NextRequest){
   if(!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
   const cacheHeaders={"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"};
   if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
+  let clubTargetIds:string[]|null=null;
+  if(type.base_kind==="club"&&(request.nextUrl.searchParams.has("sport")||request.nextUrl.searchParams.has("league")||request.nextUrl.searchParams.has("division"))){
+    const directory=await db.rpc("get_club_directory_v176");
+    if(directory.error||!Array.isArray(directory.data))return NextResponse.json({error:"Takım dizini yüklenemedi."},{status:503});
+    const sport=request.nextUrl.searchParams.get("sport")||"",league=request.nextUrl.searchParams.get("league")||"",division=request.nextUrl.searchParams.get("division")||"";
+    clubTargetIds=(directory.data as Row[]).filter(row=>Boolean(row.sport)&&(!sport||String(row.sport).toLocaleLowerCase("tr")===sport.toLocaleLowerCase("tr"))&&(!division||String(row.division).toLocaleLowerCase("tr")===division.toLocaleLowerCase("tr"))&&(!league||row.league===league||Array.isArray(row.leagues)&&row.leagues.includes(league))).map(row=>String(row.target_id));
+    if(!clubTargetIds.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
+  }
   const pageSize=500;
   const items:Row[]=[];
-  for(let offset=0;;offset+=pageSize){
+  for(let offset=0;;offset+=clubTargetIds?100:pageSize){
     // Category cards use only these ranking/award keys. Pulling the complete
     // metadata object transfers large ISBN, subject and catalogue payloads that
     // never reach the response (over 1 MB for the current book category).
-    let itemQuery=db.from("seed_catalog_items").select(CATEGORY_PLACEMENT_SELECT).eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).order("id",{ascending:false}).range(offset,offset+pageSize-1);
+    let itemQuery=db.from("seed_catalog_items").select(CATEGORY_PLACEMENT_SELECT).eq("status","active").not("canonical_target_id","is",null).order("updated_at",{ascending:false}).order("id",{ascending:false}).range(clubTargetIds?0:offset,clubTargetIds?999:offset+pageSize-1);
+    if(clubTargetIds)itemQuery=itemQuery.in("canonical_target_id",clubTargetIds.slice(offset,offset+100));
     if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
     else itemQuery=itemQuery.contains("metadata",{content_type_id:type.id});
     const itemResult=await itemQuery;
@@ -45,7 +55,7 @@ export async function GET(request:NextRequest){
     }
     const page=(itemResult.data||[]) as Row[];
     items.push(...page);
-    if(page.length<pageSize)break;
+    if(clubTargetIds?offset+100>=clubTargetIds.length:page.length<pageSize)break;
   }
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
   if(!ids.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
@@ -54,15 +64,15 @@ export async function GET(request:NextRequest){
   // All four projections depend only on the placement ids. Running them in
   // parallel removes the old visibility -> counters -> enrichment waterfall.
   const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
-    db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids}),
-    db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch})),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch})),
     // get_uin_card_social_v87 already includes the rating projection. Calling
     // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
-    db.rpc("get_uin_card_social_v87",{p_target_ids:ids}),
-    db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:ids}),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch})),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:batch})),
   ]);
   let visibilityResult=initialVisibilityResult;
-  if(visibilityResult.error)visibilityResult=await db.rpc("get_uin_cover_positions_v62",{p_target_ids:ids});
+  if(visibilityResult.error)visibilityResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}));
   if(visibilityResult.error){
     console.error("category card visibility unavailable",{kind,error:visibilityResult.error});
     return NextResponse.json({error:"Kategori kartlarının görünürlüğü doğrulanamadı. Lütfen tekrar dene."},{status:503});
@@ -75,7 +85,7 @@ export async function GET(request:NextRequest){
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
   let cardsResult=initialCardsResult;
-  if(cardsResult.error)cardsResult=await db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids});
+  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}));
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
@@ -102,8 +112,8 @@ export async function GET(request:NextRequest){
   // other, then fail closed: an empty enrichment after a failed read would
   // fabricate zero followers/ratings or silently lose a parent relationship.
   const [socialResult,hierarchyResult]=await Promise.all([
-    initialSocialResult.error?db.rpc("get_uin_card_social_v87",{p_target_ids:ids}):Promise.resolve(initialSocialResult),
-    initialHierarchyResult.error?db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:ids}):Promise.resolve(initialHierarchyResult),
+    initialSocialResult.error?boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch})):Promise.resolve(initialSocialResult),
+    initialHierarchyResult.error?boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_parent_edges_v143",{p_target_ids:batch})):Promise.resolve(initialHierarchyResult),
   ]);
   if(socialResult.error){
     console.error("category card social enrichment unavailable",{kind,error:socialResult.error});

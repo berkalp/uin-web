@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
+import {boundedTargetProjection} from "@/utils/boundedTargetProjection";
 import {createClient} from "@/utils/supabase/server";
 
 type Row=Record<string,unknown>;
@@ -27,7 +28,14 @@ export async function GET(request:NextRequest){
   try{
     const token=request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
     const db=token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):await createClient();
-    const hierarchy=await db.rpc("get_club_hierarchy_v78");
+    const directory=await db.rpc("get_club_directory_v176");
+    if(directory.error||!Array.isArray(directory.data))throw directory.error||new Error("Invalid club directory");
+    if(request.nextUrl.searchParams.get("metadata")==="1"){
+      if(!directory.data.every(row=>isRow(row)&&targetId(row)&&typeof row.title==="string"&&typeof row.catalogItemId==="string"&&UUID_PATTERN.test(row.catalogItemId)))throw new Error("Incomplete club directory");
+      const titleCase=(value:unknown)=>String(value??"").trim().toLocaleLowerCase("tr").replace(/^./,c=>c.toLocaleUpperCase("tr"));
+      return NextResponse.json({clubs:directory.data.map(row=>({...row,sport:titleCase(row.sport),division:titleCase(row.division)}))},{headers:CACHE_HEADERS});
+    }
+    const hierarchy=directory;
     if(hierarchy.error)throw hierarchy.error;
     if(!Array.isArray(hierarchy.data)||!hierarchy.data.every(isRow))throw new Error("Invalid club hierarchy payload");
 
@@ -40,9 +48,9 @@ export async function GET(request:NextRequest){
     // Every dependent reader is bounded by the hierarchy ids and starts in the
     // same batch. This replaces the old full-catalogue pagination waterfall.
     const [catalogue,placements,styles]=await Promise.all([
-      db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:ids}),
-      db.from("seed_catalog_items").select("id,canonical_target_id,status").in("canonical_target_id",ids),
-      db.rpc("get_uin_card_styles_v76",{p_target_ids:ids}),
+      boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch})),
+      boundedTargetProjection(ids,batch=>db.from("seed_catalog_items").select("id,canonical_target_id,status").in("canonical_target_id",batch)),
+      boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_styles_v76",{p_target_ids:batch})),
     ]);
     if(catalogue.error||placements.error||styles.error)throw catalogue.error||placements.error||styles.error;
     if(!Array.isArray(catalogue.data)||!catalogue.data.every(isRow)

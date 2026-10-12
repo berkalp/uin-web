@@ -49,16 +49,16 @@ test("category cards reuse enrichment, fail closed, and throttle repeat catalogu
   const retryStart = route.indexOf("let visibilityResult=initialVisibilityResult");
   assert.ok(parallelStart >= 0 && retryStart > parallelStart, "all placement-id projections must start in one parallel batch");
   const initialBatch = route.slice(parallelStart, retryStart);
-  assert.match(initialBatch, /db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:ids\}\)/);
-  assert.match(initialBatch, /db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:ids\}\)/);
-  assert.match(initialBatch, /db\.rpc\("get_uin_card_social_v87",\{p_target_ids:ids\}\)/);
-  assert.match(initialBatch, /db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:ids\}\)/);
+  assert.match(initialBatch, /db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:batch\}\)/);
+  assert.match(initialBatch, /db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:batch\}\)/);
+  assert.match(initialBatch, /db\.rpc\("get_uin_card_social_v87",\{p_target_ids:batch\}\)/);
+  assert.match(initialBatch, /db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:batch\}\)/);
   assert.doesNotMatch(initialBatch, /p_target_ids:visibleIds/);
-  assert.match(route, /let visibilityResult=initialVisibilityResult;\s*if\(visibilityResult\.error\)visibilityResult=await db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:ids\}\)/);
-  assert.match(route, /let cardsResult=initialCardsResult;\s*if\(cardsResult\.error\)cardsResult=await db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:ids\}\)/);
+  assert.match(route, /let visibilityResult=initialVisibilityResult;\s*if\(visibilityResult\.error\)visibilityResult=await boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_cover_positions_v62",\{p_target_ids:batch\}\)/);
+  assert.match(route, /let cardsResult=initialCardsResult;\s*if\(cardsResult\.error\)cardsResult=await boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_catalogue_for_targets_v123",\{p_target_ids:batch\}\)/);
   assert.match(route, /const \[socialResult,hierarchyResult\]=await Promise\.all\(\[/);
-  assert.match(route, /initialSocialResult\.error\?db\.rpc\("get_uin_card_social_v87",\{p_target_ids:ids\}\):Promise\.resolve\(initialSocialResult\)/);
-  assert.match(route, /initialHierarchyResult\.error\?db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:ids\}\):Promise\.resolve\(initialHierarchyResult\)/);
+  assert.match(route, /initialSocialResult\.error\?boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_card_social_v87",\{p_target_ids:batch\}\)\):Promise\.resolve\(initialSocialResult\)/);
+  assert.match(route, /initialHierarchyResult\.error\?boundedTargetProjection\(ids,batch=>db\.rpc\("get_uin_card_parent_edges_v143",\{p_target_ids:batch\}\)\):Promise\.resolve\(initialHierarchyResult\)/);
   assert.match(route, /if\(socialResult\.error\)\{[\s\S]*status:503/);
   assert.match(route, /if\(hierarchyResult\.error\)\{[\s\S]*status:503/);
   assert.match(route, /if\(!Array\.isArray\(socialResult\.data\)\)\{[\s\S]*status:503/);
@@ -75,9 +75,9 @@ assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, 
   assert.doesNotMatch(route, /stale-while-revalidate/);
 
   assert.match(client, /const categoryLoadedAt=useRef<Record<string,number>>\(\{\}\)/);
-  assert.match(client, /if\(!force&&Date\.now\(\)-Number\(categoryLoadedAt\.current\[next\]\|\|0\)<60_000\)return/);
+  assert.match(client, /if\(!force&&Date\.now\(\)-Number\(categoryLoadedAt\.current\[key\]\|\|0\)<60_000\)return/);
   assert.match(client, /cache:force\?"no-store":"default",signal/);
-  assert.match(client, /categoryLoadedAt\.current\[next\]=Date\.now\(\)/);
+  assert.match(client, /categoryLoadedAt\.current\[key\]=Date\.now\(\)/);
   assert.match(client, /await loadCategoryCatalogue\(kind as Kind,undefined,true\)/);
 });
 test("personal scopes use canonical direct membership and keep the light read light", () => {
