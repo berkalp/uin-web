@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit -p tsconfig.next.json",
     "test:card-read-model": "node --test tests/library-api-fail-closed-v143.mjs"
   },
   "dependencies": {
