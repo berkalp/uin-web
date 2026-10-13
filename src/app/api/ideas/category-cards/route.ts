@@ -4,12 +4,13 @@ import {createClient} from "@/utils/supabase/server";
 import {boundedTargetProjection} from "@/utils/boundedTargetProjection";
 import {readImdbMetadata} from "@/utils/imdbMetadata";
 import {readBookListMetadata} from "@/utils/bookListMetadata";
+import {ARTIST_LISTS,artistListRank,readArtistMetadata,type ArtistListId} from "@/utils/artistListMetadata";
 import {readSeriesListMetadata} from "@/utils/seriesListMetadata";
 import {categoryCardPage,CATEGORY_PAGE_SORTS,type CategoryPageSort} from "@/utils/categoryCardPage";
 
 type ContentType={id:string;base_kind:string;active:boolean};
 type Row=Record<string,unknown>;
-const CATEGORY_PLACEMENT_SELECT="id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,content_type_id:metadata->>content_type_id,content_type_ids:metadata->content_type_ids,imdb_top_250_rank:metadata->>imdb_top_250_rank,imdb_top_100_rank:metadata->>imdb_top_100_rank,imdb_rating:metadata->>imdb_rating,book_lists:metadata->book_lists,book_list_ranks:metadata->book_list_ranks,book_awards:metadata->book_awards,series_lists:metadata->series_lists,series_list_ranks:metadata->series_list_ranks,series_awards:metadata->series_awards";
+const CATEGORY_PLACEMENT_SELECT="id,canonical_target_id,item_kind,canonical_title,creator_name,cover_url,content_type_id:metadata->>content_type_id,content_type_ids:metadata->content_type_ids,imdb_top_250_rank:metadata->>imdb_top_250_rank,imdb_top_100_rank:metadata->>imdb_top_100_rank,imdb_rating:metadata->>imdb_rating,book_lists:metadata->book_lists,book_list_ranks:metadata->book_list_ranks,book_awards:metadata->book_awards,series_lists:metadata->series_lists,series_list_ranks:metadata->series_list_ranks,series_awards:metadata->series_awards,spotify_monthly_listeners:metadata->spotify_monthly_listeners,spotify_listener_rank:metadata->spotify_listener_rank,spotify_chart_as_of:metadata->>spotify_chart_as_of,spotify_chart_source:metadata->>spotify_chart_source,artist_list_ranks:metadata->artist_list_ranks,artist_list_source_url:metadata->>artist_list_source_url";
 
 async function requestClient(request:NextRequest){
   const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
@@ -60,6 +61,12 @@ export async function GET(request:NextRequest){
     const page=(itemResult.data||[]) as Row[];
     items.push(...page);
     if(clubTargetIds?offset+100>=clubTargetIds.length:page.length<pageSize)break;
+  }
+  const selectedArtistList=request.nextUrl.searchParams.get("artistList");
+  if(selectedArtistList){
+    if(type.base_kind!=="artist"||!ARTIST_LISTS.some(list=>list.id===selectedArtistList))return NextResponse.json({error:"Geçersiz sanatçı listesi."},{status:400});
+    const matching=items.filter(item=>artistListRank(readArtistMetadata(item),selectedArtistList as ArtistListId));
+    items.splice(0,items.length,...matching);
   }
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
   if(!ids.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
@@ -156,7 +163,7 @@ export async function GET(request:NextRequest){
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards};
+    return {...card,canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
   });
   if(pageParam!==null){
     const result=categoryCardPage(catalogue,Number(pageParam),pageSort as CategoryPageSort);
