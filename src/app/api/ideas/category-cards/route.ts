@@ -32,7 +32,7 @@ export async function GET(request:NextRequest){
   if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   let clubTargetIds:string[]|null=null;
   if(type.base_kind==="club"&&(request.nextUrl.searchParams.has("sport")||request.nextUrl.searchParams.has("league")||request.nextUrl.searchParams.has("division"))){
-    const directory=await db.rpc("get_club_directory_v176");
+    const directory=await db.rpc("get_club_directory_v181");
     if(directory.error||!Array.isArray(directory.data))return NextResponse.json({error:"Takım dizini yüklenemedi."},{status:503});
     const sport=request.nextUrl.searchParams.get("sport")||"",league=request.nextUrl.searchParams.get("league")||"",division=request.nextUrl.searchParams.get("division")||"";
     clubTargetIds=(directory.data as Row[]).filter(row=>Boolean(row.sport)&&(!sport||String(row.sport).toLocaleLowerCase("tr")===sport.toLocaleLowerCase("tr"))&&(!division||String(row.division).toLocaleLowerCase("tr")===division.toLocaleLowerCase("tr"))&&(!league||row.league===league||Array.isArray(row.leagues)&&row.leagues.includes(league))).map(row=>String(row.target_id));

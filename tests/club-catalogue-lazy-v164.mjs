@@ -8,6 +8,18 @@ const read=path=>fs.readFileSync(path,"utf8");
 const secondId="223e4567-e89b-42d3-a456-426614174000";
 const catalogueIds=["323e4567-e89b-42d3-a456-426614174000","423e4567-e89b-42d3-a456-426614174000"];
 
+test("metadata directory preserves native authorization and needs no audience projections",async()=>{
+ const calls=[];
+ const rows=[{target_id:secondId,parent_target_id:null,title:"Club",displayName:"Club",catalogItemId:catalogueIds[0],sport:"FUTBOL",division:"ERKEK",league:"Premier League",leagues:["UEFA Champions League"],cardStyle:null,ownStyle:null}];
+ const db={rpc:async name=>{calls.push(name);return{data:rows,error:null}}};
+ let authorization;
+ const route=compileRoute(db,(_url,_key,options)=>{authorization=options.global.headers.Authorization;return db});
+ const result=await route.GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue?metadata=1"),headers:{get:()=>"Bearer native-session"}});
+ assert.equal(result.status,200);assert.equal(authorization,"Bearer native-session");
+ assert.deepEqual(calls,["get_club_directory_v181"]);assert.equal(result.body.clubs[0].sport,"Futbol");
+ assert.ok(!("wanting" in result.body.clubs[0]));assert.equal(result.body.clubs[0].leagues[0],"UEFA Champions League");
+});
+
 function compileRoute(db,bearerClient=()=>db){
   const source=read("src/app/api/clubs/catalogue/route.ts");
   const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS,esModuleInterop:true}}).outputText;
@@ -60,7 +72,7 @@ function endpointDb({dropCatalogueCount=false,dropCatalogueRow=false}={}){
   const placements=hierarchy.map((row,index)=>({id:catalogueIds[index],canonical_target_id:row.target_id,status:"active"}));
   return{
     calls,
-    rpc:async name=>{calls.push(name);if(name==="get_club_directory_v176")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
+    rpc:async name=>{calls.push(name);if(name==="get_club_directory_v181")return{data:hierarchy,error:null};if(name==="get_uin_catalogue_for_targets_v123")return{data:catalogue,error:null};if(name==="get_uin_card_styles_v76")return{data:styles,error:null};return{data:null,error:new Error("unexpected rpc")}},
     from:()=>({select:()=>({in:async()=>({data:placements,error:null})})}),
   };
 }
@@ -72,7 +84,7 @@ test("club endpoint keeps complete rows and fails closed when a projection is mi
   assert.equal(complete.body.clubs.length,2);
   assert.deepEqual(Array.from(complete.body.clubs,club=>[club.wanting,club.done,club.active]),[[1,2,0],[2,3,1]]);
   assert.ok(!completeDb.calls.includes("get_uin_catalogue_fast_v122"));
-  assert.deepEqual(completeDb.calls,["get_club_directory_v176","get_uin_catalogue_for_targets_v123","get_uin_card_styles_v76"]);
+  assert.deepEqual(completeDb.calls,["get_club_directory_v181","get_uin_catalogue_for_targets_v123","get_uin_card_styles_v76"]);
 
   const incomplete=await compileRoute(endpointDb({dropCatalogueCount:true})).GET({nextUrl:new URL("https://example.invalid/api/clubs/catalogue"),headers:{get:()=>null}});
   assert.equal(incomplete.status,503);

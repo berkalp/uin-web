@@ -28,7 +28,7 @@ export async function GET(request:NextRequest){
   try{
     const token=request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
     const db=token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):await createClient();
-    const directory=await db.rpc("get_club_directory_v176");
+    const directory=await db.rpc("get_club_directory_v181");
     if(directory.error||!Array.isArray(directory.data))throw directory.error||new Error("Invalid club directory");
     if(request.nextUrl.searchParams.get("metadata")==="1"){
       if(!directory.data.every(row=>isRow(row)&&targetId(row)&&typeof row.title==="string"&&typeof row.catalogItemId==="string"&&UUID_PATTERN.test(row.catalogItemId)))throw new Error("Incomplete club directory");
