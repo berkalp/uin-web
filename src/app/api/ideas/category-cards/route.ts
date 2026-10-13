@@ -1,3 +1,4 @@
+import {mobileCategoryPayload} from "@/utils/mobileCardPayload";
 import {NextRequest,NextResponse} from "next/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 import {createClient} from "@/utils/supabase/server";
@@ -169,5 +170,6 @@ export async function GET(request:NextRequest){
     const result=categoryCardPage(catalogue,Number(pageParam),pageSort as CategoryPageSort);
     if(result)return NextResponse.json(result,{headers:cacheHeaders});
   }
+  if(request.nextUrl.searchParams.get("compact")==="1")return NextResponse.json({catalogue:catalogue.map(mobileCategoryPayload)},{headers:cacheHeaders});
   return NextResponse.json({catalogue},{headers:cacheHeaders});
 }

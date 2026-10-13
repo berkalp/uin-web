@@ -1,3 +1,4 @@
+import {mobileClubPayload} from "@/utils/mobileCardPayload";
 import {NextRequest,NextResponse} from "next/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 import {boundedTargetProjection} from "@/utils/boundedTargetProjection";
@@ -33,7 +34,7 @@ export async function GET(request:NextRequest){
     if(request.nextUrl.searchParams.get("metadata")==="1"){
       if(!directory.data.every(row=>isRow(row)&&targetId(row)&&typeof row.title==="string"&&typeof row.catalogItemId==="string"&&UUID_PATTERN.test(row.catalogItemId)))throw new Error("Incomplete club directory");
       const titleCase=(value:unknown)=>String(value??"").trim().toLocaleLowerCase("tr").replace(/^./,c=>c.toLocaleUpperCase("tr"));
-      return NextResponse.json({clubs:directory.data.map(row=>({...row,sport:titleCase(row.sport),division:titleCase(row.division)}))},{headers:CACHE_HEADERS});
+      return NextResponse.json({clubs:directory.data.map(row=>{const normalized={...row,sport:titleCase(row.sport),division:titleCase(row.division)};return request.nextUrl.searchParams.get("compact")==="1"?mobileClubPayload(normalized):normalized})},{headers:CACHE_HEADERS});
     }
     const hierarchy=directory;
     if(hierarchy.error)throw hierarchy.error;
