@@ -176,7 +176,7 @@ test("activity detail consumes the canonical status dictionary", () => {
   assert.match(topicCardModal, /label:"Gerçekleşmedi \/ İptal"[\s\S]{0,120}tone:"red"/);
   assert.match(topicCardModal, /label:"Aktif"[\s\S]{0,100}tone:"green"/);
   assert.match(topicCardModal, /label:"Planlandı"[\s\S]{0,100}tone:"amber"/);
-  assert.match(topicCardModal, /state\.tone==="red"[\s\S]{0,160}border-red-200 bg-red-50/);
+  assert.match(topicCardModal, /<DiscoverIntentCard intent=\{event\.card_payload\}/);
 });
 
 test("malformed or contradictory event projections fail closed", () => {

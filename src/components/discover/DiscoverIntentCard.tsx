@@ -478,15 +478,15 @@ export default function DiscoverIntentCard({
 
   const participantCount = Math.max(
     toNumber(intent.active_participant_count),
-    resolvedActivityPeople.length
+    resolvedActivityPeople.filter(person=>person.userId!==intent.owner_user_id).length
   );
 
   const participants = resolvedActivityPeople.filter(
     (person) => person.userId !== intent.owner_user_id
   );
 
-  const visibleParticipants = participants.slice(0, 2);
-  const hiddenParticipantCount = Math.max(0, participants.length - visibleParticipants.length);
+  const visibleParticipants = participants.slice(0, 4);
+  const hiddenParticipantCount = Math.max(0, participantCount - visibleParticipants.length);
 
   const participantLimit =
     intent.max_participants ===
@@ -654,7 +654,7 @@ export default function DiscoverIntentCard({
     icon={sportPresentation?.icon||"✦"}
     href={detailHref}
     cornerMeta={<span className="flex flex-col items-end gap-1">{intent.plan_id ? <PlanWeatherBadges planId={intent.plan_id} compact/> : <IntentWeatherBadge intentId={intent.intent_id} compact/>}<CardRatingBadge targetId={commonTarget?.id} compact/><span className="rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-black text-violet-800 shadow-sm">{lifecycle.label}</span><span className="rounded-full bg-white/95 px-2.5 py-1 text-[9px] font-bold text-emerald-800 shadow-sm">{intent.visibility==="public"?"Herkese açık":getActivityVisibilityLabel(intent.visibility)}</span></span>}
-    summary={<div className="space-y-1.5"><p>📅 {dateLabel}</p><p className="line-clamp-1">📍 {locationLabel}</p><p className="line-clamp-1">Düzenleyen · {ownerName}</p></div>}
+    summary={<div className="space-y-1.5"><p>📅 {dateLabel}</p><p className="line-clamp-1">📍 {locationLabel}</p><div className="flex flex-wrap items-center justify-between gap-3 pt-1"><div className="flex min-w-0 items-center gap-2" aria-label={`Düzenleyen: ${ownerName}`}><span className="text-xl text-emerald-200" aria-hidden="true">✎</span>{intent.owner_avatar_url?<img src={intent.owner_avatar_url} alt="" className="h-8 w-8 rounded-full object-cover"/>:<span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-900 font-black">{getInitial(ownerName)}</span>}<span className="truncate font-bold">{ownerName}</span></div><div className="flex items-center gap-1" aria-label={`${participantCount} katılımcı`}>{participantCount>0?<><div className="flex -space-x-2">{visibleParticipants.map(person=>person.avatarUrl?<img key={person.userId} src={person.avatarUrl} alt={person.fullName||"Katılımcı"} title={person.fullName||"Katılımcı"} className="h-7 w-7 rounded-full border-2 border-slate-900 object-cover"/>:<span key={person.userId} title={person.fullName||"Katılımcı"} className="grid h-7 w-7 place-items-center rounded-full border-2 border-slate-900 bg-violet-800 text-[10px] font-black">{getInitial(person.fullName)}</span>)}</div>{hiddenParticipantCount>0&&<span className="rounded-full bg-violet-800 px-2 py-1 text-[10px] font-black">+{hiddenParticipantCount}</span>}</>:<span className="text-[10px] text-white/70">Henüz katılımcı yok</span>}</div></div></div>}
     metrics={<div className="grid grid-cols-3 gap-1.5 text-center"><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Katılımcılar</p><b>{participantCount}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Kontenjan</p><b>{participantLimit}</b></div><div className="rounded-xl border border-white/15 bg-white/10 p-2"><p className="text-[9px] text-white/70">Durum</p><b className="text-xs">{lifecycle.label}</b></div></div>}
     action={action}
   />;

@@ -1,3 +1,4 @@
+import {loadTopicEventCards} from '@/utils/topicEventCards';
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createSupabaseClient, isAuthSessionMissingError } from "@supabase/supabase-js";
@@ -222,6 +223,9 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     for(const person of eventPeople.filter(person=>person.resource_id===resourceIds[index]))members.set(String(person.user_id),{...person,role:person.user_id===event.owner_user_id?"owner":"participant"});
     return{...event,viewing_context:clubContext?.events?.find(item=>item.intent_id===event.intent_id)?.context||null,participants:[...members.values()],event_title:typeof event.subtitle==="string"?event.subtitle:null};
   }) as Array<Record<string,unknown>>;
+  let eventCards:Awaited<ReturnType<typeof loadTopicEventCards>>;
+  try{eventCards=await loadTopicEventCards(supabase,enrichedEvents)}catch(problem){console.error('event cards unavailable',problem);return NextResponse.json({error:'Etkinlik kartları yüklenemedi. Lütfen tekrar dene.'},{status:503})}
+  for(const event of enrichedEvents){const payload=eventCards.get(String(event.intent_id));event.card_payload=payload||null;if(payload){event.event_title=payload.event_display_title;event.start_date=payload.start_date;event.end_date=payload.end_date;}}
   const today=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul"}).format(new Date());
   const currentEvents=enrichedEvents.filter(event=>{
     const row=event as Record<string,unknown>;
@@ -265,5 +269,5 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(!Array.isArray(relationsResult.data)||!relationsResult.data.every(cardRelation)||!Array.isArray(activityOptionsResult.data)||!activityOptionsResult.data.every(activityOption))return NextResponse.json({error:"Kart bağlantıları eksik geldi. Lütfen tekrar dene."},{status:503});
   let displayRelations:CardRelation[];
   try{displayRelations=await expandDisplayRelations(relationsResult.data)}catch(problem){console.error("card related works unavailable",problem);return NextResponse.json({error:"Kart bağlantıları yüklenemedi. Lütfen tekrar dene."},{status:503})}
-  return NextResponse.json({...categoryFields,canonicalTargetId:targetId,ownWishTargetId,ownWish,ownIntentDraft,contentType:typeData,placeContext,communityCounts:[Number(card.intent_people_count),Number(card.experience_people_count),Number(card.active_event_count)],card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeData.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata,catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social,relations:relationsResult.data,displayRelations,activityOptions:activityOptionsResult.data,viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents,reviews,ownDetail});
+  return NextResponse.json({...categoryFields,canonicalTargetId:targetId,ownWishTargetId,ownWish,ownIntentDraft,contentType:typeData,placeContext,communityCounts:[Number(card.intent_people_count),Number(card.experience_people_count),Number(card.active_event_count)],card:{...card,title:context.title||card.title,subtitle:visibleSubtitle(typeId,typeData.base_kind)?context.creator_name||card.subtitle:null,cover_url:context.cover_url||card.cover_url,metadata,catalog_item_id:context.catalog_item_id||card.catalog_item_id||null},clubContext:clubResult.data,social,relations:relationsResult.data,displayRelations,activityOptions:activityOptionsResult.data,viewerId,hasOwnPersonalIntent,people:finalPeople,events:enrichedEvents.filter(event=>event.card_payload),reviews,ownDetail});
 }
