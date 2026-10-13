@@ -3,9 +3,12 @@ export const ARTIST_LISTS = [
   {id:"spotify_global_500",label:"Spotify Dünya Top 500 · Aylık dinleyici",limit:500,metric:"monthly"},
   {id:"tr_wrapped_2025",label:"Spotify Türkiye Top 20 · 2025",limit:20,metric:"annual"},
   {id:"tr_groups_wrapped_2025",label:"Spotify Türkiye Gruplar Top 10 · 2025",limit:10,metric:"annual"},
+  {id:"youtube_us_100",label:"YouTube ABD Top 100 · Haftalık dinlenme",limit:100,metric:"weekly"},
+  {id:"youtube_fr_100",label:"YouTube Fransa Top 100 · Haftalık dinlenme",limit:100,metric:"weekly"},
 ] as const;
 export type ArtistListId=(typeof ARTIST_LISTS)[number]["id"];
-export type ArtistStats={monthlyListeners:number|null;globalRank:number|null;asOf:string|null;sourceUrl:string|null;listRanks:Partial<Record<ArtistListId,number>>;listSourceUrl:string|null};
+export type RegionalArtistChart={rank:number;asOf:string;sourceUrl:string;weeklyViews:number;region:string};
+export type ArtistStats={monthlyListeners:number|null;globalRank:number|null;asOf:string|null;sourceUrl:string|null;listRanks:Partial<Record<ArtistListId,number>>;listSourceUrl:string|null;regionalCharts?:Partial<Record<ArtistListId,RegionalArtistChart>>};
 const positive=(value:unknown)=>{if(value==null||value===""||typeof value==="boolean")return null;const n=Number(value);return Number.isSafeInteger(n)&&n>0?n:null};
 const url=(value:unknown)=>typeof value==="string"&&/^https:\/\//.test(value)?value:null;
 export function readArtistMetadata(value:unknown):ArtistStats{
@@ -20,11 +23,20 @@ export function readArtistMetadata(value:unknown):ArtistStats{
   const ranks=raw&&typeof raw==="object"?raw as Record<string,unknown>:{};
   const listRanks:ArtistStats["listRanks"]={};
   if(listSourceUrl)for(const list of ARTIST_LISTS.filter(l=>l.metric==="annual")){const rank=positive(ranks[list.id]);if(rank&&rank<=list.limit)listRanks[list.id]=rank}
-  return {monthlyListeners,globalRank,asOf,sourceUrl,listRanks,listSourceUrl};
+  const regionalCharts:NonNullable<ArtistStats["regionalCharts"]>={};
+  const regional=m.artist_regional_charts??m.regionalCharts;
+  if(regional&&typeof regional==="object")for(const list of ARTIST_LISTS.filter(l=>l.metric==="weekly")){
+    const raw=(regional as Record<string,unknown>)[list.id];if(!raw||typeof raw!=="object")continue;
+    const row=raw as Record<string,unknown>,rank=positive(row.rank),weeklyViews=positive(row.weekly_views??row.weeklyViews),sourceUrl=url(row.source_url??row.sourceUrl),date=row.as_of??row.asOf;
+    const expectedRegion=list.id==='youtube_us_100'?'US':'FR';
+    if(rank&&rank<=list.limit&&weeklyViews&&sourceUrl&&typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&row.region===expectedRegion&&sourceUrl===`https://charts.youtube.com/charts/TopArtists/${expectedRegion.toLowerCase()}/weekly/${date}`)
+      regionalCharts[list.id]={rank,weeklyViews,sourceUrl,asOf:date,region:expectedRegion};
+  }
+  return {monthlyListeners,globalRank,asOf,sourceUrl,listRanks,listSourceUrl,regionalCharts};
 }
 export function artistListRank(stats:ArtistStats|null|undefined,id:ArtistListId):number|null{
   const list=ARTIST_LISTS.find(l=>l.id===id);if(!list||!stats)return null;
-  const rank=list.metric==="monthly"?stats.globalRank:stats.listRanks[id];
+  const rank=list.metric==="monthly"?stats.globalRank:list.metric==="weekly"?stats.regionalCharts?.[id]?.rank:stats.listRanks[id];
   return rank&&rank<=list.limit?rank:null;
 }
 export function artistBadges(stats:ArtistStats|null|undefined):{text:string;description:string;url:string}[]{
@@ -37,5 +49,6 @@ export function artistBadges(stats:ArtistStats|null|undefined):{text:string;desc
     if(stats.globalRank&&stats.globalRank<=100)rows.push({text:`Dünya Top 100 · #${stats.globalRank}`,description:`Aylık dinleyiciye göre dünya sırası · ${date} · Kworb / Spotify`,url:stats.sourceUrl});
   }
   for(const [id,label] of [['tr_wrapped_2025','Türkiye Top 20'],['tr_groups_wrapped_2025','Türkiye Gruplar Top 10']] as const){const rank=stats.listRanks[id];if(rank&&stats.listSourceUrl)rows.push({text:`${label} · #${rank} · 2025`,description:'Spotify Wrapped 2025 · Türkiye’deki dinlenmeler · Rapertuar',url:stats.listSourceUrl})}
+  for(const [id,label] of [['youtube_us_100','ABD'],['youtube_fr_100','Fransa']] as const){const chart=stats.regionalCharts?.[id];if(chart)rows.push({text:`YouTube ${label} · #${chart.rank}`,description:`${label} bölgesindeki haftalık dinlenmeler · ${new Intl.NumberFormat('tr-TR').format(chart.weeklyViews)} · ${chart.asOf.split('-').reverse().join('.')} haftası`,url:chart.sourceUrl})}
   return rows;
 }

@@ -43,3 +43,16 @@ test('the actual library comparator orders chart positions numerically and keeps
  assert.deepEqual(cards.slice().sort((a,b)=>compare(a,b,'artist:spotify_global_100')).map(c=>c.artist_stats.globalRank),[1,2,10]);
  assert.deepEqual(cards.slice().sort((a,b)=>compare(a,b,'wanting')).map(c=>c.intent_people_count),[10,2,1]);
 });
+
+const {readArtistMetadata,artistListRank,artistBadges}=lib;
+
+test('regional ranks require the verified market, date and official artist chart URL',()=>{
+ const row={rank:2,weekly_views:12345,as_of:'2026-10-08',region:'US',source_url:'https://charts.youtube.com/charts/TopArtists/us/weekly/2026-10-08'};
+ const stats=readArtistMetadata({artist_regional_charts:{youtube_us_100:row}});
+ assert.equal(artistListRank(stats,'youtube_us_100'),2);
+ assert.equal(artistListRank(readArtistMetadata(stats),'youtube_us_100'),2);
+ assert.equal(artistListRank(stats,'spotify_global_100'),null);
+ assert.equal(stats.monthlyListeners,null);
+ for(const patch of [{region:'FR'},{rank:101},{weekly_views:null},{source_url:'https://example.com/origin-list'},{as_of:null}])assert.equal(artistListRank(readArtistMetadata({artist_regional_charts:{youtube_us_100:{...row,...patch}}}),'youtube_us_100'),null);
+ assert.match(artistBadges(stats)[0].text,/YouTube ABD/);
+});
