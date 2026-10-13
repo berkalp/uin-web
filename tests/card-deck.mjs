@@ -27,3 +27,19 @@ test('review preview preserves the first sentence and supports multiline and unp
   assert.equal(reviewPreview('Kısa yorum'),'Kısa yorum');assert.equal(reviewPreview('x'.repeat(500)).length,241);
 });
 
+
+test('community dates preserve ranges and precision; missing dates stay explicit',()=>{
+  const {cardDate}=module.exports;
+  assert.match(cardDate('2026-11-03','2026-11-10'),/3.*10/);
+  assert.equal(cardDate(null),'Tarih belirtilmemiş');
+  assert.equal(cardDate('bad'),'Tarih belirtilmemiş');
+  assert.equal(cardDate('2024'),'2024');
+  assert.equal(cardDate('2026-11-01',null,'year'),'2026');
+  assert.match(cardDate('2026-11-01',null,'month'),/Kasım 2026/);
+});
+test('experience dates sort newest first, unknown last, retaining original order on ties',()=>{
+ const {newestReviews}=module.exports;
+ const rows=[{id:'unknown',date:null},{id:'old',date:'2020'},{id:'new',date:'2026-10-13'},{id:'equal',date:'2026-10-13'}];
+ assert.deepEqual(Array.from(newestReviews(rows,row=>row.date),row=>row.id),['new','equal','old','unknown']);
+ assert.equal(rows[0].id,'unknown');
+});

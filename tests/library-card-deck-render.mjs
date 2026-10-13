@@ -21,8 +21,10 @@ test('web main card preserves badges, counts and original planned actions while 
   const props={item,contentTypes:[{id:'place',base_kind:'place',label:'Yer'}],scope:'plans',onOpen:()=>{},onCancel:()=>{}};
   const html=renderToStaticMarkup(React.createElement(Card,props));
   for(const text of ['Bolu','cover.jpg','9 bağlı kart','Gitmek isteyenler','Gidenler','Aktif etkinlikler','Deneyimimi düzenle','Gezi etkinliği','Plan action preserved'])assert.ok(html.includes(text),text);
-  assert.ok(!html.includes('Araba Yolculuğu'));assert.equal(deck.targetId,'bolu');
+  assert.ok(!html.includes('Araba Yolculuğu'));assert.equal(deck.targetId,'bolu');assert.equal(deck.initialPlans,true);
   const actions=renderToStaticMarkup(React.createElement(React.Fragment,null,deck.wantAction,deck.doneAction));assert.ok(actions.includes('Düzenle'));assert.ok(actions.includes('İptal'));assert.ok(actions.includes('Deneyimimi düzenle'));
+  props.scope='wishes';item.personal_start_date=null;
+  const undated=renderToStaticMarkup(React.createElement(Card,props));assert.ok(undated.includes('Tarih belirtilmemiş'));assert.ok(undated.includes('Niyet tarihini düzenle'));assert.ok(!undated.includes('uin-layout-card-preview'));
   item.item_kind='hobby';props.contentTypes=[{id:'learn',base_kind:'hobby',label:'Öğrenme',ui_labels:{want:'Öğrenmek istiyorum',done:'Öğrendim',wanting:'Öğrenmek isteyenler',doers:'Öğrenenler'}}];props.categoryContextId='learn';item.own_common_intent_id=null;item.own_seed_status=null;
   renderToStaticMarkup(React.createElement(Card,props));assert.equal(deck.wanting,'Öğrenmek isteyenler');assert.equal(deck.doers,'Öğrenenler');assert.ok(renderToStaticMarkup(deck.wantAction).includes('Öğrenmek istiyorum'));
 });

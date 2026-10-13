@@ -188,3 +188,33 @@ html[data-uin-card-layout="compact"] .uin-profile-card {
 html[data-uin-card-layout="large"] .uin-profile-card {
   min-height: 170px;
 }
+
+/* Readable topic-card typography, including compact layouts. */
+.uin-layout-card:has(.uin-wish-date),.uin-layout-card:has(.uin-layout-card-panel){font-synthesis:none}
+.uin-layout-card-panel{font-weight:500}
+.uin-layout-card-panel :is(button,h2,h3){font-weight:650!important}
+.uin-layout-card-panel :is(h2,h3){font-size:22px!important;line-height:26px!important}
+.uin-layout-card-actions :is(button,a){font-size:11px!important;line-height:14px!important}
+.uin-layout-card-details button span{font-size:10px!important;line-height:13px!important}
+.uin-layout-card-details button span:nth-child(2){font-size:16px!important;line-height:19px!important}
+html[data-uin-card-layout="square"] .uin-layout-card-panel :is(h2,h3){font-size:18px!important;line-height:22px!important}
+html[data-uin-card-layout="square"] .uin-layout-card-details button span{font-size:9px!important;line-height:12px!important}
+html[data-uin-card-layout="square"] .uin-layout-card-details button span:nth-child(2){font-size:14px!important;line-height:17px!important}
+html[data-uin-card-layout="square"] .uin-layout-card-actions :is(button,a,div){font-size:10px!important;line-height:13px!important}
+html[data-uin-card-layout="compact"] .uin-layout-card-panel :is(h2,h3){font-size:13px!important;line-height:16px!important}
+html[data-uin-card-layout="compact"] .uin-layout-card-details button span{font-size:7px!important;line-height:9px!important}
+html[data-uin-card-layout="compact"] .uin-layout-card-details button span:nth-child(2){font-size:11px!important;line-height:13px!important}
+html[data-uin-card-layout="compact"] .uin-layout-card-actions :is(button,a,div){font-size:8px!important;line-height:10px!important}
+html[data-uin-card-layout="compact"] .uin-wish-date{font-size:9px}
+.uin-deck-proposal>div{min-width:0}
+.uin-deck-proposal>div>button{max-width:108px;padding:6px;font-size:10px;font-weight:600;line-height:13px}
+
+.uin-layout-card-actions :is(button,a){min-width:0;overflow-wrap:anywhere}
+.uin-layout-card{container-type:inline-size}
+@container(max-width:240px){
+ .uin-deck-face{padding:12px 18px}
+ .uin-deck-people-row{padding:6px}
+ .uin-deck-proposal>div>button{max-width:65px;font-size:8px;line-height:10px;padding:4px}
+ .uin-deck-person{font-size:10px;gap:4px}
+ .uin-deck-person :is(img,.rounded-full){width:20px;height:20px}
+}
