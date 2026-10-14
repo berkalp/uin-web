@@ -1,0 +1,169 @@
+{
+  "targets": [
+    {
+      "title": "Coworking Session",
+      "activity": "Coworking Session",
+      "target_id": "c36e96b1-6d90-4dd1-aa13-3a0bd89a3c49",
+      "activity_id": "8cc8e6d8-d4e8-4a7d-8a96-2dde9b7bfb17"
+    },
+    {
+      "title": "Have Dinner Together",
+      "activity": "Have Dinner Together",
+      "target_id": "e2ce53de-f3d9-41b8-bc1a-ab130170da7e",
+      "activity_id": "ae5e47ee-7b88-4fb7-80ba-cd1fe1552a45"
+    },
+    {
+      "title": "Family Picnic",
+      "activity": "Family Picnic",
+      "target_id": "6c0151d9-fd70-4886-80b8-fe353d2a7890",
+      "activity_id": "903ab55b-e701-44b0-ae92-50554e4c696a"
+    },
+    {
+      "title": "City Walk",
+      "activity": "City Walk",
+      "target_id": "2faeaa64-5844-461f-85e4-d109778d2fd0",
+      "activity_id": "ed97331d-742d-4ce9-a1ff-5cc2459d0c85"
+    },
+    {
+      "title": "Road Trip",
+      "activity": "Road Trip",
+      "target_id": "8e8787b7-fbe2-4fa0-a5ec-1338fe913a9f",
+      "activity_id": "7660c370-b9fc-44f1-9993-39ef8c72548d"
+    },
+    {
+      "title": "Design",
+      "activity": "Design",
+      "target_id": "d021e9a2-8deb-4004-a36b-9827887e2d7f",
+      "activity_id": "f1ef206c-b0a2-4ab8-b68c-24b5fe68bd3b"
+    },
+    {
+      "title": "Meet New People",
+      "activity": "Meet New People",
+      "target_id": "25967caa-fdc7-4ca2-ac11-34864d5a6a82",
+      "activity_id": "8eed447e-5fe8-4d54-b741-1de46bcf5649"
+    },
+    {
+      "title": "Brainstorming Session",
+      "activity": "Brainstorming Session",
+      "target_id": "5a9f28d4-3463-4d0a-b320-a139f67f1e13",
+      "activity_id": "4a5dc360-2a10-4d40-9091-14d4ca7d3d56"
+    },
+    {
+      "title": "Konser",
+      "activity": "Concert",
+      "target_id": "c38d8d5e-7ec7-4af7-a06a-fb83b52e7c5c",
+      "activity_id": "bab0b326-6467-48fe-85e5-3ae377b58eb0"
+    },
+    {
+      "title": "Explore the City Together",
+      "activity": "Explore the City Together",
+      "target_id": "562a7fd7-a25a-45da-9965-4141a1d74069",
+      "activity_id": "18db5e7b-c230-419e-bc53-51efe3845122"
+    },
+    {
+      "title": "Day Trip",
+      "activity": "Day Trip",
+      "target_id": "6c1c3a98-81e6-40a0-beed-c4507833d8c7",
+      "activity_id": "f22c61c1-63cf-4710-b87c-a08ae73114c3"
+    },
+    {
+      "title": "Camping",
+      "activity": "Camping",
+      "target_id": "bc44edd9-1d6b-4f93-bef0-438e17c4612c",
+      "activity_id": "1f0b5340-79ba-4d79-9188-ca950c24d641"
+    },
+    {
+      "title": "Food Tour",
+      "activity": "Food Tour",
+      "target_id": "1e14decc-d965-456d-b4d2-88be5f2546ab",
+      "activity_id": "b373b78b-2a01-46b1-98a4-bfaf686bbe5c"
+    },
+    {
+      "title": "Watch a Sports Broadcast Together",
+      "activity": "Watch a Sports Broadcast Together",
+      "target_id": "92c76eb9-df02-4444-9b36-3f8c4335a6fe",
+      "activity_id": "7165c556-be92-42b2-9772-e2944c3d79b8"
+    },
+    {
+      "title": "Festival",
+      "activity": "Festival",
+      "target_id": "881513d3-3360-4a3f-9021-5537da72cc78",
+      "activity_id": "c2384a7e-99d4-436a-9d52-5ce0f467d7b7"
+    },
+    {
+      "title": "Technology Learning",
+      "activity": "Technology Learning",
+      "target_id": "00c99ea3-4af0-4b37-a9ca-358fd26abeb7",
+      "activity_id": "ca3df832-5a38-497a-9006-4722506ef189"
+    },
+    {
+      "title": "Ev Buluşması",
+      "activity": "Host a House Gathering",
+      "target_id": "1398034c-4c9f-48e9-b810-27d05daed5a0",
+      "activity_id": "8c90a97d-69c0-4f58-be07-a7d453301fc9"
+    },
+    {
+      "title": "Forest Walk",
+      "activity": "Forest Walk",
+      "target_id": "7cf70e7d-5b50-43c7-9f62-be6c35e1cb32",
+      "activity_id": "37fbd22d-794a-4b5b-8a71-43aa478e85c5"
+    },
+    {
+      "title": "Dinner Meetup",
+      "activity": "Dinner Meetup",
+      "target_id": "f6e5fdb3-2b2c-476d-89dd-5b4e94ae1f27",
+      "activity_id": "7fc26eea-fd6d-41e1-8537-f71145209d2e"
+    },
+    {
+      "title": "Rowing",
+      "activity": "Rowing",
+      "target_id": "8f9c98e6-44a2-4dc2-84bc-4c80cb945dfa",
+      "activity_id": "c842924a-b9b3-414c-b5bb-3181c3d6298c"
+    },
+    {
+      "title": "Video Oyunu Buluşması",
+      "activity": "Video Gaming Meetup",
+      "target_id": "85186b5c-5956-4a5c-b93c-9fc33f686a0b",
+      "activity_id": "f283c1f7-0b04-4615-8459-30234a3c9537"
+    },
+    {
+      "title": "Photography Walk",
+      "activity": "Photography Walk",
+      "target_id": "e755649c-6e7c-479a-a254-31d130e3fe38",
+      "activity_id": "af197565-ec03-40c3-85ef-f3178fd6e2c0"
+    },
+    {
+      "title": "Cultural Trip",
+      "activity": "Cultural Trip",
+      "target_id": "150ac01b-9867-4ff6-b64e-327d06fe20dc",
+      "activity_id": "f4803f7c-b09e-4dfa-9093-bda3c651f569"
+    },
+    {
+      "title": "Sing Karaoke",
+      "activity": "Sing Karaoke",
+      "target_id": "aff81c03-c40b-4c48-9257-c4bdff27a97f",
+      "activity_id": "8a2862e7-c176-416f-a75c-6cbbee7eae62"
+    },
+    {
+      "title": "Bicycle Tour",
+      "activity": "Bicycle Tour",
+      "target_id": "6f6cc2e3-c606-4da1-beca-b122d08fb126",
+      "activity_id": "f1a0483c-8966-4d1b-b2c8-8c6896d39c2d"
+    },
+    {
+      "title": "Beach Trip",
+      "activity": "Beach Trip",
+      "target_id": "626f0c72-6416-45cc-8792-0d651080741e",
+      "activity_id": "78cabd1a-2241-4e3b-9aa6-4c719ebc7f3d"
+    },
+    {
+      "title": "Nature Trip",
+      "activity": "Nature Trip",
+      "target_id": "0c15f411-afe9-4638-b579-2500d478060a",
+      "activity_id": "91e2272d-a22a-46c0-abbc-fbb68f973b50"
+    }
+  ],
+  "card_links": 102,
+  "type_links": 2,
+  "type_category_links": 0
+}
