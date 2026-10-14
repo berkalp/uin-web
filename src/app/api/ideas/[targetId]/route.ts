@@ -43,10 +43,6 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(canonicalResult.data!==null&&canonicalResult.data!==undefined&&(typeof canonicalResult.data!=="string"||!/^[0-9a-f-]{36}$/i.test(canonicalResult.data)))return NextResponse.json({error:"Kart kimliği eksik geldi. Lütfen tekrar dene."},{status:503});
   const targetId=typeof canonicalResult.data==="string"&&/^[0-9a-f-]{36}$/i.test(canonicalResult.data)?canonicalResult.data:requestedTargetId;
   const membershipPromise=supabase.rpc("get_uin_card_content_types_v177",{p_target_ids:[targetId]});
-  const membership=await membershipPromise;
-  if(membership.error||!Array.isArray(membership.data))return NextResponse.json({error:"Kart kategorileri yüklenemedi."},{status:503});
-  const membershipRow=membership.data[0] as {content_type_ids?:string[];content_types?:unknown[]}|undefined;
-  const categoryFields={contentTypeIds:membershipRow?.content_type_ids||[],contentTypes:membershipRow?.content_types||[]};
   async function expandDisplayRelations(value:unknown){
     const direct=(Array.isArray(value)?value:[]) as CardRelation[];
     if(!direct.every(row=>cardRelation(row)&&row.target_id===targetId))throw new Error("Kart bağlantıları eksik döndü.");
@@ -66,7 +62,10 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   if(request.nextUrl.searchParams.get("summary")==="1"){
     // Social already contains the authoritative rating projection. Read it once
     // and validate the complete row before reusing its rating fields.
-    const [profile,summary,social,relations]=await Promise.all([supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v129",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]})]);
+    const [membership,profile,summary,social,relations]=await Promise.all([membershipPromise,supabase.rpc("get_uin_card_profile_v60",{p_target_id:targetId}),supabase.rpc("get_uin_card_summary_v129",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_social_v87",{p_target_ids:[targetId]}),supabase.rpc("get_uin_card_relations_v87",{p_target_ids:[targetId]})]);
+    if(membership.error||!Array.isArray(membership.data))return NextResponse.json({error:"Kart kategorileri yüklenemedi."},{status:503});
+    const membershipRow=membership.data[0] as {content_type_ids?:string[];content_types?:unknown[]}|undefined;
+    const categoryFields={contentTypeIds:membershipRow?.content_type_ids||[],contentTypes:membershipRow?.content_types||[]};
     const row=profile.data as {title?:string;creator_name?:string;cover_url?:string;catalog_item_id?:string;metadata?:Record<string,unknown>}|null;
     if(profile.error||summary.error||social.error||relations.error){
       console.error("card summary unavailable",{profile:profile.error,summary:summary.error,social:social.error,relations:relations.error});
@@ -97,7 +96,8 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   // The v81 readers follow the full card hierarchy (including legacy aliases),
   // so every modal uses the same descendant set as the catalogue summary.
   const identityTargetIds=[targetId];
-  const [cardResult,contextResult,hierarchyResult,authResult]=await Promise.all([
+  const [membership,cardResult,contextResult,hierarchyResult,authResult]=await Promise.all([
+    membershipPromise,
     // The catalogue projection is the canonical card read model. Besides being
     // substantially faster than the legacy direct-only reader, it carries the
     // same hierarchy totals that are rendered on the Library card.
@@ -106,6 +106,9 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
     supabase.rpc("get_place_hierarchy_v74",{p_target_ids:[targetId]}),
     supabase.auth.getUser(),
   ]);
+  if(membership.error||!Array.isArray(membership.data))return NextResponse.json({error:"Kart kategorileri yüklenemedi."},{status:503});
+  const membershipRow=membership.data[0] as {content_type_ids?:string[];content_types?:unknown[]}|undefined;
+  const categoryFields={contentTypeIds:membershipRow?.content_type_ids||[],contentTypes:membershipRow?.content_types||[]};
   if(cardResult.error||contextResult.error){
     console.error("card detail header unavailable",{card:cardResult.error,context:contextResult.error});
     return NextResponse.json({error:"Kart ayrıntıları yüklenemedi. Lütfen tekrar dene."},{status:503});
@@ -126,6 +129,9 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   }
   const card=commonCard;
   const viewerId=authResult.data.user?.id||null;
+  const ownSeedId=typeof card.own_seed_id==="string"?card.own_seed_id:null;
+  const ownDetailPromise=ownSeedId?Promise.resolve(supabase.rpc("get_visible_seed_detail",{p_seed_id:ownSeedId})):Promise.resolve(null);
+
   if(!optionalRecord(card.metadata)||!optionalRecord(context.metadata))return NextResponse.json({error:"Kart meta verileri eksik geldi. Lütfen tekrar dene."},{status:503});
   const metadata={...(record(card.metadata)?card.metadata:{}),...(record(context.metadata)?context.metadata:{})} as Record<string,unknown>;
   let typeId=typeof card.content_type_id==="string"?card.content_type_id:typeof metadata.content_type_id==="string"?metadata.content_type_id:"";
@@ -198,6 +204,10 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   async function allPeople(group:string,firstPages:typeof peopleResults){const rows:Array<Record<string,unknown>>=[];for(let index=0;index<identityTargetIds.length;index++){const initial=firstPages[index].data;if(!Array.isArray(initial)||!initial.every(cardPerson))throw new Error("Kartın kişi listesi eksik döndü.");const pageRows=[...initial];const total=pageRows.length===0?0:finiteMetric(pageRows[0].total_count,{integer:true})?Number(pageRows[0].total_count):-1;if(total<pageRows.length)throw new Error("Kartın kişi toplamı eksik döndü.");while(pageRows.length<total){const page=await supabase.rpc("get_uin_card_people_v81",{p_target_id:identityTargetIds[index],p_group:group,p_limit:100,p_offset:pageRows.length});if(page.error)throw new Error(page.error.message);if(!Array.isArray(page.data)||!page.data.every(cardPerson)||!page.data.length)throw new Error("Kartın kişi listesi eksik döndü.");pageRows.push(...page.data)}rows.push(...pageRows)}return [...new Map(rows.map(row=>[String(row.user_id),row])).values()]}
   let wantRows:Array<Record<string,unknown>>,doneRows:Array<Record<string,unknown>>;
   try{[wantRows,doneRows]=await Promise.all([allPeople("intent",peopleResults),allPeople("experience",reviewResults)])}catch(problem){console.error("card people pagination incomplete",problem);return NextResponse.json({error:"Kartın kişi listeleri eksik geldi. Lütfen tekrar dene."},{status:503})}
+  const events=[...new Map(eventResults.flatMap(result=>(result.data||[]) as Array<Record<string,unknown>>).map(event=>[String(event.resource_id||event.plan_id||event.intent_id),event])).values()];
+  if(events.some(event=>typeof (event.plan_id||event.intent_id)!=="string"||!String(event.plan_id||event.intent_id).trim()))return NextResponse.json({error:"Etkinlik bağlantıları eksik geldi. Lütfen tekrar dene."},{status:503});
+  const resourceIds=events.map(event=>String(event.plan_id||event.intent_id));
+  const eventPeoplePromise=resourceIds.length?Promise.resolve(supabase.rpc("get_visible_activity_people_batch",{p_resource_ids:resourceIds})):{data:[],error:null};
   const permissionRequests=viewerId?[...new Map(wantRows.filter(row=>row.user_id!==viewerId&&["personal","seed"].includes(String(row.source_kind||""))).map(row=>{const sourceTarget=String(row.source_target_id||targetId);const recipient=String(row.user_id);return[`${sourceTarget}:${recipient}`,{target_id:sourceTarget,recipient_id:recipient}]})).values()]:[];
   const permissionResult=permissionRequests.length?await supabase.rpc("get_uin_together_permissions_v83",{p_requests:permissionRequests}):{data:[],error:null};
   if(permissionResult.error||!Array.isArray(permissionResult.data)||!permissionResult.data.every(permissionRow))return NextResponse.json({error:"Birlikte yapma izinleri yüklenemedi."},{status:503});
@@ -209,10 +219,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const clubContext=clubResult.data as {personal?:Array<{user_id:string;context:object}>;events?:Array<{intent_id:string;context:object}>}|null;
   if(clubContext&&((clubContext.personal!==undefined&&(!Array.isArray(clubContext.personal)||!clubContext.personal.every(record)))||(clubContext.events!==undefined&&(!Array.isArray(clubContext.events)||!clubContext.events.every(record)))))return NextResponse.json({error:"Kart bağlamı eksik geldi. Lütfen tekrar dene."},{status:503});
   const people:Array<Record<string,unknown>>=wantRows.map(row=>{const sourceTarget=String(row.source_target_id||targetId);const permission=permissions.get(`${sourceTarget}:${row.user_id}`);const rowId=row.source_kind==="social"?`${String(row.source_id||sourceTarget)}:${String(row.user_id)}`:row.source_id||row.user_id;return{...row,has_completed_experience:doneRows.some(done=>done.user_id===row.user_id),viewing_context:clubContext?.personal?.find(person=>person.user_id===row.user_id)?.context||metadata.legacy_viewing_context||null,is_current:true,id:rowId,start_date:row.start_date??row.target_date,end_date:row.end_date??row.target_date,together_allowed:Boolean(permission?.allowed),together_reason:typeof permission?.reason==="string"?permission.reason:null,together_code:typeof permission?.code==="string"?permission.code:null}});
-  const events=[...new Map(eventResults.flatMap(result=>(result.data||[]) as Array<Record<string,unknown>>).map(event=>[String(event.resource_id||event.plan_id||event.intent_id),event])).values()];
-  if(events.some(event=>typeof (event.plan_id||event.intent_id)!=="string"||!String(event.plan_id||event.intent_id).trim()))return NextResponse.json({error:"Etkinlik bağlantıları eksik geldi. Lütfen tekrar dene."},{status:503});
-  const resourceIds=events.map(event=>String(event.plan_id||event.intent_id));
-  const eventPeopleResult=resourceIds.length?await supabase.rpc("get_visible_activity_people_batch",{p_resource_ids:resourceIds}):{data:[],error:null};
+  const eventPeopleResult=await eventPeoplePromise;
   if(eventPeopleResult.error||!Array.isArray(eventPeopleResult.data)||!eventPeopleResult.data.every(record))return NextResponse.json({error:"Etkinlik katılımcıları yüklenemedi."},{status:503});
   const eventPeople=eventPeopleResult.data as Array<Record<string,unknown>>;
   if(events.some(event=>event.participants!==null&&event.participants!==undefined&&(!Array.isArray(event.participants)||!event.participants.every(record))))return NextResponse.json({error:"Etkinlik katılımcıları eksik geldi. Lütfen tekrar dene."},{status:503});
@@ -251,8 +258,7 @@ export async function GET(request:NextRequest,{params}:{params:Promise<{targetId
   const hasOwnPersonalIntent=ownRow?.status==="active"||Boolean(ownPerson);
   const ownPersonSourceTargetId=ownPerson?.source_target_id;
   const ownWishTargetId=ownRow?.status==="active"?targetId:ownPerson&&typeof ownPersonSourceTargetId==="string"&&/^[0-9a-f-]{36}$/i.test(ownPersonSourceTargetId)?ownPersonSourceTargetId:ownPerson?targetId:null;
-  const ownSeedId=typeof card.own_seed_id==="string"?card.own_seed_id:null;
-  const ownDetailResult=ownSeedId?await supabase.rpc("get_visible_seed_detail",{p_seed_id:ownSeedId}):null;
+  const ownDetailResult=await ownDetailPromise;
   if(ownDetailResult?.error)return NextResponse.json({error:"Kişisel kart ayrıntın yüklenemedi. Lütfen tekrar dene."},{status:503});
   const ownDetail=ownDetailResult?parseSeedDetailData(ownDetailResult.data):null;
   if(ownDetailResult&&!ownDetail)return NextResponse.json({error:"Kişisel kart ayrıntın eksik geldi. Lütfen tekrar dene."},{status:503});
