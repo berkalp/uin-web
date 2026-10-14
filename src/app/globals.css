@@ -218,3 +218,6 @@ html[data-uin-card-layout="compact"] .uin-wish-date{font-size:9px}
  .uin-deck-person{font-size:10px;gap:4px}
  .uin-deck-person :is(img,.rounded-full){width:20px;height:20px}
 }
+
+.uin-deck-own-actions>.uin-deck-small-action{flex:1;min-width:0;padding:4px 2px;font-size:10px}
+@container(max-width:240px){.uin-deck-own-actions{width:65px}.uin-deck-own-actions>.uin-deck-small-action{font-size:8px}.uin-deck-small-action{max-width:90px;font-size:9px}}
