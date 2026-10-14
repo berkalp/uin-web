@@ -7,7 +7,7 @@ const client = readFileSync("src/components/ideas/InlineTopicSearch.tsx", "utf8"
 test("personal catalogue scopes follow the local browser session", () => {
   assert.match(client, /supabase\.auth\.getSession\(\)/);
   assert.match(client, /supabase\.auth\.onAuthStateChange/);
-  assert.match(client, /const scope:LibraryScope=viewerId&&!addingOnly\?storedScope:"library"/);
+  assert.match(client, /const scope:LibraryScope=viewerId&&!addingOnly\?\(section==='library'&&audience!=='everyone'\?'wishes':section\):'library'/);
   assert.match(client, /const scopeOptions=viewerId&&!addingOnly\?/);
 
   const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");
@@ -26,7 +26,7 @@ test("personal catalogue scopes follow the local browser session", () => {
 
 test("personal counts expose unknown and error states without discarding good data", () => {
   assert.match(client, /useState<ScopeData\|null>\(null\)/);
-  assert.match(client, /id!=="library"&&!scopeData\?\(scopeLoading\?"…":"—"\):scopeCount\(id\)/);
+  assert.match(client, /scope!=="library"&&!scopeData\?\(scopeLoading\?"…":"—"\):scopeCount\(scope\)/);
   assert.match(client, /const personalCardsPending=[^;]*\(!scopeData\|\|!personalCardsReady\)/);
 
   const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");
@@ -45,14 +45,14 @@ test("personal counts expose unknown and error states without discarding good da
 
 test("personal card readiness belongs to the requested scope and kind", () => {
   assert.match(client, /const \[scopeDataKey,setScopeDataKey\]=useState<string\|null>\(null\)/);
-  assert.match(client, /const requestedPersonalCardKey=scope!=="library"&&!categoryLanding\?`\$\{scope\}:\$\{kind\}`:null/);
+  assert.match(client, /const requestedPersonalCardKey=scope!=="library"&&!categoryLanding\?`\$\{audience\}:\$\{scope\}:\$\{kind\}`:null/);
   assert.match(client, /scopeDataKey===requestedPersonalCardKey/);
 
   const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");
   const fetchEnd = client.indexOf("useEffect(()=>{if(addingOnly||viewerId!==null)return;", fetchStart);
   assert.ok(fetchStart >= 0 && fetchEnd > fetchStart, "personal fetch effect must stay identifiable");
   const personalFetch = client.slice(fetchStart, fetchEnd);
-  assert.match(personalFetch, /const requestCardKey=includeCards\?`\$\{scope\}:\$\{kind\}`:null/);
+  assert.match(personalFetch, /const requestCardKey=includeCards\?`\$\{audience\}:\$\{scope\}:\$\{kind\}`:null/);
   assert.match(personalFetch, /setScopeData\(body\);setScopeDataKey\(requestCardKey\)/);
   assert.doesNotMatch(
     personalFetch.slice(personalFetch.indexOf("catch(cause)")),

@@ -135,7 +135,7 @@ test("unresolved category counts render as loading or unavailable, never fake ze
   const source = read("src/components/ideas/InlineTopicSearch.tsx");
 
   assert.match(source, /categoryCountsLoading/);
-  assert.match(source, /id==="library"&&!hasCategoryCounts\?\(categoryCountsLoading\?"…":"—"\)/);
+  assert.match(source, /scope==="library"&&!hasCategoryCounts\?\(categoryCountsLoading\?"…":"—"\)/);
   assert.match(source, /hasScopeCounts\?categoryTotal:scopeCountsLoading\?"…":"—"/);
   assert.match(source, /hasScopeCounts\?count:scopeCountsLoading\?"…":"—"/);
 });

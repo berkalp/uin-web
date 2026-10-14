@@ -1,3 +1,5 @@
+import {createClient as createSupabaseClient} from "@supabase/supabase-js";
+import type {AudienceRow} from "@/utils/libraryAudience";
 import {readArtistMetadata} from "@/utils/artistListMetadata";
 import {boundedTargetProjection} from "@/utils/boundedTargetProjection";
 import { NextRequest, NextResponse } from "next/server";
@@ -10,26 +12,32 @@ type ResolvedRow = { requested_id?: string | null; resolved_id?: string | null; 
 type Row = Record<string, unknown>;
 
 export async function GET(request: NextRequest) {
-  const db = await createClient();
+  const token=(request.headers.get("authorization")||"").match(/^Bearer\s+(.+)$/i)?.[1];
+  const db = token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):await createClient();
+  const audience=request.nextUrl.searchParams.get('audience')||'me';
+  if(!['me','friends','everyone'].includes(audience))return NextResponse.json({error:'Geçersiz kapsam.'},{status:400});
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: "Oturum gerekli." }, { status: 401 });
-  const [seeds, presentations, personal, planTopics] = await Promise.all([
+  const [seeds, presentations, personal, planTopics, audienceResult] = await Promise.all([
     db.rpc("get_my_canonical_seeds_v31", { p_status: null }),
     db.rpc("get_my_uin_seed_presentations_v70"),
     db.rpc("get_my_uin_personal_cards_v57"),
     db.rpc("get_my_uin_active_plan_topics_v153"),
+    audience==='me'?Promise.resolve({data:[],error:null}):db.rpc("get_uin_library_audience_v20261014",{p_audience:audience}),
   ]);
-  const failed = [seeds, presentations, personal, planTopics].find((result) => result.error);
+  const failed = [seeds, presentations, personal, planTopics, audienceResult].find((result) => result.error);
   if (failed?.error) {
     console.error("personal scope sources unavailable", failed.error);
     return NextResponse.json({ error: "Kişisel kart kapsamları yüklenemedi." }, { status: 503 });
   }
+  const audienceRows=(audienceResult.data??[]) as AudienceRow[];
   const seedRows = (seeds.data ?? []) as SeedRow[];
   const presentationRows = (presentations.data ?? []) as Array<{ seed_id?: string | null; type_id?: string | null; start_date?:string|null; end_date?:string|null; location?:string|null }>;
   const personalRows = (personal.data ?? []) as PersonalRow[];
   const planTopicRows = (planTopics.data ?? []) as PlanTopicRow[];
   const unique = (values: Array<string | null | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value)))];
   const rawTargetIds = unique([
+    ...audienceRows.map(row=>row.target_id),
     ...seedRows.map((row) => row.canonical_target_id),
     ...personalRows.map((row) => row.target_id),
     ...planTopicRows.map((row) => row.target_id),
@@ -78,9 +86,9 @@ export async function GET(request: NextRequest) {
 
   // Personal membership stays direct. Tree propagation belongs to community
   // summary metrics and must never make an ancestor look like the user's wish.
-  const wishes = unique([...activeSeeds.map((row) => row.resolved_target_id), ...canonicalPersonalRows.map((row) => row.resolved_target_id)]);
-  const planTargets = unique(plansByTarget.map((row) => row.resolved_target_id));
-  const experiences = unique(completedSeeds.map((row) => row.resolved_target_id));
+  const wishes = audience!=="me"?audienceRows.filter(row=>row.scope==="wishes").map(row=>row.target_id):unique([...activeSeeds.map((row) => row.resolved_target_id), ...canonicalPersonalRows.map((row) => row.resolved_target_id)]);
+  const planTargets = audience!=="me"?audienceRows.filter(row=>row.scope==="plans").map(row=>row.target_id):unique(plansByTarget.map((row) => row.resolved_target_id));
+  const experiences = audience!=="me"?audienceRows.filter(row=>row.scope==="experiences").map(row=>row.target_id):unique(completedSeeds.map((row) => row.resolved_target_id));
   const includeCards = request.nextUrl.searchParams.get("cards") === "1";
   const requestedScope = request.nextUrl.searchParams.get("scope");
   const selectedScope = requestedScope === "plans" || requestedScope === "experiences" ? requestedScope : "wishes";
@@ -102,7 +110,7 @@ export async function GET(request: NextRequest) {
     experiences: countTypes(experiences),
   };
   if (!includeCards) {
-    return NextResponse.json({ wishes, plans: planTargets, experiences, catalogue: [], counts }, { headers: { "Cache-Control": "private, no-store" } });
+    return NextResponse.json({ audience, audienceRows, wishes, plans: planTargets, experiences, catalogue: [], counts }, { headers: { "Cache-Control": "private, no-store" } });
   }
   let cardsResult = targetIds.length
     ? await db.rpc("get_uin_catalogue_for_targets_v123", { p_target_ids: targetIds })
@@ -165,5 +173,5 @@ export async function GET(request: NextRequest) {
     const personalWish=personalByTarget.get(id); const seedWish=ownSeed?.seed_id?presentationBySeed.get(ownSeed.seed_id):undefined; const planPreview=planPreviewByTarget.get(id);
     return { ...card, artist_stats:readArtistMetadata(item?.metadata), created_at:ownSeed?.created_at??card.created_at??null,personal_rating:completedSeedByTarget.get(id)?.personal_rating??null,personal_experience_date:(()=>{const seed=completedSeedByTarget.get(id);return seed?.experience_precision==='year'&&seed.experience_year?String(seed.experience_year)+'-01-01':seed?.experience_precision==='unknown'?null:seed?.experience_date??null})(),canonical_target_id: id, content_type_ids:categoriesByTarget.get(id)||[typeByResolved.get(id)!],personal_content_type_id:personalWish?.type_id||null,catalog_item_id: item?.id || card.catalog_item_id || null, title: card.title || item?.canonical_title || "Kart", subtitle: card.subtitle || item?.creator_name || null, item_kind: item?.item_kind || card.item_kind || typeByTarget.get(id) || "activity", content_type_id: String(card.content_type_id || (item?.metadata as Row | undefined)?.content_type_id || typeByTarget.get(id) || "activity"), catalog_cover_url: card.catalog_cover_url || card.cover_url || item?.cover_url || null, cover_position_y: covers.get(id) ?? 50, own_seed_id: ownSeed?.seed_id || card.own_seed_id || null, own_seed_status: ownSeed?.status || null, own_common_intent_id: personalWish?.id || null, personal_start_date: personalWish?.start_date||seedWish?.start_date||null, personal_end_date: personalWish?.end_date||seedWish?.end_date||null, personal_location: personalWish?.location||seedWish?.location||null, personal_event: planPreview?{resource_id:planPreview.resource_id,intent_id:planPreview.intent_id,plan_id:planPreview.plan_id,title:planPreview.event_title,start_date:planPreview.start_date,end_date:planPreview.end_date,location:planPreview.location,organizer_name:planPreview.organizer_name,organizer_avatar_url:planPreview.organizer_avatar_url,viewer_role:planPreview.viewer_role,count:Number(planPreview.personal_event_count||1)}:null, intent_people_count: Number(card.intent_people_count), experience_people_count: Number(card.experience_people_count), active_event_count: Number(card.active_event_count ?? card.social_intent_count), completed_event_count: Number(card.completed_event_count), expired_event_count: Number(card.expired_event_count), cancelled_event_count: Number(card.cancelled_event_count), average_rating: rating?.average_rating == null ? null : Number(rating.average_rating), rating_count: Number(rating?.rating_count || 0), follower_count: Number(stats?.follower_count || 0), related_count: Number(stats?.related_count || 0), parent_target_id: tree?.parent_target_id || null, hierarchy_sort_order: Number(tree?.sort_order || 0), hierarchy_section_title: tree?.section_title || null, hierarchy_depth: Number(tree?.depth || 0), child_count: Number(card.child_count) };
   });
-  return NextResponse.json({ wishes, plans: planTargets, experiences, catalogue, counts }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ audience, audienceRows, wishes, plans: planTargets, experiences, catalogue, counts }, { headers: { "Cache-Control": "private, no-store" } });
 }
