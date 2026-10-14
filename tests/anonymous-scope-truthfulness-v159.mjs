@@ -26,7 +26,8 @@ test("personal catalogue scopes follow the local browser session", () => {
 
 test("personal counts expose unknown and error states without discarding good data", () => {
   assert.match(client, /useState<ScopeData\|null>\(null\)/);
-  assert.match(client, /scope!=="library"&&!scopeData\?\(scopeLoading\?"…":"—"\):scopeCount\(scope\)/);
+  assert.match(client, /if\(!snapshot\)return '…'/);
+  assert.match(client, /if\(snapshot.error\|\|!snapshot.data\)return '—'/);
   assert.match(client, /const personalCardsPending=[^;]*\(!scopeData\|\|!personalCardsReady\)/);
 
   const fetchStart = client.indexOf("useEffect(()=>{if(addingOnly||!viewerId)return;");

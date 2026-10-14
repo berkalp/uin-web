@@ -736,7 +736,7 @@ export default async function DiscoverPage({
   }
   const viewerId = user.id;
 
-  function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string) {
+  function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string, scopeOverride?: string) {
     const requestedLifecycle = lifecycleOverride ?? lifecycle;
     if (communityId) {
       return supabase.rpc("search_visible_intents_by_community", {
@@ -749,7 +749,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: scope,
+        p_scope: scopeOverride ?? scope,
         p_limit: limit,
         p_offset: offset,
       });
@@ -765,7 +765,7 @@ export default async function DiscoverPage({
         p_start_date: startDate || null,
         p_end_date: endDate || null,
         p_lifecycle: requestedLifecycle,
-        p_scope: scope,
+        p_scope: scopeOverride ?? scope,
         p_limit: limit,
         p_offset: offset,
       });
@@ -780,7 +780,7 @@ export default async function DiscoverPage({
       p_start_date: startDate || null,
       p_end_date: endDate || null,
       p_lifecycle: requestedLifecycle,
-      p_scope: scope,
+      p_scope: scopeOverride ?? scope,
       p_limit: limit,
       p_offset: offset,
     });
@@ -792,6 +792,7 @@ export default async function DiscoverPage({
     followedCommunityResponse,
     searchResponse,
     archiveResponse,
+    tabCountResponses,
   ] =
     await Promise.all([
       supabase.rpc(
@@ -806,6 +807,7 @@ export default async function DiscoverPage({
       view === "cards"
         ? runDiscoverSearch(80, 0, "history")
         : Promise.resolve({ data: [], error: null }),
+      Promise.all((["all","mine","joined","invited"] as const).map(async tabScope=>({scope:tabScope,response:await runDiscoverSearch(1,0,undefined,tabScope)}))),
     ]);
 
   const rawFilterPayload = filterResponse.data as unknown;
@@ -1198,12 +1200,10 @@ export default async function DiscoverPage({
     : rawSearchExhausted && !eligibilityScanError
       ? matchingResults.length
       : null;
-  const scopeCounts = {
-    all: scope === "all" ? selectedScopeTotal : null,
-    mine: scope === "mine" ? selectedScopeTotal : null,
-    joined: scope === "joined" ? selectedScopeTotal : null,
-    invited: scope === "invited" ? selectedScopeTotal : null,
-  };
+  const scopeCounts:Record<string,number|null> = Object.fromEntries(tabCountResponses.map(({scope:tabScope,response})=>{
+    const error=getRowsetReadError(response.data,response.error,"Etkinlik sayıları");
+    return [tabScope,error?null:response.data.length===0?0:toKnownCount(response.data[0]?.total_count)];
+  }));
 
   const commonTargetIntentIds = Array.from(
     new Set([
@@ -1897,16 +1897,11 @@ export default async function DiscoverPage({
           mapBatchError) && (
           <section className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-5">
             <p className="font-semibold text-red-800">
-              Intent discovery could not
-              be loaded.
+              Etkinlikler şu anda yüklenemedi.
             </p>
 
             <p className="mt-2 text-sm text-red-700">
-              {searchReadError?.message ??
-                eligibilityScanError?.message ??
-                discoverEnrichmentError?.message ??
-                mapBatchError?.message ??
-                filterReadError?.message}
+              Bağlantıyı kontrol edip yeniden deneyebilirsin. Kayıtların korunuyor.
             </p>
           </section>
         )}
@@ -1983,7 +1978,7 @@ export default async function DiscoverPage({
                   communityScope ===
                     "following" && (
                   <div className="mt-3 inline-flex rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800">
-                    Following Communities
+                    Takip ettiğim topluluklar
                   </div>
                 )}
 
@@ -2228,11 +2223,11 @@ export default async function DiscoverPage({
             ) : (
               <section className="mt-5 rounded-3xl border border-gray-200 bg-white p-10 text-center shadow-sm">
                 <h2 className="text-xl font-bold text-gray-950">
-                  Etkinlik bulunamadı
+                  {scope === "joined" ? "Yeni bir deneyime ne dersin? 🌿" : scope === "mine" ? "İlk etkinliğini birlikte planlayalım 🌱" : scope === "invited" ? "Yeni buluşmalara yer aç 😊" : "Birlikte yapacak güzel şeyler var 🌼"}
                 </h2>
 
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-gray-500">
-                  Etkinlik, aşama, sahiplik, konum veya tarih filtrelerini genişlet. Özel kayıtları yalnızca sahipleri ve izin verilen katılımcılar görebilir.
+                  {query || categoryId || activityId || sportId || locationId || startDate || endDate ? "Seçtiğin filtrelere uygun etkinlik yok. Filtreleri değiştirerek yeni buluşmalar keşfedebilirsin." : scope === "joined" ? "Henüz katıldığın aktif bir etkinlik bulunmuyor. Keşfet alanından ilgini çeken bir etkinlik bulabilir ve katılabilirsin." : scope === "mine" ? "Henüz düzenlediğin aktif bir etkinlik yok. Kütüphaneden bir kart seçip insanları bir araya getirebilirsin." : scope === "invited" ? "Şimdilik bekleyen bir davetin yok. Keşfet alanındaki etkinliklere göz atabilirsin." : "Şu an bu görünümde etkinlik yok. Yeni etkinlikleri keşfedebilir veya kendi buluşmanı başlatabilirsin."}
                 </p>
 
                 <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -2240,7 +2235,7 @@ export default async function DiscoverPage({
                     href="/discover"
                     className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
                   >
-                    Filtreleri temizle
+                    Etkinlikleri keşfet
                   </Link>
 
                   <Link

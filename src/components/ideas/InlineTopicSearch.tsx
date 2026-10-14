@@ -176,6 +176,24 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   const [audiences,setAudiences]=useState<Record<string,LibraryAudience>>({library:storedScope==='wishes'?'me':'everyone',plans:'me',experiences:'me'});
   const audience=viewerId&&!addingOnly?(audiences[section]??'everyone'):'everyone';
   const scope:LibraryScope=viewerId&&!addingOnly?(section==='library'&&audience!=='everyone'?'wishes':section):'library';
+  const [tabMetadata,setTabMetadata]=useState<Record<string,{data:ScopeData|null;error:boolean}>>({});
+  const tabAudiences=[...new Set(Object.entries(audiences).filter(([tab,value])=>tab!=='library'||value!=='everyone').map(([,value])=>value))].sort().join(',');
+  useEffect(()=>{
+    if(!viewerId||addingOnly)return;
+    const controller=new AbortController();let active=true;
+    const timer=setTimeout(()=>controller.abort(),25000);
+    setTabMetadata({});
+    void Promise.all(tabAudiences.split(',').filter(Boolean).map(async value=>{
+      const key=`${viewerId}:${value}`;
+      try{
+        const response=await fetch(`/api/ideas/scopes?audience=${value}&cards=0&scope=wishes&kind=all`,{cache:'no-store',signal:controller.signal});
+        const data=await response.json() as ScopeData;
+        if(!response.ok||!Array.isArray(data.wishes)||!Array.isArray(data.plans)||!Array.isArray(data.experiences))throw Error('Eksik kapsam');
+        if(active)setTabMetadata(current=>({...current,[key]:{data,error:false}}));
+      }catch{if(active)setTabMetadata(current=>({...current,[key]:{data:null,error:true}}));}
+    })).finally(()=>clearTimeout(timer));
+    return()=>{active=false;clearTimeout(timer);controller.abort()};
+  },[viewerId,addingOnly,tabAudiences,scopeRetry]);
   const [kind,setKind]=useState<Kind|"all">(()=>contentTypes.some(type=>type.id===params.get("kind"))?params.get("kind") as Kind:"all");const [query,setQuery]=useState("");const [internal,setInternal]=useState<Internal[]>([]);const [external,setExternal]=useState<External[]>([]);const [selected,setSelected]=useState<Selected|null>(null);const [busy,setBusy]=useState(false);const [searched,setSearched]=useState(false);const [manual,setManual]=useState(false);const [message,setMessage]=useState("");
   const [categoryLanding,setCategoryLanding]=useState(()=>!params.get("kind")&&!params.get("targetId"));
   const requestedPersonalCardKey=scope!=="library"&&!categoryLanding?`${audience}:${scope}:${kind}`:null;
@@ -266,11 +284,11 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   }
   useEffect(()=>{const type=contentTypes.find(item=>item.id===kind);if(addingOnly||categoryLanding||scope!=="library"||kind==="all"||type?.base_kind==="place")return;const controller=new AbortController();const load=async()=>{setCategoryCardsLoading(true);setCategoryCardsError("");try{await loadCategoryCatalogue(kind as Kind,controller.signal)}catch(cause){if(!controller.signal.aborted)setCategoryCardsError(cause instanceof Error?cause.message:"Kategori kartları yüklenemedi.")}finally{if(!controller.signal.aborted)setCategoryCardsLoading(false)}};void load();return()=>controller.abort()},[addingOnly,categoryLanding,scope,kind,categoryCardsRetry,contentTypes,sportFilter,leagueFilter,divisionFilter,viewerId,usesCategoryPages,usesCategoryPages?page:0,usesCategoryPages||sort.startsWith("artist:")?sort:""]);
   async function refreshCatalogue(){
+    setScopeRetry(value=>value+1);
     categoryReadGeneration.current+=1;categoryLoadedAt.current={};setLoadedCategoryKinds(new Set());setCategoryTargetIds({});setCategoryPageData(null);setCategoryDataKey("");setCategoryCountRetry(value=>value+1);
     try{
       const currentType=contentTypes.find(type=>type.id===kind);
       if(scope==="library"&&kind!=="all"&&currentType?.base_kind!=="place")await loadCategoryCatalogue(kind as Kind,undefined,true);
-      else if(scope!=="library")setScopeRetry(value=>value+1);
     }finally{
       router.refresh();
       setGeoRetry(n=>n+1);
@@ -358,12 +376,21 @@ export default function InlineTopicSearch({seedTypes,catalogue:initialCatalogue,
   function openAdminDirect(){if(!isAdmin||!current)return;setAdminDirectManual(true);setManualType(current.id);setManual(true);setArtistAdding(false);setMessage("")}
   const scopeLabel=section==="library"?"Kütüphane":section==="plans"?"Planlar":"Deneyimler";
   const scopeCount=(value:LibraryScope)=>{if(value==="library"){const count=kind==="all"?Number(liveCategoryCounts._total??categoryCounts._total??Object.entries({...categoryCounts,...liveCategoryCounts}).filter(([id])=>id!=="_total").reduce((sum,[,current])=>sum+Number(current||0),0)):Number(liveCategoryCounts[kind]??categoryCounts[kind]??0);return kind!=="all"&&effectiveKind==="club"?`${clubLoading?"…":clubError?"—":clubList.filter(c=>c.parent_target_id||c.sport).length} takım`:count}if(!scopeData)return null;if(kind==="all")return scopeData[value].length;return Number(scopeData.counts?.[value]?.[kind]??catalogue.filter(card=>matches(card,kind)&&new Set(scopeData[value]).has(card.canonical_target_id)).length)};
+  const tabCount=(id:'library'|'plans'|'experiences')=>{
+    const tabAudience=audiences[id]??'everyone';
+    if(id==='library'&&tabAudience==='everyone')return !hasCategoryCounts?(categoryCountsLoading?'…':'—'):scopeCount('library');
+    const snapshot=tabMetadata[`${viewerId}:${tabAudience}`];
+    if(!snapshot)return '…';
+    if(snapshot.error||!snapshot.data)return '—';
+    const tabScope=id==='library'?'wishes':id;
+    return kind==='all'?snapshot.data[tabScope].length:Number(snapshot.data.counts?.[tabScope]?.[kind]??0);
+  };
   const scopeOptions=viewerId&&!addingOnly?([['library','Kütüphane'],['plans','Planlar'],['experiences','Deneyimler']] as const):([['library','Kütüphane']] as const);
   function chooseScope(next:LibraryScope){setScopeData(null);setScopeDataKey(null);setCategoryCardsLoading(false);setCategoryCardsError("");setScope(next);setSort(next==="library"?effectiveKind==="artist"?"ratingDesc":"wanting":"alphabetical");setPage(1);setSelected(null);setQuery("");setSearched(false);const nextParams=new URLSearchParams(params.toString());if(next==="library")nextParams.delete("scope");else nextParams.set("scope",next);router.replace(`/ideas${nextParams.size?`?${nextParams}`:""}`,{scroll:false})}
  const audienceSelector=(viewerId&&!addingOnly?<div role="group" aria-label="Kimin kayıtları" className="my-4 flex flex-wrap gap-2">{([['everyone','Herkes'],['friends','Arkadaşlarım'],['me','Ben']] as const).map(([id,label])=><button type="button" key={id} aria-pressed={audience===id} onClick={()=>{setScopeData(null);setScopeDataKey(null);setAudiences(current=>({...current,[section]:id}));setPage(1);setQuery('');setSearched(false);}} className={`rounded-xl border px-4 py-3 text-sm font-bold ${audience===id?'border-emerald-500 bg-emerald-50 text-emerald-800':'border-slate-200 bg-white text-slate-600'}`}>{label}</button>)}</div>:null);
   return <LibraryAudienceContext.Provider value={{audience,section,rows:scopeData?.audienceRows??[]}}><>
     <nav aria-label="Kütüphane kapsamı" className="mb-4 flex gap-2 overflow-x-auto pb-1">
-      {scopeOptions.map(([id,label])=><button key={id} type="button" onClick={()=>chooseScope(id)} aria-current={section===id?'page':undefined} className={"shrink-0 rounded-2xl border px-4 py-3 text-sm font-black transition "+(section===id?"border-emerald-500 bg-emerald-50 text-emerald-800":"border-gray-200 bg-white text-slate-700 hover:border-emerald-300")}><span>{label}</span><span className="ml-2 rounded-full bg-white px-2 py-1 text-xs">{section===id?(scope==="library"&&!hasCategoryCounts?(categoryCountsLoading?"…":"—"):scope!=="library"&&!scopeData?(scopeLoading?"…":"—"):scopeCount(scope)):null}</span></button>)}
+      {scopeOptions.map(([id,label])=><button key={id} type="button" onClick={()=>chooseScope(id)} aria-current={section===id?'page':undefined} className={"shrink-0 rounded-2xl border px-4 py-3 text-sm font-black transition "+(section===id?"border-emerald-500 bg-emerald-50 text-emerald-800":"border-gray-200 bg-white text-slate-700 hover:border-emerald-300")}><span>{label}</span><span className="ml-2 rounded-full bg-white px-2 py-1 text-xs">{tabCount(id)}</span></button>)}
     </nav>
     {viewerId&&currentScopeError?<div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"><span>{currentScopeError}</span><button type="button" onClick={()=>setScopeRetry(value=>value+1)} className="rounded-xl bg-red-700 px-3 py-2 text-xs font-black text-white">Tekrar dene</button></div>:null}
     {categoryCountError&&!hasCategoryCounts?<div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700"><span>{categoryCountError}</span><button type="button" onClick={()=>setCategoryCountRetry(value=>value+1)} className="rounded-xl bg-red-700 px-3 py-2 text-xs font-black text-white">Tekrar dene</button></div>:null}
