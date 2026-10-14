@@ -570,10 +570,9 @@ export default function DiscoverIntentCard({
     intent.city;
 
   const mapLocationLabel =
-    mapPointContext?.public_location_name?.trim() ||
     (mapPrecision === "public_venue"
-      ? legacyPublicVenueName
-      : approximateLocationLabel || intent.city) ||
+      ? mapPointContext?.public_location_name?.trim() || legacyPublicVenueName
+      : approximateLocationLabel || mapPointContext?.public_location_name?.trim() || intent.city) ||
     null;
 
   const mapEmbedUrl =
