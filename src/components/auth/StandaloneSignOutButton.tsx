@@ -26,7 +26,7 @@ export default function StandaloneSignOutButton() {
       const {
         error,
       } =
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: "local" });
 
       if (error) {
         throw error;
@@ -38,7 +38,7 @@ export default function StandaloneSignOutButton() {
       setErrorMessage(
         error instanceof Error
           ? error.message
-          : "Sign out failed."
+          : "Çıkış yapılamadı. Lütfen yeniden dene."
       );
 
       setIsSigningOut(false);
@@ -54,8 +54,8 @@ export default function StandaloneSignOutButton() {
         className="rounded-xl border border-gray-200 bg-white px-5 py-3 font-semibold text-gray-700 transition hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isSigningOut
-          ? "Signing Out..."
-          : "Sign Out"}
+          ? "Çıkış yapılıyor…"
+          : "Çıkış yap"}
       </button>
 
       {errorMessage && (

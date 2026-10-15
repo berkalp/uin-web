@@ -1,3 +1,4 @@
+import StandaloneSignOutButton from "@/components/auth/StandaloneSignOutButton";
 import Link from "next/link";
 import {
   notFound,
@@ -266,6 +267,7 @@ export default async function ProfileSettingsPage() {
           </div>
 
           <div className="mt-7 space-y-8">
+            <StandaloneSignOutButton />
             <section id="profile-details" className="scroll-mt-6">
               <ProfileSettingsForm
                 profile={{

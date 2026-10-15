@@ -1,3 +1,4 @@
+import StandaloneSignOutButton from "@/components/auth/StandaloneSignOutButton";
 import Link from "next/link";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import { notFound } from "next/navigation";
@@ -2319,6 +2320,7 @@ export default async function PublicProfilePage({
                       >
                         Profili Düzenle
                       </Link>
+                      <StandaloneSignOutButton />
                       <Link
                         href="/join-requests"
                         className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:border-green-300 hover:text-green-700"
