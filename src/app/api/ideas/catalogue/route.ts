@@ -1,5 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
 import {createClient} from "@/utils/supabase/server";
+import {createClient as createSupabaseClient} from "@supabase/supabase-js";
 
 const unavailable=(message:string)=>NextResponse.json(
   {error:message},
@@ -12,10 +13,13 @@ const seedType=(value:unknown)=>record(value)&&typeof value.id==="string"&&typeo
 
 export async function GET(request:NextRequest){
   try{
-    const db=await createClient();
+    const token=request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const db=token?createSupabaseClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,{global:{headers:{Authorization:`Bearer ${token}`}},auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}):await createClient();
+    // The import form needs category metadata, not a page of catalogue cards.
+    const metadataOnly=request.nextUrl.searchParams.get("metadata")==="1";
     const query=(request.nextUrl.searchParams.get("q")||"").trim().slice(0,120);
     const [cards,types,seeds,role]=await Promise.all([
-      db.rpc("get_uin_catalogue_fast_v122",{p_query:query||null,p_limit:30,p_offset:0,p_target_id:null}),
+      metadataOnly?Promise.resolve({data:[],error:null}):db.rpc("get_uin_catalogue_fast_v122",{p_query:query||null,p_limit:30,p_offset:0,p_target_id:null}),
       db.from("uin_content_types").select("id,label,icon,base_kind,ui_labels").eq("active",true).order("position"),
       db.from("seed_types").select("id,slug,name").eq("is_active",true),
       db.rpc("get_admin_role"),

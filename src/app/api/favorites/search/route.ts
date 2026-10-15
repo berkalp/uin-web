@@ -175,8 +175,8 @@ const KIND_HINTS: Record<Exclude<Kind, "artist" | "series" | "watch" | "game" | 
   athlete: ["athlete", "footballer", "player", "sporcu", "futbolcu", "basketball"],
   club: ["football club", "sports club", "team", "kulüb", "takım"],
   sport: ["sport", "spor"],
-  hobby: ["hobby", "pastime", "hobi"],
-  activity: ["activity", "recreation", "aktivite", "etkinlik"],
+  hobby: ["hobby", "pastime", "hobi", "craft", "el sanatı", "recreation", "dance", "dans", "sport", "spor"],
+  activity: ["activity", "recreation", "aktivite", "etkinlik", "sport", "spor", "game", "oyun", "dance", "dans"],
 };
 
 async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" | "watch" | "game" | "podcast">, entityFilter=""): Promise<SearchItem[]> {
@@ -215,7 +215,12 @@ async function wikidata(query: string, kind: Exclude<Kind, "artist" | "series" |
     const description = `${text(row.description) ?? ""} ${text(row.label) ?? ""}`.toLocaleLowerCase("tr-TR");
     if(kind==="place")return possiblePlace(text(row.label)||"",text(row.description)||"");
     if(kind==="sport")return possibleSport(text(row.label)||"",text(row.description)||"");
-    if ((kind === "activity" || kind === "hobby")&&!customHints.length) return true;
+    if ((kind === "activity" || kind === "hobby")&&!customHints.length) {
+      // A similarly named film or video game is not a real-world activity.
+      const category=text(row.description)?.toLocaleLowerCase("tr-TR")??"";
+      if(/video game|video oyunu|computer game|bilgisayar oyunu|film|movie|album|albüm|television|televizyon|novel|roman|song|şarkı/.test(category))return false;
+      return hints.some(hint=>category.includes(hint));
+    }
     return hints.some((hint) => description.includes(hint.toLocaleLowerCase("tr-TR")));
   });
 
