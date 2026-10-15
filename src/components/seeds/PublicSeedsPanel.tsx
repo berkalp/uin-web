@@ -16,6 +16,7 @@ type PublicSeedsMode =
   | "completed";
 
 type PublicSeedsPanelProps = {
+  profileUserId?:string;
   libraryCards?:Catalogue[];
   libraryError?:string|null;
   displayName: string;
@@ -109,6 +110,7 @@ function sortExperiences(
 
 export default function PublicSeedsPanel({
   displayName,
+  profileUserId,
   libraryCards=[],
   libraryError,
   seeds,
@@ -370,6 +372,7 @@ export default function PublicSeedsPanel({
                   card={libraryCards.find(card=>card.canonical_target_id===seed.canonical_target_id)}
                   seed={seed}
                   displayName={displayName}
+                  profileUserId={profileUserId}
                   isOwner={isOwner}
                 />
               </div>

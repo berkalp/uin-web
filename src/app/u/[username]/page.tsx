@@ -1,3 +1,4 @@
+import {hasSharedWish} from '@/utils/sharedWish';
 import StandaloneSignOutButton from "@/components/auth/StandaloneSignOutButton";
 import Link from "next/link";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
@@ -2391,6 +2392,7 @@ export default async function PublicProfilePage({
         </section>
 
       <ProfileCategoryProvider key={profile.id+':'+viewerUserId} viewerId={viewerUserId}
+        sharedTargetIds={visibleSeeds.filter(seed=>{const card=profileLibraryByTarget.get(seed.canonical_target_id??'');return hasSharedWish({isOwner:page.viewer.is_owner,status:seed.status,targetId:seed.canonical_target_id,cardTargetId:card?.canonical_target_id,ownSeedId:card?.own_seed_id,ownSeedStatus:card?.own_seed_status,ownCommonIntentId:card?.own_common_intent_id})}).flatMap(seed=>seed.canonical_target_id?[seed.canonical_target_id]:[])}
         targetIds={visibleSeeds.flatMap(seed=>seed.canonical_target_id?[seed.canonical_target_id]:[])}
         eventIds={[...activeCards,...formingCards,...upcomingCards,...completedCards].flatMap(card=>[card.plan_id??card.resource_id??card.intent_id,card.intent_id])}>
       <ProfileCategoryControls sections={[
@@ -2516,6 +2518,7 @@ export default async function PublicProfilePage({
           <PublicSeedsPanel
             key={`${profile.id}-active-personal`}
             displayName={displayName}
+            profileUserId={profile.id}
             libraryCards={profileLibrary.cards}
             libraryError={profileLibrary.error}
             seeds={visibleSeeds}
@@ -2564,6 +2567,7 @@ export default async function PublicProfilePage({
         <div id="personal-experiences" className="scroll-mt-8">
           <PublicSeedsPanel
             key={`${profile.id}-personal-experiences`}
+            profileUserId={profile.id}
             libraryCards={profileLibrary.cards}
             libraryError={profileLibrary.error}
             displayName={displayName}
