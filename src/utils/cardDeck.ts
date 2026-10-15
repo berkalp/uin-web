@@ -1,4 +1,4 @@
-// Signed positions: experienced -2, wanting -1, main 0, active events 1..n.
+// Signed faces: experienced -2, wanting -1, main 0, event list 1. Details use stable IDs.
 export function deckPosition(position: number, direction: -1 | 1, eventCount: number | null) {
   return Math.max(-2, Math.min(eventCount === null ? 1 : Math.max(1, eventCount), position + direction));
 }
@@ -28,4 +28,27 @@ export function cardDate(start?:string|null,end?:string|null,precision?:string|n
 export function newestReviews<T>(rows:T[],date:(row:T)=>string|null|undefined) {
   const time=(row:T)=>{const value=Date.parse(date(row)||'');return Number.isFinite(value)?value:-Infinity;};
   return [...rows].sort((a,b)=>time(b)-time(a));
+}
+
+// Match the card projection: Istanbul calendar days, never infer completion from age.
+export function cardEventPhase(states: (string | null | undefined)[], start?: string | null, end?: string | null, now = new Date()): 'active' | 'past' | 'completed' | 'cancelled' {
+  const values = states.map(value => (value || '').toLowerCase());
+  if (values.some(value => ['cancelled', 'canceled'].includes(value))) return 'cancelled';
+  if (values.includes('completed')) return 'completed';
+  if (values.some(value => ['expired', 'past'].includes(value))) return 'past';
+  const day = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : Number.isFinite(Date.parse(value)) ? new Date(value).toLocaleDateString('sv-SE', {timeZone:'Europe/Istanbul'}) : '';
+  const lastDay = day(end || start || '');
+  return lastDay && lastDay < now.toLocaleDateString('sv-SE', {timeZone:'Europe/Istanbul'}) ? 'past' : 'active';
+}
+export function unresolvedCardEvents<T>(rows:T[], id:(row:T)=>string, phase:(row:T)=>string) {
+  const seen=new Set<string>();
+  return rows.filter(row=>{const key=id(row);if(seen.has(key)||!['active','past'].includes(phase(row)))return false;seen.add(key);return true;});
+}
+export function selectedCardEvent<T>(rows:T[], selected:string|null, id:(row:T)=>string) {
+  const index=selected===null?-1:rows.findIndex(row=>id(row)===selected);
+  return {index, event:index<0?undefined:rows[index]};
+}
+export function adjacentCardEvent<T>(rows:T[], selected:string|null, direction:-1|1, id:(row:T)=>string) {
+  const {index}=selectedCardEvent(rows,selected,id);
+  return index<0?null:id(rows[Math.max(0,Math.min(rows.length-1,index+direction))]);
 }
