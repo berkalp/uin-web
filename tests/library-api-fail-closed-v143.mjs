@@ -107,7 +107,7 @@ test("global Library search works without preloading the entire catalogue", () =
   assert.match(route, /if\s*\(catalogue\.error\)[^\n]*status:\s*503/);
   assert.match(route, /if\s*\(missingIds\.length\)[^\n]*status:\s*503/);
   assert.match(client, /fetch\(`\/api\/ideas\?q=\$\{encodeURIComponent\(query\.trim\(\)\)\}`/);
-  assert.match(client, /Tüm kategorilerden en yeni eklenen 20 kartla başla/);
+  assert.match(client, /Son niyet, deneyim ve etkinlik hareketlerinin olduğu 20 kartla başla/);
 });
 
 test("personal child cards bypass Library-only hierarchy hiding", () => {
@@ -115,7 +115,7 @@ test("personal child cards bypass Library-only hierarchy hiding", () => {
 
   assert.match(source, /scope==="library"&&effectiveKind!=="place"&&cardKind\(item\)!=="club"&&hasSameCategoryParent\(item\)/);
   assert.match(source, /scope==="library"&&cardKind\(item\)==="club"/);
-  assert.match(source, /scope==="library"&&kind==="all"\?latest\.cards/);
+  assert.match(source, /latestEnabled\?latest\.cards/);
   assert.doesNotMatch(source, /kind==="all"\|\|Boolean\(categoryCardsError\)/);
   assert.match(source, /!matches\(card,next\)/);
 });
