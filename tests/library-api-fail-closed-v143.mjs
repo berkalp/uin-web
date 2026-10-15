@@ -71,7 +71,7 @@ test("category cards reuse enrichment, fail closed, and throttle repeat catalogu
   assert.match(route, /const social=new Map\(\(\(socialResult\.data\|\|\[\]\)/);
   assert.match(route, /average_rating:stats\?\.average_rating==null\?null:Number\(stats\.average_rating\)/);
 assert.match(route, /const cacheHeaders=\{"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"\}/);
-  assert.match(route, /return NextResponse\.json\(\{catalogue\},\{headers:cacheHeaders\}\)/);
+  assert.match(route, /return NextResponse\.json\(\{catalogue,\.\.\.\(kind==="all"\?\{nextCursor\}:\{\}\)\},\{headers:cacheHeaders\}\)/);
   assert.doesNotMatch(route, /stale-while-revalidate/);
 
   assert.match(client, /const categoryLoadedAt=useRef<Record<string,number>>\(\{\}\)/);
@@ -107,7 +107,7 @@ test("global Library search works without preloading the entire catalogue", () =
   assert.match(route, /if\s*\(catalogue\.error\)[^\n]*status:\s*503/);
   assert.match(route, /if\s*\(missingIds\.length\)[^\n]*status:\s*503/);
   assert.match(client, /fetch\(`\/api\/ideas\?q=\$\{encodeURIComponent\(query\.trim\(\)\)\}`/);
-  assert.match(client, /Kütüphanenin tamamını aynı anda yüklemek yerine/);
+  assert.match(client, /Tüm kategorilerden en yeni eklenen 20 kartla başla/);
 });
 
 test("personal child cards bypass Library-only hierarchy hiding", () => {
@@ -115,7 +115,7 @@ test("personal child cards bypass Library-only hierarchy hiding", () => {
 
   assert.match(source, /scope==="library"&&effectiveKind!=="place"&&cardKind\(item\)!=="club"&&hasSameCategoryParent\(item\)/);
   assert.match(source, /scope==="library"&&cardKind\(item\)==="club"/);
-  assert.match(source, /scope==="library"&&kind==="all"\?\[\]/);
+  assert.match(source, /scope==="library"&&kind==="all"\?latest\.cards/);
   assert.doesNotMatch(source, /kind==="all"\|\|Boolean\(categoryCardsError\)/);
   assert.match(source, /!matches\(card,next\)/);
 });
@@ -137,7 +137,7 @@ test("unresolved category counts render as loading or unavailable, never fake ze
   assert.match(source, /categoryCountsLoading/);
   assert.match(source, /!hasCategoryCounts\?\(categoryCountsLoading\?'…':'—'\)/);
   assert.match(source, /hasScopeCounts\?categoryTotal:scopeCountsLoading\?"…":"—"/);
-  assert.match(source, /hasScopeCounts\?count:scopeCountsLoading\?"…":"—"/);
+  assert.match(source, /hasScopeCounts\?kindCounts\.get\(item\.id\)\?\?0:scopeCountsLoading\?"…":"—"/);
 });
 
 test("public category counts are cached and do not block the Ideas SSR shell", () => {

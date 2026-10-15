@@ -1,3 +1,4 @@
+import {decodeLatestLibraryCursor,encodeLatestLibraryCursor} from "@/utils/latestLibraryCursor";
 import {mobileCategoryPayload} from "@/utils/mobileCardPayload";
 import {NextRequest,NextResponse} from "next/server";
 import {createClient as createSupabaseClient} from "@supabase/supabase-js";
@@ -27,7 +28,10 @@ export async function GET(request:NextRequest){
   const pageParam=request.nextUrl.searchParams.get("page");
   const pageSort=request.nextUrl.searchParams.get("sort")||"wanting";
   if(pageParam!==null&&(!/^[1-9]\d*$/.test(pageParam)||!Number.isSafeInteger(Number(pageParam))||!CATEGORY_PAGE_SORTS.includes(pageSort as CategoryPageSort)))return NextResponse.json({error:"Geçersiz sayfa veya sıralama."},{status:400});
-  const typeResult=await db.from("uin_content_types").select("id,base_kind,active").eq("id",kind).maybeSingle();
+  let cursor;
+  try{cursor=decodeLatestLibraryCursor(request.nextUrl.searchParams.get("cursor"))}catch{return NextResponse.json({error:"Geçersiz sayfa."},{status:400})}
+  if(kind==="all"&&pageParam!==null)return NextResponse.json({error:"Geçersiz sayfa."},{status:400});
+  const typeResult=kind==="all"?{data:{id:"all",base_kind:"all",active:true},error:null}:await db.from("uin_content_types").select("id,base_kind,active").eq("id",kind).maybeSingle();
   const type=typeResult.data as ContentType|null;
   if(typeResult.error){
     console.error("category content type unavailable",{kind,error:typeResult.error});
@@ -46,7 +50,13 @@ export async function GET(request:NextRequest){
   }
   const pageSize=500;
   const items:Row[]=[];
-  for(let offset=0;;offset+=clubTargetIds?100:pageSize){
+  let nextCursor:string|null=null;
+  if(kind==="all"){
+    const latest=await db.rpc("get_uin_latest_placements_v186",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null});
+    if(latest.error||!Array.isArray(latest.data))return NextResponse.json({error:"Yeni kartlar yüklenemedi. Tekrar deneyebilirsin."},{status:503});
+    items.push(...latest.data.slice(0,20));
+    if(latest.data.length>20){const last=items[items.length-1];nextCursor=encodeLatestLibraryCursor(String(last.created_at),String(last.canonical_target_id))}
+  }else for(let offset=0;;offset+=clubTargetIds?100:pageSize){
     // Category cards use only these ranking/award keys. Pulling the complete
     // metadata object transfers large ISBN, subject and catalogue payloads that
     // never reach the response (over 1 MB for the current book category).
@@ -70,7 +80,7 @@ export async function GET(request:NextRequest){
     items.splice(0,items.length,...matching);
   }
   const ids=[...new Set(items.map(item=>String(item.canonical_target_id||"")).filter(Boolean))];
-  if(!ids.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
+  if(!ids.length)return NextResponse.json({catalogue:[],...(kind==="all"?{nextCursor:null}:{})},{headers:cacheHeaders});
   // This existing security-definer RPC is the canonical visibility projection:
   // it returns every requested target except admin-hidden cards for non-admins.
   // All four projections depend only on the placement ids. Running them in
@@ -164,12 +174,12 @@ export async function GET(request:NextRequest){
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
+    return {...card,...(kind==="all"?{created_at:item?.created_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
   });
   if(pageParam!==null){
     const result=categoryCardPage(catalogue,Number(pageParam),pageSort as CategoryPageSort);
     if(result)return NextResponse.json(result,{headers:cacheHeaders});
   }
-  if(request.nextUrl.searchParams.get("compact")==="1")return NextResponse.json({catalogue:catalogue.map(mobileCategoryPayload)},{headers:cacheHeaders});
-  return NextResponse.json({catalogue},{headers:cacheHeaders});
+  if(request.nextUrl.searchParams.get("compact")==="1")return NextResponse.json({catalogue:catalogue.map(mobileCategoryPayload),...(kind==="all"?{nextCursor}:{})},{headers:cacheHeaders});
+  return NextResponse.json({catalogue,...(kind==="all"?{nextCursor}:{})},{headers:cacheHeaders});
 }

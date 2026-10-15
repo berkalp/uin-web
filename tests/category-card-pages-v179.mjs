@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-function compile(path,modules={}){const compiled={exports:{}};const code=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{module:compiled,exports:compiled.exports,require:name=>modules[name]||{},URL,Number,Map,Set,Array,Error,Promise,console:{error(){}}});return compiled.exports}
+function compile(path,modules={}){const compiled={exports:{}};const code=ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(code,{module:compiled,exports:compiled.exports,require:name=>modules[name]||{},URL,Number,Map,Set,Array,Error,Promise,Buffer,console:{error(){}}});return compiled.exports}
 const titles=compile('src/utils/commonIntentTitle.ts');
 const pageModule=compile('src/utils/categoryCardPage.ts',{'@/utils/commonIntentTitle':titles});
 const {categoryCardPage}=pageModule;
@@ -19,19 +19,34 @@ for(const sort of pageModule.CATEGORY_PAGE_SORTS)test(`every ${sort} page matche
 test('cross-category parents and unavailable parents remain browseable; complete row data is retained',()=>{const rows=[{...cards[0],canonical_target_id:'parent',content_type_id:'writer'},{...cards[1],parent_target_id:'parent'},{...cards[2],parent_target_id:'hidden-parent'}];const result=categoryCardPage(rows,1,'alphabetical');assert.equal(result.pagination.total,3);for(const row of result.catalogue)assert.ok(rows.includes(row))});
 test('empty categories and out-of-range pages use the existing clamp semantics',()=>{assert.deepEqual(JSON.parse(JSON.stringify(categoryCardPage([],100,'wanting'))),{catalogue:[],pagination:{page:1,pages:1,total:0}});assert.equal(categoryCardPage(cards,100,'wanting').pagination.page,3)});
 test('mixed geography and team categories preserve the complete-data path',()=>{for(const kind of ['place','club'])assert.equal(categoryCardPage([...cards,{...cards[0],item_kind:kind}],1,'wanting'),null)});
-function categoryRoute(failure=null){
- const calls=[];const chain={select:()=>chain,eq:()=>chain,not:()=>chain,order:()=>chain,range:()=>chain,in:()=>chain,maybeSingle:async()=>({data:{id:'book',base_kind:'book',active:true},error:null})};
- const db={from:()=>chain,rpc:async(name)=>{calls.push(name);if(name===failure)return {data:null,error:{code:'57014'}};let data;
- if(name==='get_uin_type_placements_v177')data=cards.map(c=>({id:c.canonical_target_id,canonical_target_id:c.canonical_target_id,item_kind:'book',content_type_id:'book'}));
- else if(name==='get_uin_cover_positions_v62')data=cards.slice(0,-1).map(c=>({target_id:c.canonical_target_id,cover_position_y:50}));
- else if(name==='get_uin_catalogue_for_targets_v123')data=cards.map(c=>({...c,completed_event_count:0,expired_event_count:0,cancelled_event_count:0}));
- else if(name==='get_uin_card_social_v87')data=cards.map(c=>({target_id:c.canonical_target_id,average_rating:c.average_rating,rating_count:2,follower_count:1,related_count:0}));
- else if(name==='get_uin_card_parent_edges_v143')data=cards.map(c=>({target_id:c.canonical_target_id,parent_target_id:c.parent_target_id}));
+function categoryRoute(failure=null,latest=false){
+ const rows=latest?cards.map((card,i)=>({...card,canonical_target_id:`00000000-0000-0000-0000-${String(1000-i).padStart(12,'0')}`,created_at:'2026-10-15T12:00:00.123456+00:00'})):cards;
+ const batches=[];const calls=[];const chain={select:()=>chain,eq:()=>chain,not:()=>chain,order:()=>chain,range:()=>chain,in:()=>chain,maybeSingle:async()=>({data:{id:'book',base_kind:'book',active:true},error:null})};
+ const db={from:()=>chain,rpc:async(name,args)=>{calls.push(name);if(args?.p_target_ids)batches.push(args.p_target_ids.length);if(name===failure)return {data:null,error:{code:'57014'}};let data;
+ if(name==='get_uin_latest_placements_v186'){const start=args.p_before_id?rows.findIndex(row=>row.canonical_target_id===args.p_before_id)+1:0;data=rows.slice(start,start+21).map(row=>({...row,id:row.canonical_target_id}))}
+ else if(name==='get_uin_type_placements_v177')data=rows.map(c=>({id:c.canonical_target_id,canonical_target_id:c.canonical_target_id,item_kind:'book',content_type_id:'book'}));
+ else if(name==='get_uin_cover_positions_v62')data=rows.slice(0,-1).map(c=>({target_id:c.canonical_target_id,cover_position_y:50}));
+ else if(name==='get_uin_catalogue_for_targets_v123')data=rows.map(c=>({...c,completed_event_count:0,expired_event_count:0,cancelled_event_count:0}));
+ else if(name==='get_uin_card_social_v87')data=rows.map(c=>({target_id:c.canonical_target_id,average_rating:c.average_rating,rating_count:2,follower_count:1,related_count:0}));
+ else if(name==='get_uin_card_parent_edges_v143')data=rows.map(c=>({target_id:c.canonical_target_id,parent_target_id:c.parent_target_id}));
  else throw Error(name);return {data,error:null}}};
- const route=compile('src/app/api/ideas/category-cards/route.ts',{'next/server':{NextResponse:{json:(body,options={})=>({body,status:options.status||200,headers:options.headers})}},'@/supabase/supabase-js':{},'@/utils/supabase/server':{createClient:async()=>db},'@/utils/boundedTargetProjection':compile('src/utils/boundedTargetProjection.ts'),'@/utils/mobileCardPayload':compile('src/utils/mobileCardPayload.ts'),'@/utils/categoryCardPage':pageModule,'@/utils/artistListMetadata':compile('src/utils/artistListMetadata.ts'),'@/utils/imdbMetadata':{readImdbMetadata:()=>({})},'@/utils/bookListMetadata':{readBookListMetadata:()=>({})},'@/utils/seriesListMetadata':{readSeriesListMetadata:()=>({})}});
- return {calls,request:params=>route.GET({headers:{get:()=>null},nextUrl:new URL('https://example.invalid/api/ideas/category-cards?kind=book&'+params)})};
+ const route=compile('src/app/api/ideas/category-cards/route.ts',{'next/server':{NextResponse:{json:(body,options={})=>({body,status:options.status||200,headers:options.headers})}},'@/supabase/supabase-js':{},'@/utils/supabase/server':{createClient:async()=>db},'@/utils/boundedTargetProjection':compile('src/utils/boundedTargetProjection.ts'),'@/utils/latestLibraryCursor':compile('src/utils/latestLibraryCursor.ts'),'@/utils/mobileCardPayload':compile('src/utils/mobileCardPayload.ts'),'@/utils/categoryCardPage':pageModule,'@/utils/artistListMetadata':compile('src/utils/artistListMetadata.ts'),'@/utils/imdbMetadata':{readImdbMetadata:()=>({})},'@/utils/bookListMetadata':{readBookListMetadata:()=>({})},'@/utils/seriesListMetadata':{readSeriesListMetadata:()=>({})}});
+ return {calls,batches,request:params=>route.GET({headers:{get:()=>null},nextUrl:new URL(`https://example.invalid/api/ideas/category-cards?kind=${latest?'all':'book'}&`+params)})};
 }
 test('paged API equals slicing the complete visibility-checked response; hidden targets do not enter totals',async()=>{const route=categoryRoute();const full=await route.request('');const paged=await route.request('page=2&sort=wanting');assert.equal(paged.status,200);const expected=categoryCardPage(full.body.catalogue,2,'wanting');assert.deepEqual(JSON.parse(JSON.stringify(paged.body)),JSON.parse(JSON.stringify(expected)));assert.equal(paged.body.catalogue.length,20);assert.equal(paged.body.pagination.total,55);assert.equal(paged.headers['Cache-Control'],'private, max-age=60, must-revalidate')});
 test('invalid paging is rejected and projection failures never produce a partial page',async()=>{for(const params of ['page=0','page=-1','page=1.5','page=9007199254740993','page=1&sort=friendsRating'])assert.equal((await categoryRoute().request(params)).status,400);for(const rpc of ['get_uin_cover_positions_v62','get_uin_catalogue_for_targets_v123','get_uin_card_social_v87','get_uin_card_parent_edges_v143']){const result=await categoryRoute(rpc).request('page=1');assert.equal(result.status,503);assert.equal(result.body.catalogue,undefined);assert.equal(result.body.pagination,undefined)}});
 
 test('opt-in compact API retains visible identities and metrics; legacy response remains complete',async()=>{const full=await categoryRoute().request('');const compact=await categoryRoute().request('compact=1');assert.equal(compact.status,200);const {mobileCategoryPayload}=compile('src/utils/mobileCardPayload.ts');assert.deepEqual(JSON.parse(JSON.stringify(compact.body.catalogue)),JSON.parse(JSON.stringify(full.body.catalogue.map(mobileCategoryPayload))));assert.equal(compact.headers.Vary,'Cookie, Authorization');for(const rpc of ['get_uin_cover_positions_v62','get_uin_catalogue_for_targets_v123','get_uin_card_social_v87'])assert.equal((await categoryRoute(rpc).request('compact=1')).status,503)});
+
+test('latest feed enriches only 20 targets, retains microsecond cursor and advances without repetition',async()=>{
+ const route=categoryRoute(null,true);const first=await route.request('compact=1');assert.equal(first.status,200);assert.equal(first.body.catalogue.length,20);assert.ok(first.body.nextCursor);
+ const cursor=JSON.parse(Buffer.from(first.body.nextCursor,'base64url'));assert.equal(cursor.time,'2026-10-15T12:00:00.123456+00:00');
+ const next=await route.request('cursor='+first.body.nextCursor);assert.equal(next.body.catalogue.length,20);assert.equal(new Set([...first.body.catalogue,...next.body.catalogue].map(row=>row.canonical_target_id)).size,40);
+ assert.ok(route.batches.every(size=>size===20));assert.ok(!route.calls.includes('get_uin_type_placements_v177'));
+ assert.equal((await route.request('cursor=bad')).status,400);
+});
+test('latest feed failures return retryable errors, never a false empty page',async()=>{
+ for(const failure of ['get_uin_latest_placements_v186','get_uin_cover_positions_v62','get_uin_catalogue_for_targets_v123','get_uin_card_social_v87']){
+   const response=await categoryRoute(failure,true).request('');assert.equal(response.status,503);assert.equal(response.body.catalogue,undefined);
+ }
+});
