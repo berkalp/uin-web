@@ -20,7 +20,7 @@ type ProfileActivitySortMode =
 type ExperienceDateSort =
   | "date-desc"
   | "date-asc"
-  | "rating-desc";
+  | "created-desc";
 
 type ProfileLifecycleMode =
   | "all"
@@ -86,8 +86,8 @@ export function sortProfileCards(
   experienceDateSort: ExperienceDateSort = "date-desc"
 ) {
   return [...cards].sort((left, right) => {
-    if(experienceDateSort==='rating-desc'){
-      const comparison=compareExperienceDates(left.library_card?.average_rating??null,right.library_card?.average_rating??null,'date-desc');if(comparison)return comparison;
+    if(experienceDateSort==='created-desc') {
+      return compareExperienceDates(nullableDateTimestamp(left.created_at), nullableDateTimestamp(right.created_at), 'date-desc') || cardKey(left).localeCompare(cardKey(right));
     }
     {
       const leftTimestamp = nullableDateTimestamp(
@@ -171,7 +171,7 @@ export default function ProfileActivityTabs({
   const [lifecycleFilter, setLifecycleFilter] =
     useState<ActiveLifecycleFilter>("all");
   const [experienceDateSort, setExperienceDateSort] =
-    useState<ExperienceDateSort>("date-desc");
+    useState<ExperienceDateSort>(sortMode === "active" ? "date-asc" : "date-desc");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const sortedHostedCards = useMemo(
@@ -366,11 +366,11 @@ export default function ProfileActivityTabs({
                   setVisibleCount(PAGE_SIZE);
                 }}
                 className="min-w-0 flex-1 border-0 bg-transparent p-1 text-sm font-bold text-gray-700 outline-none"
-                aria-label="Sosyal deneyimleri sırala"
+                aria-label="Etkinlikleri sırala"
               >
-                <option value="rating-desc">Puana göre</option>
-                <option value="date-desc">En yeni</option>
-                <option value="date-asc">En eski</option>
+                <option value="date-asc">{sortMode === "active" ? "Yaklaşan tarih" : "Deneyim tarihi · eskiden yeniye"}</option>
+                <option value="created-desc">En yeni eklenen</option>
+                {sortMode === "experience" ? <option value="date-desc">En son tamamlanan</option> : null}
               </select>
             </label>
           )}

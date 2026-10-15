@@ -41,6 +41,7 @@ type DiscoveryLocation = {
 
 type DiscoverFiltersFormProps = {
   kind?: "all" | "personal" | "social";
+  libraryCategory?: string;
   query: string;
   categoryId: string;
   activityId: string;
@@ -63,6 +64,7 @@ type DiscoverFiltersFormProps = {
 
 export default function DiscoverFiltersForm({
   kind = "all",
+  libraryCategory = "",
   query,
   categoryId,
   activityId,
@@ -329,7 +331,7 @@ export default function DiscoverFiltersForm({
           isExpanded ? "" : "hidden"
         }`}
       >
-        {kind !== "all" && <input type="hidden" name="kind" value={kind} />}
+        {libraryCategory ? <input type="hidden" name="kind" value={libraryCategory} /> : kind !== "all" ? <input type="hidden" name="kind" value={kind} /> : null}
         {communityScope ===
           "following" && (
           <input

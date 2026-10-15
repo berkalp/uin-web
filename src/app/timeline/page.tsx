@@ -1,7 +1,8 @@
+import {readLibraryCategoryIndex} from "@/utils/libraryCategoryFilter";
 import MyCardFilters from "@/components/timeline/MyCardFilters";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import MyPersonalIntentCard from "@/components/seeds/MyPersonalIntentCard";
-import {getExperienceTotals} from "@/utils/experienceEntries";
+import {getExperienceTotals,buildExperienceEntries,matchesExperienceLibraryCategory} from "@/utils/experienceEntries";
 import MySeedsContent, {loadMySeedsData} from "@/components/seeds/MySeedsContent";
 import PageDataUnavailable from "@/components/common/PageDataUnavailable";
 import Link from "next/link";
@@ -4044,14 +4045,24 @@ const {
       />
     );
   }
-  const mySources=(mySourcesResult.data||[]) as Array<{resource_id:string;target_id:string;type_id:string}>;
+  let mySources=(mySourcesResult.data||[]) as Array<{resource_id:string;target_id:string;type_id:string}>;
   const selectedKind=resolvedSearchParams.kind||"";const cardQuery=(resolvedSearchParams.q||"").trim().toLocaleLowerCase("tr-TR");
-  const tabIntentItems=allMyIntentItems.filter(item=>selectedTab==="events"?item.kind!=="personal":item.kind==="personal").filter(item=>{
-    if(item.kind==="personal"){const p=item.commonIntent||item.seed?.wish_presentation;const title=item.commonIntent?.title||item.seed?.title||"";const subtitle=item.commonIntent?.subtitle||item.seed?.subtitle||"";return (!selectedKind||p?.type_id===selectedKind)&&(!cardQuery||(title+" "+subtitle).toLocaleLowerCase("tr-TR").includes(cardQuery))}
+  if(selectedKind){
+    const seedSources=experienceData.seeds.flatMap(seed=>seed.canonical_target_id?[{resource_id:seed.seed_id,target_id:seed.canonical_target_id,type_id:seed.wish_presentation?.type_id??''}]:[]);
+    const personalSources=allMyIntentItems.flatMap(item=>{if(item.kind!=='personal')return [];const target=item.commonIntent?.target_id??item.seed?.canonical_target_id;return target?[{resource_id:item.commonIntent?.id??item.seed!.seed_id,target_id:target,type_id:item.commonIntent?.type_id??item.seed?.wish_presentation?.type_id??''}]:[];});
+    try {
+      const sources=[...mySources,...seedSources,...personalSources];
+      const index=await readLibraryCategoryIndex(supabase,sources.map(source=>source.target_id),[],AbortSignal.timeout(12000));
+      mySources=sources.flatMap(source=>(index.targets[source.target_id]??[source.type_id]).map(type_id=>({...source,type_id})));
+    } catch { return <PageDataUnavailable title="Kategori bilgileri şu anda yüklenemedi" retryHref={timelineRetryHref} backHref="/timeline" backLabel="Tüm kayıtları göster"/>; }
+  }
+  const categoryIntentItems=allMyIntentItems.filter(item=>{
+    if(item.kind==="personal"){const p=item.commonIntent||item.seed?.wish_presentation;const title=item.commonIntent?.title||item.seed?.title||"";const subtitle=item.commonIntent?.subtitle||item.seed?.subtitle||"";return (!selectedKind||p?.type_id===selectedKind||mySources.some(source=>source.target_id===(item.commonIntent?.target_id??item.seed?.canonical_target_id)&&source.type_id===selectedKind))&&(!cardQuery||(title+" "+subtitle).toLocaleLowerCase("tr-TR").includes(cardQuery))}
     const resourceId=item.entry.kind==="plan"?item.entry.plan.id:item.entry.intent.id;
-    const typeId=mySources.find(s=>s.resource_id===resourceId)?.type_id||"activity";
-    return (!selectedKind||selectedKind===typeId)&&(!cardQuery||JSON.stringify(item.entry).toLocaleLowerCase("tr-TR").includes(cardQuery));
+    return (!selectedKind||mySources.some(s=>s.resource_id===resourceId&&s.type_id===selectedKind))&&(!cardQuery||JSON.stringify(item.entry).toLocaleLowerCase("tr-TR").includes(cardQuery));
   });
+  const tabIntentItems=categoryIntentItems.filter(item=>selectedTab==="events"?item.kind!=="personal":item.kind==="personal");
+  const categoryExperienceEntries=buildExperienceEntries(experienceData.seeds,experienceData.socialExperiences,experienceData.favorites).filter(entry=>matchesExperienceLibraryCategory(entry,selectedKind,mySources)).filter(entry=>!cardQuery||(entry.kind==='personal'?entry.seed.title:entry.item.title).toLocaleLowerCase('tr-TR').includes(cardQuery));
   const filteredMyIntentItems =
     selectedMine === "personal"
       ? tabIntentItems.filter(
@@ -5504,16 +5515,16 @@ const {
         />
 
         <header className="mt-7 flex flex-wrap items-end justify-between gap-3"><div><h1 className="text-3xl font-black text-slate-950">Listem</h1><p className="mt-2 text-sm text-slate-500">Niyetlerin, planların ve yaşadıkların tek yerde.</p></div><WebCardLayoutPicker/></header>
+        <MyCardFilters key={selectedTab+":"+(resolvedSearchParams.q||"")} types={myTypesResult.data||[]}/>
         <section aria-label="Listemi filtrele" className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {[
-            {id:"wanted",label:"Niyetlerim",count:personalIntentSeeds.length+currentIndependentIntents.length},
-            {id:"events",label:"Planlananlar",count:allMyIntentItems.filter(item=>item.kind!=="personal").length},
-            {id:"experiences",label:"Yaşadıklarım",count:experienceTotals.all},
+            {id:"wanted",label:"Niyetlerim",count:categoryIntentItems.filter(item=>item.kind==="personal").length},
+            {id:"events",label:"Planlananlar",count:categoryIntentItems.filter(item=>item.kind!=="personal").length},
+            {id:"experiences",label:"Yaşadıklarım",count:categoryExperienceEntries.length},
           ].map(item=>{const active=selectedTab===item.id||(selectedTab==="loved"&&item.id==="experiences");return <Link key={item.id} href={"/timeline?tab="+item.id+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)} scroll={false} aria-current={active?"page":undefined} className={"rounded-3xl border p-5 text-center shadow-sm transition "+(active?"border-emerald-400 bg-emerald-50 text-emerald-900":"border-gray-200 bg-white text-slate-950 hover:border-emerald-300")}><p className="text-3xl font-black">{item.count}</p><p className="mt-1 text-xs font-bold">{item.label}</p></Link>})}
         </section>
         <div className="mt-5"><Link href="/together" className="text-sm font-bold text-emerald-800 hover:underline">Birlikte yapma önerilerim ↗</Link></div>
-        <MyCardFilters key={selectedTab+":"+(resolvedSearchParams.q||"")} types={myTypesResult.data||[]}/>
-        {(selectedTab==="experiences"||selectedTab==="loved")&&<section className="mt-8"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-black">{selectedTab==="loved"?"Sevdiklerim":"Yaşadıklarım"}</h2>{selectedTab==="loved"&&<p className="mt-2 text-sm text-slate-500">9–10 puan verdiğin deneyimler burada toplanır.</p>}</div><Link href={selectedTab==="loved"?"/timeline?tab=experiences":"/timeline?tab=loved"} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:border-rose-200 hover:text-rose-700">{selectedTab==="loved"?"Tüm yaşadıklarım":"Sevdiklerim · "+experienceTotals.loved}</Link></div><MySeedsContent data={experienceData} typeFilter={selectedKind} query={cardQuery} sourceTypes={mySources} filter={selectedTab==="loved"?"loved":resolvedSearchParams.experience==="personal"?"personal":resolvedSearchParams.experience==="social"?"social":"all"} lovedOnly={selectedTab==="loved"}/></section>}
+        {(selectedTab==="experiences"||selectedTab==="loved")&&<section className="mt-8"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-2xl font-black">{selectedTab==="loved"?"Sevdiklerim":"Yaşadıklarım"}</h2>{selectedTab==="loved"&&<p className="mt-2 text-sm text-slate-500">9–10 puan verdiğin deneyimler burada toplanır.</p>}</div><Link href={(selectedTab==="loved"?"/timeline?tab=experiences":"/timeline?tab=loved")+"&kind="+encodeURIComponent(selectedKind)+"&q="+encodeURIComponent(cardQuery)} className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:border-rose-200 hover:text-rose-700">{selectedTab==="loved"?"Tüm yaşadıklarım":"Sevdiklerim · "+categoryExperienceEntries.filter(entry=>entry.loved).length}</Link></div><MySeedsContent data={experienceData} typeFilter={selectedKind} query={cardQuery} sourceTypes={mySources} filter={selectedTab==="loved"?"loved":resolvedSearchParams.experience==="personal"?"personal":resolvedSearchParams.experience==="social"?"social":"all"} lovedOnly={selectedTab==="loved"}/></section>}
         {(selectedTab==="wanted"||selectedTab==="events")&&<IntentResolutionPanel items={intentResolutionItems}/>}
 
         {selectedView === "open" && (selectedTab==="wanted"||selectedTab==="events") && (

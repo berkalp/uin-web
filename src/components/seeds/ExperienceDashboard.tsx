@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import {buildExperienceEntries} from "@/utils/experienceEntries";
+import {buildExperienceEntries,matchesExperienceLibraryCategory} from "@/utils/experienceEntries";
 
 import CanonicalTargetPeople from "@/components/seeds/CanonicalTargetPeople";
 import PersonalLibraryCard from "@/components/cards/PersonalLibraryCard";
@@ -115,9 +115,7 @@ export default function ExperienceDashboard({
 
   const allEntries=useMemo(()=>buildExperienceEntries(seeds,socialExperiences,favorites,today).filter(entry=>{
     const title=entry.kind==="personal"?entry.seed.title:entry.item.title;
-    const id=String(entry.kind==="personal"?entry.seed.seed_id:entry.item.id||"");
-    const type=entry.kind==="personal"?entry.seed.wish_presentation?.type_id||sourceTypes.find(s=>s.resource_id===id)?.type_id||"activity":sourceTypes.find(s=>s.resource_id===id.replace(/^(plan|intent)-/,""))?.type_id||"activity";
-    return (!typeFilter||type===typeFilter)&&(!query||title.toLocaleLowerCase("tr-TR").includes(query));
+    return matchesExperienceLibraryCategory(entry,typeFilter,sourceTypes)&&(!query||title.toLocaleLowerCase("tr-TR").includes(query));
   }),[seeds,socialExperiences,favorites,today,typeFilter,query,sourceTypes]);
 
   const filteredEntries = useMemo(() => {

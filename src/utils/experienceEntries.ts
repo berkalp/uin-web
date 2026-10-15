@@ -89,4 +89,13 @@ export function buildExperienceEntries(seeds:SeedWithReminder[],socialExperience
       );
 
 }
+export function matchesExperienceLibraryCategory(entry: ExperienceEntry, category: string, sources: Array<{resource_id:string;target_id:string;type_id:string}>) {
+  if (!category) return true;
+  if (entry.kind === 'personal') {
+    return sources.some(source => (source.resource_id === entry.seed.seed_id || source.target_id === entry.seed.canonical_target_id) && source.type_id === category)
+      || entry.seed.wish_presentation?.type_id === category;
+  }
+  const id = String(entry.item.id ?? '').replace(/^(plan|intent)-/, '');
+  return sources.some(source => source.resource_id === id && source.type_id === category);
+}
 export function getExperienceTotals(seeds:SeedWithReminder[],social:SocialExperienceItem[],favorites:PublicFavoriteItem[]){const entries=buildExperienceEntries(seeds,social,favorites);return {all:entries.length,loved:entries.filter(entry=>entry.loved).length,personal:entries.filter(entry=>entry.kind==="personal").length,social:entries.filter(entry=>entry.kind==="social").length};}

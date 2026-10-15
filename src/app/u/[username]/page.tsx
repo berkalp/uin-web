@@ -16,11 +16,10 @@ import FriendshipButton from "@/components/profile/FriendshipButton";
 import ProfileFollowButton from "@/components/profile/ProfileFollowButton";
 import ProfilePresencePanel from "@/components/profile/ProfilePresencePanel";
 import ProfileConnectionsFamilyPanel from "@/components/profile/ProfileConnectionsFamilyPanel";
-import ProfileActivityTabs from "@/components/profile/ProfileActivityTabs";
+import { ProfileCategoryProvider, ProfileCategoryControls, CategoryProfileActivityTabs as ProfileActivityTabs, CategoryPublicSeedsPanel as PublicSeedsPanel } from "@/components/profile/ProfileCategoryFilter";
 import ProfileIntentReactions, {
   type ProfileIntentReactionItem,
 } from "@/components/profile/ProfileIntentReactions";
-import PublicSeedsPanel from "@/components/seeds/PublicSeedsPanel";
 import PublicBadgesPanel from "@/components/badges/PublicBadgesPanel";
 import PublicProfessionalCredentialsPanel from "@/components/professionals/PublicProfessionalCredentialsPanel";
 import VerificationMark from "@/components/professionals/VerificationMark";
@@ -2391,32 +2390,18 @@ export default async function PublicProfilePage({
           </div>
         </section>
 
-      <nav
-        aria-label="Profil bölümleri"
-        className="mt-6 grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-6"
-      >
-        {profileSections.map((item) => (
-          <a
-            key={item.label}
-            href={item.href}
-            className={`group rounded-2xl border px-3 py-4 text-center transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-700 ${
-              item.value > 0
-                ? "border-gray-200 bg-white hover:border-green-300 hover:bg-green-50/40"
-                : "border-gray-200 bg-gray-50/70 hover:border-gray-300 hover:bg-white"
-            }`}
-          >
-            <p className={`text-2xl font-bold transition group-hover:text-green-800 ${item.value > 0 ? "text-gray-900" : "text-gray-400"}`}>
-              {item.value}
-            </p>
-            <p className={`mt-1 text-[11px] font-semibold leading-4 ${item.value > 0 ? "text-gray-500" : "text-gray-400"}`}>
-              {item.label}
-            </p>
-            <p className="mt-2 text-[10px] font-bold text-green-700 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-              Bölüme git ↓
-            </p>
-          </a>
-        ))}
-      </nav>
+      <ProfileCategoryProvider key={profile.id+':'+viewerUserId} viewerId={viewerUserId}
+        targetIds={visibleSeeds.flatMap(seed=>seed.canonical_target_id?[seed.canonical_target_id]:[])}
+        eventIds={[...activeCards,...formingCards,...upcomingCards,...completedCards].flatMap(card=>[card.plan_id??card.resource_id??card.intent_id,card.intent_id])}>
+      <ProfileCategoryControls sections={[
+        {label:'Aktif Etkinlik',href:'#active-social',kind:'event',ids:activeCards.filter(card=>card.lifecycle_status==='open').map(card=>card.plan_id??card.resource_id??card.intent_id)},
+        {label:'İstek',href:'#active-personal',kind:'seed',ids:visibleSeeds.filter(seed=>seed.status==='active').map(seed=>seed.canonical_target_id??seed.seed_id)},
+        {label:'Planlanıyor',href:'#planning',kind:'event',ids:formingCards.map(card=>card.plan_id??card.resource_id??card.intent_id)},
+        {label:'Tamamlanan Etkinlik',href:'#social-experiences',kind:'event',ids:completedCards.map(card=>card.plan_id??card.resource_id??card.intent_id)},
+        {label:'Deneyim',href:'#personal-experiences',kind:'seed',ids:visibleSeeds.filter(seed=>seed.status==='completed').map(seed=>seed.canonical_target_id??seed.seed_id)},
+        {label:'Yaklaşan',href:'#upcoming',kind:'event',ids:[...upcomingCards,...activeCards.filter(card=>card.lifecycle_status==='future')].map(card=>card.plan_id??card.resource_id??card.intent_id)},
+      ]}/>
+
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
           <div>
@@ -2579,6 +2564,8 @@ export default async function PublicProfilePage({
         <div id="personal-experiences" className="scroll-mt-8">
           <PublicSeedsPanel
             key={`${profile.id}-personal-experiences`}
+            libraryCards={profileLibrary.cards}
+            libraryError={profileLibrary.error}
             displayName={displayName}
             seeds={visibleSeeds}
             isOwner={page.viewer.is_owner}
@@ -2617,6 +2604,7 @@ export default async function PublicProfilePage({
             privateSection
           />
         )}
+      </ProfileCategoryProvider>
       </div>
     </main>
   );

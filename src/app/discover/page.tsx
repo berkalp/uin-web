@@ -1,3 +1,5 @@
+import {filterCommunityLibrarySearch} from "@/utils/filterCommunityLibrarySearch";
+import LibraryCategorySelect from "@/components/discover/LibraryCategorySelect";
 import AppNavigation from "@/components/navigation/AppNavigation";
 import WebCardLayoutPicker from "@/components/cards/WebCardLayoutPicker";
 import Link from "next/link";
@@ -441,6 +443,7 @@ function isActiveDiscoverResult(intent: DiscoverIntentRow) {
 function buildDiscoverHref({
   query,
   categoryId,
+  libraryCategory,
   activityId,
   sportId,
   communityId,
@@ -456,6 +459,7 @@ function buildDiscoverHref({
 }: {
   query: string;
   categoryId: string;
+  libraryCategory: string;
   activityId: string;
   sportId: string;
   communityId: string;
@@ -472,6 +476,7 @@ function buildDiscoverHref({
   const params =
     new URLSearchParams();
 
+  if (libraryCategory) params.set("kind", libraryCategory);
   if (query) {
     params.set(
       "q",
@@ -679,6 +684,8 @@ export default async function DiscoverPage({
       )
     );
 
+  const requestedLibraryCategory = getParam(resolvedSearchParams, "kind");
+  const libraryCategory = ["all","personal","social"].includes(requestedLibraryCategory) ? "" : requestedLibraryCategory;
   const needsEligibilityScan =
     view === "cards" &&
     eligibility !== "all";
@@ -736,7 +743,16 @@ export default async function DiscoverPage({
   }
   const viewerId = user.id;
 
-  function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string, scopeOverride?: string) {
+  const communityCategoryReads=new Map<string,Promise<DiscoverIntentRow[]>>();
+  async function runDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string, scopeOverride?: string) {
+    if (!libraryCategory || (!communityId && communityScope !== "following")) return runRawDiscoverSearch(limit,offset,lifecycleOverride,scopeOverride);
+    const key=JSON.stringify([lifecycleOverride??lifecycle,scopeOverride??scope]);
+    let read=communityCategoryReads.get(key);
+    if(!read){read=filterCommunityLibrarySearch<DiscoverIntentRow>(supabase,libraryCategory,(size,start,signal)=>runRawDiscoverSearch(size,start,lifecycleOverride,scopeOverride).abortSignal(signal));communityCategoryReads.set(key,read);}
+    try { const rows=await read; return {data:rows.slice(offset,offset+limit),error:null}; }
+    catch { return {data:null,error:{message:"Etkinlik kategorileri yüklenemedi. Lütfen yeniden dene."}}; }
+  }
+  function runRawDiscoverSearch(limit: number, offset: number, lifecycleOverride?: string, scopeOverride?: string) {
     const requestedLifecycle = lifecycleOverride ?? lifecycle;
     if (communityId) {
       return supabase.rpc("search_visible_intents_by_community", {
@@ -771,7 +787,8 @@ export default async function DiscoverPage({
       });
     }
 
-    return supabase.rpc("search_visible_intents", {
+    return supabase.rpc(libraryCategory ? "search_visible_intents_by_library_category_v185" : "search_visible_intents", {
+      ...(libraryCategory ? {p_library_category:libraryCategory} : {}),
       p_query: query || null,
       p_category_id: categoryId || null,
       p_activity_id: activityId || null,
@@ -787,6 +804,7 @@ export default async function DiscoverPage({
   }
 
   const [
+    libraryTypesResponse,
     filterResponse,
     communityResponse,
     followedCommunityResponse,
@@ -795,6 +813,7 @@ export default async function DiscoverPage({
     tabCountResponses,
   ] =
     await Promise.all([
+      supabase.from("uin_content_types").select("id,label,icon").eq("active",true).order("position").order("label"),
       supabase.rpc(
         "get_intent_discovery_filters"
       ),
@@ -1158,6 +1177,7 @@ export default async function DiscoverPage({
       buildDiscoverHref({
         query,
         categoryId,
+  libraryCategory,
         activityId,
         sportId,
         communityId,
@@ -1858,10 +1878,12 @@ export default async function DiscoverPage({
     <main className="min-h-screen bg-gray-50 px-4 py-6 md:px-6">
       <div className="relative z-[60] mx-auto mb-8 max-w-[1320px]"><AppNavigation /></div>
       <div className="mx-auto max-w-[1320px]">
+        <LibraryCategorySelect types={libraryTypesResponse.data ?? []}/>
         <DiscoverQuickFilters lifecycle={lifecycle} scope={scope} communityScope={communityScope} communityId={communityId} followedCommunities={followedCommunities.map(community=>({id:community.id,name:community.name}))} lifecycleOptions={LIFECYCLE_OPTIONS} scopeOptions={SCOPE_OPTIONS} communityScopeOptions={COMMUNITY_SCOPE_OPTIONS} counts={scopeCounts}/>
 
         <form action="/discover" method="get" className="mt-4 flex gap-2 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm">
           <span className="grid w-10 shrink-0 place-items-center text-xl text-gray-400" aria-hidden="true">⌕</span>
+          {Object.entries({kind:libraryCategory,scope,lifecycle,view,category:categoryId,activity:activityId,sport:sportId,community:communityId,community_scope:communityScope,location:locationId,start:startDate,end:endDate,eligibility}).filter(([,value])=>value).map(([name,value])=><input key={name} type="hidden" name={name} value={value}/>)}
           <input name="q" type="search" defaultValue={query} placeholder="Etkinlik, kişi veya konum ara" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-gray-950 outline-none placeholder:text-gray-400" />
           <button type="submit" className="rounded-xl bg-green-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-green-700">Ara</button>
         </form>
@@ -1870,6 +1892,7 @@ export default async function DiscoverPage({
           <DiscoverFiltersForm
             kind={kind}
             query={query}
+            libraryCategory={libraryCategory}
             categoryId={categoryId}
             activityId={activityId}
             sportId={sportId}
@@ -2030,6 +2053,7 @@ export default async function DiscoverPage({
                         href={buildDiscoverHref({
                           query,
                           categoryId,
+  libraryCategory,
                           activityId,
                           sportId,
                           communityId,
@@ -2258,6 +2282,7 @@ export default async function DiscoverPage({
                     href={buildDiscoverHref({
                       query,
                       categoryId,
+  libraryCategory,
                       activityId,
                       sportId,
                       communityId,
@@ -2293,6 +2318,7 @@ export default async function DiscoverPage({
                     href={buildDiscoverHref({
                       query,
                       categoryId,
+  libraryCategory,
                       activityId,
                       sportId,
                       communityId,
