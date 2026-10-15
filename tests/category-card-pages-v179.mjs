@@ -23,7 +23,7 @@ function categoryRoute(failure=null,latest=false){
  const rows=latest?cards.map((card,i)=>({...card,canonical_target_id:`00000000-0000-0000-0000-${String(1000-i).padStart(12,'0')}`,created_at:'2025-01-01T00:00:00Z',last_activity_at:'2026-10-15T12:00:00.123456+00:00'})):cards;
  const batches=[];const calls=[];const latestArgs=[];const chain={select:()=>chain,eq:()=>chain,not:()=>chain,order:()=>chain,range:()=>chain,in:()=>chain,maybeSingle:async()=>({data:{id:'book',base_kind:'book',active:true},error:null})};
  const db={from:()=>chain,rpc:async(name,args)=>{calls.push(name);if(args?.p_target_ids)batches.push(args.p_target_ids.length);if(name===failure)return {data:null,error:{code:'57014'}};let data;
- if(name==='get_uin_latest_placements_v187'){latestArgs.push(args);const start=args.p_before_id?rows.findIndex(row=>row.canonical_target_id===args.p_before_id)+1:0;data=rows.slice(start,start+21).map(row=>({...row,id:row.canonical_target_id}))}
+ if(name==='get_uin_latest_placements_v187'||name==='get_uin_latest_placements_v188'){latestArgs.push(args);const start=args.p_before_id?rows.findIndex(row=>row.canonical_target_id===args.p_before_id)+1:0;data=rows.slice(start,start+21).map(row=>({...row,id:row.canonical_target_id}))}
  else if(name==='get_uin_type_placements_v177')data=rows.map(c=>({id:c.canonical_target_id,canonical_target_id:c.canonical_target_id,item_kind:'book',content_type_id:'book'}));
  else if(name==='get_uin_cover_positions_v62')data=rows.slice(0,-1).map(c=>({target_id:c.canonical_target_id,cover_position_y:50}));
  else if(name==='get_uin_catalogue_for_targets_v123')data=rows.map(c=>({...c,completed_event_count:0,expired_event_count:0,cancelled_event_count:0}));
@@ -62,4 +62,13 @@ test('activity feed forwards each audience and preserves both timestamps',async(
   assert.equal(JSON.parse(Buffer.from(result.body.nextCursor,'base64url')).time,row.last_activity_at);
  }
  assert.equal((await route.request('audience=someone-else')).status,400);
+});
+
+test('personalized feed passes selected categories to the database before the bounded page projection',async()=>{
+ const route=categoryRoute(null,true),result=await route.request('categories=movie,artist,movie&audience=friends');
+ assert.equal(result.status,200);assert.ok(route.calls.includes('get_uin_latest_placements_v188'));assert.ok(!route.calls.includes('get_uin_latest_placements_v187'));
+ assert.deepEqual(Array.from(route.latestArgs[0].p_categories),['artist','movie']);assert.equal(route.latestArgs[0].p_audience,'friends');assert.ok(route.batches.every(size=>size===20));
+ const next=await route.request('categories=movie,artist&cursor='+result.body.nextCursor);assert.equal(next.status,200);assert.deepEqual(Array.from(route.latestArgs[1].p_categories),['artist','movie']);assert.ok(route.latestArgs[1].p_before_id);
+ for(const categories of ['all','artist,,movie','artist%26audience%3Dme',Array.from({length:101},(_,i)=>'c'+i).join(',')])assert.equal((await categoryRoute(null,true).request('categories='+categories)).status,400);
+ assert.equal((await categoryRoute('get_uin_latest_placements_v188',true).request('categories=artist')).status,503);
 });

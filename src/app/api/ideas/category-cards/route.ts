@@ -27,6 +27,9 @@ export async function GET(request:NextRequest){
   const kind=(request.nextUrl.searchParams.get("kind")||"").trim();
   const audience=request.nextUrl.searchParams.get("audience")||"everyone";
   if(!["everyone","friends","me"].includes(audience))return NextResponse.json({error:"Geçersiz kapsam."},{status:400});
+  const categoryParam=request.nextUrl.searchParams.get('categories');
+  const categories=categoryParam?[...new Set(categoryParam.split(','))].sort():[];
+  if(categories.length>100||categories.some(id=>!(/^[a-zA-Z0-9_-]{1,100}$/).test(id)||id==='all'))return NextResponse.json({error:'Geçersiz kategori seçimi.'},{status:400});
   const pageParam=request.nextUrl.searchParams.get("page");
   const pageSort=request.nextUrl.searchParams.get("sort")||"wanting";
   if(pageParam!==null&&(!/^[1-9]\d*$/.test(pageParam)||!Number.isSafeInteger(Number(pageParam))||!CATEGORY_PAGE_SORTS.includes(pageSort as CategoryPageSort)))return NextResponse.json({error:"Geçersiz sayfa veya sıralama."},{status:400});
@@ -54,7 +57,7 @@ export async function GET(request:NextRequest){
   const items:Row[]=[];
   let nextCursor:string|null=null;
   if(kind==="all"){
-    const latest=await db.rpc("get_uin_latest_placements_v187",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience});
+    const latest=categories.length?await db.rpc("get_uin_latest_placements_v188",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience,p_categories:categories}):await db.rpc("get_uin_latest_placements_v187",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience});
     if(latest.error||!Array.isArray(latest.data))return NextResponse.json({error:"Yeni kartlar yüklenemedi. Tekrar deneyebilirsin."},{status:503});
     items.push(...latest.data.slice(0,20));
     if(latest.data.length>20){const last=items[items.length-1];nextCursor=encodeLatestLibraryCursor(String(last.last_activity_at),String(last.canonical_target_id))}
