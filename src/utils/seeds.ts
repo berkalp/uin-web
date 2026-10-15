@@ -167,6 +167,8 @@ export type PublicSeedRecord = {
 // profile surface actually receives, so the UI never invents visibility or
 // counter values that are absent from that read model.
 export type PublicProfileSeedRecord = {
+  source_kind?: "seed" | "personal";
+  source_target_id?: string | null;
   seed_id: string;
   catalog_item_id: string | null;
   canonical_target_id: string | null;

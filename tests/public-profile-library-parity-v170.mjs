@@ -105,7 +105,7 @@ test("profile Seed reader is secure, uncapped and consumed atomically", () => {
     "supabase/migrations/20261010210000_visible_profile_seed_life_v170.sql",
   );
 
-  assert.match(profile, /get_visible_profile_seed_life_v170/);
+  assert.match(profile, /get_visible_profile_library_v189/);
   assert.doesNotMatch(profile, /get_visible_profile_seed_life_v24/);
   assert.doesNotMatch(profile, /get_visible_profile_seeds_v2/);
 
@@ -365,4 +365,17 @@ test("activity role badges and rendered cards share each lifecycle section filte
       new RegExp(`count: lifecycleFilteredCardsByTab\\.${tab}\\.length`),
     );
   }
+});
+
+
+test("profile personal wishes retain source identity alongside an existing experience", () => {
+ const parse=loadProfileSeedParser().parsePublicProfileSeedLifePayload;
+ const experience=fixture(201);
+ const wish={...experience,seed_id:'personal-201',source_kind:'personal',source_target_id:'source-201',status:'active',relationship_status:'want',rating:null,experience_precision:null,experience_date:null,experience_year:null};
+ const rows=parse([experience,wish]);
+ assert.equal(rows.length,2);
+ const active=rows.find(row=>row.status==='active');
+ assert.equal(active.source_kind,'personal');assert.equal(active.source_target_id,'source-201');
+ assert.equal(rows.find(row=>row.status==='completed').personal_rating,experience.rating);
+ assert.equal(parse([{...wish,source_kind:'unexpected'}]),null);
 });

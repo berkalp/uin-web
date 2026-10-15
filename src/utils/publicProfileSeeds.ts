@@ -29,6 +29,7 @@ export function parsePublicProfileSeedLifeRow(
   value: unknown
 ): PublicProfileSeedRecord | null {
   if (!isRecord(value)) return null;
+  if (value.source_kind !== undefined && !["seed", "personal"].includes(value.source_kind as string)) return null;
 
   if (
     !hasStringFields(value, [
@@ -108,6 +109,8 @@ export function parsePublicProfileSeedLifeRow(
 
   return {
     seed_id: value.seed_id as string,
+    source_kind: value.source_kind === "personal" ? "personal" : "seed",
+    source_target_id: typeof value.source_target_id === "string" ? value.source_target_id : null,
     catalog_item_id: value.catalog_item_id as string | null,
     canonical_target_id: value.canonical_target_id as string | null,
     seed_type_name: value.seed_type_name as string | null,

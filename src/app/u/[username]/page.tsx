@@ -688,7 +688,7 @@ export default async function PublicProfilePage({
   // Start every independent read as soon as the privacy gates have passed. The
   // individual promises remain awaitable below, while their network time overlaps.
   const visibleSeedResultPromise = startQuery(
-    supabase.rpc("get_visible_profile_seed_life_v170", {
+    supabase.rpc("get_visible_profile_library_v189", {
       p_profile_user_id: profile.id,
     })
   );
@@ -905,7 +905,7 @@ export default async function PublicProfilePage({
               (seed.visibility === "everyone" ||
                 page.viewer.friendship_status === "accepted")
           ))
-          ? parsedSeeds.map((seed) => seed.seed_id)
+          ? parsedSeeds.filter((seed) => seed.source_kind !== "personal").map((seed) => seed.seed_id)
           : [];
       return seedIds.length > 0
         ? await supabase.rpc("get_visible_seed_reaction_context", {
@@ -1076,7 +1076,7 @@ export default async function PublicProfilePage({
     )
   );
   const missingSeedReactionContext = baseVisibleSeeds.some(
-    (seed) => !visibleSeedReactionById.has(seed.seed_id)
+    (seed) => seed.source_kind !== "personal" && !visibleSeedReactionById.has(seed.seed_id)
   );
 
   const visibleSeeds = baseVisibleSeeds.map((seed) => ({
