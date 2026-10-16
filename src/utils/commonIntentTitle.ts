@@ -32,7 +32,7 @@ const CATALOGUE_TITLES: Record<string, string> = {
   "ceramics": "Seramik",
   "charity event": "Yardım Etkinliği",
   "chess": "Satranç",
-  "children’s theatre visit": "Çocuk Tiyatrosuna Gitmek",
+  "children's theatre visit": "Çocuk Tiyatrosuna Gitmek",
   "cinema visit": "Sinemaya Gitmek",
   "city walk": "Şehir Yürüyüşü",
   "climbing": "Tırmanış",
@@ -265,5 +265,5 @@ const GENERIC_TITLES: Record<string, string> = {
 
 export function commonIntentTitle(title: string | null | undefined): string {
   const source = title?.trim() || "Konu";
-  return CATALOGUE_TITLES[source.toLocaleLowerCase("en-US")] || GENERIC_TITLES[source.toLocaleLowerCase("en-US")] || source;
+  return CATALOGUE_TITLES[source.replace(/\s+/g, " ").replace(/[’‘]/g, "'").toLocaleLowerCase("en-US")] || GENERIC_TITLES[source.replace(/\s+/g, " ").replace(/[’‘]/g, "'").toLocaleLowerCase("en-US")] || source;
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
 import {
   FormEvent,
   useEffect,
@@ -930,7 +931,7 @@ export default function EditIntentForm({
                   key={activity.id}
                   value={activity.id}
                 >
-                  {activity.name}
+                  {commonIntentTitle(activity.name)}
                 </option>
               )
             )}

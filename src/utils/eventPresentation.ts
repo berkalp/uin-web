@@ -41,7 +41,7 @@ export function activityIntentLabel(name: string | null | undefined, explicit?: 
 
 export function activityEventLabel(name: string | null | undefined, explicit?: string | null) {
   const source = explicit?.trim() || name?.trim() || "UIN Aktivitesi";
-  return source.split(" · ").map((part,index) => index === 0 ? EVENT_LABELS[part.toLocaleLowerCase("en-US")] || commonIntentTitle(part) : part).join(" · ");
+  return source.split(/\s*·\s*/).map((part,index) => index === 0 ? EVENT_LABELS[part.toLocaleLowerCase("en-US")] || commonIntentTitle(part) : part).join(" · ");
 }
 
 export function buildEventTitle({
@@ -73,6 +73,5 @@ export function eventTitleFromPresentation(
 
 // Translate only the exact catalogue activity segment, leaving custom names/DNA intact.
 export function localizeEventDisplayTitle(title:string) {
-  const [activity,...dna]=title.split(' · ');
-  return [activityEventLabel(activity),...dna].join(' · ');
+  return activityEventLabel(title);
 }

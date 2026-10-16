@@ -1,5 +1,6 @@
 "use client";
 
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
 import Link from "next/link";
 import {
   useMemo,
@@ -420,7 +421,7 @@ export default function DiscoverFiltersForm({
                   key={activity.id}
                   value={activity.id}
                 >
-                  {activity.name}
+                  {commonIntentTitle(activity.name)}
                 </option>
               )
             )}

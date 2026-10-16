@@ -1,5 +1,6 @@
 "use client";
 
+import { commonIntentTitle } from "@/utils/commonIntentTitle";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -205,7 +206,7 @@ export default function CommunityDiscoveryFiltersForm({
 
             {visibleActivities.map((activity) => (
               <option key={activity.id} value={activity.id}>
-                {activity.name}
+                {commonIntentTitle(activity.name)}
               </option>
             ))}
           </select>
