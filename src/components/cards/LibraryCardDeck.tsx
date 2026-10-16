@@ -86,13 +86,13 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
             {review.body?<Review body={review.body}/>:null}
           </div>):<p className="text-sm">Henüz deneyim ekleyen yok.</p>}
         </div>}
-        {data&&!error&&actions?<div className="mt-auto">{position===-1&&!people.some(person=>person.user_id===account)?<SmallAction label={"＋ "+actions.wantLabel} onClick={actions.editWish}/>:position===-2&&!reviews.some(review=>review.user_id===account)?<SmallAction label={"＋ "+actions.doneLabel} onClick={actions.editExperience}/>:position>0&&!events.length?<SmallAction label="＋ Etkinlik düzenle" onClick={actions.createEvent}/>:null}</div>:null}
+        {data&&!error&&actions&&position>0&&!events.length?<SmallAction label="＋ Etkinlik düzenle" onClick={actions.createEvent}/>:null}
         <div className="uin-deck-dock">
-          <button ref={back} type="button" className="uin-deck-home" aria-label={`${cardTitle} kartına dön`} onClick={()=>navigate(0)}><strong>{cardTitle}</strong><small>Karta dön</small></button>
-          {position===1?<div className="uin-deck-choices"><span className="uin-deck-counter" aria-live="polite">{current?`${currentIndex+1} / ${events.length}`:'Etkinlikler'}</span>{events.length>1?<div className="uin-deck-navigation"><button type="button" disabled={currentIndex===0} onClick={()=>move(-1)}>‹ Önceki</button><button type="button" disabled={currentIndex===events.length-1} onClick={()=>move(1)}>{currentIndex===0?'Diğer etkinlik ›':'Sonraki ›'}</button></div>:null}</div>:<div className="uin-deck-choices"><div className="uin-deck-navigation">
+          <button ref={back} type="button" className="uin-deck-home" aria-label={`${cardTitle} kartına dön`} onClick={()=>navigate(0)}>Karta dön</button>
+          {position===1?<div className="uin-deck-choices uin-deck-navigation">{events.length>1?<><button type="button" className="uin-deck-previous" aria-label="Önceki etkinlik" disabled={currentIndex===0} onClick={()=>move(-1)}>‹</button><button type="button" aria-label={`Sonraki etkinlik, ${currentIndex+1} / ${events.length}`} disabled={currentIndex===events.length-1} onClick={()=>move(1)}>Diğer {currentIndex+1}/{events.length} ›</button></>:current?<span aria-live="polite">1/1</span>:null}</div>:<div className="uin-deck-choices uin-deck-navigation">
             <button type="button" onClick={()=>navigate(position===-1?-2:-1)}>{position===-1?'‹ '+doers:wanting+' ›'} · {position===-1?reviews.length:people.length}</button>
-            <button type="button" onClick={()=>navigate(1)}>Etkinlikler › · {data?events.length:'…'}</button>
-          </div>{actions?<div className="uin-deck-navigation">{position===-1?<SmallAction label={reviews.some(review=>review.user_id===account)?'Deneyimimi düzenle':'＋ '+actions.doneLabel} onClick={actions.editExperience}/>:people.some(person=>person.user_id===account)?<div className="uin-deck-own-actions flex gap-0.5"><SmallAction label="Düzenle" onClick={actions.editWish}/><SmallAction label="İptal" cancel onClick={actions.cancelWish}/></div>:<SmallAction label={'＋ '+actions.wantLabel} onClick={actions.editWish}/>}<SmallAction label="＋ Etkinlik" onClick={actions.createEvent}/></div>:null}</div>}
+            <button type="button" onClick={()=>navigate(1)}>Etkinlikler {data?events.length:'…'} ›</button>
+          </div>}
         </div>
       </div>
     </div>:null}

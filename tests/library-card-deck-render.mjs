@@ -56,7 +56,7 @@ test('web faces include the viewer first, real rating and compact own actions; e
  const render=()=>{states=[position,community,'',0,null];return renderToStaticMarkup(React.createElement(Deck,{targetId:'artist',account:'viewer',coverUrl:'artist.jpg',wanting:'İsteyenler',doers:'Dinleyenler',actions}));};
  let html=render();assert.ok(html.indexOf('Self')<html.indexOf('Friend'));assert.equal((html.match(/Düzenle/g)||[]).length,1);assert.ok(html.includes('İptal'));
  position=-2;html=render();assert.ok(html.includes('Self review'));assert.ok(html.includes('★ 8/10'));assert.ok(html.includes('Deneyimimi düzenle'));assert.ok(!html.includes('＋ Dinledim'));
- community.reviews=[];html=render();assert.ok(html.includes('＋ Dinledim'));
+ community.reviews=[];html=render();assert.ok(!html.includes('＋ Dinledim'));assert.ok(!html.includes('＋ Etkinlik'));
  position=1;html=render();assert.ok(html.includes('artist.jpg'));assert.ok(html.includes('İlk buluşmayı sen başlatabilirsin'));assert.ok(html.includes('＋ Etkinlik düzenle'));
 });
 
@@ -78,10 +78,10 @@ test('direct events open without a list, preserve identity, recover deletion and
  const click=label=>{const button=buttons.find(p=>text(p.children)===label||p.accessibilityLabel===label||p['aria-label']===label);assert.ok(button,label);assert.ok(!button.disabled,label);(button.onClick??button.onPress)({stopPropagation(){}});};
 
  render();click('Etkinlikler 2');let html=render();assert.ok(html.includes('Birinci'));assert.ok(!html.includes('İkinci'));assert.ok(!html.includes('Görüntüle'));assert.ok(!html.includes('Listeye dön'));
- assert.equal(buttons.find(p=>text(p.children)==='‹ Önceki').disabled,true);
- click('Diğer etkinlik ›');html=render();assert.ok(html.includes('İkinci'));assert.equal(buttons.find(p=>text(p.children)==='Sonraki ›').disabled,true);
+ assert.equal(buttons.find(p=>text(p.children)==='‹').disabled,true);
+ click('Sonraki etkinlik, 1 / 2');html=render();assert.ok(html.includes('İkinci'));assert.equal(buttons.find(p=>text(p.children)==='Diğer 2/2 ›').disabled,true);
  community.events.reverse();html=render();assert.ok(html.includes('İkinci'));
- community.events=community.events.filter(e=>e.intent_id!=='b');html=render();assert.ok(html.includes('Birinci'));assert.ok(!html.includes('İkinci'));assert.ok(!buttons.some(p=>text(p.children)==='Sonraki ›'));
+ community.events=community.events.filter(e=>e.intent_id!=='b');html=render();assert.ok(html.includes('Birinci'));assert.ok(!html.includes('İkinci'));assert.ok(!buttons.some(p=>text(p.children)==='Diğer 2/2 ›'));
  click('Bolu kartına dön');html=render();assert.equal(states[0],0);assert.ok(html.includes('Etkinlikler 1'));
  states[0]=-1;render();click('Bolu kartına dön');assert.equal(states[0],0);
  states[0]=-2;render();click('Bolu kartına dön');assert.equal(states[0],0);
