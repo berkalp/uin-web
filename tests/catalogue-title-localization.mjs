@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';import ts from 'typescript';
+const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/utils/commonIntentTitle.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{module,exports:module.exports});
+test('catalogue activity labels translate exact names without rewriting personal titles',()=>{const label=module.exports.commonIntentTitle;assert.equal(label('Backpacking'),'Sırt Çantalı Gezi');assert.equal(label('Photography Walk'),'Fotoğraf Yürüyüşü');assert.equal(label('Berkalp ile Backpacking anıları'),'Berkalp ile Backpacking anıları');assert.equal(label('Eskişehir'),'Eskişehir');});

@@ -60,7 +60,7 @@ test('web faces include the viewer first, real rating and compact own actions; e
  position=1;html=render();assert.ok(html.includes('artist.jpg'));assert.ok(html.includes('İlk buluşmayı sen başlatabilirsin'));assert.ok(html.includes('＋ Etkinlik düzenle'));
 });
 
-test('card-local list/detail/back navigation keeps selection by ID and clamps event swipes',()=>{
+test('direct events open without a list, preserve identity, recover deletion and return to the main card',()=>{
  let states=[0,null,'',0,null],cursor=0,buttons=[],gestures;
  const Native=({children})=>React.createElement('div',null,children);
  const Button=props=>{buttons.push(props);return React.createElement('button',{disabled:props.disabled},props.children);};
@@ -75,14 +75,16 @@ test('card-local list/detail/back navigation keeps selection by ID and clamps ev
  },'\nexports.Deck=Deck;');
  const text=node=>typeof node==='string'||typeof node==='number'?String(node):Array.isArray(node)?node.map(text).join(''):node?.props?text(node.props.children):'';
  const render=()=>{cursor=0;buttons=[];return renderToStaticMarkup(React.createElement(Deck,{targetId:'bolu',title:'Bolu',account:null,coverUrl:null,wanting:'İsteyenler',doers:'Gidenler'},(go,count)=>React.createElement(Button,{onClick:()=>go(1),onPress:()=>go(1)},'Etkinlikler '+count)));};
- const click=label=>{const button=buttons.find(p=>text(p.children)===label||p.accessibilityLabel===label);assert.ok(button,label);assert.ok(!button.disabled,label);(button.onClick??button.onPress)({stopPropagation(){}});};
- render();click('Etkinlikler 2');let html=render();assert.ok(html.includes('Bolu · Etkinlikler'));assert.ok(html.includes('Birinci'));assert.ok(html.includes('İkinci'));
- const row=buttons.find(p=>text(p.children).includes('Birinci')&&text(p.children).includes('Görüntüle'));
- assert.ok(row);(row.onClick??row.onPress)({stopPropagation(){}});html=render();assert.ok(html.includes('1'));assert.equal(buttons.find(p=>text(p.children)==='‹ Önceki etkinlik').disabled,true);
- click('Sonraki etkinlik ›');html=render();assert.ok(html.includes('İkinci'));assert.equal(buttons.find(p=>text(p.children)==='Sonraki etkinlik ›').disabled,true);
+ const click=label=>{const button=buttons.find(p=>text(p.children)===label||p.accessibilityLabel===label||p['aria-label']===label);assert.ok(button,label);assert.ok(!button.disabled,label);(button.onClick??button.onPress)({stopPropagation(){}});};
+
+ render();click('Etkinlikler 2');let html=render();assert.ok(html.includes('Birinci'));assert.ok(!html.includes('İkinci'));assert.ok(!html.includes('Görüntüle'));assert.ok(!html.includes('Listeye dön'));
+ assert.equal(buttons.find(p=>text(p.children)==='‹ Önceki').disabled,true);
+ click('Diğer etkinlik ›');html=render();assert.ok(html.includes('İkinci'));assert.equal(buttons.find(p=>text(p.children)==='Sonraki ›').disabled,true);
  community.events.reverse();html=render();assert.ok(html.includes('İkinci'));
- community.events=community.events.filter(e=>e.intent_id!=='b');html=render();assert.ok(html.includes('Görüntüle'));assert.ok(!html.includes('Listeye dön'));
- click('‹ Bolu kartına dön');html=render();assert.ok(html.includes('Etkinlikler 1'));
- states[0]=-1;html=render();assert.ok(html.includes('Bolu kartına dön'));click('‹ Bolu kartına dön');assert.equal(states[0],0);
- states[0]=-2;html=render();assert.ok(html.includes('Bolu kartına dön'));click('‹ Bolu kartına dön');assert.equal(states[0],0);
+ community.events=community.events.filter(e=>e.intent_id!=='b');html=render();assert.ok(html.includes('Birinci'));assert.ok(!html.includes('İkinci'));assert.ok(!buttons.some(p=>text(p.children)==='Sonraki ›'));
+ click('Bolu kartına dön');html=render();assert.equal(states[0],0);assert.ok(html.includes('Etkinlikler 1'));
+ states[0]=-1;render();click('Bolu kartına dön');assert.equal(states[0],0);
+ states[0]=-2;render();click('Bolu kartına dön');assert.equal(states[0],0);
+ community.events=[];states[0]=1;html=render();assert.ok(html.includes('İlk buluşmayı sen başlatabilirsin'));assert.ok(!html.includes('1 / 0'));
+
 });

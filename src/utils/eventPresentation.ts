@@ -70,3 +70,9 @@ export function eventTitleFromPresentation(
     primaryDnaTitle: presentation?.primaryDna?.title,
   });
 }
+
+// Translate only the exact catalogue activity segment, leaving custom names/DNA intact.
+export function localizeEventDisplayTitle(title:string) {
+  const [activity,...dna]=title.split(' · ');
+  return [activityEventLabel(activity),...dna].join(' · ');
+}

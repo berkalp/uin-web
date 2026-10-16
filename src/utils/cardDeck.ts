@@ -52,3 +52,15 @@ export function adjacentCardEvent<T>(rows:T[], selected:string|null, direction:-
   const {index}=selectedCardEvent(rows,selected,id);
   return index<0?null:id(rows[Math.max(0,Math.min(rows.length-1,index+direction))]);
 }
+
+// Current events first; recent history follows. Keep cancelled history distinct.
+export function cardDeckEvents<T>(rows:T[], id:(row:T)=>string, phase:(row:T)=>string, date:(row:T)=>string|null|undefined) {
+  const unique=[...new Map(rows.filter(row=>phase(row)!=='completed').map(row=>[id(row),row])).values()];
+  const rank=(row:T)=>phase(row)==='active'?0:phase(row)==='past'?1:2;
+  const time=(row:T)=>{const n=Date.parse(date(row)||'');return Number.isFinite(n)?n:null;};
+  return unique.sort((a,b)=>{const group=rank(a)-rank(b);if(group)return group;const x=time(a),y=time(b);if(x===null||y===null)return x===y?id(a).localeCompare(id(b)):x===null?1:-1;return (rank(a)===0?x-y:y-x)||id(a).localeCompare(id(b));});
+}
+export function currentCardEvent<T>(rows:T[], selected:string|null, id:(row:T)=>string) {
+  const found=selectedCardEvent(rows,selected,id);
+  return found.event?found:{index:rows.length?0:-1,event:rows[0]};
+}

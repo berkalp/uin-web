@@ -242,3 +242,21 @@ html[data-uin-card-layout="compact"] .uin-wish-date{font-size:9px}
 
 .uin-deck-event-scroll > article { min-height:100%!important; aspect-ratio:auto!important; }
 .uin-deck-event-scroll > article > .uin-layout-card-spacer { min-height:24px!important; }
+
+/* The same event card as Discover, with independent, persistent deck navigation. */
+.uin-deck-face.uin-deck-event-face{padding:0;gap:0}
+.uin-deck-event-scroll>article{border:0;border-radius:0;box-shadow:none}
+.uin-deck-event-scroll>article>.uin-layout-card-spacer{min-height:8px!important}
+.uin-deck-dock{display:flex;gap:6px;padding:6px;flex-shrink:0;border-radius:12px;background:rgba(2,6,23,.92)}
+.uin-deck-home{flex:1;min-width:65px;min-height:52px;background:rgba(255,255,255,.12);border-radius:10px;padding:8px;text-align:left;overflow-wrap:anywhere;font-size:13px}
+.uin-deck-home small{display:block;margin-top:3px;font-size:10px;color:#cbd5e1}
+.uin-deck-choices{flex:2;min-width:0;display:flex;flex-direction:column;gap:4px}
+.uin-deck-counter{text-align:center;font-size:11px}
+.uin-deck-dock button:focus-visible{outline:3px solid #6ee7b7;outline-offset:-3px}
+.uin-deck-dock .uin-deck-navigation button{font-size:11px!important}
+.uin-deck-own-actions>.uin-deck-small-action{min-width:44px;min-height:44px}
+/* Reserve the navigation band on every face, so opening an event never shifts
+   neighbouring cards or takes space away from the original event design. */
+.uin-layout-card:has(>.uin-deck-main){container-type:inline-size;aspect-ratio:auto!important}
+.uin-layout-card>.uin-deck-main{min-height:calc(100cqw + 76px)}
+html:not([data-uin-card-layout="square"]):not([data-uin-card-layout="compact"]) .uin-layout-card>.uin-deck-main{min-height:506px}

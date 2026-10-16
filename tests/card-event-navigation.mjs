@@ -32,3 +32,14 @@ test('event navigation clamps endpoints and retains IDs for zero, one and many r
  assert.equal(adjacent(rows.slice(0,1),'0',1,id),'0');assert.equal(adjacent([],null,1,id),null);
  assert.equal(adjacent(rows,'deleted',1,id),null);
 });
+
+test('direct deck orders current events ahead of dated history and recovers missing IDs',()=>{
+ const {cardDeckEvents:list,currentCardEvent:current}=module.exports;
+ const rows=[{id:'past',phase:'past',date:'2026-01-01'},{id:'far',phase:'active',date:'2027-02-01'},{id:'near',phase:'active',date:'2027-01-01'},{id:'cancelled',phase:'cancelled',date:'2026-03-01'},{id:'done',phase:'completed',date:'2026-01-01'},{id:'near',phase:'active',date:'2027-01-01'}];
+ const events=list(rows,e=>e.id,e=>e.phase,e=>e.date);
+ assert.equal(events.map(e=>e.id).join(','),'near,far,past,cancelled');assert.equal(rows.length,6);
+ assert.equal(current(events,null,e=>e.id).event.id,'near');
+ assert.equal(current(events,'far',e=>e.id).index,1);
+ assert.equal(current(events,'removed',e=>e.id).event.id,'near');
+ assert.equal(current([],null,e=>e.id).index,-1);
+});
