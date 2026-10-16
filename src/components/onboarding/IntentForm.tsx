@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { EventSubmission, DuplicateCardEventError } from "@/utils/eventSubmission";
 import Link from "next/link";
 import {
   useRouter,
@@ -984,20 +985,24 @@ export default function IntentForm({
     return data.user;
   }
 
+  const eventSubmission = useRef(new EventSubmission());
+  const [duplicateEvent, setDuplicateEvent] = useState<DuplicateCardEventError | null>(null);
+
   async function handleCreateIntent() {
     setErrorMessage("");
 
-    if (!canCreate) {
+    if (!canCreate || !eventSubmission.current.begin()) {
       return;
     }
 
     setIsSaving(true);
+    setDuplicateEvent(null);
 
     try {
       const user =
         await getAuthenticatedUser();
 
-      const createdIntentId = await createIntent({targetId:mainCard!.id,eventTitle:commonIntentSubtitle,relatedTargetIds,
+      const createdIntentId = await createIntent({requestId:eventSubmission.current.requestId({targetId:mainCard!.id,commonIntentSubtitle,relatedTargetIds,startDate,endDate,people,locationId,activityId,sportId,serializedEstimatedCost,recurrence,visibility,notes,intentType,maxParticipants,participantEligibility,joinMessageMode,joinMessagePrompt,professionalRequirement,professionalRoleId,selectedSourceSeedIds}),targetId:mainCard!.id,eventTitle:commonIntentSubtitle,relatedTargetIds,
         userId:
           user.id,
         startDate,
@@ -1049,6 +1054,7 @@ export default function IntentForm({
       router.refresh();
     } catch (error) {
       console.error(error);
+      if (error instanceof DuplicateCardEventError) setDuplicateEvent(error);
 
       setErrorMessage(
         error instanceof Error
@@ -1057,6 +1063,8 @@ export default function IntentForm({
       );
 
       setIsSaving(false);
+    } finally {
+      eventSubmission.current.end();
     }
   }
 
@@ -1932,6 +1940,7 @@ export default function IntentForm({
             preview={preview}
           />
 
+          {duplicateEvent && <Link href={`/activities/${encodeURIComponent(duplicateEvent.planId || duplicateEvent.intentId)}`} className="font-bold text-violet-700 underline">Mevcut etkinliği aç</Link>}
           {errorMessage && (
             <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-sm font-semibold text-red-700">
               {

@@ -1,3 +1,4 @@
+import { duplicateCardEventError } from "@/utils/eventSubmission";
 import {
   type ProfessionalRequirement,
 } from "@/utils/professionals";
@@ -9,6 +10,7 @@ import {
 } from "@/utils/joinRequestMessage";
 
 type CreateIntentInput = {
+  requestId: string;
   userId: string;
   targetId:string;eventTitle?:string;relatedTargetIds?:string[];
   startDate: string;
@@ -76,7 +78,7 @@ function parseCapacity(
 }
 
 export async function createIntent({
-  userId,targetId,eventTitle="",relatedTargetIds=[],
+  requestId,userId,targetId,eventTitle="",relatedTargetIds=[],
   startDate,
   endDate,
   people,
@@ -170,7 +172,7 @@ export async function createIntent({
   const { data, error } =
     await supabase.rpc(
       "create_my_card_event_v72",
-      {p_target_id:targetId,p_related_target_ids:relatedTargetIds,p_details:{p_event_title:eventTitle.trim()||null,
+      {p_target_id:targetId,p_related_target_ids:relatedTargetIds,p_details:{p_creation_request_id:requestId,p_event_title:eventTitle.trim()||null,
         p_start_date: startDate,
         p_end_date: endDate,
         p_people: normalizedPeople,
@@ -201,6 +203,8 @@ export async function createIntent({
     );
 
   if (error) {
+    const duplicate = duplicateCardEventError(error);
+    if (duplicate) throw duplicate;
     throw new Error(
       error.message ||
         "The Intent could not be created."

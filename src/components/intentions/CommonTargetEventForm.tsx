@@ -1,11 +1,13 @@
 "use client";
 
+import { EventSubmission, DuplicateCardEventError } from "@/utils/eventSubmission";
+import Link from "next/link";
 import EventCardPicker from "@/components/ideas/EventCardPicker";
 import MediaViewingFields from "@/components/media/MediaViewingFields";
 import ClubViewingFields from "@/components/clubs/ClubViewingFields";
 import type {TogetherActivityOption} from "@/components/seeds/TogetherProposal";
 import {defaultClubViewing,type ClubProfile,type ViewingContext} from "@/utils/clubProfile";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import LocationHierarchySelect from "@/components/locations/LocationHierarchySelect";
 import {createIntent} from "@/services/intentService";
 import {getLocations} from "@/services/locationService";
@@ -29,6 +31,8 @@ export default function CommonTargetEventForm({targetId,mediaKind,clubProfile,in
   const [relatedTargetIds,setRelatedTargetIds]=useState<string[]>([]);
   const [notes,setNotes]=useState("");
   const [capacity,setCapacity]=useState("5");
+  const submission=useRef(new EventSubmission());
+  const [duplicate,setDuplicate]=useState<DuplicateCardEventError|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
   const selectedActivity=activityOptions.find(option=>option.id===activityId)||null;
@@ -41,9 +45,10 @@ export default function CommonTargetEventForm({targetId,mediaKind,clubProfile,in
   const valid=useMemo(()=>Boolean(selectedActivity&&startDate&&endDate&&endDate>=startDate&&locationId),[selectedActivity,startDate,endDate,locationId]);
 
   async function save(){
-    if(!valid||!selectedActivity)return;
+    if(!valid||!selectedActivity||busy)return;
     if(mediaKind&&viewing.mode==="online"&&privateInfo.trim()){try{if(!["https:","http:"].includes(new URL(privateInfo.trim()).protocol))throw new Error();}catch{setError("Geçerli bir katılım bağlantısı gir.");return}}
-    setBusy(true);setError("");
+    if(!submission.current.begin())return;
+    setBusy(true);setError("");setDuplicate(null);
     try{
       const {data:{user}}=await supabase.auth.getUser();if(!user)throw new Error("Etkinlik oluşturmak için giriş yapmalısın.");
       let savedIntentId=existing?.intent_id;
@@ -51,13 +56,13 @@ export default function CommonTargetEventForm({targetId,mediaKind,clubProfile,in
         const {error:updateError}=await supabase.from("intents").update({activity_id:activityId,start_date:startDate,end_date:endDate,location_id:locationId,visibility,people,notes:notes.trim()||null,max_participants:capacity==="unlimited"?null:Number(capacity),common_intent_subtitle:eventTitle,updated_at:new Date().toISOString()}).eq("id",existing.intent_id).eq("user_id",user.id);
         if(updateError)throw updateError;
       }else{
-        savedIntentId=await createIntent({targetId,eventTitle,relatedTargetIds,userId:user.id,startDate,endDate,people,locationId,activityId,budget:"",recurrence:"one-time",visibility,notes,intentType:"Short-term Intent",maxParticipants:capacity,participantEligibility:"everyone",joinMessageMode:"none",joinMessagePrompt:""});
+        savedIntentId=await createIntent({requestId:submission.current.requestId({targetId,eventTitle,relatedTargetIds,startDate,endDate,people,locationId,activityId,visibility,notes,capacity,viewing,privateInfo}),targetId,eventTitle,relatedTargetIds,userId:user.id,startDate,endDate,people,locationId,activityId,budget:"",recurrence:"one-time",visibility,notes,intentType:"Short-term Intent",maxParticipants:capacity,participantEligibility:"everyone",joinMessageMode:"none",joinMessagePrompt:""});
       }
       if((clubProfile||mediaKind)&&savedIntentId){const {error:contextError}=await supabase.rpc(mediaKind?"save_my_media_viewing_v66":"save_my_club_viewing_v60",{p_target_id:targetId,p_intent_id:savedIntentId,p_context:viewing,...(mediaKind?{p_private_info:privateInfo.trim()||null}:{})});if(contextError)throw contextError;}
       if(!savedIntentId)throw new Error("Etkinlik kaydı oluşturulamadı.");
       if(!existing)await trackProductEvent("social_plan_created",{targetId,intentId:savedIntentId,source:"common_card_event"});
       onSaved(savedIntentId);
-    }catch(problem){setError(problem instanceof Error?problem.message:"Etkinlik kaydedilemedi.");setBusy(false);}
+    }catch(problem){if(problem instanceof DuplicateCardEventError)setDuplicate(problem);setError(problem instanceof Error?problem.message:"Etkinlik kaydedilemedi.");setBusy(false);}finally{submission.current.end();}
   }
 
   return <div className="grid gap-5">
@@ -73,6 +78,7 @@ export default function CommonTargetEventForm({targetId,mediaKind,clubProfile,in
     <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-black">Kim katılabilir?<select value={people} onChange={e=>setPeople(e.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3"><option value="anyone">Herkes</option><option value="friends">Arkadaşlarım</option><option value="new people">Yeni kişiler</option><option value="solo">Hiç kimse</option></select></label><label className="text-sm font-black">Kapasite<select value={capacity} onChange={e=>setCapacity(e.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3"><option value="1">+1 kişi</option><option value="2">+2 kişi</option><option value="3">+3 kişi</option><option value="5">+5 kişi</option><option value="10">+10 kişi</option><option value="unlimited">Sınırsız</option></select></label></div>
     <label className="text-sm font-black">Kimler görebilir?<select value={visibility} onChange={e=>setVisibility(e.target.value)} className="mt-2 w-full rounded-xl border border-gray-200 bg-white px-4 py-3"><option value="public">Herkes</option><option value="friends">Arkadaşlarım</option><option value="invite_only">Yalnızca davetliler</option><option value="private">Yalnızca ben</option></select></label>
     <label className="text-sm font-black">Açıklama <span className="font-normal text-gray-400">(isteğe bağlı)</span><textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={4} maxLength={2000} placeholder={`${targetAction} etkinliğiyle ilgili notların…`} className="mt-2 w-full rounded-xl border border-gray-200 px-4 py-3"/></label>
+    {duplicate&&<Link href={`/activities/${encodeURIComponent(duplicate.planId||duplicate.intentId)}`} className="font-bold text-violet-700 underline">Mevcut etkinliği aç</Link>}
     {error&&<p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
     <button type="button" disabled={!valid||busy} onClick={()=>void save()} className="rounded-xl bg-violet-700 px-5 py-3 font-black text-white disabled:bg-gray-300">{busy?"Kaydediliyor…":existing?"Etkinliği güncelle":"Etkinliği oluştur"}</button>
   </div>;
