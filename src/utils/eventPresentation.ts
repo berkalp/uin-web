@@ -36,12 +36,12 @@ const EVENT_LABELS: Record<string, string> = {
 };
 
 export function activityIntentLabel(name: string | null | undefined, explicit?: string | null) {
-  return explicit?.trim() || commonIntentTitle(name);
+  return commonIntentTitle(explicit?.trim() || name);
 }
 
 export function activityEventLabel(name: string | null | undefined, explicit?: string | null) {
-  const source = name?.trim() || "UIN Aktivitesi";
-  return explicit?.trim() || EVENT_LABELS[source.toLocaleLowerCase("en-US")] || commonIntentTitle(source);
+  const source = explicit?.trim() || name?.trim() || "UIN Aktivitesi";
+  return source.split(" · ").map((part,index) => index === 0 ? EVENT_LABELS[part.toLocaleLowerCase("en-US")] || commonIntentTitle(part) : part).join(" · ");
 }
 
 export function buildEventTitle({
@@ -63,7 +63,7 @@ export function eventTitleFromPresentation(
   presentation: EventPresentation | null | undefined,
   fallbackActivityName?: string | null,
 ) {
-  if (presentation?.displayTitle?.trim()) return presentation.displayTitle.trim();
+  if (presentation?.displayTitle?.trim()) return localizeEventDisplayTitle(presentation.displayTitle.trim());
   return buildEventTitle({
     activityName: fallbackActivityName,
     eventLabel: presentation?.eventLabel,

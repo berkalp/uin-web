@@ -64,3 +64,24 @@ export function currentCardEvent<T>(rows:T[], selected:string|null, id:(row:T)=>
   const found=selectedCardEvent(rows,selected,id);
   return found.event?found:{index:rows.length?0:-1,event:rows[0]};
 }
+
+type CardEventDisplay = {
+  planId?: string | null; ownerId?: string | null; activityId?: string | null;
+  title?: string | null; location?: string | null; start?: string | null; end?: string | null;
+  visibility?: string | null; dna?: string[]; phase: string;
+  participants?: number; viewerIsMember?: boolean; viewerRequest?: string | null; viewerInvitation?: string | null;
+};
+// A standalone, unjoined intention can repeat an already organised plan on the
+// same library card. Prefer the sole matching plan for display only. Keep distinct
+// plans, custom titles, missing identities and existing participation untouched.
+export function preferPlannedCardEvents<T>(rows:T[], describe:(row:T)=>CardEventDisplay) {
+  const entries=rows.map(row=>({row,info:describe(row)}));
+  const key=(e:CardEventDisplay)=>e.phase==='active'&&e.ownerId&&e.activityId&&e.start&&e.location&&e.title
+    ?JSON.stringify([e.ownerId,e.activityId,e.title,e.start,e.end||e.start,e.location,e.visibility,[...(e.dna||[])].sort()]) : null;
+  const plans=new Map<string,number>();
+  for(const {info} of entries){const k=key(info);if(info.planId&&k)plans.set(k,(plans.get(k)||0)+1);}
+  return entries.filter(({info})=>{
+    const k=key(info);
+    return info.planId||!k||plans.get(k)!==1||info.participants!==0||info.viewerIsMember||info.viewerRequest||info.viewerInvitation;
+  }).map(({row})=>row);
+}

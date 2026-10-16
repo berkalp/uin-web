@@ -43,3 +43,21 @@ test('direct deck orders current events ahead of dated history and recovers miss
  assert.equal(current(events,'removed',e=>e.id).event.id,'near');
  assert.equal(current([],null,e=>e.id).index,-1);
 });
+
+test('library display prefers a single matching plan without deleting or conflating independent events',()=>{
+ const group=module.exports.preferPlannedCardEvents;
+ const base={ownerId:'host',activityId:'activity',title:'Sırt Çantalı Gezi · Eskişehir',location:'Eskişehir',start:'2099-10-26',end:'2099-10-27',visibility:'public',dna:['Eskişehir'],phase:'active',participants:0};
+ const intent={...base,id:'intent'},plan={...base,id:'plan',planId:'plan'};
+ const ids=rows=>Array.from(group(rows,x=>x),x=>x.id);
+ assert.deepEqual(ids([intent,plan]),['plan']);assert.deepEqual(ids([plan,intent]),['plan']);
+ assert.equal(intent.id,'intent'); // Source records remain untouched.
+ for(const change of [{ownerId:'other'},{activityId:'other'},{start:'2099-11-01'},{end:'2099-11-02'},{location:'Ankara'},{title:'Özel gezi'},{dna:['Bolu']},{visibility:'private'},{phase:'cancelled'},{phase:'past'},{activityId:null},{participants:1},{viewerIsMember:true},{viewerRequest:'pending'},{viewerInvitation:'pending'}])assert.equal(ids([{...intent,...change},plan]).length,2,JSON.stringify(change));
+ assert.equal(ids([intent,plan,{...plan,id:'plan2',planId:'plan2'}]).length,3,'two distinct plans are never merged');
+ assert.equal(ids([intent,{...intent,id:'other-intent'}]).length,2,'standalone intentions remain independent');
+});
+test('personal badge includes only active owned or joined records, retaining historical cards for navigation',()=>{
+ const rows=[{id:'active',state:'planned',date:'2099-01-01'},{id:'past',state:'planned',date:'2020-01-01'},{id:'cancelled',state:'cancelled',date:'2099-02-01'},{id:'completed',state:'completed',date:'2099-03-01'}];
+ const visible=module.exports.cardDeckEvents(rows,x=>x.id,x=>phase([x.state],x.date,null,now),x=>x.date);
+ assert.equal(visible.length,3);
+ assert.equal(visible.filter(x=>phase([x.state],x.date,null,now)==='active').length,1);
+});

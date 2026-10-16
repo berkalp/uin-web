@@ -263,10 +263,10 @@ html:not([data-uin-card-layout="square"]):not([data-uin-card-layout="compact"]) 
 
 /* Compact, single-row navigation leaves the event action visible. */
 .uin-deck-dock{gap:4px;padding:4px}
-.uin-deck-home{flex:0 0 82px;min-width:0;min-height:44px;padding:4px;font-size:11px;text-align:center;white-space:nowrap}
-.uin-deck-choices{flex:1;flex-direction:row;align-items:center;gap:4px}
+.uin-deck-home{flex:1;min-width:0;min-height:44px;padding:4px;font-size:11px;text-align:center;white-space:nowrap}
+.uin-deck-choices{display:contents}
 .uin-deck-dock .uin-deck-navigation button{padding:4px!important;text-align:center}
-.uin-deck-dock .uin-deck-previous{flex:0 0 44px}
+.uin-deck-dock .uin-deck-navigation button{flex:1;min-width:0}
 .uin-deck-event-scroll>.uin-embedded-event>.uin-layout-card-header{padding:8px!important;display:block}
 .uin-embedded-event>.uin-layout-card-header>span,.uin-embedded-event>.uin-layout-card-header>span>span{display:block;width:100%}
 .uin-deck-event-scroll>.uin-embedded-event>.uin-layout-card-spacer{min-height:0!important;flex:0}

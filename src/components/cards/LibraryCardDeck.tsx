@@ -5,7 +5,7 @@ import {useCardDeckAccount} from '@/utils/cardDeckAccount';
 import type {Detail} from '@/components/ideas/TopicCardModal';
 import DiscoverIntentCard from '@/components/discover/DiscoverIntentCard';
 import TogetherProposal from '@/components/seeds/TogetherProposal';
-import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, reviewPreview, cardDate, newestReviews, cardEventPhase, adjacentCardEvent} from '@/utils/cardDeck';
+import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, reviewPreview, cardDate, newestReviews, cardEventPhase, adjacentCardEvent, preferPlannedCardEvents} from '@/utils/cardDeck';
 
 type Props = Omit<ComponentProps<'article'>,'children'> & {initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
 export default function LibraryCardDeck({targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, initialPlans=false, personalPlanCount=0, ...props}: Props) {
@@ -40,11 +40,12 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
   const ownEvents=allEvents.filter(event=>Boolean(account)&&(event.viewer_is_owner||event.viewer_is_member||event.owner_user_id===account||event.card_payload?.owner_user_id===account||event.card_payload?.viewer_is_member));
   const membership=(scope:string)=>audience?.rows.find(row=>row.target_id===targetId&&row.scope===scope);
   const permits=(scope:string,id:string)=>id===account||!audience||audience.audience==='everyone'||(audience.audience==='me'?id===account:membership(scope)?.user_ids.includes(id)===true);
-  const events=audience?.audience==='friends'?allEvents.filter(event=>membership('plans')?.event_ids.includes(event.plan_id||event.intent_id)):audience?.audience==='everyone'?allEvents:audience?.audience==='me'?ownEvents:initialPlans?ownEvents:allEvents;
+  const scopedEvents=audience?.audience==='friends'?allEvents.filter(event=>membership('plans')?.event_ids.includes(event.plan_id||event.intent_id)):audience?.audience==='everyone'?allEvents:audience?.audience==='me'?ownEvents:initialPlans?ownEvents:allEvents;
+  const events=preferPlannedCardEvents(scopedEvents,eventDisplay);
   const reviews=(data?.reviews??[]).filter(review=>permits('experiences',review.user_id));
   const people=(data?.people??[]).filter(person=>person.is_current!==false&&permits('wishes',person.user_id)).sort((a,b)=>Number(b.user_id===account)-Number(a.user_id===account));
   const scopedCount=audience&&audience.audience!=='everyone'?(membership('plans')?.event_ids.length??0):initialPlans&&!audience?personalPlanCount:undefined;
-  const planCount=audience?.audience==='friends'?0:data?ownEvents.length:personalPlanCount;
+  const planCount=audience?.audience==='friends'?0:data?preferPlannedCardEvents(ownEvents.filter(event=>eventPhase(event)==='active'),eventDisplay).length:personalPlanCount;
   const openPlan=()=>navigate(1);
   const {event:current,index:currentIndex}=currentCardEvent(events,selectedId,eventId);
   const eventScroll=useRef<HTMLDivElement>(null);
@@ -78,13 +79,13 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
         </>:<div className="min-h-0 max-h-[360px] flex-1 space-y-2 overflow-y-auto overscroll-contain">
           {position===-1?people.length?people.map(person=><div key={person.id} className="uin-deck-people-row space-y-1 rounded-xl bg-white/10 p-2">
             <div className="flex items-center justify-between gap-2"><Person name={person.full_name} avatar={person.avatar_url} username={person.username} userId={person.user_id} date={cardDate(person.start_date,person.end_date,person.timing_precision,person.date_options)}/>
-            {person.user_id===account&&actions?<div className="uin-deck-own-actions flex w-[108px] shrink-0 gap-0.5"><SmallAction label="Düzenle" onClick={actions.editWish}/><SmallAction label="İptal" onClick={actions.cancelWish} cancel/></div>:null}
+            {person.user_id===account&&actions?<div className="uin-deck-own-actions flex w-[90px] shrink-0 gap-0.5"><SmallAction label="Düzenle" onClick={actions.editWish}/><SmallAction label="İptal" onClick={actions.cancelWish} cancel/></div>:null}
             {data.viewerId&&person.user_id!==data.viewerId&&person.source_kind!=='social'&&person.together_allowed&&!person.shared_event?<div className="uin-deck-proposal shrink-0 text-slate-900"><TogetherProposal targetId={person.source_target_id||targetId} recipientId={person.user_id} name={person.full_name} title={data.card.title} activityOptions={data.activityOptions??[]} initialPlace={person.location}/></div>:person.shared_event?<a href={`/activities/${encodeURIComponent(person.shared_event.resource_id||person.shared_event.plan_id||person.shared_event.intent_id)}`} className="text-xs text-emerald-200">✓ Aynı etkinliktesiniz</a>:null}</div>{person.notes?<p className="text-xs">{person.notes}</p>:null}
           </div>):<p className="text-sm">Henüz isteyen yok.</p>:reviews.length?newestReviews(reviews,review=>review.experience_date||(review.experience_year?String(review.experience_year):null)).sort((a,b)=>Number(b.user_id===account)-Number(a.user_id===account)).map(review=><div key={review.seed_id} className="space-y-2 rounded-xl bg-white/10 p-3">
             <div className="flex items-center justify-between gap-2"><Person name={review.full_name} avatar={review.avatar_url} username={review.username} userId={review.user_id} date={cardDate(review.experience_date||(review.experience_year?String(review.experience_year):null))}/>{review.user_id===account&&actions?<SmallAction label="Deneyimimi düzenle" onClick={actions.editExperience}/>:null}</div>
             {review.rating!=null?<p className="text-xs font-bold text-amber-200">★ {review.rating}/10</p>:null}
             {review.body?<Review body={review.body}/>:null}
-          </div>):<p className="text-sm">Henüz deneyim ekleyen yok.</p>}
+          </div>):<div className="text-sm"><p>Henüz deneyim ekleyen yok.</p>{actions?<p>Sen deneyimlediysen <button type="button" className="text-emerald-300 underline focus-visible:outline" onClick={actions.editExperience}>+ {actions.doneLabel}</button> diyerek deneyimini ekleyip puanlayabilirsin.</p>:null}</div>}
         </div>}
         {data&&!error&&actions&&position>0&&!events.length?<SmallAction label="＋ Etkinlik düzenle" onClick={actions.createEvent}/>:null}
         <div className="uin-deck-dock">
@@ -101,7 +102,7 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
 }
 function eventId(event:Detail['events'][number]) {return event.resource_id||event.plan_id||event.intent_id;}
 function eventPhase(event:Detail['events'][number]) {return cardEventPhase([event.event_state,event.status,event.plan_status,event.card_payload?.lifecycle_status],event.card_payload?.scheduled_start||event.start_date,event.card_payload?.scheduled_end||event.end_date);}
-function SmallAction({label,onClick,cancel=false}:{label:string;onClick:()=>void;cancel?:boolean}){const icon=label==='Düzenle'?'✎':label==='İptal'?'×':null;return <button type="button" aria-label={label} onClick={onClick} className={`uin-deck-small-action min-h-11 max-w-[108px] shrink-0 rounded-lg px-2 py-1.5 text-[11px] font-bold text-white ${cancel?'bg-red-700':'bg-emerald-700'}`}>{icon?<span aria-hidden="true" className="text-xl">{icon}</span>:label}</button>;}
+function SmallAction({label,onClick,cancel=false}:{label:string;onClick:()=>void;cancel?:boolean}){const icon=label==='Düzenle'?'✎':label==='İptal'?'×':null;return <button type="button" aria-label={label} onClick={onClick} className={`uin-deck-small-action min-h-11 max-w-[108px] shrink-0 rounded-lg px-2 py-1.5 text-[11px] font-bold ${icon?(cancel?'bg-transparent text-red-400':'bg-transparent text-emerald-300'):(cancel?'bg-red-700 text-white':'bg-emerald-700 text-white')}`}>{icon?<span aria-hidden="true" className="text-lg">{icon}</span>:label}</button>;}
 function Person({name,avatar,username,userId,date}:{name:string;avatar:string|null;username:string|null;userId:string;date?:string}) {
   return <a href={username?`/u/${encodeURIComponent(username)}`:`/people/${encodeURIComponent(userId)}`} className="uin-deck-person flex min-w-0 items-center gap-1.5 text-[11px] font-semibold">
     {avatar?<img src={avatar} alt="" className="h-6 w-6 rounded-full object-cover"/>:<span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-900">{name.charAt(0)}</span>}<span className="min-w-0"><span>{name}</span>{date?<span className="ml-1 font-normal text-white/65">· {date}</span>:null}</span>
@@ -110,4 +111,9 @@ function Person({name,avatar,username,userId,date}:{name:string;avatar:string|nu
 function Review({body}:{body:string}) {
   const [expanded,setExpanded]=useState(false),preview=reviewPreview(body);
   return <div><p className={`whitespace-pre-wrap text-xs leading-5 ${expanded?'':'line-clamp-3'}`}>{expanded?body:preview}</p>{preview!==body.trim()||body.length>120?<button type="button" aria-label={expanded?'Yorumu kısalt':'Yorumun tamamını oku'} aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)} className="grid min-h-11 w-11 place-items-center text-lg text-emerald-200">{expanded?'⌃':'⌄'}</button>:null}</div>;
+}
+
+function eventDisplay(event:Detail['events'][number]) {
+  const c=event.card_payload;
+  return {planId:c?.plan_id||event.plan_id,ownerId:c?.owner_user_id,activityId:c?.activity_id,title:c?.event_display_title,location:event.location||c?.city,start:c?.scheduled_start||event.start_date,end:c?.scheduled_end||event.end_date,visibility:c?.visibility,dna:c?.event_dna_titles,phase:eventPhase(event),participants:c?.active_participant_count==null?undefined:Number(c.active_participant_count),viewerIsMember:c?.viewer_is_member,viewerRequest:c?.viewer_request_status==='pending'?c.viewer_request_status:null,viewerInvitation:c?.viewer_invitation_status==='pending'?c.viewer_invitation_status:null};
 }
