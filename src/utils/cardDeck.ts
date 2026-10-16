@@ -1,4 +1,4 @@
-// Signed faces: experienced -2, wanting -1, main 0, event list 1. Details use stable IDs.
+// Left: wanting (-1), then experienced (-2). Right: events (1). Details use stable IDs.
 export function deckPosition(position: number, direction: -1 | 1, eventCount: number | null) {
   return Math.max(-2, Math.min(eventCount === null ? 1 : Math.max(1, eventCount), position + direction));
 }

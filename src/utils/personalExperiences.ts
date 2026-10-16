@@ -59,3 +59,21 @@ export async function loadExperienceComments(client:SupabaseClient,seedId:string
   if(result.error)throw result.error;
   return result.data as ExperienceComment[];
 }
+
+/** Compact display only: keep the full name on the profile and detail link. */
+export function compactPersonName(name:string):string {
+ const [first,...rest]=name.trim().split(/\s+/);
+ return [first,...rest.map(part=>`${Array.from(part)[0].toLocaleUpperCase('tr-TR')}.`)].join(' ');
+}
+export function experienceDate(row:{experience_precision?:unknown;experience_date?:unknown;experience_year?:unknown}):string|null {
+ if(row.experience_precision==='unknown')return null;
+ if(row.experience_precision==='year')return row.experience_year?String(row.experience_year):null;
+ return typeof row.experience_date==='string'?row.experience_date:row.experience_year?String(row.experience_year):null;
+}
+export function experienceDateLabel(value:string|null):string {
+ if(!value)return '';
+ if(/^\d{4}$/.test(value))return value;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return '';
+ const date=new Date(value+'T12:00:00');
+ return Number.isFinite(date.getTime())?new Intl.DateTimeFormat('tr-TR',{day:'numeric',month:'short',year:'numeric'}).format(date):'';
+}

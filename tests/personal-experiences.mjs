@@ -63,3 +63,16 @@ test('photo retry retains upload identity; committed save is not reported failed
  const result=await saveExperiencePhotos(client,seed,draft,['old']);
  assert.equal(uploaded[0],uploaded[1]);assert.equal(result[0],draft[0].path);assert.equal(saved[1].p_expected_paths[0],'old');
 });
+
+test('compact names preserve first names and Turkish initials; experience dates honor unknown/year precision',()=>{
+ const {compactPersonName,experienceDate,experienceDateLabel}=module.exports;
+ assert.equal(compactPersonName(' Zeynep   Tuğçe Kaya '),'Zeynep T. K.');
+ assert.equal(compactPersonName('Berna'),'Berna');
+ assert.equal(compactPersonName('Berkalp istanbullu ışık'),'Berkalp İ. I.');
+ assert.equal(experienceDate({experience_precision:'unknown',experience_date:'2026-08-30',experience_year:2026}),null);
+ assert.equal(experienceDate({experience_precision:'year',experience_date:'2026-08-30',experience_year:2020}),'2020');
+ assert.equal(experienceDate({experience_precision:'exact',experience_date:'2026-08-30'}),'2026-08-30');
+ assert.equal(experienceDate({experience_precision:'exact'}),null);
+ assert.equal(experienceDateLabel(null),'');assert.equal(experienceDateLabel('2020'),'2020');
+ assert.equal(experienceDateLabel('2026-08-30'),'30 Ağu 2026');
+});
