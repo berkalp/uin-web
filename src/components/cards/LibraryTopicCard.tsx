@@ -46,7 +46,7 @@ function cardKind(item:Catalogue):Kind{
   if(/play|oyna/.test(seed))return"game";
   return"activity";
 }
-function eventCount(item:Catalogue){return Number(item.active_event_count??item.social_intent_count??0)+Number(item.expired_event_count||0)}
+function eventCount(item:Catalogue){return Number(item.active_event_count??item.social_intent_count??0)}
 function personalDateRange(start?:string|null,end?:string|null){if(!start)return"Tarih esnek";const format=(value:string)=>new Intl.DateTimeFormat("tr-TR",{day:"numeric",month:"short",year:"numeric",timeZone:"Europe/Istanbul"}).format(new Date(`${value.slice(0,10)}T12:00:00+03:00`));return end&&end.slice(0,10)!==start.slice(0,10)?`${format(start)} – ${format(end)}`:format(start)}
 export default function LibraryTopicCard({item,categoryContextId,onOpen,onCancel,contentTypes,club,teamCount=0,place,nearby=[],scope,personalRating,personalRatingLabel,profileSummary,sharedWish,countsReady=true,onWishEdit,onExperience}:{categoryContextId?:string;personalRating?:number|null;personalRatingLabel?:string;profileSummary?:ReactNode;sharedWish?:ReactNode;countsReady?:boolean;onWishEdit?:()=>void;onExperience?:()=>void;club?:ClubCard;teamCount?:number;place?:Place;nearby?:Place[];onOpenPlace?:(p:Place)=>void;onCity?:(id:string)=>void;contentTypes:ContentType[];item:Catalogue;onOpen:(view:Selected["initialView"])=>void;onCancel:()=>void;scope:LibraryScope}){
   const itemKind=contentTypes.find(type=>type.id===(categoryContextId||item.content_type_id||cardKind(item)))?.base_kind||cardKind(item);
@@ -60,7 +60,7 @@ export default function LibraryTopicCard({item,categoryContextId,onOpen,onCancel
   const wantingAlready=Boolean(item.own_common_intent_id||(!completed&&item.own_seed_id));
   const eventPreview=plannedScope?item.personal_event:null;
   const wishDate=scope==="wishes"&&item.personal_start_date?personalDateRange(item.personal_start_date,item.personal_end_date):null;
-  const metrics=[{label:words.wanting,count:Number(item.intent_people_count||0),view:"want" as const},{label:words.doers,count:Number(item.experience_people_count||0),view:"done" as const},{label:"Etkinlikler",count:eventCount(item),view:"events" as const}];
+  const metrics=[{label:words.wanting,count:Number(item.intent_people_count||0),view:"want" as const},{label:words.doers,count:Number(item.experience_people_count||0),view:"done" as const},{label:"Aktif etkinlikler",count:eventCount(item),view:"events" as const}];
   return <LibraryCardDeck title={displayTitle} actions={{editWish:onWishEdit??(()=>onOpen('want_form')),cancelWish:onCancel,editExperience:onExperience??(()=>onOpen('done_form')),createEvent:()=>onOpen('event_form'),wantLabel:words.want,doneLabel:words.done}} initialPlans={scope==='plans'} personalPlanCount={item.personal_event?.count??0} targetId={item.canonical_target_id} coverUrl={imageUrl} coverPositionY={item.cover_position_y} wanting={words.wanting} doers={words.doers} style={{...cardFrameStyle(club?.cardStyle),backgroundColor:isLogoCard?"#050505":"#0f172a",borderColor:club?.cardStyle?.primary||undefined}} className="uin-perfect-card uin-layout-card group relative flex min-h-[510px] min-w-0 flex-col overflow-hidden rounded-[26px] border border-slate-700 shadow-[0_14px_34px_-20px_rgba(15,23,42,.65)] transition-shadow hover:shadow-[0_22px_46px_-20px_rgba(15,23,42,.7)]">
     {(navigate,listedEventCount)=><>
     <button type="button" aria-label={`${displayTitle} ayrıntılarını aç`} onClick={()=>onOpen("overview")} className="absolute inset-0 z-[1] cursor-pointer" />

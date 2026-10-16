@@ -55,8 +55,8 @@ export function adjacentCardEvent<T>(rows:T[], selected:string|null, direction:-
 
 // Current events first; recent history follows. Keep cancelled history distinct.
 export function cardDeckEvents<T>(rows:T[], id:(row:T)=>string, phase:(row:T)=>string, date:(row:T)=>string|null|undefined) {
-  const unique=[...new Map(rows.filter(row=>phase(row)!=='completed').map(row=>[id(row),row])).values()];
-  const rank=(row:T)=>phase(row)==='active'?0:phase(row)==='past'?1:2;
+  const unique=[...new Map(rows.map(row=>[id(row),row])).values()];
+  const rank=(row:T)=>phase(row)==='active'?0:1;
   const time=(row:T)=>{const n=Date.parse(date(row)||'');return Number.isFinite(n)?n:null;};
   return unique.sort((a,b)=>{const group=rank(a)-rank(b);if(group)return group;const x=time(a),y=time(b);if(x===null||y===null)return x===y?id(a).localeCompare(id(b)):x===null?1:-1;return (rank(a)===0?x-y:y-x)||id(a).localeCompare(id(b));});
 }
@@ -84,4 +84,12 @@ export function preferPlannedCardEvents<T>(rows:T[], describe:(row:T)=>CardEvent
     const k=key(info);
     return info.planId||!k||plans.get(k)!==1||info.participants!==0||info.viewerIsMember||info.viewerRequest||info.viewerInvitation;
   }).map(({row})=>row);
+}
+
+// Both the metric and default navigation use this same active collection.
+// Historical records remain available separately, including completed events.
+export function partitionCardEvents<T>(rows:T[], phase:(row:T)=>string) {
+  const active:T[]=[], history:T[]=[];
+  for(const row of rows)(phase(row)==='active'?active:history).push(row);
+  return {active,history};
 }

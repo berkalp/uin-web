@@ -37,7 +37,7 @@ test('direct deck orders current events ahead of dated history and recovers miss
  const {cardDeckEvents:list,currentCardEvent:current}=module.exports;
  const rows=[{id:'past',phase:'past',date:'2026-01-01'},{id:'far',phase:'active',date:'2027-02-01'},{id:'near',phase:'active',date:'2027-01-01'},{id:'cancelled',phase:'cancelled',date:'2026-03-01'},{id:'done',phase:'completed',date:'2026-01-01'},{id:'near',phase:'active',date:'2027-01-01'}];
  const events=list(rows,e=>e.id,e=>e.phase,e=>e.date);
- assert.equal(events.map(e=>e.id).join(','),'near,far,past,cancelled');assert.equal(rows.length,6);
+ assert.equal(events.map(e=>e.id).join(','),'near,far,cancelled,done,past');assert.equal(rows.length,6);
  assert.equal(current(events,null,e=>e.id).event.id,'near');
  assert.equal(current(events,'far',e=>e.id).index,1);
  assert.equal(current(events,'removed',e=>e.id).event.id,'near');
@@ -58,6 +58,24 @@ test('library display prefers a single matching plan without deleting or conflat
 test('personal badge includes only active owned or joined records, retaining historical cards for navigation',()=>{
  const rows=[{id:'active',state:'planned',date:'2099-01-01'},{id:'past',state:'planned',date:'2020-01-01'},{id:'cancelled',state:'cancelled',date:'2099-02-01'},{id:'completed',state:'completed',date:'2099-03-01'}];
  const visible=module.exports.cardDeckEvents(rows,x=>x.id,x=>phase([x.state],x.date,null,now),x=>x.date);
- assert.equal(visible.length,3);
+ assert.equal(visible.length,4);
  assert.equal(visible.filter(x=>phase([x.state],x.date,null,now)==='active').length,1);
+});
+
+test('active metric and navigation exclude history without losing historical records',()=>{
+ const {cardDeckEvents:list,partitionCardEvents:split,currentCardEvent:current}=module.exports;
+ const rows=[{id:'live',state:'planned',date:'2099-01-01'},{id:'past',state:'planned',date:'2020-01-01'},{id:'cancelled',state:'cancelled',date:'2099-02-01'},{id:'done',state:'completed',date:'2020-02-01'}];
+ const classify=row=>phase([row.state],row.date,null,now),id=row=>row.id;
+ const groups=split(list(rows,id,classify,row=>row.date),classify);
+ assert.equal(groups.active.length,1);assert.equal(groups.history.length,3);
+ assert.equal(current(groups.active,null,id).event.id,'live');
+ assert.equal(adjacent(groups.active,'live',1,id),'live');
+ assert.equal(current(groups.history,'past',id).event.id,'past');
+ assert.equal(current(groups.active,'past',id).event.id,'live');
+ const refreshed=split(rows.map(row=>row.id==='live'?{...row,state:'cancelled'}:row),classify);
+ assert.equal(refreshed.active.length,0);assert.equal(refreshed.history.length,4);
+ assert.equal(current(refreshed.active,'live',id).index,-1);
+ assert.equal(current(refreshed.history,'past',id).event.id,'past');
+ assert.equal(split([],classify).active.length,0);assert.equal(split([],classify).history.length,0);
+ assert.equal(rows[0].state,'planned');
 });
