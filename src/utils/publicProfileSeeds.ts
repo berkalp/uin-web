@@ -183,7 +183,7 @@ function shouldReplaceProfileSeed(
 
 /**
  * A person may have legacy duplicate Seeds for one canonical card. Collapse
- * duplicates only inside the same lifecycle/relationship group so an active
+ * duplicates only inside the same lifecycle group so an active
  * wish and a completed experience for the same card remain separate.
  */
 export function normalizePublicProfileSeedLifeRows(
@@ -194,7 +194,7 @@ export function normalizePublicProfileSeedLifeRows(
   for (const row of rows) {
     const identity =
       row.canonical_target_id ?? row.catalog_item_id ?? row.seed_id;
-    const key = `${row.status}:${row.relationship_status}:${identity}`;
+    const key = row.status==='active' && row.seed_scope==='library' ? `active:${identity}` : `${row.status}:${row.relationship_status}:${identity}`;
     const current = normalized.get(key);
 
     if (!current || shouldReplaceProfileSeed(current, row)) {

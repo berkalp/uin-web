@@ -19,6 +19,7 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
   const [position,setPosition]=useState(initialPosition), [data,setData]=useState<Detail|null>(null), [error,setError]=useState(''), [retry,setRetry]=useState(0);
   const [selectedId,setSelectedId]=useState<string|null>(null);
   const [showHistory,setShowHistory]=useState(false);
+  const [requiredHeight,setRequiredHeight]=useState(0);
   const article=useRef<HTMLElement>(null), back=useRef<HTMLButtonElement>(null), mounted=useRef(false);
   const generation=useRef(0), start=useRef<{x:number;y:number;id:number}|null>(null), suppressClick=useRef(0);
   const navigate=(face:number)=>{setShowHistory(false);setSelectedId(null);setPosition(face);};
@@ -56,10 +57,22 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
   const eventScroll=useRef<HTMLDivElement>(null);
   if(position===1&&data&&selectedId!==(current?eventId(current):null))setSelectedId(current?eventId(current):null);
   useEffect(()=>{if(eventScroll.current)eventScroll.current.scrollTop=0;},[position,current?.intent_id]);
+  // Reserve enough space for the full event and the single navigation row.
+  // Keep the largest measured height when changing faces, avoiding shrink/jump cycles.
+  useEffect(()=>{
+    const scroll=eventScroll.current,root=article.current;
+    if(position!==1||!scroll||!root)return;
+    const resize=new ResizeObserver(()=>{
+      const needed=Math.ceil(scroll.scrollHeight+(root.querySelector('.uin-deck-dock')?.getBoundingClientRect().height??52)+2);
+      if(needed>root.getBoundingClientRect().height+1)setRequiredHeight(value=>Math.max(value,needed));
+    });
+    resize.observe(scroll);if(scroll.firstElementChild)resize.observe(scroll.firstElementChild);
+    return ()=>resize.disconnect();
+  },[position,current?.intent_id,data]);
   const move=(direction:-1|1)=>{if(position===1){if(direction===-1&&currentIndex<=0){navigate(0);return;}if(current)select(adjacentCardEvent(events,eventId(current),direction,eventId));return;}setPosition(value=>deckPosition(value,direction,1));};
   const eventCard=position===1&&current?.card_payload;
   const cardTitle=title||data?.card.title||'Kart';
-  return <article {...props} ref={article} style={{...props.style,touchAction:'pan-y'}} onPointerDown={event=>{
+  return <article {...props} ref={article} style={{...props.style,...(requiredHeight?{minHeight:requiredHeight}:{}),touchAction:'pan-y'}} onPointerDown={event=>{
     if(event.pointerType==='mouse'||(event.target as HTMLElement).closest('input,textarea,select,[role="dialog"]'))return;
     start.current={x:event.clientX,y:event.clientY,id:event.pointerId};
   }} onPointerUp={event=>{
@@ -88,10 +101,10 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
             {data.viewerId&&person.user_id!==data.viewerId&&person.source_kind!=='social'&&person.together_allowed&&!person.shared_event?<div className="uin-deck-proposal shrink-0 text-slate-900"><TogetherProposal targetId={person.source_target_id||targetId} recipientId={person.user_id} name={person.full_name} title={data.card.title} activityOptions={data.activityOptions??[]} initialPlace={person.location}/></div>:person.shared_event?<a href={`/activities/${encodeURIComponent(person.shared_event.resource_id||person.shared_event.plan_id||person.shared_event.intent_id)}`} className="text-xs text-emerald-200">✓ Aynı etkinliktesiniz</a>:null}</div>{person.notes?<p className="text-xs">{person.notes}</p>:null}
           </div>):<p className="text-sm">Henüz isteyen yok.</p>:reviews.length?<ExperienceReviews cardTitle={cardTitle} viewerId={account??null} editOwn={actions?.editExperience} reviews={reviews.map(review=>({id:review.seed_id,userId:review.user_id,name:review.full_name,username:review.username,avatarUrl:review.avatar_url,date:experienceDate(review),rating:review.rating,body:review.body,isViewer:review.user_id===account}))}/>:<div className="text-sm"><p>Henüz deneyim ekleyen yok.</p>{actions?<p>Sen deneyimlediysen <button type="button" className="text-emerald-300 underline focus-visible:outline" onClick={actions.editExperience}>+ {actions.doneLabel}</button> diyerek deneyimini ekleyip puanlayabilirsin.</p>:null}</div>}
         </div>}
-        {position===1&&data&&(historyEvents.length>0||showHistory)?<button type="button" aria-label={showHistory?`Aktif etkinliklere dön, ${activeEvents.length}`:`Geçmiş ve iptal edilenler, ${historyEvents.length}`} onClick={toggleHistory} className="min-h-11 shrink-0 bg-slate-950/90 px-3 text-center text-[11px] text-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-300">{showHistory?`‹ Aktif etkinlikler · ${activeEvents.length}`:`Geçmiş ve iptal edilenler · ${historyEvents.length} ›`}</button>:null}
         <div className="uin-deck-dock">
           <button ref={back} type="button" className="uin-deck-home" aria-label={`${cardTitle} kartına dön`} onClick={()=>navigate(0)}>Karta dön</button>
-          {position===1?<div className="uin-deck-choices uin-deck-navigation">{events.length>1?<><button type="button" className="uin-deck-previous" aria-label="Önceki etkinlik" disabled={currentIndex===0} onClick={()=>move(-1)}>‹</button><button type="button" aria-label={`Sonraki etkinlik, ${currentIndex+1} / ${events.length}`} disabled={currentIndex===events.length-1} onClick={()=>move(1)}>Diğer {currentIndex+1}/{events.length} ›</button></>:current?<span aria-live="polite">1/1</span>:null}</div>:<div className="uin-deck-choices uin-deck-navigation">
+          {position===1&&data&&(historyEvents.length>0||showHistory)?<button type="button" aria-label={showHistory?`Aktif etkinliklere dön, ${activeEvents.length}`:`Geçmiş ve iptal edilenler, ${historyEvents.length}`} onClick={toggleHistory} className="uin-deck-home">{showHistory?`Aktif · ${activeEvents.length}`:`Geçmiş · ${historyEvents.length}`}</button>:null}
+          {position===1?<div className="uin-deck-choices uin-deck-navigation">{events.length>1?<><button type="button" className="uin-deck-previous" aria-label="Önceki etkinlik" disabled={currentIndex===0} onClick={()=>move(-1)}>‹</button><button type="button" aria-label={`Sonraki etkinlik, ${currentIndex+1} / ${events.length}`} disabled={currentIndex===events.length-1} onClick={()=>move(1)}>Diğer {currentIndex+1}/{events.length} ›</button></>:null}</div>:<div className="uin-deck-choices uin-deck-navigation">
             <button type="button" onClick={()=>navigate(position===-1?-2:-1)}>{position===-1?'‹ '+doers:wanting+' ›'} · {position===-1?reviews.length:people.length}</button>
             <button type="button" onClick={()=>navigate(1)}>Etkinlikler {data?activeEvents.length:'…'} ›</button>
           </div>}

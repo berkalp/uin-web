@@ -379,3 +379,17 @@ test("profile personal wishes retain source identity alongside an existing exper
  assert.equal(rows.find(row=>row.status==='completed').personal_rating,experience.rating);
  assert.equal(parse([{...wish,source_kind:'unexpected'}]),null);
 });
+
+test('want and in-progress aliases share one active library card while experience stays separate',()=>{
+ const {parsePublicProfileSeedLifePayload:parse}=loadProfileSeedParser();
+ const active=fixture(1,{status:'active',relationship_status:'want',rating:null,experience_precision:null,experience_date:null,experience_year:null,canonical_target_id:'resolved-city'});
+ const planned={...active,seed_id:'planned',relationship_status:'in_progress',updated_at:'2026-10-16T00:00:00.000Z'};
+ const completed=fixture(3,{canonical_target_id:'resolved-city'});
+ const other=fixture(4,{canonical_target_id:'different-city'});
+ const result=parse([active,planned,completed,other]);
+ assert.equal(result.length,3);
+ assert.equal(result.filter(x=>x.canonical_target_id==='resolved-city'&&x.status==='active').length,1);
+ assert.equal(result.find(x=>x.status==='active').seed_id,'planned');
+ assert.equal(result.filter(x=>x.status==='completed').length,2);
+ assert.equal(parse([{...active,seed_scope:'private'},{...planned,seed_scope:'private'}]).length,2);
+});
