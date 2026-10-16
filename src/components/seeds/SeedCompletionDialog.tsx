@@ -1,8 +1,11 @@
 "use client";
 
+import {supabase} from '@/utils/supabase/client';
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import ExperiencePhotoPicker from './ExperiencePhotoPicker';
+import {useExperiencePhotos} from '@/utils/useExperiencePhotos';
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
 import { completeSeed } from "@/services/seedService";
 import {
@@ -67,7 +70,11 @@ export default function SeedCompletionDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const experiencePhotos=useExperiencePhotos(supabase,seedId,open);
+  const saveLock=useRef(false);
   async function submit() {
+    if(saveLock.current||!experiencePhotos.ready)return;
+    saveLock.current=true;
     setIsSaving(true);
     setMessage(null);
 
@@ -82,16 +89,17 @@ export default function SeedCompletionDialog({
         visibility,
         attachments,
       });
+      await experiencePhotos.save(seedId,visibility);
       setOpen(false);
       router.refresh();
     } catch (error) {
       setMessage(
         error instanceof Error
           ? error.message
-          : "The Seed could not be completed."
+          : "Deneyim kaydedilemedi."
       );
       setIsSaving(false);
-    }
+    } finally {saveLock.current=false;setIsSaving(false);}
   }
 
   return (
@@ -109,26 +117,26 @@ export default function SeedCompletionDialog({
           <section className="max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[30px] bg-white shadow-2xl">
             <div className="border-b border-gray-200 p-6 md:p-8">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-700">
-                Seed completed
+                Deneyim ekle
               </p>
               <h2 className="mt-2 text-2xl font-black text-gray-950">
-                What grew from “{seedTitle}”?
+                “{seedTitle}” deneyimin
               </h2>
               <p className="mt-2 text-sm leading-6 text-gray-600">
-                The Seed stays on your profile. You can add an Experience now or leave it empty and write it later from the completed Seed page.
+                Deneyimin profilinde görünür. Notunu ve fotoğraflarını şimdi ekleyebilir veya daha sonra düzenleyebilirsin.
               </p>
             </div>
 
             <div className="space-y-6 p-6 md:p-8">
               <div>
                 <p className="text-sm font-bold text-gray-900">
-                  When was it completed?
+                  Ne zaman tamamladın?
                 </p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
                   {[
-                    ["exact", "Exact date", "I know the date."],
-                    ["year", "Year only", "I only remember the year."],
-                    ["unknown", "I don’t remember", "Keep the date unspecified."],
+                    ["exact", "Tam tarih", "Tarihi hatırlıyorum."],
+                    ["year", "Sadece yıl", "Yalnızca yılı hatırlıyorum."],
+                    ["unknown", "Hatırlamıyorum", "Tarih belirtmek istemiyorum."],
                   ].map(([value, label, description]) => (
                     <label
                       key={value}
@@ -183,14 +191,14 @@ export default function SeedCompletionDialog({
 
               <label className="block">
                 <span className="text-sm font-bold text-gray-900">
-                  Experience (optional)
+                  Deneyim notun (isteğe bağlı)
                 </span>
                 <textarea
                   value={reflection}
                   onChange={(event) => setReflection(event.target.value)}
                   maxLength={6000}
                   rows={6}
-                  placeholder="Write about the experience, what changed, what surprised you or what you would tell someone else."
+                  placeholder="Düşüncen, deneyimin, aklında kalanlar…"
                   className="mt-2 w-full resize-y rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-purple-500"
                 />
                 <span className="mt-1 block text-xs text-gray-400">
@@ -200,18 +208,19 @@ export default function SeedCompletionDialog({
 
               <label className="block">
                 <span className="text-sm font-bold text-gray-900">
-                  What stayed with me? (optional)
+                  Sende ne kaldı? (isteğe bağlı)
                 </span>
                 <textarea
                   value={keyTakeaway}
                   onChange={(event) => setKeyTakeaway(event.target.value)}
                   maxLength={1000}
                   rows={3}
-                  placeholder="A concise thought that can appear on the Seed card."
+                  placeholder="Bu deneyimden aklında kalan kısa bir not."
                   className="mt-2 w-full resize-y rounded-2xl border border-gray-200 px-4 py-3 outline-none focus:border-purple-500"
                 />
               </label>
 
+              <ExperiencePhotoPicker photos={experiencePhotos.photos} onChange={experiencePhotos.setPhotos} disabled={isSaving||!experiencePhotos.ready}/>{experiencePhotos.error?<button type="button" onClick={experiencePhotos.reload} className="min-h-11 text-red-700">{experiencePhotos.error} Yeniden dene</button>:!experiencePhotos.ready?<p>Fotoğraflar yükleniyor…</p>:null}
               <SeedLinkedItemsEditor
                 items={attachments}
                 onChange={setAttachments}
@@ -219,7 +228,7 @@ export default function SeedCompletionDialog({
 
               <div>
                 <p className="text-sm font-bold text-gray-900">
-                  Who can see this Experience?
+                  Bu deneyimi kim görebilir?
                 </p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   {SEED_VISIBILITY_OPTIONS.map((option) => (
@@ -263,19 +272,19 @@ export default function SeedCompletionDialog({
                 disabled={isSaving}
                 className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
               >
-                Cancel
+                Vazgeç
               </button>
               <button
                 type="button"
                 onClick={submit}
                 disabled={
-                  isSaving ||
+                  isSaving || !experiencePhotos.ready ||
                   (completedDatePrecision === "exact" && !completedOn) ||
                   (completedDatePrecision === "year" && !completedYear)
                 }
                 className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-purple-700 disabled:opacity-50"
               >
-                {isSaving ? "Saving..." : "Complete Seed"}
+                {isSaving ? "Kaydediliyor…" : "Deneyimi ekle"}
               </button>
             </div>
           </section>

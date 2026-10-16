@@ -1,8 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import ExperiencePhotoPicker from './ExperiencePhotoPicker';
+import {useExperiencePhotos} from '@/utils/useExperiencePhotos';
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
 import { saveSeedJournalEntry } from "@/services/seedService";
 import { supabase } from "@/utils/supabase/client";
@@ -73,9 +75,14 @@ export default function SeedExperienceEditor({
 
   const resolvedButtonLabel =
     buttonLabel ??
-    (existingExperience ? "Edit my experience" : "+ Add my experience");
+    (existingExperience ? "Deneyimimi düzenle" : "+ Deneyim ekle");
 
+  const experiencePhotos=useExperiencePhotos(supabase,seedId,open);
+  const saveLock=useRef(false);
+  const savedJournalId=useRef<string|null>(existingExperience?.id??null);
   async function submit() {
+    if(saveLock.current||!experiencePhotos.ready)return;
+    saveLock.current=true;
     setIsSaving(true);
     setMessage(null);
 
@@ -99,9 +106,9 @@ export default function SeedExperienceEditor({
       }
       const hasExperienceNote = body.trim().length > 0 || keyTakeaway.trim().length > 0 || attachments.some((item) => item.url.trim().length > 0);
       if (hasExperienceNote || existingExperience) {
-        await saveSeedJournalEntry({
+        savedJournalId.current=await saveSeedJournalEntry({
           seedId,
-          entryId: existingExperience?.id ?? null,
+          entryId: savedJournalId.current,
           entryKind: "reflection",
           body,
           keyTakeaway,
@@ -111,6 +118,7 @@ export default function SeedExperienceEditor({
         });
       }
       await trackProductEvent("experience_created", { resourceId: seedId, source: "seed_experience_editor" });
+      await experiencePhotos.save(seedId,visibility);
       setOpen(false);
       router.refresh();
       onSaved?.({ favorite: rating !== null && rating >= 9 });
@@ -118,10 +126,10 @@ export default function SeedExperienceEditor({
       setMessage(
         error instanceof Error
           ? error.message
-          : "Your experience could not be saved."
+          : "Deneyimin kaydedilemedi."
       );
       setIsSaving(false);
-    }
+    } finally {saveLock.current=false;setIsSaving(false);}
   }
 
   const hasContent = datePrecision !== "exact" || Boolean(experienceDate);
@@ -179,7 +187,7 @@ export default function SeedExperienceEditor({
                   onChange={(event) => setBody(event.target.value)}
                   maxLength={6000}
                   rows={8}
-                  placeholder="Write your completed experience here…"
+                  placeholder="Düşüncen, deneyimin, aklında kalanlar…"
                   className="mt-3 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
                 />
                 <span className="mt-1 block text-xs text-gray-400">
@@ -192,18 +200,19 @@ export default function SeedExperienceEditor({
                   Sende ne kaldı?
                 </span>
                 <span className="mt-1 block text-sm leading-6 text-gray-500">
-                  Optional. A short takeaway that can be highlighted on the Experience card.
+                  İsteğe bağlı. Deneyiminden aklında kalan kısa bir not.
                 </span>
                 <textarea
                   value={keyTakeaway}
                   onChange={(event) => setKeyTakeaway(event.target.value)}
                   maxLength={1000}
                   rows={3}
-                  placeholder="One thought that remained after the experience."
+                  placeholder="Bu deneyimden aklında ne kaldı?"
                   className="mt-3 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-100"
                 />
               </label>
 
+              <ExperiencePhotoPicker photos={experiencePhotos.photos} onChange={experiencePhotos.setPhotos} disabled={isSaving||!experiencePhotos.ready}/>{experiencePhotos.error?<button type="button" onClick={experiencePhotos.reload} className="min-h-11 text-red-700">{experiencePhotos.error} Yeniden dene</button>:!experiencePhotos.ready?<p>Fotoğraflar yükleniyor…</p>:null}
               <SeedLinkedItemsEditor
                 items={attachments}
                 onChange={setAttachments}
@@ -267,7 +276,7 @@ export default function SeedExperienceEditor({
                 <button
                   type="button"
                   onClick={submit}
-                  disabled={isSaving || !hasContent}
+                  disabled={isSaving || !hasContent || !experiencePhotos.ready}
                   className="rounded-xl bg-purple-600 px-5 py-3 text-sm font-black text-white transition hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {isSaving ? "Kaydediliyor…" : "Deneyimi güncelle"}

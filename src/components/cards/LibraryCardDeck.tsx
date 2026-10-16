@@ -1,11 +1,12 @@
 "use client";
+import ExperienceReviews from '@/components/seeds/ExperienceReviews';
 import {useLibraryAudience} from '@/utils/libraryAudience';
 import {useEffect, useRef, useState, type ComponentProps, type ReactNode} from 'react';
 import {useCardDeckAccount} from '@/utils/cardDeckAccount';
 import type {Detail} from '@/components/ideas/TopicCardModal';
 import DiscoverIntentCard from '@/components/discover/DiscoverIntentCard';
 import TogetherProposal from '@/components/seeds/TogetherProposal';
-import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, reviewPreview, cardDate, newestReviews, cardEventPhase, adjacentCardEvent, preferPlannedCardEvents} from '@/utils/cardDeck';
+import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, cardDate, cardEventPhase, adjacentCardEvent, preferPlannedCardEvents} from '@/utils/cardDeck';
 
 type Props = Omit<ComponentProps<'article'>,'children'> & {initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
 export default function LibraryCardDeck({targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, initialPlans=false, personalPlanCount=0, ...props}: Props) {
@@ -81,11 +82,7 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
             <div className="flex items-center justify-between gap-2"><Person name={person.full_name} avatar={person.avatar_url} username={person.username} userId={person.user_id} date={cardDate(person.start_date,person.end_date,person.timing_precision,person.date_options)}/>
             {person.user_id===account&&actions?<div className="uin-deck-own-actions flex w-[90px] shrink-0 gap-0.5"><SmallAction label="Düzenle" onClick={actions.editWish}/><SmallAction label="İptal" onClick={actions.cancelWish} cancel/></div>:null}
             {data.viewerId&&person.user_id!==data.viewerId&&person.source_kind!=='social'&&person.together_allowed&&!person.shared_event?<div className="uin-deck-proposal shrink-0 text-slate-900"><TogetherProposal targetId={person.source_target_id||targetId} recipientId={person.user_id} name={person.full_name} title={data.card.title} activityOptions={data.activityOptions??[]} initialPlace={person.location}/></div>:person.shared_event?<a href={`/activities/${encodeURIComponent(person.shared_event.resource_id||person.shared_event.plan_id||person.shared_event.intent_id)}`} className="text-xs text-emerald-200">✓ Aynı etkinliktesiniz</a>:null}</div>{person.notes?<p className="text-xs">{person.notes}</p>:null}
-          </div>):<p className="text-sm">Henüz isteyen yok.</p>:reviews.length?newestReviews(reviews,review=>review.experience_date||(review.experience_year?String(review.experience_year):null)).sort((a,b)=>Number(b.user_id===account)-Number(a.user_id===account)).map(review=><div key={review.seed_id} className="space-y-2 rounded-xl bg-white/10 p-3">
-            <div className="flex items-center justify-between gap-2"><Person name={review.full_name} avatar={review.avatar_url} username={review.username} userId={review.user_id} date={cardDate(review.experience_date||(review.experience_year?String(review.experience_year):null))}/>{review.user_id===account&&actions?<SmallAction label="Deneyimimi düzenle" onClick={actions.editExperience}/>:null}</div>
-            {review.rating!=null?<p className="text-xs font-bold text-amber-200">★ {review.rating}/10</p>:null}
-            {review.body?<Review body={review.body}/>:null}
-          </div>):<div className="text-sm"><p>Henüz deneyim ekleyen yok.</p>{actions?<p>Sen deneyimlediysen <button type="button" className="text-emerald-300 underline focus-visible:outline" onClick={actions.editExperience}>+ {actions.doneLabel}</button> diyerek deneyimini ekleyip puanlayabilirsin.</p>:null}</div>}
+          </div>):<p className="text-sm">Henüz isteyen yok.</p>:reviews.length?<ExperienceReviews cardTitle={cardTitle} viewerId={account??null} editOwn={actions?.editExperience} reviews={reviews.map(review=>({id:review.seed_id,userId:review.user_id,name:review.full_name,username:review.username,avatarUrl:review.avatar_url,date:review.experience_date||(review.experience_year?String(review.experience_year):null),rating:review.rating,body:review.body,isViewer:review.user_id===account}))}/>:<div className="text-sm"><p>Henüz deneyim ekleyen yok.</p>{actions?<p>Sen deneyimlediysen <button type="button" className="text-emerald-300 underline focus-visible:outline" onClick={actions.editExperience}>+ {actions.doneLabel}</button> diyerek deneyimini ekleyip puanlayabilirsin.</p>:null}</div>}
         </div>}
         <div className="uin-deck-dock">
           <button ref={back} type="button" className="uin-deck-home" aria-label={`${cardTitle} kartına dön`} onClick={()=>navigate(0)}>Karta dön</button>
@@ -107,11 +104,6 @@ function Person({name,avatar,username,userId,date}:{name:string;avatar:string|nu
     {avatar?<img src={avatar} alt="" className="h-6 w-6 rounded-full object-cover"/>:<span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-emerald-100 text-emerald-900">{name.charAt(0)}</span>}<span className="min-w-0"><span>{name}</span>{date?<span className="ml-1 font-normal text-white/65">· {date}</span>:null}</span>
   </a>;
 }
-function Review({body}:{body:string}) {
-  const [expanded,setExpanded]=useState(false),preview=reviewPreview(body);
-  return <div><p className={`whitespace-pre-wrap text-xs leading-5 ${expanded?'':'line-clamp-3'}`}>{expanded?body:preview}</p>{preview!==body.trim()||body.length>120?<button type="button" aria-label={expanded?'Yorumu kısalt':'Yorumun tamamını oku'} aria-expanded={expanded} onClick={()=>setExpanded(value=>!value)} className="grid min-h-11 w-11 place-items-center text-lg text-emerald-200">{expanded?'⌃':'⌄'}</button>:null}</div>;
-}
-
 function eventDisplay(event:Detail['events'][number]) {
   const c=event.card_payload;
   return {planId:c?.plan_id||event.plan_id,ownerId:c?.owner_user_id,activityId:c?.activity_id,title:c?.event_display_title,location:event.location||c?.city,start:c?.scheduled_start||event.start_date,end:c?.scheduled_end||event.end_date,visibility:c?.visibility,dna:c?.event_dna_titles,phase:eventPhase(event),participants:c?.active_participant_count==null?undefined:Number(c.active_participant_count),viewerIsMember:c?.viewer_is_member,viewerRequest:c?.viewer_request_status==='pending'?c.viewer_request_status:null,viewerInvitation:c?.viewer_invitation_status==='pending'?c.viewer_invitation_status:null};

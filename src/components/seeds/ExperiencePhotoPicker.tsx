@@ -1,0 +1,8 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+import type {DraftPhoto} from '@/utils/personalExperiences';
+export default function ExperiencePhotoPicker({photos,onChange,disabled=false}:{photos:DraftPhoto[];onChange:(photos:DraftPhoto[])=>void;disabled?:boolean}){
+ const urls=useRef<string[]>([]),[error,setError]=useState('');
+ useEffect(()=>()=>{urls.current.forEach(url=>URL.revokeObjectURL(url));},[]);
+ return <section className="space-y-3"><h3 className="font-bold">Deneyim fotoğrafların</h3><p className="text-sm text-slate-500">İsteğe bağlı · En fazla 6 fotoğraf · Fotoğraf başına 8 MB</p><div className="flex flex-wrap gap-3">{photos.map((photo,index)=><div key={photo.path??photo.url}><img src={photo.url} alt={`${index+1}. deneyim fotoğrafı`} className="h-24 w-24 rounded-xl object-cover"/><button type="button" disabled={disabled} className="min-h-11 text-sm text-red-700" onClick={()=>onChange(photos.filter((_,i)=>i!==index))}>Kaldır</button></div>)}</div>{photos.length<6?<label className="block rounded-xl bg-emerald-50 p-3 font-semibold text-emerald-800">＋ Fotoğraf ekle<input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple disabled={disabled} className="mt-2 block w-full text-sm" onChange={event=>{setError('');const files=Array.from(event.target.files??[]);event.target.value='';if(photos.length+files.length>6){setError('En fazla 6 fotoğraf seçebilirsin.');return;}if(files.some(file=>file.size>8*1024*1024)){setError('Her fotoğraf en fazla 8 MB olabilir.');return;}onChange([...photos,...files.map(file=>{const url=URL.createObjectURL(file);urls.current.push(url);return{url,file,mime:file.type};})]);}}/></label>:null}{error?<p role="alert" className="text-red-700">{error}</p>:null}</section>;
+}
