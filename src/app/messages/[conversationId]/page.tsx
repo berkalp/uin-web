@@ -74,7 +74,7 @@ export default async function ConversationPage({ params }: ConversationPageProps
     supabase.rpc("get_direct_conversation_detail", {
       p_conversation_id: conversationId,
     }),
-    supabase.rpc("get_direct_conversation_messages", {
+    supabase.rpc("get_direct_conversation_messages_with_photos", {
       p_conversation_id: conversationId,
       p_limit: 300,
     }),
@@ -122,7 +122,7 @@ export default async function ConversationPage({ params }: ConversationPageProps
             href="/messages"
             className="text-sm font-semibold text-gray-600 transition hover:text-green-700"
           >
-            ← Messages
+            ← Mesajlar
           </Link>
           <Link
             href="/timeline"
@@ -133,6 +133,7 @@ export default async function ConversationPage({ params }: ConversationPageProps
         </div>
 
         <DirectConversationThread
+          key={conversationId}
           currentUserId={user.id}
           detail={detail}
           messages={messages}

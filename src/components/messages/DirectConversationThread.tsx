@@ -20,6 +20,8 @@ import {
   sendDirectMessage,
 } from "@/services/directMessageService";
 import { supabase } from "@/utils/supabase/client";
+import DirectMessagePhoto from './DirectMessagePhoto';
+import { prepareDirectPhoto, sendDirectPhoto, removePendingDirectPhoto, type DirectPhotoDraft } from '@/services/directMessagePhotoService';
 
 type AccessPreset = "1d" | "7d" | "30d" | "1y" | "20y" | "custom";
 
@@ -43,7 +45,7 @@ function getInitial(value: string) {
 }
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("tr-TR", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -80,7 +82,7 @@ function sameMessageSnapshot(
       candidate?.sender_full_name === message.sender_full_name &&
       candidate?.sender_username === message.sender_username &&
       candidate?.sender_avatar_url === message.sender_avatar_url &&
-      candidate?.body === message.body &&
+      candidate?.body === message.body && candidate?.photo_path === message.photo_path &&
       candidate?.created_at === message.created_at;
   });
 }
@@ -137,6 +139,11 @@ export default function DirectConversationThread({
     serverGeneration: 0,
   }));
   const [body, setBody] = useState("");
+  const [photo, setPhoto] = useState<DirectPhotoDraft | null>(null);
+  const [preparingPhoto, setPreparingPhoto] = useState(false);
+  const sendLock = useRef(false);
+  const fileInput = useRef<HTMLInputElement>(null);
+  useEffect(() => () => { if (photo) URL.revokeObjectURL(photo.preview); }, [photo]);
   const [isSending, setIsSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [preset, setPreset] = useState<AccessPreset>("1d");
@@ -184,7 +191,7 @@ export default function DirectConversationThread({
     const requestGeneration = ++refreshGenerationRef.current;
     const requestServerGeneration = serverGeneration;
     const { data, error } = await supabase.rpc(
-      "get_direct_conversation_messages",
+      "get_direct_conversation_messages_with_photos",
       {
         p_conversation_id: conversationId,
         p_limit: 300,
@@ -353,20 +360,24 @@ export default function DirectConversationThread({
     setErrorMessage(null);
 
     const cleanBody = body.trim();
-    if (!cleanBody) return;
+    if (sendLock.current || preparingPhoto || !detail.viewer_can_send || (!cleanBody && !photo)) return;
+    sendLock.current = true;
 
     try {
       setIsSending(true);
-      await sendDirectMessage(detail.conversation_id, cleanBody);
+      if (photo) await sendDirectPhoto(detail.conversation_id, cleanBody, photo);
+      else await sendDirectMessage(detail.conversation_id, cleanBody);
       setBody("");
+      setPhoto(null);
 
       // Do not wait for the realtime round-trip to show the sender's own message.
       await refreshMessages();
     } catch (error) {
       setErrorMessage(
-        error instanceof Error ? error.message : "The message could not be sent."
+        error instanceof Error ? error.message : "Mesaj gönderilemedi."
       );
     } finally {
+      sendLock.current = false;
       setIsSending(false);
     }
   }
@@ -452,7 +463,7 @@ export default function DirectConversationThread({
 
                 {detail.other_is_staff && (
                   <span className="rounded-full bg-blue-50 px-2.5 py-1 font-semibold text-blue-700">
-                    UIN staff
+                    UIN ekibi
                   </span>
                 )}
               </div>
@@ -466,7 +477,7 @@ export default function DirectConversationThread({
         >
           {liveMessages.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center text-sm text-gray-500">
-              No messages yet.
+              Henüz mesaj yok.
             </div>
           ) : (
             liveMessages.map((message) => {
@@ -484,9 +495,10 @@ export default function DirectConversationThread({
                         : "border border-gray-200 bg-white text-gray-800"
                     }`}
                   >
-                    <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                    {message.photo_path ? <DirectMessagePhoto path={message.photo_path} /> : null}
+                    {!(message.photo_path && message.body === '📷 Fotoğraf') ? <p className="whitespace-pre-wrap break-words text-sm leading-6">
                       {message.body}
-                    </p>
+                    </p> : null}
 
                     <p
                       className={`mt-2 text-[11px] ${
@@ -506,6 +518,25 @@ export default function DirectConversationThread({
           onSubmit={handleSend}
           className="border-t border-gray-100 p-4 md:p-5"
         >
+          <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" aria-label="Fotoğraf veya ekran görüntüsü seç" disabled={!detail.viewer_can_send || isSending || preparingPhoto} onChange={async event => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            if (!file) return;
+            setPreparingPhoto(true);
+            setErrorMessage(null);
+            try {
+              const selected = await prepareDirectPhoto(file);
+              if (photo) void removePendingDirectPhoto(photo);
+              setPhoto(selected);
+            } catch (error) { setErrorMessage(error instanceof Error ? error.message : 'Fotoğraf seçilemedi.'); }
+            finally { setPreparingPhoto(false); }
+          }} />
+          {photo ? <div className="mb-3 flex items-center gap-3 rounded-xl bg-emerald-50 p-3">
+            <img src={photo.preview} alt="Gönderilecek fotoğraf" className="h-20 w-20 rounded-lg object-contain" />
+            <p className="flex-1 text-sm text-emerald-900">{isSending ? 'Fotoğraf gönderiliyor…' : 'Fotoğraf hazır. İstersen bir açıklama yaz.'}</p>
+            <button type="button" aria-label="Seçilen fotoğrafı kaldır" disabled={isSending} onClick={() => { void removePendingDirectPhoto(photo); setPhoto(null); }} className="p-3">✕</button>
+          </div> : null}
+          <button type="button" disabled={!detail.viewer_can_send || isSending || preparingPhoto} onClick={() => fileInput.current?.click()} className="mb-3 rounded-xl border border-emerald-300 px-4 py-2 text-sm font-semibold text-emerald-800 disabled:opacity-40">{preparingPhoto ? 'Fotoğraf hazırlanıyor…' : '📷 Fotoğraf ekle'}</button>
           <textarea
             value={body}
             onChange={(event) => setBody(event.target.value)}
@@ -514,8 +545,8 @@ export default function DirectConversationThread({
             rows={3}
             placeholder={
               detail.viewer_can_send
-                ? `Message ${otherName}...`
-                : "Messaging access is closed. You can still read the conversation."
+                ? 'Mesajını yaz...'
+                : 'Bu konuşma şu anda yalnızca okunabilir.'
             }
             className="w-full resize-none rounded-2xl border border-gray-200 px-4 py-3 text-sm leading-6 outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
           />
@@ -550,10 +581,10 @@ export default function DirectConversationThread({
 
             <button
               type="submit"
-              disabled={!detail.viewer_can_send || isSending || !body.trim()}
+              disabled={!detail.viewer_can_send || isSending || preparingPhoto || (!body.trim() && !photo)}
               className="rounded-xl bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {isSending ? "Sending..." : "Send"}
+              {isSending ? "Gönderiliyor…" : "Gönder"}
             </button>
           </div>
         </form>

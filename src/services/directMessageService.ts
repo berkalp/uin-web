@@ -28,6 +28,7 @@ export type DirectConversationMessage = {
   sender_avatar_url: string | null;
   body: string;
   created_at: string;
+  photo_path?: string | null;
 };
 
 export type DirectConversationDetail = {
