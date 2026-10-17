@@ -30,10 +30,17 @@ do $$ declare c uuid:=current_setting('test.photo_conv')::uuid; path text:=curre
     if sqlerrm not like 'Bu fotoğraf zaten gönderildi%' then raise; end if;
   end;
   if not exists(select 1 from public.get_direct_conversation_messages_with_photos(c) where message_id=first_id and photo_path=path and body='📷 Fotoğraf') then raise exception 'Photo-only message missing'; end if;
+  if not exists(select 1 from public.get_direct_conversation_messages(c) where message_id=first_id and body like '%Sana bir fotoğraf gönderildi%Güncellemenin%') then raise exception 'Legacy client upgrade guidance missing'; end if;
+  again_id:=public.send_direct_message_with_photo(c,'Ekran görüntüsü açıklaması',pending);
+  if not exists(select 1 from public.get_direct_conversation_messages_with_photos(c) where message_id=again_id and body='Ekran görüntüsü açıklaması' and photo_path=pending) then raise exception 'Caption changed in new client'; end if;
+  if not exists(select 1 from public.get_direct_conversation_messages(c) where message_id=again_id and body like 'Ekran görüntüsü açıklaması%Sana bir fotoğraf gönderildi%') then raise exception 'Caption missing in old client'; end if;
+  again_id:=public.send_direct_message(c,'Sadece yazı');
+  if not exists(select 1 from public.get_direct_conversation_messages(c) where message_id=again_id and body='Sadece yazı') then raise exception 'Ordinary text changed'; end if;
   if uin_private.can_delete_pending_direct_photo(path) then raise exception 'Sent photo can be removed'; end if;
   perform set_config('request.jwt.claim.sub',current_setting('test.photo_receiver'),true);
   if not exists(select 1 from storage.objects where bucket_id='direct-message-photos' and name=path) then raise exception 'Recipient cannot see sent photo'; end if;
   if not exists(select 1 from public.get_direct_conversation_messages_with_photos(c) where message_id=first_id and photo_path=path) then raise exception 'Recipient message missing'; end if;
+  if not exists(select 1 from public.get_direct_conversation_messages(c) where message_id=first_id and body like '%Sana bir fotoğraf gönderildi%') then raise exception 'Legacy recipient guidance missing'; end if;
   perform set_config('request.jwt.claim.sub',current_setting('test.photo_outsider'),true);
   if exists(select 1 from storage.objects where bucket_id='direct-message-photos' and name=path) then raise exception 'Photo exposed to outsider'; end if;
   if uin_private.can_upload_direct_photo(path) then raise exception 'Outsider upload allowed'; end if;
