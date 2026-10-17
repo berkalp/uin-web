@@ -38,6 +38,8 @@ const UIN_INTENT_PAW_CHANNEL = 'intent_paws_uin_v1'
 function channelFor(notificationType: string | null) {
   const type = (notificationType ?? '').toLowerCase()
 
+  if (type === 'uin_weekend_message') return 'uin_updates_uin_v2'
+  if (type === 'uin_team_message') return 'activity_messages_uin_v2'
   if (type === 'intent_liked') return UIN_INTENT_LIKE_CHANNEL
   if (type === 'intent_pawed') return UIN_INTENT_PAW_CHANNEL
   if (type.includes('room_message') || type.includes('message') || type.includes('chat')) {
@@ -108,7 +110,7 @@ export default {
 
     const messages = activeDevices.map((device) => ({
       to: device.expo_push_token,
-      sound: 'uin_push_background.wav',
+      sound: ['uin_weekend_message', 'uin_team_message'].includes(notificationType) ? 'uin_message_push.wav' : 'uin_push_background.wav',
       title: notification.title ?? 'UIN',
       body: notification.body ?? 'Yeni bir bildirimin var.',
       channelId: channelFor(notification.notification_type),

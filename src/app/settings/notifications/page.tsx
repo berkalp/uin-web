@@ -1,5 +1,6 @@
 import Link from "next/link";
 import DigestPreference from "@/components/notifications/DigestPreference";
+import WeekendMessagePreference from "@/components/notifications/WeekendMessagePreference";
 import { redirect } from "next/navigation";
 
 import ReminderDefaultsPanel from "@/components/reminders/ReminderDefaultsPanel";
@@ -23,6 +24,7 @@ export default async function NotificationReminderSettingsPage() {
 
       <div className="mt-8">
         <DigestPreference />
+        <WeekendMessagePreference />
         <ReminderDefaultsPanel />
       </div>
     </main>
