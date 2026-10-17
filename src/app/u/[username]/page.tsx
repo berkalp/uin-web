@@ -1,3 +1,4 @@
+import {SharedReputationPanel} from '@/components/seeds/SharedExperiences';
 import {hasSharedWish} from '@/utils/sharedWish';
 import StandaloneSignOutButton from "@/components/auth/StandaloneSignOutButton";
 import Link from "next/link";
@@ -2417,6 +2418,7 @@ export default async function PublicProfilePage({
           <WebCardLayoutPicker/>
         </div>
 
+        {viewerUserId?<SharedReputationPanel userId={profile.id}/>:null}
         {hasTrustSummary && (
           <section
             id="trust-summary"

@@ -1,3 +1,4 @@
+import {SharedExperienceInbox} from '@/components/seeds/SharedExperiences';
 import { notFound } from "next/navigation";
 import { isAuthSessionMissingError } from "@supabase/supabase-js";
 
@@ -247,6 +248,7 @@ export default async function SeedDetailPage({
   if (canonical?.title) detail.seed.title = canonical.title;
   return (
     <>
+    {detail.seed.is_owner?<div className="mx-auto max-w-3xl p-4"><SharedExperienceInbox seedId={seedId}/></div>:null}
     <SeedDetailView
       detail={detail}
       subjectSnapshot={subjectSnapshot}

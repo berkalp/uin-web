@@ -4,6 +4,8 @@ import {supabase} from '@/utils/supabase/client';
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import {CompanionFields} from './SharedExperiences';
+import {useSharedExperienceDraft} from '@/utils/useSharedExperienceDraft';
 import ExperiencePhotoPicker from './ExperiencePhotoPicker';
 import {useExperiencePhotos} from '@/utils/useExperiencePhotos';
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
@@ -71,6 +73,7 @@ export default function SeedCompletionDialog({
   const [message, setMessage] = useState<string | null>(null);
 
   const experiencePhotos=useExperiencePhotos(supabase,seedId,open);
+  const companions=useSharedExperienceDraft(supabase,seedId,open);
   const saveLock=useRef(false);
   async function submit() {
     if(saveLock.current||!experiencePhotos.ready)return;
@@ -79,6 +82,7 @@ export default function SeedCompletionDialog({
     setMessage(null);
 
     try {
+      companions.validate();
       await completeSeed({
         seedId,
         completedOn,
@@ -90,6 +94,8 @@ export default function SeedCompletionDialog({
         attachments,
       });
       await experiencePhotos.save(seedId,visibility);
+      const sharedId=await companions.save(seedId);
+      if(sharedId)router.push("/shared-experiences/"+sharedId);
       setOpen(false);
       router.refresh();
     } catch (error) {
@@ -220,7 +226,7 @@ export default function SeedCompletionDialog({
                 />
               </label>
 
-              <ExperiencePhotoPicker photos={experiencePhotos.photos} onChange={experiencePhotos.setPhotos} disabled={isSaving||!experiencePhotos.ready}/>{experiencePhotos.error?<button type="button" onClick={experiencePhotos.reload} className="min-h-11 text-red-700">{experiencePhotos.error} Yeniden dene</button>:!experiencePhotos.ready?<p>Fotoğraflar yükleniyor…</p>:null}
+              <CompanionFields draft={companions} disabled={isSaving}/><ExperiencePhotoPicker photos={experiencePhotos.photos} onChange={experiencePhotos.setPhotos} disabled={isSaving||!experiencePhotos.ready}/>{experiencePhotos.error?<button type="button" onClick={experiencePhotos.reload} className="min-h-11 text-red-700">{experiencePhotos.error} Yeniden dene</button>:!experiencePhotos.ready?<p>Fotoğraflar yükleniyor…</p>:null}
               <SeedLinkedItemsEditor
                 items={attachments}
                 onChange={setAttachments}

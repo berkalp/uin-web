@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import {CompanionFields} from './SharedExperiences';
+import {useSharedExperienceDraft} from '@/utils/useSharedExperienceDraft';
 import ExperiencePhotoPicker from './ExperiencePhotoPicker';
 import {useExperiencePhotos} from '@/utils/useExperiencePhotos';
 import SeedLinkedItemsEditor from "@/components/seeds/SeedLinkedItemsEditor";
@@ -78,6 +80,7 @@ export default function SeedExperienceEditor({
     (existingExperience ? "Deneyimimi düzenle" : "+ Deneyim ekle");
 
   const experiencePhotos=useExperiencePhotos(supabase,seedId,open);
+  const companions=useSharedExperienceDraft(supabase,seedId,open);
   const saveLock=useRef(false);
   const savedJournalId=useRef<string|null>(existingExperience?.id??null);
   async function submit() {
@@ -87,6 +90,7 @@ export default function SeedExperienceEditor({
     setMessage(null);
 
     try {
+      companions.validate();
       const { error: stateError } = await supabase.rpc("save_my_seed_v17_state", {
         p_seed_id: seedId,
         p_relationship_status: "completed",
@@ -119,6 +123,8 @@ export default function SeedExperienceEditor({
       }
       await trackProductEvent("experience_created", { resourceId: seedId, source: "seed_experience_editor" });
       await experiencePhotos.save(seedId,visibility);
+      const sharedId=await companions.save(seedId);
+      if(sharedId)router.push("/shared-experiences/"+sharedId);
       setOpen(false);
       router.refresh();
       onSaved?.({ favorite: rating !== null && rating >= 9 });
@@ -212,6 +218,7 @@ export default function SeedExperienceEditor({
                 />
               </label>
 
+              <CompanionFields draft={companions} disabled={isSaving}/>
               <ExperiencePhotoPicker photos={experiencePhotos.photos} onChange={experiencePhotos.setPhotos} disabled={isSaving||!experiencePhotos.ready}/>{experiencePhotos.error?<button type="button" onClick={experiencePhotos.reload} className="min-h-11 text-red-700">{experiencePhotos.error} Yeniden dene</button>:!experiencePhotos.ready?<p>Fotoğraflar yükleniyor…</p>:null}
               <SeedLinkedItemsEditor
                 items={attachments}

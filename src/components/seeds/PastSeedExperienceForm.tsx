@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import {CompanionFields} from './SharedExperiences';
+import {useSharedExperienceDraft} from '@/utils/useSharedExperienceDraft';
+import {supabase} from '@/utils/supabase/client';
 import { addPastSeedExperience } from "@/app/seeds/explore/actions";
 import {
   SEED_VISIBILITY_OPTIONS,
@@ -24,8 +27,13 @@ export default function PastSeedExperienceForm({
   const [precision, setPrecision] =
     useState<SeedCompletionPrecision>("unknown");
 
+  const companions=useSharedExperienceDraft(supabase,undefined,true);
+  const requestId=useRef<string|null>(null);
   return (
-    <form action={addPastSeedExperience} className="space-y-7">
+    <form action={addPastSeedExperience} className="space-y-7" onSubmit={event=>{try{companions.validate();requestId.current??=crypto.randomUUID();const field=event.currentTarget.elements.namedItem("shared_request_id") as HTMLInputElement;field.value=requestId.current;}catch(error){event.preventDefault();window.alert(error instanceof Error?error.message:"Arkadaş seçimi geçersiz.")}}}>
+      <input type="hidden" name="shared_activity_id" value={companions.activityId}/>
+      <input type="hidden" name="shared_friends" value={JSON.stringify(Object.entries(companions.scores).map(([id,score])=>({id,score:score?Number(score):null})))}/>
+      <input type="hidden" name="shared_request_id" defaultValue=""/>
       <input type="hidden" name="catalog_item_id" value={catalogItemId} />
       <input type="hidden" name="return_to" value={returnTo} />
       <input type="hidden" name="completion_precision" value={precision} />
@@ -158,6 +166,7 @@ export default function PastSeedExperienceForm({
         </div>
       </div>
 
+      <CompanionFields draft={companions}/>
       <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-200 pt-6">
         <a
           href={returnTo.replace("/past", "")}

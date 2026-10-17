@@ -362,6 +362,18 @@ export async function addPastSeedExperience(
     redirect("/");
   }
 
+  const sharedFriendsText=getText(formData,"shared_friends");
+  let sharedFriends:unknown=[];
+  try { sharedFriends=JSON.parse(sharedFriendsText||"[]"); } catch { redirect(appendNotice(returnTo,"error","Arkadaş seçimi geçersiz.")); }
+  if(Array.isArray(sharedFriends)&&sharedFriends.length){
+    const shared=await supabase.rpc("shared_experience_action",{p_action:"past",p_payload:{
+      requestId:getText(formData,"shared_request_id"),activityId:getText(formData,"shared_activity_id"),friends:sharedFriends,
+      catalogItemId,precision:completionPrecision,date:completedOn||null,year:completedYear,reflection:reflection||null,keyTakeaway:keyTakeaway||null,visibility,
+    }});
+    if(shared.error)redirect(appendNotice(returnTo,"error",shared.error.message));
+    if(!shared.data?.id)redirect(appendNotice(returnTo,"error","Ortak deneyim kaydedilemedi."));
+    redirect("/shared-experiences/"+shared.data.id);
+  }
   const { data, error } = await supabase.rpc(
     "add_past_seed_experience_from_catalog",
     {
