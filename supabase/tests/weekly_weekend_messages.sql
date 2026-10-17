@@ -32,6 +32,10 @@ begin
   if public.direct_conversation_user_can_send(conv,recipient) then raise exception 'Revocation bypassed'; end if;
   perform public.save_my_uin_weekend_preference(true);
   if uin_private.dispatch_uin_weekend_messages('2099-10-31 09:00:00+00')<>n-1 then raise exception 'Revoked conversation received campaign'; end if;
+  update public.direct_conversation_access set revoked_at=null where conversation_id=conv and user_id=recipient;
+  insert into public.user_discovery_controls(actor_user_id,target_user_id,control_type) values(recipient,sender,'block') on conflict do nothing;
+  if public.direct_conversation_user_can_send(conv,recipient) then raise exception 'Blocked conversation allowed reply'; end if;
+  if uin_private.dispatch_uin_weekend_messages('2099-11-07 09:00:00+00')<>n-1 then raise exception 'Blocked user received campaign'; end if;
   if has_function_privilege('authenticated','uin_private.dispatch_uin_weekend_messages(timestamptz)','execute') then raise exception 'User can broadcast'; end if;
   if has_function_privilege('anon','public.save_my_uin_weekend_preference(boolean)','execute') then raise exception 'Anonymous preference access'; end if;
   if has_table_privilege('authenticated','uin_private.weekend_message_deliveries','select') then raise exception 'Private ledger exposed'; end if;
