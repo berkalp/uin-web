@@ -1,3 +1,4 @@
+import ActivityCoverImage from '@/components/media/ActivityCoverImage';
 import Link from "next/link";
 import type { ReactNode } from "react";
 import EyeIcon from "@/components/ui/EyeIcon";
@@ -28,7 +29,7 @@ type HeaderProps = {
 export function UinCardHeader({ title, subtitle, category, icon, coverUrl, coverPositionY = 50, href, badge = "FİKİR", tone = "target", controls, badgeExtra, topActionHref, topActionLabel = "Kulüp profilini aç ↗" }: HeaderProps) {
   const tones = { target: "bg-emerald-50 text-emerald-800", plan: "bg-violet-50 text-violet-800", experience: "bg-blue-50 text-blue-800", favorite: "bg-rose-50 text-rose-800" };
   const cover = coverUrl
-    ? <img src={coverUrl} alt="" loading="lazy" style={{ objectPosition: `50% ${coverPositionY}%` }} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
+    ? <ActivityCoverImage categoryName={category} activityName={title} src={coverUrl} alt="" loading="lazy" style={{ objectPosition: `50% ${coverPositionY}%` }} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.025]" />
     : <span className="grid h-full w-full place-items-center bg-slate-950 text-6xl" aria-hidden="true">{icon || "🌱"}</span>;
 
   return <>

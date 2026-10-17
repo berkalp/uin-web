@@ -7,7 +7,7 @@ import React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
-function load(path,modules={},append=""){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8')+append,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,require:id=>modules[id]??require(id),Intl,Date});return module.exports;}
+function load(path,modules={},append=""){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8')+append,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,require:id=>modules[id]??(id==='@/components/media/ActivityCoverImage'?{default:({src,alt,...props})=>React.createElement('img',{src,alt})}:require(id)),Intl,Date});return module.exports;}
 test('web main card preserves badges, counts and original planned actions while removing its event-name preview',()=>{
   let deck;
   const {default:Card}=load('src/components/cards/LibraryTopicCard.tsx',{

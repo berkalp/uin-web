@@ -1,3 +1,4 @@
+import { getPlanRoomTiming } from '@/utils/planRoomTiming';
 import type { ReactNode } from "react";
 import PlanWeatherBadges from "../weather/PlanWeatherBadges";
 import Link from "next/link";
@@ -891,9 +892,6 @@ function ConversationPanel({
   fillHeight = false,
   showHeader = true,
 }: ConversationPanelProps) {
-  let previousDateKey:
-    | string
-    | null = null;
 
   return (
     <section className={`overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm ${fillHeight ? "flex h-full min-h-0 flex-col" : ""}`}>
@@ -928,7 +926,7 @@ function ConversationPanel({
 
         <div className="space-y-4">
           {messages.map(
-            (message) => {
+            (message, messageIndex) => {
               const currentDateKey =
                 getLocalDateKey(
                   message.created_at,
@@ -937,10 +935,7 @@ function ConversationPanel({
 
               const shouldShowDate =
                 currentDateKey !==
-                previousDateKey;
-
-              previousDateKey =
-                currentDateKey;
+                (messageIndex === 0 ? null : getLocalDateKey(messages[messageIndex - 1].created_at, timezone));
 
               const senderProfile =
                 getFirst(
@@ -1736,29 +1731,7 @@ export default async function PlanRoomView({
     }
   }
 
-  const scheduledStartTime = plan.scheduled_start
-    ? new Date(plan.scheduled_start).getTime()
-    : Number.NaN;
-
-  const scheduledEndTime = plan.scheduled_end
-    ? new Date(plan.scheduled_end).getTime()
-    : Number.NaN;
-
-  const hasScheduledActivityStarted =
-    roomPhase === "activity" &&
-    plan.status === "planned" &&
-    Number.isFinite(scheduledStartTime) &&
-    scheduledStartTime <= Date.now();
-
-  const isScheduledActivityEnded =
-    roomPhase === "activity" &&
-    plan.status === "planned" &&
-    Number.isFinite(scheduledEndTime) &&
-    scheduledEndTime <= Date.now();
-
-  const isOutcomeUnknown =
-    isScheduledActivityEnded &&
-    scheduledEndTime + 7 * 24 * 60 * 60 * 1000 <= Date.now();
+  const {hasScheduledActivityStarted, isScheduledActivityEnded, isOutcomeUnknown} = getPlanRoomTiming(plan, roomPhase);
 
   const canInviteToCurrentRoom =
     sourceIntentId !== null &&
@@ -2682,7 +2655,8 @@ export default async function PlanRoomView({
       <div className="relative h-64 md:h-[330px]">
         <ActivityCoverImage
           src={resolvedCoverUrl}
-          fallbackSrc={getReliableSystemCoverFallback()}
+          categoryName={category?.name} activityName={activity?.name ?? plan.title}
+          fallbackSrc={getReliableSystemCoverFallback({categoryName:category?.name,activityName:activity?.name ?? plan.title})}
           alt={`${heroTitle} cover`}
           className="h-full w-full object-cover"
         />

@@ -654,6 +654,7 @@ export default function DiscoverIntentCard({
     title={cardTitle}
     titleContent={(dnaTitles??intent.event_dna_titles)?.length?<>{cardTitle.split(" · ")[0]}<span className="text-yellow-300"> · 🧬 {(dnaTitles??intent.event_dna_titles??[]).join(" / ")}</span></>:cardTitle.includes(" · ")?<>{cardTitle.split(" · ")[0]}<span className="text-yellow-300"> · 🧬 {cardTitle.split(" · ").slice(1).join(" · ")}</span></>:undefined}
     coverUrl={coverUrl}
+    categoryName={intent.category_name}
     badge="ETKİNLİK"
     icon={sportPresentation?.icon||"✦"}
     href={embedded?undefined:detailHref}

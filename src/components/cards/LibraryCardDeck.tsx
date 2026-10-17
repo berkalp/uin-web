@@ -1,4 +1,5 @@
 "use client";
+import ActivityCoverImage from '@/components/media/ActivityCoverImage';
 import {compactPersonName,experienceDate} from '@/utils/personalExperiences';
 import ExperienceReviews from '@/components/seeds/ExperienceReviews';
 import {useLibraryAudience} from '@/utils/libraryAudience';
@@ -9,12 +10,12 @@ import DiscoverIntentCard from '@/components/discover/DiscoverIntentCard';
 import TogetherProposal from '@/components/seeds/TogetherProposal';
 import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, cardDate, cardEventPhase, adjacentCardEvent, preferPlannedCardEvents, partitionCardEvents} from '@/utils/cardDeck';
 
-type Props = Omit<ComponentProps<'article'>,'children'> & {initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
+type Props = Omit<ComponentProps<'article'>,'children'> & {cardType?: string; initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
 export default function LibraryCardDeck({targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, initialPlans=false, personalPlanCount=0, ...props}: Props) {
   const account=useCardDeckAccount();const audience=useLibraryAudience();
   return <Deck key={`${targetId}:${account??'guest'}:${initialPlans}:${audience?.audience}:${audience?.section}`} initialPlans={initialPlans} personalPlanCount={personalPlanCount} {...props} targetId={targetId} coverUrl={coverUrl} coverPositionY={coverPositionY} wanting={wanting} doers={doers} actions={actions} account={account}>{children}</Deck>;
 }
-function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, account, initialPlans=false, personalPlanCount=0, ...props}: Props & {account: string|null|undefined}) {
+function Deck({cardType, title, targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, account, initialPlans=false, personalPlanCount=0, ...props}: Props & {account: string|null|undefined}) {
   const audience=useLibraryAudience();const initialPosition=audience?.section==='experiences'?-2:initialPlans?1:0;
   const [position,setPosition]=useState(initialPosition), [data,setData]=useState<Detail|null>(null), [error,setError]=useState(''), [retry,setRetry]=useState(0);
   const [selectedId,setSelectedId]=useState<string|null>(null);
@@ -86,7 +87,7 @@ function Deck({title, targetId, coverUrl, coverPositionY=50, wanting, doers, act
       {planCount>0?<button type="button" onClick={event=>{event.stopPropagation();openPlan();}} className="absolute left-3 top-14 z-20 rounded-full bg-slate-950/70 px-2 py-1 text-xs font-semibold text-emerald-100">{planCount} planın var</button>:null}
     </div>
     {position!==0?<div className="uin-deck-overlay" onClick={event=>event.stopPropagation()}>
-      {coverUrl?<img src={coverUrl} alt="" style={{objectPosition:`50% ${coverPositionY}%`}} className="pointer-events-none absolute inset-0 h-full w-full object-cover"/>:null}
+      {coverUrl?<ActivityCoverImage cardType={cardType} activityName={title} src={coverUrl} alt="" style={{objectPosition:`50% ${coverPositionY}%`}} className="pointer-events-none absolute inset-0 h-full w-full object-cover"/>:null}
       <div className={`uin-deck-face absolute inset-0 flex min-h-0 flex-col gap-3 bg-slate-950/80 px-4 py-3 text-white ${position===1?'uin-deck-event-face':''}`}>
         {position<0?<h3 className="text-base font-black">{position===-1?wanting:doers}</h3>:null}
         {position===-2&&data?<p className="text-sm font-bold text-amber-200">UIN ★ {data.social?.average_rating==null||!data.social.rating_count?'Henüz puan yok':`${data.social.average_rating.toFixed(1)}/10 · ${data.social.rating_count}`}</p>:null}
