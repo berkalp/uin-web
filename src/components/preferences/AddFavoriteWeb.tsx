@@ -38,7 +38,7 @@ const KINDS: Array<{ id: Kind; label: string; icon: string; placeholder: string 
   { id: "book", label: "Kitap", icon: "📚", placeholder: "Kitap veya yazar ara" },
   { id: "movie", label: "Film", icon: "🎬", placeholder: "Film ara" },
   { id: "series", label: "Dizi", icon: "📺", placeholder: "Dizi ara" },
-  { id: "game", label: "Oyun", icon: "🎮", placeholder: "Oyun ara" },
+  { id: "game", label: "Video Oyunları", icon: "🎮", placeholder: "Oyun ara" },
   { id: "place", label: "Yer", icon: "📍", placeholder: "İzlanda, Roma, müze..." },
   { id: "director", label: "Yönetmen", icon: "🎥", placeholder: "Christopher Nolan..." },
   { id: "actor", label: "Oyuncu", icon: "🎭", placeholder: "Oyuncu ara" },

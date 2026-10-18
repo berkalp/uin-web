@@ -15,6 +15,7 @@ test('one main card shows all categories, shared counters and the selected learn
  './LibraryCardDeck':{default:p=>{deck=p;return React.createElement('article',null,p.children(()=>{}));}},
  '@/components/media/ActivityCoverImage':{default:()=>null},
  '@/components/cards/ArtistPopularityBadges':{default:()=>null},
+ '@/utils/gameCatalogue':load('src/utils/gameCatalogue.ts'),
  '@/utils/uinCardLanguage':load('src/utils/uinCardLanguage.ts'),
  '@/utils/cardStyle':{cardFrameStyle:()=>({})},'@/utils/club-card-labels':{clubCardLabels:()=>null},
  '@/utils/commonIntentTitle':{commonIntentTitle:x=>x},'@/components/cards/CardRatingBadge':{default:()=>null},
@@ -33,4 +34,3 @@ test('compact mobile transport preserves category names and purpose language',()
  const payload=mobileCategoryPayload({canonical_target_id:'one-card',content_type_ids:categories.map(c=>c.id),content_types:categories});
  assert.equal(payload.content_types.length,3);assert.equal(payload.content_types[1].ui_labels.want,'Öğrenmek istiyorum');
 });
-

@@ -9,7 +9,7 @@ export const favoriteLabels: Record<
   book: { label: "Kitap", icon: "📚" },
   movie: { label: "Film", icon: "🎬" },
   series: { label: "Dizi", icon: "📺" },
-  game: { label: "Oyun", icon: "🎮" },
+  game: { label: "Video Oyunları", icon: "🎮" },
   place: { label: "Yer", icon: "📍" },
   director: { label: "Yönetmen", icon: "🎥" },
   actor: { label: "Oyuncu", icon: "🎭" },

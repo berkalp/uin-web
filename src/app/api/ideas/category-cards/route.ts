@@ -1,3 +1,4 @@
+import {readGameCatalogue,gameMatches,GAME_PLATFORMS,GAME_GENRES,GAME_LISTS,type GameListId} from "@/utils/gameCatalogue";
 import {decodeLatestLibraryCursor,encodeLatestLibraryCursor} from "@/utils/latestLibraryCursor";
 import {mobileCategoryPayload} from "@/utils/mobileCardPayload";
 import {NextRequest,NextResponse} from "next/server";
@@ -27,6 +28,8 @@ export async function GET(request:NextRequest){
   const kind=(request.nextUrl.searchParams.get("kind")||"").trim();
   const audience=request.nextUrl.searchParams.get("audience")||"everyone";
   if(!["everyone","friends","me"].includes(audience))return NextResponse.json({error:"Geçersiz kapsam."},{status:400});
+  const gamePlatform=request.nextUrl.searchParams.get('platform')||'',gameGenre=request.nextUrl.searchParams.get('genre')||'',gameList=request.nextUrl.searchParams.get('gameList')||'';
+  if(gamePlatform&&!GAME_PLATFORMS.some(p=>p.id===gamePlatform)||gameGenre&&!GAME_GENRES.some(g=>g.id===gameGenre)||gameList&&!GAME_LISTS.some(l=>l.id===gameList))return NextResponse.json({error:'Geçersiz oyun filtresi.'},{status:400});
   const categoryParam=request.nextUrl.searchParams.get('categories');
   const categories=categoryParam?[...new Set(categoryParam.split(','))].sort():[];
   if(categories.length>100||categories.some(id=>!(/^[a-zA-Z0-9_-]{1,100}$/).test(id)||id==='all'))return NextResponse.json({error:'Geçersiz kategori seçimi.'},{status:400});
@@ -45,6 +48,7 @@ export async function GET(request:NextRequest){
     return NextResponse.json({error:"Kategori bilgisi yüklenemedi. Lütfen tekrar dene."},{status:503});
   }
   if(!type?.active)return NextResponse.json({error:"Kategori bulunamadı."},{status:404});
+  if((gamePlatform||gameGenre||gameList)&&type.base_kind!=='game')return NextResponse.json({error:'Oyun filtreleri yalnızca video oyunlarında kullanılabilir.'},{status:400});
   const cacheHeaders={"Cache-Control":"private, max-age=60, must-revalidate","Vary":"Cookie, Authorization"};
   if(type.base_kind==="place")return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   let clubTargetIds:string[]|null=null;
@@ -171,9 +175,16 @@ export async function GET(request:NextRequest){
     console.error("category cards missing social metrics",{kind,invalidSocialIds});
     return NextResponse.json({error:"Bazı kategori kartlarının topluluk bilgileri eksik geldi. Lütfen tekrar dene."},{status:503});
   }
+  const gameIds=items.filter(item=>item.item_kind==='game').map(item=>String(item.id));
+  const gameByItem=new Map<string,ReturnType<typeof readGameCatalogue>>();
+  for(let offset=0;offset<gameIds.length;offset+=100){
+    const result=await db.from('seed_catalog_items').select('id,game_catalog:metadata->game_catalog,platforms:metadata->platforms,genres:metadata->genres').in('id',gameIds.slice(offset,offset+100));
+    if(result.error)return NextResponse.json({error:'Oyunların platform ve tür bilgileri yüklenemedi.'},{status:503});
+    for(const row of result.data||[])gameByItem.set(String(row.id),readGameCatalogue(row));
+  }
   const covers=new Map(visibilityRows.map(row=>[String(row.target_id||""),Number(row.cover_position_y||50)]));
   const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
-  const catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
+  let catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
     const id=String(card.canonical_target_id||""),item=itemByTarget.get(id),stats=social.get(id),tree=hierarchy.get(id);
     const imdb=readImdbMetadata(item);const book=readBookListMetadata(item);const series=readSeriesListMetadata(item);
     const placementType=String(item?.content_type_id||type.id);
@@ -181,10 +192,12 @@ export async function GET(request:NextRequest){
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
+    return {...card,...(gameByItem.has(String(item?.id))?{game_catalog:gameByItem.get(String(item?.id))}:{}),...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
   });
+  if(type.base_kind==='game')catalogue=catalogue.filter(card=>gameMatches(card.game_catalog,gamePlatform,gameGenre,gameList as GameListId||null));
+  if(gameList)catalogue.sort((a,b)=>(a.game_catalog?.lists[gameList as GameListId]?.rank??10001)-(b.game_catalog?.lists[gameList as GameListId]?.rank??10001));
   if(pageParam!==null){
-    const result=categoryCardPage(catalogue,Number(pageParam),pageSort as CategoryPageSort);
+    const result=categoryCardPage(catalogue,Number(pageParam),pageSort as CategoryPageSort,gameList?()=>0:undefined);
     if(result)return NextResponse.json(result,{headers:cacheHeaders});
   }
   if(request.nextUrl.searchParams.get("compact")==="1")return NextResponse.json({catalogue:catalogue.map(mobileCategoryPayload),...(kind==="all"?{nextCursor}:{})},{headers:cacheHeaders});

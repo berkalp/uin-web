@@ -6,7 +6,7 @@ const CATEGORY_FIELDS = [
   'intent_people_count','experience_people_count','active_event_count','completed_event_count','expired_event_count','cancelled_event_count',
   'own_seed_id','own_common_intent_id','own_seed_status','parent_target_id','hierarchy_sort_order','hierarchy_section_title','hierarchy_depth','child_count',
   'average_rating','rating_count','follower_count','related_count','artist_stats','imdb_rank','imdb_rating','imdb_id',
-  'book_lists','book_list_ranks','series_lists','series_list_ranks','series_awards',
+  'game_catalog','book_lists','book_list_ranks','series_lists','series_list_ranks','series_awards',
 ] as const;
 function select(row:Record<string,unknown>,keys:readonly string[]){
   return Object.fromEntries(keys.filter(key=>Object.prototype.hasOwnProperty.call(row,key)).map(key=>[key,row[key]]));
