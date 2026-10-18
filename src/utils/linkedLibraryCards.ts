@@ -25,13 +25,15 @@ export async function loadLinkedLibraryCards(client: Client, requested: string[]
       client.rpc('get_uin_catalogue_for_targets_v123', {p_target_ids: batch}),
       client.rpc('get_uin_card_ratings_v85', {p_target_ids: batch}),
       client.rpc('get_uin_card_social_v87', {p_target_ids: batch}),
+      client.rpc('get_uin_card_content_types_v177', {p_target_ids: batch}),
     ]);
     if (replies.some(reply => reply.error)) throw Error('Bağlı kartlar yüklenemedi.');
     const cards = index(rows(replies[0].data), 'canonical_target_id', batch);
     const ratings = index(rows(replies[1].data), 'target_id', batch);
     const social = index(rows(replies[2].data), 'target_id', batch);
+    const categories=index(rows(replies[3].data),'target_id',batch);
     for (const id of batch) {
-      const card = {...cards.get(id), ...ratings.get(id), ...social.get(id)};
+      const card = {...cards.get(id), ...ratings.get(id), ...social.get(id),...categories.get(id)};
       if (typeof card.title !== 'string' || !card.title.trim() || countFields.some(key => card[key] == null || card[key] === '' || !Number.isSafeInteger(Number(card[key])) || Number(card[key]) < 0)) throw Error('Bazı kart bilgileri doğrulanamadı.');
       if (Number(card.rating_count) > 0 && (card.average_rating == null || !Number.isFinite(Number(card.average_rating)) || Number(card.average_rating) < 0 || Number(card.average_rating) > 10)) throw Error('Kart puanı doğrulanamadı.');
       result.push(card as Catalogue);
