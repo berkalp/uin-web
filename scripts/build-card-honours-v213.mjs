@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const root=path.dirname(fileURLToPath(import.meta.url));
+const rows=JSON.parse(fs.readFileSync(path.join(root,'card-honours-v213.json'),'utf8'));
+const template=fs.readFileSync(path.join(root,'card-honours-v213.template.sql'),'utf8');
+const output=path.resolve(process.argv[2]||'work/card-honours-sql');
+fs.mkdirSync(output,{recursive:true});
+for(let i=0;i<rows.length;i+=50)fs.writeFileSync(path.join(output,`${String(i/50+1).padStart(2,'0')}.sql`),template.replace('PAYLOAD_JSON',JSON.stringify(rows.slice(i,i+50))));
+console.log(`${Math.ceil(rows.length/50)} repeatable SQL transactions generated.`);

@@ -1,3 +1,4 @@
+import {readCardHonours} from '@/utils/cardHonours';
 import {readGameCatalogue,gameMatches,tabletopMatches,TABLETOP_TYPES,GAME_PLATFORMS,GAME_GENRES,GAME_LISTS,type GameListId} from "@/utils/gameCatalogue";
 import {decodeLatestLibraryCursor,encodeLatestLibraryCursor} from "@/utils/latestLibraryCursor";
 import {mobileCategoryPayload} from "@/utils/mobileCardPayload";
@@ -60,7 +61,7 @@ export async function GET(request:NextRequest){
     clubTargetIds=(directory.data as Row[]).filter(row=>Boolean(row.sport)&&(!sport||String(row.sport).toLocaleLowerCase("tr")===sport.toLocaleLowerCase("tr"))&&(!division||String(row.division).toLocaleLowerCase("tr")===division.toLocaleLowerCase("tr"))&&(!league||row.league===league||Array.isArray(row.leagues)&&row.leagues.includes(league))).map(row=>String(row.target_id));
     if(!clubTargetIds.length)return NextResponse.json({catalogue:[]},{headers:cacheHeaders});
   }
-  const pageSize=500;
+  const pageSize=200;
   const items:Row[]=[];
   let nextCursor:string|null=null;
   if(kind==="all"){
@@ -76,7 +77,8 @@ export async function GET(request:NextRequest){
     if(clubTargetIds)itemQuery=itemQuery.in("canonical_target_id",clubTargetIds.slice(offset,offset+100));
     if(type.id===type.base_kind)itemQuery=type.base_kind==="series"?itemQuery.in("item_kind",["series","video"]):itemQuery.eq("item_kind",type.base_kind);
     else itemQuery=itemQuery.eq("metadata->>content_type_id",type.id);
-    const itemResult=clubTargetIds?await itemQuery:await db.rpc("get_uin_type_placements_v177",{p_content_type_id:type.id,p_limit:pageSize,p_offset:offset});
+    let itemResult=clubTargetIds?await itemQuery:await db.rpc("get_uin_type_placements_v177",{p_content_type_id:type.id,p_limit:pageSize,p_offset:offset});
+    if(itemResult.error&&!clubTargetIds)itemResult=await db.rpc("get_uin_type_placements_v177",{p_content_type_id:type.id,p_limit:pageSize,p_offset:offset});
     if(itemResult.error){
       console.error("category catalogue placements unavailable",{kind,offset,error:itemResult.error});
       return NextResponse.json({error:"Kategori kartları yüklenemedi."},{status:503});
@@ -99,7 +101,7 @@ export async function GET(request:NextRequest){
   // parallel removes the old visibility -> counters -> enrichment waterfall.
   const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}),500),
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),500),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),50),
     // get_uin_card_social_v87 already includes the rating projection. Calling
     // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch}),500),
@@ -119,7 +121,7 @@ export async function GET(request:NextRequest){
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
   let cardsResult=initialCardsResult;
-  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),500);
+  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),20);
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});
@@ -183,6 +185,9 @@ export async function GET(request:NextRequest){
     if(result.error)return NextResponse.json({error:'Oyunların platform ve tür bilgileri yüklenemedi.'},{status:503});
     for(const row of result.data||[])gameByItem.set(String(row.id),readGameCatalogue(row));
   }
+  const honoursResult=await boundedTargetProjection(visibleIds,batch=>db.from('seed_catalog_items').select('canonical_target_id,card_honours:metadata->card_honours,book_awards:metadata->book_awards,source_url:metadata->>source_url,imdb_top_250_rank:metadata->imdb_top_250_rank,imdb_top_250_as_of:metadata->>imdb_top_250_as_of,imdb_top_tv_250_as_of:metadata->>imdb_top_tv_250_as_of').eq('status','active').in('canonical_target_id',batch));
+  if(honoursResult.error)return NextResponse.json({error:'Kartların ödül bilgileri yüklenemedi.'},{status:503});
+  const honoursByTarget=new Map(((honoursResult.data||[]) as Row[]).map(row=>[String(row.canonical_target_id),readCardHonours(row)]));
   const covers=new Map(visibilityRows.map(row=>[String(row.target_id||""),Number(row.cover_position_y||50)]));
   const hierarchy=new Map(((hierarchyResult.data||[]) as Row[]).map(row=>[String(row.target_id||""),row]));
   let catalogue=visibleIds.map(id=>cardByTarget.get(id)!).map(card=>{
@@ -193,7 +198,7 @@ export async function GET(request:NextRequest){
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,...(gameByItem.has(String(item?.id))?{game_catalog:gameByItem.get(String(item?.id))}:{}),...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
+    return {...card,card_honours:honoursByTarget.get(id)||[],...(gameByItem.has(String(item?.id))?{game_catalog:gameByItem.get(String(item?.id))}:{}),...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
   });
   if(type.base_kind==='game')catalogue=catalogue.filter(card=>gameMatches(card.game_catalog,gamePlatform,gameGenre,gameList as GameListId||null));
   if(kind==='board_game')catalogue=catalogue.filter(card=>tabletopMatches(card.game_catalog,gameGenre,gameList as GameListId||null));

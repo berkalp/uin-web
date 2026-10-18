@@ -282,3 +282,6 @@ html:not([data-uin-card-layout="square"]):not([data-uin-card-layout="compact"]) 
 .uin-embedded-event .uin-layout-card-actions :is(button,a){min-height:44px!important}
 .uin-embedded-event .uin-event-history{padding:4px;margin:0 8px;font-size:10px;line-height:14px}
 .uin-embedded-event .uin-event-history>span{font-size:18px;line-height:18px}
+
+/* Navigation stays in the image area, above titles and honours at every width. */
+html:is([data-uin-card-layout="compact"],[data-uin-card-layout="square"]) .uin-card-navigation{min-height:52px!important;flex-shrink:0}

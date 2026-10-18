@@ -10,7 +10,7 @@ import DiscoverIntentCard from '@/components/discover/DiscoverIntentCard';
 import TogetherProposal from '@/components/seeds/TogetherProposal';
 import {deckPosition, deckSwipe, cardDeckEvents, currentCardEvent, cardDate, cardEventPhase, adjacentCardEvent, preferPlannedCardEvents, partitionCardEvents} from '@/utils/cardDeck';
 
-type Props = Omit<ComponentProps<'article'>,'children'> & {cardType?: string; initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
+type Props = Omit<ComponentProps<'article'>,'children'> & {cardType?: string; initialPlans?: boolean; personalPlanCount?: number; title?: string; targetId: string; coverUrl: string | null; coverPositionY?: number; wanting: string; doers: string; children: ReactNode | ((navigate:(face:number)=>void,eventCount?:number,navigation?:ReactNode)=>ReactNode); actions?: {editWish:()=>void;cancelWish:()=>void;editExperience:()=>void;createEvent:()=>void;wantLabel:string;doneLabel:string}};
 export default function LibraryCardDeck({targetId, coverUrl, coverPositionY=50, wanting, doers, actions, children, initialPlans=false, personalPlanCount=0, ...props}: Props) {
   const account=useCardDeckAccount();const audience=useLibraryAudience();
   return <Deck key={`${targetId}:${account??'guest'}:${initialPlans}:${audience?.audience}:${audience?.section}`} initialPlans={initialPlans} personalPlanCount={personalPlanCount} {...props} targetId={targetId} coverUrl={coverUrl} coverPositionY={coverPositionY} wanting={wanting} doers={doers} actions={actions} account={account}>{children}</Deck>;
@@ -73,6 +73,7 @@ function Deck({cardType, title, targetId, coverUrl, coverPositionY=50, wanting, 
   const move=(direction:-1|1)=>{if(position===1){if(direction===-1&&currentIndex<=0){navigate(0);return;}if(current)select(adjacentCardEvent(events,eventId(current),direction,eventId));return;}setPosition(value=>deckPosition(value,direction,1));};
   const eventCard=position===1&&current?.card_payload;
   const cardTitle=title||data?.card.title||'Kart';
+  const navigation=([-1,1] as const).map(direction=><button key={direction} type="button" aria-label={direction===-1?'Sola geç':'Sağa geç'} disabled={direction===-1?position<=-2:position>=1} onClick={event=>{event.stopPropagation();move(direction);}} className={`relative z-30 grid h-11 w-8 place-items-center rounded-full bg-slate-950/15 text-2xl font-semibold text-white/80 transition hover:bg-slate-950/35 disabled:opacity-30 `}>{direction===-1?'‹':'›'}</button>);
   return <article {...props} ref={article} style={{...props.style,...(requiredHeight?{minHeight:requiredHeight}:{}),touchAction:'pan-y'}} onPointerDown={event=>{
     if(event.pointerType==='mouse'||(event.target as HTMLElement).closest('input,textarea,select,[role="dialog"]'))return;
     start.current={x:event.clientX,y:event.clientY,id:event.pointerId};
@@ -83,7 +84,7 @@ function Deck({cardType, title, targetId, coverUrl, coverPositionY=50, wanting, 
     if(direction){suppressClick.current=event.timeStamp+400;move(direction);}
   }} onPointerCancel={()=>{start.current=null;}} onClickCapture={event=>{if(event.timeStamp<suppressClick.current){event.preventDefault();event.stopPropagation();}}}>
     <div className="uin-deck-main" aria-hidden={position!==0} inert={position!==0} style={{visibility:position===0?'visible':'hidden',display:'flex',flexDirection:'column',flex:1}}>
-      {typeof children==='function'?children(navigate,data?activeEvents.length:scopedCount):children}
+      {typeof children==='function'?children(navigate,data?activeEvents.length:scopedCount,navigation):children}
       {planCount>0?<button type="button" onClick={event=>{event.stopPropagation();openPlan();}} className="absolute left-3 top-14 z-20 rounded-full bg-slate-950/70 px-2 py-1 text-xs font-semibold text-emerald-100">{planCount} planın var</button>:null}
     </div>
     {position!==0?<div className="uin-deck-overlay" onClick={event=>event.stopPropagation()}>
@@ -112,7 +113,7 @@ function Deck({cardType, title, targetId, coverUrl, coverPositionY=50, wanting, 
         </div>
       </div>
     </div>:null}
-    {position===0&&([-1,1] as const).map(direction=><button key={direction} type="button" aria-label={direction===-1?'Sola geç':'Sağa geç'} disabled={direction===-1?position<=-2:position>=1} onClick={event=>{event.stopPropagation();move(direction);}} className={`absolute top-[42%] z-30 grid h-11 w-6 place-items-center rounded-full bg-slate-950/15 text-2xl font-semibold text-white/80 transition hover:bg-slate-950/35 disabled:opacity-30 ${direction===-1?'left-1':'right-1'}`}>{direction===-1?'‹':'›'}</button>)}
+
   </article>;
 }
 function eventId(event:Detail['events'][number]) {return event.resource_id||event.plan_id||event.intent_id;}

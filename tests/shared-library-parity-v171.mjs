@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import path from 'node:path';
 import vm from 'node:vm';
 import test from 'node:test';
 import ts from 'typescript';
@@ -11,7 +12,7 @@ function load(file,extra=''){
  const key=file+extra;if(cache.has(key))return cache.get(key);
  const output=ts.transpileModule(fs.readFileSync(file,'utf8')+extra,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true,target:ts.ScriptTarget.ES2022}}).outputText;
  const m={exports:{}};cache.set(key,m.exports);
- vm.runInNewContext(output,{module:m,exports:m.exports,require(id){if(id==='next/navigation')return {useRouter:()=>({push(){},refresh(){}})};if(id==='next/link')return {__esModule:true,default:({children,...props})=>React.createElement('a',props,children)};if(id==='next/dynamic')return {__esModule:true,default:()=>()=>null};if(id==='@/utils/supabase/client')return {supabase:{rpc(){throw Error('Card render must never query')}}};if(id.startsWith('@/')){const base='src/'+id.slice(2),path=['.tsx','.ts'].map(ext=>base+ext).find(fs.existsSync);return load(path)}return require(id)}}, {filename:file});cache.set(key,m.exports);return m.exports;
+ vm.runInNewContext(output,{module:m,exports:m.exports,URL,require(id){if(id==='next/navigation')return {useRouter:()=>({push(){},refresh(){}})};if(id==='next/link')return {__esModule:true,default:({children,...props})=>React.createElement('a',props,children)};if(id==='next/dynamic')return {__esModule:true,default:()=>()=>null};if(id==='@/utils/supabase/client')return {supabase:{rpc(){throw Error('Card render must never query')}}};if(id.startsWith('./'))return load(['.ts','.tsx'].map(ext=>path.resolve(path.dirname(file),id+ext)).find(fs.existsSync));if(id.startsWith('@/')){const base='src/'+id.slice(2),path=['.tsx','.ts'].map(ext=>base+ext).find(fs.existsSync);return load(path)}return require(id)}}, {filename:file});cache.set(key,m.exports);return m.exports;
 }
 const item={canonical_target_id:'topic-1',title:'Bolu',subtitle:'Türkiye',item_kind:'place',content_type_id:'place',cover_url:null,catalog_cover_url:null,seed_type_slug:'visit',average_rating:null,rating_count:0,intent_people_count:1,experience_people_count:2,active_event_count:0,follower_count:0};
 const types=[{id:'place',label:'Yer',icon:'📍',base_kind:'place',active:true}];
@@ -32,7 +33,7 @@ test('unavailable summaries never become zero totals or unrated badges',()=>{
 });
 test('experience cards also show the existing owner plan and its actions',()=>{
  const html=renderCard({scope:'experiences',item:{...item,own_seed_id:'experience',own_seed_status:'completed',personal_event:{resource_id:'event-1',plan_id:'plan-1',viewer_role:'owner',title:'Araba Yolculuğu',start_date:'2027-05-19'}}});
- for(const label of ['Araba Yolculuğu','Etkinliği iptal et','Deneyimimi düzenle','Gezi etkinliği'])assert.ok(html.includes(label),label);
+ for(const label of ['Etkinliği düzenle','Etkinliği iptal et','Deneyimimi düzenle','Gezi etkinliği'])assert.ok(html.includes(label),label);
 });
 test('plans enforce different owner, member, visitor and archived actions',()=>{
  const Actions=load('src/components/cards/LibraryPlanActions.tsx').default;
@@ -44,8 +45,8 @@ test('plans enforce different owner, member, visitor and archived actions',()=>{
 });
 test('all profile event sorts preserve rows and put unknown values last',()=>{
  const {sortProfileCards}=load('src/components/profile/ProfileActivityTabs.tsx');
- const rows=[{resource_id:'unknown',library_card:{average_rating:null}},{resource_id:'old',scheduled_start:'2020-01-01',library_card:{average_rating:9}},{resource_id:'new',scheduled_start:'2026-01-01',library_card:{average_rating:4}}];
- for(const [sort,expected]of [['date-desc',['new','old','unknown']],['date-asc',['old','new','unknown']],['rating-desc',['old','new','unknown']]])assert.deepEqual(Array.from(sortProfileCards(rows,'active',sort),r=>r.resource_id),expected);
+ const rows=[{resource_id:'unknown',library_card:{average_rating:null}},{resource_id:'old',scheduled_start:'2020-01-01',created_at:'2026-01-01',library_card:{average_rating:9}},{resource_id:'new',scheduled_start:'2026-01-01',created_at:'2020-01-01',library_card:{average_rating:4}}];
+ for(const [sort,expected]of [['date-desc',['new','old','unknown']],['date-asc',['old','new','unknown']],['created-desc',['old','new','unknown']]])assert.deepEqual(Array.from(sortProfileCards(rows,'active',sort),r=>r.resource_id),expected);
  assert.equal(rows[0].resource_id,'unknown');
 });
 test('card parity reads stay batched and sorting does not issue requests',()=>{
@@ -72,10 +73,12 @@ test('linked Library projection verifies every target and count before showing a
  const {loadLinkedLibraryCards}=load('src/utils/linkedLibraryCards.ts');
  const requests=[];
  const client={rpc:async(name,args)=>{requests.push(args.p_target_ids.length);return{error:null,data:args.p_target_ids.map(id=>name.includes('catalogue')?{...item,canonical_target_id:id}:name.includes('ratings')?{target_id:id,rating_count:0,average_rating:null}:{target_id:id,follower_count:0,related_count:0})}}};
- const ids=Array.from({length:205},(_,i)=>'card-'+i),rows=await loadLinkedLibraryCards(client,ids);
- assert.equal(rows.length,205);assert.equal(rows[204].canonical_target_id,ids[204]);assert.deepEqual(requests,[100,100,100,100,100,100,5,5,5]);
+ const metadata=async ids=>({error:null,data:ids.map(id=>({canonical_target_id:id,metadata:{card_honours:[{label:'🏆 1 ödül',url:'https://example.org/award',note:'Doğrulanmış kaynak',kind:'award'}]}}))});
+ const ids=Array.from({length:205},(_,i)=>'card-'+i),rows=await loadLinkedLibraryCards(client,ids,metadata);
+ assert.equal(rows[204].card_honours[0].label,'🏆 1 ödül');
+ assert.equal(rows.length,205);assert.equal(rows[204].canonical_target_id,ids[204]);assert.deepEqual(requests,[100,100,100,100,100,100,100,100,5,5,5,5]);
  const broken=(change)=>({rpc:async(name,args)=>{const reply=await client.rpc(name,args);return{...reply,data:change(name,reply.data)}}});
- await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('social')?[]:rows),['one']),/yüklenemedi/);
- await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?rows.map(r=>({...r,intent_people_count:-1})):rows),['one']),/doğrulanamadı/);
- await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?[rows[0],rows[0]]:rows),['one','two']),/kimlikleri/);
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('social')?[]:rows),['one'],metadata),/yüklenemedi/);
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?rows.map(r=>({...r,intent_people_count:-1})):rows),['one'],metadata),/doğrulanamadı/);
+ await assert.rejects(()=>loadLinkedLibraryCards(broken((name,rows)=>name.includes('catalogue')?[rows[0],rows[0]]:rows),['one','two'],metadata),/kimlikleri/);
 });

@@ -13,7 +13,8 @@ test('one main card shows all categories, shared counters and the selected learn
  let deck;
  const {default:Card}=load('src/components/cards/LibraryTopicCard.tsx',{
  './LibraryCardDeck':{default:p=>{deck=p;return React.createElement('article',null,p.children(()=>{}));}},
- './GameHonours':{default:()=>null},
+ './CardHonours':{default:()=>null},
+ '@/utils/cardHonours':{readCardHonours:()=>[]},
  '@/components/media/ActivityCoverImage':{default:()=>null},
  '@/components/cards/ArtistPopularityBadges':{default:()=>null},
  '@/utils/gameCatalogue':load('src/utils/gameCatalogue.ts'),

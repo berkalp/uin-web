@@ -14,7 +14,7 @@ function defaultCardWords(kind:Kind){
   if(kind==="movie"||kind==="series")return{...base,wanting:"İzlemek isteyenler",doers:"İzleyenler",event:"İzleme etkinliği"};
   if(kind==="book")return{...base,wanting:"Okumak isteyenler",doers:"Okuyanlar",event:"Okuma etkinliği"};
   if(kind==="artist")return{...base,want:"Dinlemek / Konsere Gitmek İstiyorum",wanting:"Dinlemek / Konsere Gitmek İsteyenler",doers:"Dinleyen / Konsere Gidenler",event:"Müzik etkinliği"};
-  if(kind==="game")return{...base,wanting:"Oynamak isteyenler",doers:"Oynayanlar",event:"Oyun etkinliği"};
+  if(kind==="game")return{...base,wanting:"Oynamak isteyenler",doers:"Oynayanlar",event:"Oyun buluşması"};
   if(kind==="place")return{...base,wanting:"Gitmek isteyenler",doers:"Gidenler",event:"Gezi etkinliği"};
   if(kind==="sport")return{...base,wanting:"Yapmak isteyenler",doers:"Yapanlar",event:"Spor etkinliği"};
   if(kind==="club")return{...base,want:"Maç izlemek istiyorum",done:"Maç izledim",wanting:"Maç izlemek isteyenler",doers:"Maç izleyenler",event:"Maç izleme etkinliği",question:"Hangi kulübü arıyorsun?"};
