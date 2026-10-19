@@ -108,7 +108,7 @@ export async function GET(request:NextRequest){
       if(targetIds.some(id=>!cardIds.has(id))||targetIds.some(id=>!socialIds.has(id)))throw new Error("Bazı yer kartları eksik döndü.");
       const cardMetricKeys=["intent_people_count","experience_people_count","active_event_count","completed_event_count","expired_event_count","cancelled_event_count"];
       if(cardRows.some(row=>cardMetricKeys.some(key=>!finiteCount(row[key]))))throw new Error("Bazı yer kartı sayaçları eksik döndü.");
-      const socialMetricKeys=["rating_count","follower_count","related_count"];
+      const socialMetricKeys=["rating_count","follower_count","related_count","experience_like_count"];
       if(socialRows.some(row=>socialMetricKeys.some(key=>!finiteCount(row[key]))||(row.average_rating!=null&&!Number.isFinite(Number(row.average_rating)))))throw new Error("Bazı yer kartı sosyal sayaçları eksik döndü.");
     }
     const coordinates=new Map<string,{latitude:number;longitude:number}>();
@@ -126,7 +126,7 @@ export async function GET(request:NextRequest){
       return parent?resolvedCoordinates(parent,seen):undefined;
     }
     const coverUrls=await coverPromise;
-    const cards=cardRows.map(row=>{const id=String(row.canonical_target_id||""),node=nodeById.get(id),stats=social.get(id);return {...row,parent_target_id:row.parent_target_id||node?.parent_target_id||null,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,intent_people_count:Number(row.intent_people_count),experience_people_count:Number(row.experience_people_count),active_event_count:Number(row.active_event_count??row.social_intent_count),completed_event_count:Number(row.completed_event_count),expired_event_count:Number(row.expired_event_count),cancelled_event_count:Number(row.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count),follower_count:Number(stats?.follower_count),related_count:Number(stats?.related_count),...resolvedCoordinates(id)}});
+    const cards=cardRows.map(row=>{const id=String(row.canonical_target_id||""),node=nodeById.get(id),stats=social.get(id);return {...row,experience_like_count:Number(stats?.experience_like_count),parent_target_id:row.parent_target_id||node?.parent_target_id||null,catalog_cover_url:row.catalog_cover_url||row.cover_url||coverUrls.get(id)||null,intent_people_count:Number(row.intent_people_count),experience_people_count:Number(row.experience_people_count),active_event_count:Number(row.active_event_count??row.social_intent_count),completed_event_count:Number(row.completed_event_count),expired_event_count:Number(row.expired_event_count),cancelled_event_count:Number(row.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count),follower_count:Number(stats?.follower_count),related_count:Number(stats?.related_count),...resolvedCoordinates(id)}});
     return NextResponse.json({countries,nodes,cards},{headers:{"Cache-Control":"private, max-age=30, stale-while-revalidate=300"}});
   }catch(error){
     const message=error&&typeof error==="object"&&"message" in error?String(error.message):"Yer hiyerarşisi yüklenemedi.";
