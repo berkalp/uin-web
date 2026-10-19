@@ -6,7 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 const native=fs.existsSync('lib/library-feed-sort.ts');
 function load(file){const module={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module,exports:module.exports,URL,require:id=>load(path.resolve(path.dirname(file),id+'.ts'))});return module.exports;}
-const {categoryLibrarySorts,librarySortExplanation}=load(native?'lib/library-feed-sort.ts':'src/utils/libraryFeedSort.ts');
+const {categoryLibrarySorts,librarySortExplanation,compareImdbRatings}=load(native?'lib/library-feed-sort.ts':'src/utils/libraryFeedSort.ts');
 const {matchesWatchFilters}=load(native?'lib/watch-filters.ts':'src/utils/watchFilters.ts');
 const src=fs.readFileSync(native?'components/mobile-v2/v2-web-home.tsx':'src/components/ideas/InlineTopicSearch.tsx','utf8');
 const filters={providers:['Netflix'],access:'subscription'};
@@ -20,20 +20,37 @@ const cards=Array.from({length:70},(_,i)=>({targetId:String(i),canonical_target_
  createdAt:`2026-01-${String(i===62?31:1).padStart(2,'0')}T00:00:00Z`,created_at:`2026-01-${String(i===62?31:1).padStart(2,'0')}T00:00:00Z`}));
 // A more popular card outside Netflix must never win the filtered ranking.
 Object.assign(cards[0],{averageRating:10,average_rating:10,ratingCount:100,rating_count:100,experienceLikeCount:999,experience_like_count:999,doneCount:999,experience_people_count:999});
-function ranked(sort){
- if(!native){const functionSource=src.match(/function compareCards\([^\n]+/)[0];const compare=vm.runInNewContext(ts.transpileModule(functionSource+'\ncompareCards',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,{commonIntentTitle:x=>x,gameListForSort:()=>null,artistListForSort:()=>null,bookListForSort:()=>null,seriesListForSort:()=>null,eventCount:c=>c.active_event_count});return cards.filter(c=>matchesWatchFilters(c.watch_availability,filters)).sort((a,b)=>compare(a,b,sort));}
+function ranked(sort,kind='series'){
+ if(!native){const functionSource=src.match(/function compareCards\([^\n]+/)[0];const compare=vm.runInNewContext(ts.transpileModule(functionSource+'\ncompareCards',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText,{commonIntentTitle:x=>x,compareImdbRatings,gameListForSort:()=>null,artistListForSort:()=>null,bookListForSort:()=>null,seriesListForSort:()=>null,eventCount:c=>c.active_event_count});return cards.filter(c=>matchesWatchFilters(c.watch_availability,filters)).sort((a,b)=>compare(a,b,sort));}
  const start=src.indexOf('const filtered=useMemo(')+'const filtered=useMemo('.length;
  const end=src.indexOf('},[watchEnabled',start)+1;
  const code=ts.transpileModule('('+src.slice(start,end)+')()',{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
- return vm.runInNewContext(code,{sort:sort==='ratingDesc'?'uinRating':sort,librarySearchKey:x=>x,searchQuery:'',displayState:{cards},cardMutationSnapshot:()=>null,mergeSavedCardState:c=>c,viewerId:null,gameListForSort:()=>null,artistListForSort:()=>null,bookListForSort:()=>null,seriesListForSort:()=>null,watchEnabled:true,matchesWatchFilters,watchFilters:filters,group:'series',currentGroup:{baseKind:'series'},inGroup:()=>true,latestEnabled:false,sortPersonal:(a,b)=>new Date(b.createdAt)-new Date(a.createdAt)});
+ return vm.runInNewContext(code,{sort:sort==='ratingDesc'?'uinRating':sort,librarySearchKey:x=>x,searchQuery:'',displayState:{cards},cardMutationSnapshot:()=>null,mergeSavedCardState:c=>c,viewerId:null,gameListForSort:()=>null,artistListForSort:()=>null,bookListForSort:()=>null,seriesListForSort:()=>null,watchEnabled:true,matchesWatchFilters,watchFilters:filters,compareImdbRatings,group:kind,currentGroup:{baseKind:kind},inGroup:()=>true,latestEnabled:false,sortPersonal:(a,b)=>new Date(b.createdAt)-new Date(a.createdAt)});
 }
 test('every category has the same six metrics with contextual labels',()=>{
  for(const kind of ['movie','series','book','game','board_game','artist','place','club','sport','hobby','writer','activity','new_custom_type']){
-  const options=categoryLibrarySorts(kind);assert.equal(options.length,6);assert.equal(new Set(options.map(o=>o.id)).size,6);assert.ok(options.some(o=>o.id==='likes'));
+  const options=categoryLibrarySorts(kind);const count=['movie','series'].includes(kind)?7:6;assert.equal(options.length,count);assert.equal(new Set(options.map(o=>o.id)).size,count);assert.equal(options.some(o=>o.id==='imdbRating'),['movie','series'].includes(kind));assert.ok(options.some(o=>o.id==='likes'));
  }
  for(const [kind,word] of [['series','izlenen'],['movie','izlenen'],['book','okunan'],['game','oynanan'],['board_game','oynanan'],['place','gidilen']])assert.ok(categoryLibrarySorts(kind).find(o=>o.id==='done').label.includes(word));
  assert.match(librarySortExplanation('done'),/UIN/);assert.match(librarySortExplanation('likes'),/kalpler/);
 });
 for(const [sort,winner] of [['ratingDesc','67'],['likes','66'],['done','65'],['wanting','64'],['active','63'],['recent','62']])test(`${sort}: filter the full Netflix catalogue before ordering and pagination`,()=>{
  const result=ranked(sort);assert.equal(result.length,38);assert.equal(result[0].targetId,winner);assert.equal(result.slice(0,20).length,20);assert.equal(result.slice(20).length,18);assert.equal(new Set(result.map(c=>c.targetId)).size,38);assert.ok(!result.some(c=>c.targetId==='0'));
+});
+
+for(const kind of ['series','movie'])test(`${kind}: IMDb ranking covers the entire platform, keeps unrated titles and ignores UIN and Top 250 rank`,()=>{
+ const saved=cards.map(card=>({...card}));
+ try{
+  for(const card of cards)Object.assign(card,{imdbRating:7,imdb_rating:7,imdbRank:1,imdb_rank:1});
+  Object.assign(cards[0],{imdbRating:10,imdb_rating:10}); // Higher score outside Netflix.
+  for(const id of [68,69])Object.assign(cards[id],{imdbRating:9.7,imdb_rating:9.7,imdbRank:null,imdb_rank:null,averageRating:1,average_rating:1});
+  cards[69].title='A highest IMDb';cards[68].title='B highest IMDb';
+  for(const [index,value] of [null,undefined,NaN,0,11,-1].entries())Object.assign(cards[32+index],{imdbRating:value,imdb_rating:value,averageRating:10,average_rating:10});
+  const result=ranked('imdbRating',kind);
+  assert.equal(result.length,38);assert.deepEqual(Array.from(result.slice(0,2),c=>c.targetId),['69','68']);
+  assert.ok(!result.some(c=>c.targetId==='0'));
+  assert.deepEqual(Array.from(result.slice(-6),c=>c.targetId),['32','33','34','35','36','37']);
+  assert.equal(result.slice(20).length,18);assert.equal(new Set(result.map(c=>c.targetId)).size,38);
+  assert.match(librarySortExplanation('imdbRating'),/IMDb/);
+ }finally{cards.splice(0,cards.length,...saved)}
 });
