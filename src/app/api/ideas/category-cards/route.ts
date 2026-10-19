@@ -1,3 +1,5 @@
+import {isLibraryFeedSort} from '@/utils/libraryFeedSort';
+import {decodeRankedLibraryCursor,encodeRankedLibraryCursor} from '@/utils/rankedLibraryCursor';
 import {readWatchAvailability} from '@/utils/watchAvailability';
 import {readCardHonours} from '@/utils/cardHonours';
 import {readGameCatalogue,gameMatches,tabletopMatches,TABLETOP_TYPES,GAME_PLATFORMS,GAME_GENRES,GAME_LISTS,type GameListId} from "@/utils/gameCatalogue";
@@ -38,8 +40,17 @@ export async function GET(request:NextRequest){
   const pageParam=request.nextUrl.searchParams.get("page");
   const pageSort=request.nextUrl.searchParams.get("sort")||"wanting";
   if(pageParam!==null&&(!/^[1-9]\d*$/.test(pageParam)||!Number.isSafeInteger(Number(pageParam))||!CATEGORY_PAGE_SORTS.includes(pageSort as CategoryPageSort)))return NextResponse.json({error:"Geçersiz sayfa veya sıralama."},{status:400});
-  let cursor;
-  try{cursor=decodeLatestLibraryCursor(request.nextUrl.searchParams.get("cursor"))}catch{return NextResponse.json({error:"Geçersiz sayfa."},{status:400})}
+  const feedSort=request.nextUrl.searchParams.get('sort')||'recent';
+  if(kind==='all'&&!isLibraryFeedSort(feedSort))return NextResponse.json({error:'Geçersiz sıralama.'},{status:400});
+  const cursorScope=JSON.stringify([audience,categories]);
+  let cursor=null,rankedCursor=null;
+  try{
+    if(kind==='all'&&isLibraryFeedSort(feedSort)&&feedSort!=='recent')rankedCursor=decodeRankedLibraryCursor(request.nextUrl.searchParams.get('cursor'),feedSort,cursorScope);
+    else {
+      cursor=decodeLatestLibraryCursor(request.nextUrl.searchParams.get('cursor'));
+      if(cursor&&'sort' in cursor)throw new Error('Geçersiz sayfa.');
+    }
+  }catch{return NextResponse.json({error:'Geçersiz sayfa.'},{status:400})}
   if(kind==="all"&&pageParam!==null)return NextResponse.json({error:"Geçersiz sayfa."},{status:400});
   const allTypes=await db.from("uin_content_types").select("id,label,icon,base_kind,active,ui_labels").eq("active",true);
   const categoryTypes=(allTypes.data||[]) as Array<ContentType & {label:string;icon:string;ui_labels:Record<string,string>}>;
@@ -66,10 +77,22 @@ export async function GET(request:NextRequest){
   const items:Row[]=[];
   let nextCursor:string|null=null;
   if(kind==="all"){
-    const latest=categories.length?await db.rpc("get_uin_latest_placements_v188",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience,p_categories:categories}):await db.rpc("get_uin_latest_placements_v187",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience});
+    const latest=feedSort!=='recent'?await db.rpc('get_uin_ranked_placements_v216',{
+      p_sort:feedSort,p_audience:audience,p_categories:categories,
+      p_before_value:rankedCursor?.value??null,p_before_tie:rankedCursor?.tie??null,
+      p_before_time:rankedCursor?.time??null,p_before_id:rankedCursor?.id??null,
+    }):categories.length?await db.rpc("get_uin_latest_placements_v188",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience,p_categories:categories}):await db.rpc("get_uin_latest_placements_v187",{p_before_time:cursor?.time??null,p_before_id:cursor?.id??null,p_audience:audience});
     if(latest.error||!Array.isArray(latest.data))return NextResponse.json({error:"Yeni kartlar yüklenemedi. Tekrar deneyebilirsin."},{status:503});
+    if(feedSort!=='recent'&&latest.data.some((row:Row)=>
+      typeof row.sort_value!=='number'||!Number.isFinite(row.sort_value)||row.sort_value<0||
+      typeof row.sort_tie!=='number'||!Number.isSafeInteger(row.sort_tie)||row.sort_tie<0
+    ))return NextResponse.json({error:'Kartların sıralama bilgisi yüklenemedi. Tekrar deneyebilirsin.'},{status:503});
     items.push(...latest.data.slice(0,20));
-    if(latest.data.length>20){const last=items[items.length-1];nextCursor=encodeLatestLibraryCursor(String(last.last_activity_at),String(last.canonical_target_id))}
+    if(latest.data.length>20){
+      const last=items[items.length-1];
+      nextCursor=feedSort==='recent'?encodeLatestLibraryCursor(String(last.last_activity_at),String(last.canonical_target_id)):
+        encodeRankedLibraryCursor({sort:feedSort as Exclude<import('@/utils/libraryFeedSort').LibraryFeedSort,'recent'>,scope:cursorScope,value:Number(last.sort_value),tie:Number(last.sort_tie),time:String(last.last_activity_at),id:String(last.canonical_target_id)});
+    }
   }else for(let offset=0;;offset+=clubTargetIds?100:pageSize){
     // Category cards use only these ranking/award keys. Pulling the complete
     // metadata object transfers large ISBN, subject and catalogue payloads that
@@ -200,7 +223,7 @@ export async function GET(request:NextRequest){
     const parentItem=rawParentId?itemByTarget.get(rawParentId):undefined;
     const parentPlacementType=parentItem?String(parentItem.content_type_id||type.id):"";
     const parentTargetId=parentItem&&parentPlacementType===placementType?rawParentId:null;
-    return {...card,watch_availability:watchByTarget.get(id)??null,card_honours:honoursByTarget.get(id)||[],...(gameByItem.has(String(item?.id))?{game_catalog:gameByItem.get(String(item?.id))}:{}),...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
+    return {...card,watch_availability:watchByTarget.get(id)??null,card_honours:honoursByTarget.get(id)||[],...(gameByItem.has(String(item?.id))?{game_catalog:gameByItem.get(String(item?.id))}:{}),...(kind==="all"?{created_at:item?.created_at,last_activity_at:item?.last_activity_at,...(feedSort==='likes'?{experience_like_count:Number(item?.sort_value??0)}:{})}:{}),canonical_target_id:id,catalog_item_id:item?.id||null,item_kind:item?.item_kind||card.item_kind||type.base_kind,content_type_id:placementType,content_type_ids:Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType],content_types:categoryTypes.filter(row=>(Array.isArray(item?.content_type_ids)?item.content_type_ids:[placementType]).includes(row.id)).map(({id,label,icon,base_kind,ui_labels})=>({id,label,icon,base_kind,ui_labels})),subtitle:card.subtitle||item?.creator_name||null,catalog_cover_url:card.catalog_cover_url||card.cover_url||item?.cover_url||null,cover_position_y:covers.get(id)??50,intent_people_count:Number(card.intent_people_count),experience_people_count:Number(card.experience_people_count),active_event_count:Number(card.active_event_count??card.social_intent_count),completed_event_count:Number(card.completed_event_count),expired_event_count:Number(card.expired_event_count),cancelled_event_count:Number(card.cancelled_event_count),average_rating:stats?.average_rating==null?null:Number(stats.average_rating),rating_count:Number(stats?.rating_count||0),follower_count:Number(stats?.follower_count||0),related_count:Number(stats?.related_count||0),parent_target_id:parentTargetId,hierarchy_sort_order:Number(tree?.sort_order||0),hierarchy_section_title:tree?.section_title||null,hierarchy_depth:parentTargetId?Number(tree?.depth||0):0,child_count:Number(card.child_count),imdb_rank:imdb.imdbRank,imdb_rating:imdb.imdbRating,book_lists:book.bookLists,book_list_ranks:book.bookListRanks,book_awards:book.bookAwards,series_lists:series.seriesLists,series_list_ranks:series.seriesListRanks,series_awards:series.seriesAwards,artist_stats:readArtistMetadata(item)};
   });
   if(type.base_kind==='game')catalogue=catalogue.filter(card=>gameMatches(card.game_catalog,gamePlatform,gameGenre,gameList as GameListId||null));
   if(kind==='board_game')catalogue=catalogue.filter(card=>tabletopMatches(card.game_catalog,gameGenre,gameList as GameListId||null));

@@ -23,13 +23,17 @@ function categoryRoute(failure=null,latest=false){
  const rows=latest?cards.map((card,i)=>({...card,canonical_target_id:`00000000-0000-0000-0000-${String(1000-i).padStart(12,'0')}`,created_at:'2025-01-01T00:00:00Z',last_activity_at:'2026-10-15T12:00:00.123456+00:00'})):cards;
  const batches=[];const calls=[];const latestArgs=[];const db={from:table=>{let ids;const chain={select:()=>chain,eq:()=>chain,not:()=>chain,order:()=>chain,range:()=>chain,in:(_key,value)=>{ids=value;return chain},then:resolve=>Promise.resolve({data:table==='uin_content_types'?[{id:'book',base_kind:'book',active:true}]:rows.filter(c=>!ids||ids.includes(c.canonical_target_id)).map(c=>({canonical_target_id:c.canonical_target_id,card_honours:[]})),error:null}).then(resolve)};return chain},rpc:async(name,args)=>{calls.push(name);if(args?.p_target_ids)batches.push(args.p_target_ids.length);if(name===failure)return {data:null,error:{code:'57014'}};let data;
  if(name==='get_uin_latest_placements_v187'||name==='get_uin_latest_placements_v188'){latestArgs.push(args);const start=args.p_before_id?rows.findIndex(row=>row.canonical_target_id===args.p_before_id)+1:0;data=rows.slice(start,start+21).map(row=>({...row,id:row.canonical_target_id}))}
+ else if(name==='get_uin_ranked_placements_v216'){
+  latestArgs.push(args);const ranked=rows.slice(0,-1).map((row,i)=>({...row,id:row.canonical_target_id,sort_value:i===45?1000:i%7,sort_tie:0})).sort((a,b)=>b.sort_value-a.sort_value||b.canonical_target_id.localeCompare(a.canonical_target_id));
+  const start=args.p_before_id?ranked.findIndex(row=>row.canonical_target_id===args.p_before_id)+1:0;data=ranked.slice(start,start+21);
+ }
  else if(name==='get_uin_type_placements_v177')data=rows.map(c=>({id:c.canonical_target_id,canonical_target_id:c.canonical_target_id,item_kind:'book',content_type_id:'book'}));
  else if(name==='get_uin_cover_positions_v62')data=rows.slice(0,-1).map(c=>({target_id:c.canonical_target_id,cover_position_y:50}));
  else if(name==='get_uin_catalogue_for_targets_v123')data=rows.map(c=>({...c,completed_event_count:0,expired_event_count:0,cancelled_event_count:0}));
  else if(name==='get_uin_card_social_v87')data=rows.map(c=>({target_id:c.canonical_target_id,average_rating:c.average_rating,rating_count:2,follower_count:1,related_count:0}));
  else if(name==='get_uin_card_parent_edges_v143')data=rows.map(c=>({target_id:c.canonical_target_id,parent_target_id:c.parent_target_id}));
  else throw Error(name);if(args?.p_target_ids)data=data.filter(r=>args.p_target_ids.includes(r.target_id??r.canonical_target_id));return {data,error:null}}};
- const route=compile('src/app/api/ideas/category-cards/route.ts',{'next/server':{NextResponse:{json:(body,options={})=>({body,status:options.status||200,headers:options.headers})}},'@/supabase/supabase-js':{},'@/utils/supabase/server':{createClient:async()=>db},'@/utils/boundedTargetProjection':compile('src/utils/boundedTargetProjection.ts'),'@/utils/latestLibraryCursor':compile('src/utils/latestLibraryCursor.ts'),'@/utils/mobileCardPayload':compile('src/utils/mobileCardPayload.ts'),'@/utils/categoryCardPage':pageModule,'@/utils/cardHonours':{readCardHonours:r=>r.card_honours??[]},'@/utils/artistListMetadata':compile('src/utils/artistListMetadata.ts'),'@/utils/imdbMetadata':{readImdbMetadata:()=>({})},'@/utils/bookListMetadata':{readBookListMetadata:()=>({})},'@/utils/seriesListMetadata':{readSeriesListMetadata:()=>({})}});
+ const route=compile('src/app/api/ideas/category-cards/route.ts',{'next/server':{NextResponse:{json:(body,options={})=>({body,status:options.status||200,headers:options.headers})}},'@/supabase/supabase-js':{},'@/utils/supabase/server':{createClient:async()=>db},'@/utils/boundedTargetProjection':compile('src/utils/boundedTargetProjection.ts'),'@/utils/latestLibraryCursor':compile('src/utils/latestLibraryCursor.ts'),'@/utils/libraryFeedSort':compile('src/utils/libraryFeedSort.ts'),'@/utils/rankedLibraryCursor':compile('src/utils/rankedLibraryCursor.ts',{'./latestLibraryCursor':compile('src/utils/latestLibraryCursor.ts')}),'@/utils/watchAvailability':compile('src/utils/watchAvailability.ts'),'@/utils/mobileCardPayload':compile('src/utils/mobileCardPayload.ts'),'@/utils/categoryCardPage':pageModule,'@/utils/cardHonours':{readCardHonours:r=>r.card_honours??[]},'@/utils/artistListMetadata':compile('src/utils/artistListMetadata.ts'),'@/utils/imdbMetadata':{readImdbMetadata:()=>({})},'@/utils/bookListMetadata':{readBookListMetadata:()=>({})},'@/utils/seriesListMetadata':{readSeriesListMetadata:()=>({})}});
  return {calls,batches,latestArgs,request:params=>route.GET({headers:{get:()=>null},nextUrl:new URL(`https://example.invalid/api/ideas/category-cards?kind=${latest?'all':'book'}&`+params)})};
 }
 test('paged API equals slicing the complete visibility-checked response; hidden targets do not enter totals',async()=>{const route=categoryRoute();const full=await route.request('');const paged=await route.request('page=2&sort=wanting');assert.equal(paged.status,200);const expected=categoryCardPage(full.body.catalogue,2,'wanting');assert.deepEqual(JSON.parse(JSON.stringify(paged.body)),JSON.parse(JSON.stringify(expected)));assert.equal(paged.body.catalogue.length,20);assert.equal(paged.body.pagination.total,55);assert.equal(paged.headers['Cache-Control'],'private, max-age=60, must-revalidate')});
@@ -70,4 +74,19 @@ test('personalized feed passes selected categories to the database before the bo
  const next=await route.request('categories=movie,artist&cursor='+result.body.nextCursor);assert.equal(next.status,200);assert.deepEqual(Array.from(route.latestArgs[1].p_categories),['artist','movie']);assert.ok(route.latestArgs[1].p_before_id);
  for(const categories of ['all','artist,,movie','artist%26audience%3Dme',Array.from({length:101},(_,i)=>'c'+i).join(',')])assert.equal((await categoryRoute(null,true).request('categories='+categories)).status,400);
  assert.equal((await categoryRoute('get_uin_latest_placements_v188',true).request('categories=artist')).status,503);
+});
+
+test('initial Library ranking requests the whole-scope server order before enriching twenty cards',async()=>{
+ const route=categoryRoute(null,true),first=await route.request('sort=wanting&audience=friends&categories=book');
+ assert.equal(first.status,200);assert.equal(first.body.catalogue.length,20);
+ assert.equal(first.body.catalogue[0].canonical_target_id,'00000000-0000-0000-0000-000000000955');
+ assert.equal(route.latestArgs[0].p_sort,'wanting');assert.equal(route.latestArgs[0].p_audience,'friends');
+ assert.deepEqual(Array.from(route.latestArgs[0].p_categories),['book']);
+ const next=await route.request('sort=wanting&audience=friends&categories=book&cursor='+first.body.nextCursor);
+ assert.equal(next.status,200);assert.equal(new Set([...first.body.catalogue,...next.body.catalogue].map(c=>c.canonical_target_id)).size,40);
+ assert.ok(route.batches.every(n=>n===20));assert.equal(route.latestArgs[1].p_before_value,JSON.parse(Buffer.from(first.body.nextCursor,'base64url')).value);
+ for(const params of ['sort=likes&audience=friends&categories=book','sort=wanting&audience=me&categories=book','sort=wanting&audience=friends&categories=movie'])
+  assert.equal((await route.request(params+'&cursor='+first.body.nextCursor)).status,400);
+ assert.equal((await route.request('sort=invalid')).status,400);
+ assert.equal((await categoryRoute('get_uin_ranked_placements_v216',true).request('sort=likes')).status,503);
 });

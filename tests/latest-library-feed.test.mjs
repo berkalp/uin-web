@@ -25,3 +25,12 @@ test('refresh keeps rendered cards while loading and rejects the abandoned appen
 test('switching account or category blocks stale responses and hides previous owner data immediately',async()=>{
  const h=harness();h.render();h.requests[0].resolve(page(0));await tick();assert.equal(h.render().cards.length,20);assert.equal(h.render(true,'b').cards.length,0);h.render(false,'b');assert.equal(h.requests[1].signal.aborted,true);h.requests[1].resolve(page(20));await tick();assert.equal(h.render(false,'b').cards.length,0);h.render(true,'b');h.requests[2].resolve(page(60,0,null));await tick();const result=h.render(true,'b');assert.equal(result.cards.length,0);assert.equal(result.loaded,true);assert.equal(result.initialLoading,false);h.dispose();
 });
+
+test('switching sort discards the previous page cursor and ignores a slow response from the old order',async()=>{
+ const h=harness();h.render(true,'viewer:everyone:recent');h.requests[0].resolve(page(0));await tick();
+ void h.render(true,'viewer:everyone:recent').loadMore();
+ assert.equal(h.render(true,'viewer:everyone:likes').cards.length,0);
+ assert.equal(h.requests[1].signal.aborted,true);assert.equal(h.requests[2].cursor,null);
+ h.requests[1].resolve(page(20));h.requests[2].resolve(page(50));await tick();
+ const current=h.render(true,'viewer:everyone:likes');assert.equal(current.cards[0].id,'card-50');assert.equal(current.cards.length,20);h.dispose();
+});
