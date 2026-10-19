@@ -9,7 +9,7 @@ const year=(v:unknown)=>Number.isInteger(Number(v))&&Number(v)>=1800&&Number(v)<
 /** One sourced presentation for every category; no inferred awards or inherited club trophies. */
 export function readCardHonours(value:unknown):CardHonour[]{
  const m=object(value),rows:CardHonour[]=[];
- const add=(label:string,url:unknown,note:string,kind:CardHonour['kind'],y?:number)=>{const link=https(url);if(label&&link&&note)rows.push({label,url:link,note,kind,...(y?{year:y}:{})})};
+ const add=(label:string,url:unknown,note:string,kind:CardHonour['kind'],y?:number)=>{const link=https(url);if(label&&link&&note)rows.push({label,url:link,note:note.replace(/\s*Kontrol:\s*\d{2}\.\d{2}\.\d{4}\.?/gi,'').trim(),kind,...(y?{year:y}:{})})};
  for(const raw of Array.isArray(m.card_honours)?m.card_honours:[]){const h=object(raw);if(['award','ranking','stat','title'].includes(text(h.kind)))add(text(h.label),h.url,text(h.note),h.kind as CardHonour['kind'],year(h.year))}
  for(const raw of Array.isArray(m.book_awards)?m.book_awards:[]){const h=object(raw),y=year(h.year);if(!y)continue;const author=h.scope==='author';add(`${author?'✍️':'🏆'} ${y} · ${text(h.label)}${author?' · Yazar ödülü':''}`,h.sourceUrl??h.source_url,author?`${text(h.recipient)||'Kitabın yazarı'} için verilen ödül; kitabın kendi ödülü değildir.`:'Kitaba verilen ödül.', 'award',y)}
  for(const raw of Array.isArray(m.series_awards)?m.series_awards:[]){const h=object(raw),y=year(h.year);if(!y)continue;const years=Array.isArray(h.years)?[...new Set(h.years.map(year).filter(Boolean))].sort((a,b)=>Number(b)-Number(a)):[y];add(`🏆 ${text(h.label)}${years.length>1?` · ${years.length} kez`:` · ${y}`}`,h.sourceUrl??h.source_url,`Kazandığı yıllar: ${years.join(', ')}.`, 'award',y)}

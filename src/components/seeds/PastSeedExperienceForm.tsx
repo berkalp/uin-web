@@ -27,7 +27,7 @@ export default function PastSeedExperienceForm({
   const [precision, setPrecision] =
     useState<SeedCompletionPrecision>("unknown");
 
-  const companions=useSharedExperienceDraft(supabase,undefined,true);
+  const companions=useSharedExperienceDraft(supabase,undefined,true,{catalogItemId});
   const requestId=useRef<string|null>(null);
   return (
     <form action={addPastSeedExperience} className="space-y-7" onSubmit={event=>{try{companions.validate();requestId.current??=crypto.randomUUID();const field=event.currentTarget.elements.namedItem("shared_request_id") as HTMLInputElement;field.value=requestId.current;}catch(error){event.preventDefault();window.alert(error instanceof Error?error.message:"Arkadaş seçimi geçersiz.")}}}>

@@ -1,3 +1,4 @@
+import {readWatchAvailability} from './watchAvailability';
 import {readCardHonours} from "./cardHonours";
 import type {Catalogue} from '@/components/cards/LibraryTopicCard';
 
@@ -36,7 +37,7 @@ export async function loadLinkedLibraryCards(client: Client, requested: string[]
     const social = index(rows(replies[2].data), 'target_id', batch);
     const categories=index(rows(replies[3].data),'target_id',batch);
     for (const id of batch) {
-      const card: Row = {...cards.get(id), ...ratings.get(id), ...social.get(id),...categories.get(id),card_honours:readCardHonours(rows(replies[4].data).find(row=>row.canonical_target_id===id)?.metadata)};
+      const card: Row = {...cards.get(id), ...ratings.get(id), ...social.get(id),...categories.get(id),watch_availability:readWatchAvailability(rows(replies[4].data).find(row=>row.canonical_target_id===id)?.metadata),card_honours:readCardHonours(rows(replies[4].data).find(row=>row.canonical_target_id===id)?.metadata)};
       if (typeof card.title !== 'string' || !card.title.trim() || countFields.some(key => card[key] == null || card[key] === '' || !Number.isSafeInteger(Number(card[key])) || Number(card[key]) < 0)) throw Error('Bazı kart bilgileri doğrulanamadı.');
       if (Number(card.rating_count) > 0 && (card.average_rating == null || !Number.isFinite(Number(card.average_rating)) || Number(card.average_rating) < 0 || Number(card.average_rating) > 10)) throw Error('Kart puanı doğrulanamadı.');
       result.push(card as Catalogue);
