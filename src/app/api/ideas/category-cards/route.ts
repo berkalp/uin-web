@@ -125,7 +125,7 @@ export async function GET(request:NextRequest){
   // parallel removes the old visibility -> counters -> enrichment waterfall.
   const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}),500),
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),15,true),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),100,true),
     // get_uin_card_social_v87 already includes the rating projection. Calling
     // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch}),500),
