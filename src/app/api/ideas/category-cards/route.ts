@@ -125,7 +125,7 @@ export async function GET(request:NextRequest){
   // parallel removes the old visibility -> counters -> enrichment waterfall.
   const [initialVisibilityResult,initialCardsResult,initialSocialResult,initialHierarchyResult]=await Promise.all([
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_cover_positions_v62",{p_target_ids:batch}),500),
-    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),50),
+    boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),15,true),
     // get_uin_card_social_v87 already includes the rating projection. Calling
     // get_uin_card_ratings_v85 separately doubled the heaviest enrichment work.
     boundedTargetProjection(ids,batch=>db.rpc("get_uin_card_social_v87",{p_target_ids:batch}),500),
@@ -145,7 +145,7 @@ export async function GET(request:NextRequest){
   const visibleTargetIds=new Set(visibilityRows.map(row=>String(row.target_id||"")).filter(Boolean));
   const visibleIds=ids.filter(id=>visibleTargetIds.has(id));
   let cardsResult=initialCardsResult;
-  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),20);
+  if(cardsResult.error)cardsResult=await boundedTargetProjection(ids,batch=>db.rpc("get_uin_catalogue_for_targets_v123",{p_target_ids:batch}),5,true);
   if(cardsResult.error){
     console.error("category card summary unavailable",{kind,error:cardsResult.error});
     return NextResponse.json({error:"Kategori kartı sayaçları yüklenemedi. Lütfen tekrar dene."},{status:503});

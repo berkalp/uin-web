@@ -1,9 +1,21 @@
 // Limit projection work and response rows independently of catalogue size.
 type ProjectionResult={data:unknown;error:unknown};
-export async function boundedTargetProjection(ids:string[],read:(batch:string[])=>PromiseLike<ProjectionResult>,batchSize=100){
+export async function boundedTargetProjection(ids:string[],read:(batch:string[])=>PromiseLike<ProjectionResult>,batchSize=100,splitOnTimeout=false){
  const size=Math.max(1,Math.min(500,Math.floor(batchSize)||100));
  const batches:Array<string[]>=[];for(let offset=0;offset<ids.length;offset+=size)batches.push(ids.slice(offset,offset+size));
  const rows:unknown[]=[];let error:unknown=null;let cursor=0;
- await Promise.all(Array.from({length:Math.min(3,batches.length)},async()=>{while(!error&&cursor<batches.length){const batch=batches[cursor++];const result=await read(batch);if(result.error){error=result.error;return}if(!Array.isArray(result.data)){error=new Error("Incomplete projection payload");return}rows.push(...result.data)}}));
+ await Promise.all(Array.from({length:Math.min(3,batches.length)},async()=>{
+   while(!error&&cursor<batches.length){
+     const batch=batches[cursor++],result=await read(batch);
+     // Retry only the timed-out group. Splitting keeps concurrency bounded and
+     // never returns an incomplete ranking or repeats successful projections.
+     if(splitOnTimeout&&batch.length>1&&result.error&&typeof result.error==='object'&&'code' in result.error&&result.error.code==='57014'){
+       const middle=Math.ceil(batch.length/2);batches.push(batch.slice(0,middle),batch.slice(middle));continue;
+     }
+     if(result.error){error=result.error;return}
+     if(!Array.isArray(result.data)){error=new Error("Incomplete projection payload");return}
+     rows.push(...result.data);
+   }
+ }));
  return {data:error?null:rows,error};
 }

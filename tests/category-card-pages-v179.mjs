@@ -45,7 +45,7 @@ test('latest feed enriches only 20 targets, retains microsecond cursor and advan
  const route=categoryRoute(null,true);const first=await route.request('compact=1');assert.equal(first.status,200);assert.equal(first.body.catalogue.length,20);assert.ok(first.body.nextCursor);
  const cursor=JSON.parse(Buffer.from(first.body.nextCursor,'base64url'));assert.equal(cursor.time,'2026-10-15T12:00:00.123456+00:00');
  const next=await route.request('cursor='+first.body.nextCursor);assert.equal(next.body.catalogue.length,20);assert.equal(new Set([...first.body.catalogue,...next.body.catalogue].map(row=>row.canonical_target_id)).size,40);
- assert.ok(route.batches.every(size=>size===20));assert.ok(!route.calls.includes('get_uin_type_placements_v177'));
+ assert.ok(route.batches.every(size=>size>0&&size<=20));assert.ok(!route.calls.includes('get_uin_type_placements_v177'));
  assert.equal((await route.request('cursor=bad')).status,400);
 });
 test('latest feed failures return retryable errors, never a false empty page',async()=>{
@@ -70,7 +70,7 @@ test('activity feed forwards each audience and preserves both timestamps',async(
 test('personalized feed passes selected categories to the database before the bounded page projection',async()=>{
  const route=categoryRoute(null,true),result=await route.request('categories=movie,artist,movie&audience=friends');
  assert.equal(result.status,200);assert.ok(route.calls.includes('get_uin_latest_placements_v188'));assert.ok(!route.calls.includes('get_uin_latest_placements_v187'));
- assert.deepEqual(Array.from(route.latestArgs[0].p_categories),['artist','movie']);assert.equal(route.latestArgs[0].p_audience,'friends');assert.ok(route.batches.every(size=>size===20));
+ assert.deepEqual(Array.from(route.latestArgs[0].p_categories),['artist','movie']);assert.equal(route.latestArgs[0].p_audience,'friends');assert.ok(route.batches.every(size=>size>0&&size<=20));
  const next=await route.request('categories=movie,artist&cursor='+result.body.nextCursor);assert.equal(next.status,200);assert.deepEqual(Array.from(route.latestArgs[1].p_categories),['artist','movie']);assert.ok(route.latestArgs[1].p_before_id);
  for(const categories of ['all','artist,,movie','artist%26audience%3Dme',Array.from({length:101},(_,i)=>'c'+i).join(',')])assert.equal((await categoryRoute(null,true).request('categories='+categories)).status,400);
  assert.equal((await categoryRoute('get_uin_latest_placements_v188',true).request('categories=artist')).status,503);
@@ -84,7 +84,7 @@ test('initial Library ranking requests the whole-scope server order before enric
  assert.deepEqual(Array.from(route.latestArgs[0].p_categories),['book']);
  const next=await route.request('sort=wanting&audience=friends&categories=book&cursor='+first.body.nextCursor);
  assert.equal(next.status,200);assert.equal(new Set([...first.body.catalogue,...next.body.catalogue].map(c=>c.canonical_target_id)).size,40);
- assert.ok(route.batches.every(n=>n===20));assert.equal(route.latestArgs[1].p_before_value,JSON.parse(Buffer.from(first.body.nextCursor,'base64url')).value);
+ assert.ok(route.batches.every(n=>n>0&&n<=20));assert.equal(route.latestArgs[1].p_before_value,JSON.parse(Buffer.from(first.body.nextCursor,'base64url')).value);
  for(const params of ['sort=likes&audience=friends&categories=book','sort=wanting&audience=me&categories=book','sort=wanting&audience=friends&categories=movie'])
   assert.equal((await route.request(params+'&cursor='+first.body.nextCursor)).status,400);
  assert.equal((await route.request('sort=invalid')).status,400);
